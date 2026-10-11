@@ -1,0 +1,386 @@
+:root {
+  --line-idle: rgba(148, 163, 184, 0.28);
+  --node-idle: rgba(148, 163, 184, 0.55);
+  --node-active: #38bdf8;
+  --timer-green: #4ade80;
+  --gold-color: #facc15;
+
+  /* LiveSplit 4-State Delta Color Scheme */
+  --ahead-gaining: #16a34a;    /* Dark / saturated green */
+  --ahead-losing: #86efac;     /* Light green */
+  --behind-gaining: #f87171;   /* Light red / salmon */
+  --behind-losing: #dc2626;    /* Dark red */
+
+  --text-muted: rgba(226, 232, 240, 0.9);
+  --node-spacing: 220px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  overflow: hidden;
+  width: 1920px;
+  height: 1080px;
+  position: relative;
+}
+
+/* ============================================================
+   TOP BAR: Game Title & Dynamic Timers
+   ============================================================ */
+.top-bar {
+  position: absolute;
+  top: 16px;
+  left: 42px;
+  right: 42px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+}
+
+.title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.game-name {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 32px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 4px #000;
+}
+
+.category-name {
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.95);
+}
+
+.timer-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.timer-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.timer-secondary {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.88);
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 2px #000;
+  transition: font-size 0.2s ease, color 0.2s ease;
+}
+
+.timer-primary {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 54px;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--timer-green);
+  letter-spacing: -1.5px;
+  text-shadow: 0 2px 10px rgba(0,0,0,1), 0 0 8px rgba(34, 197, 94, 0.6);
+  transition: font-size 0.2s ease, color 0.2s ease;
+}
+
+.timer-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  font-family: monospace;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95);
+}
+
+/* ============================================================
+   BOTTOM DOCK: Horizontal Split Track
+   ============================================================ */
+.bottom-dock {
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.track-viewport {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-behavior: smooth;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+.track-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.track {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-width: max-content;
+  padding: 14px calc(var(--node-spacing) / 2) 8px;
+}
+
+.split-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: var(--node-spacing);
+  flex-shrink: 0;
+  height: 76px;
+}
+
+/* Connector Bar */
+.segment-bar-bg {
+  position: absolute;
+  bottom: 5px;
+  right: 50%;
+  width: var(--node-spacing);
+  height: 6px;
+  background: var(--line-idle);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.95);
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.split-item.origin-node .segment-bar-bg {
+  display: none;
+}
+
+.segment-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--node-active);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.85);
+  transition: width 0.1s linear, background 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 3px;
+}
+
+/* 4-State Fill Styles */
+.segment-bar-fill.ahead-gaining {
+  background: var(--ahead-gaining) !important;
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.85) !important;
+}
+
+.segment-bar-fill.ahead-losing {
+  background: var(--ahead-losing) !important;
+  box-shadow: 0 0 8px rgba(134, 239, 172, 0.8) !important;
+}
+
+.segment-bar-fill.behind-gaining {
+  background: var(--behind-gaining) !important;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.8) !important;
+}
+
+.segment-bar-fill.behind-losing {
+  background: var(--behind-losing) !important;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.9) !important;
+}
+
+.segment-bar-fill.gold {
+  background: var(--gold-color) !important;
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.95) !important;
+}
+
+.segment-bar-fill.overdue {
+  background: var(--behind-losing);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.9);
+  animation: pulse-warn 1s infinite alternate;
+}
+
+@keyframes pulse-warn {
+  0% { opacity: 0.75; }
+  100% { opacity: 1; }
+}
+
+/* Node Dots */
+.dot {
+  position: relative;
+  z-index: 2;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--node-idle);
+  border: 2px solid rgba(15, 23, 42, 0.95);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.95);
+  transition: all 0.2s ease;
+  margin-bottom: 0px;
+}
+
+/* Split Titles */
+.split-name {
+  position: absolute;
+  bottom: 21px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
+  pointer-events: none;
+  letter-spacing: 0.2px;
+  transition: color 0.2s ease, font-size 0.2s ease;
+}
+
+/* Split Delta & Cumulative Split Time Displays */
+.split-delta {
+  position: absolute;
+  bottom: 47px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
+}
+
+.split-delta-val {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.split-time-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
+}
+
+.split-time-val.target-time {
+  color: rgba(203, 213, 225, 0.7);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Completed Dots mapped to states */
+.split-item.completed.ahead-gaining .dot {
+  background: var(--ahead-gaining);
+  box-shadow: 0 0 8px rgba(22, 163, 74, 0.75);
+}
+
+.split-item.completed.ahead-losing .dot {
+  background: var(--ahead-losing);
+  box-shadow: 0 0 8px rgba(134, 239, 172, 0.75);
+}
+
+.split-item.completed.behind-gaining .dot {
+  background: var(--behind-gaining);
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.75);
+}
+
+.split-item.completed.behind-losing .dot {
+  background: var(--behind-losing);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.75);
+}
+
+.split-item.completed.gold .dot {
+  background: var(--gold-color) !important;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.95) !important;
+}
+
+/* Active Split */
+.split-item.current .dot {
+  background: var(--node-active);
+  transform: scale(1.35);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.95);
+}
+
+.split-item.current .split-name {
+  color: #38bdf8;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* 4-State Delta Typography */
+.delta-ahead-gaining {
+  color: var(--ahead-gaining) !important;
+  text-shadow: 0 0 6px rgba(22, 163, 74, 0.8), 0 2px 4px #000 !important;
+}
+
+.delta-ahead-losing {
+  color: var(--ahead-losing) !important;
+  text-shadow: 0 0 6px rgba(134, 239, 172, 0.8), 0 2px 4px #000 !important;
+}
+
+.delta-behind-gaining {
+  color: var(--behind-gaining) !important;
+  text-shadow: 0 0 6px rgba(248, 113, 113, 0.85), 0 2px 4px #000 !important;
+}
+
+.delta-behind-losing {
+  color: var(--behind-losing) !important;
+  text-shadow: 0 0 6px rgba(220, 38, 38, 0.85), 0 2px 4px #000 !important;
+}
+
+.delta-gold {
+  color: var(--gold-color) !important;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.85), 0 2px 4px #000 !important;
+}
+
+/* Footer Status Bar */
+.footer-bar {
+  position: absolute;
+  bottom: 2px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-family: monospace;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95);
+  pointer-events: none;
+}
+
+.bottom-dock:hover .footer-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#file-trigger {
+  color: rgba(148, 163, 184, 0.8);
+  cursor: pointer;
+  text-decoration: underline;
+}
+#file-trigger:hover { color: #ffffff; }
+
+#connection-status {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+#file-input { display: none; }

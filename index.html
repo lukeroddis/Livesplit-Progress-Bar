@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title id="doc-title">LiveSplit Minimal Overlay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Bar: Game Title & Dual Timers -->
+  <div class="top-bar">
+    <div class="title-group">
+      <span class="game-name" id="game-name">Speedrun Overlay</span>
+      <span class="category-name" id="category-name">Load .lss or connect LiveSplit</span>
+    </div>
+
+    <div class="timer-group">
+      <div class="timer-block" id="block-rta">
+        <div class="timer-secondary" id="timer-rta">0:00.00</div>
+        <span class="timer-label">Real Time</span>
+      </div>
+      <div class="timer-block" id="block-igt">
+        <div class="timer-primary" id="timer-igt">0:00.00</div>
+        <span class="timer-label">Game Time</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Dock: Scrollable Track -->
+  <div class="bottom-dock">
+    <div class="track-viewport" id="track-viewport">
+      <div class="track" id="track"></div>
+    </div>
+
+    <div class="footer-bar">
+      <label id="file-trigger" for="file-input">Load / Drop .lss file</label>
+      <input type="file" id="file-input" accept=".lss,.xml">
+      <div style="display:flex; gap:14px; align-items:center;">
+        <span id="gold-toggle-badge" style="cursor:pointer; color: #facc15; text-decoration: underline;" title="Click to toggle Gold Splits">Golds: ON</span>
+        <span id="timing-method-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to toggle Game / Real Time">Game Time</span>
+        <div id="connection-status">Connecting...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>
