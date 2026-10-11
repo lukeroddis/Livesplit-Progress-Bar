@@ -61,6 +61,9 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 - **Modular Entry Point**: [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html) (Modular HTML structure)
 - **Styles**: [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css) (HUD styling & animations)
 - **Overlay Engine**: [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) (WebSocket communication, .lss XML parser, 4-state delta engine)
+- **Standalone Build**: [gemini-code-1791738130877.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html) (Single-file standalone fallback)
+- **Latest Backup**: [gemini-code-1791738130877.html.bak3](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html.bak3)
+- **Reference Splits File**: `d:\Streaming\Speedrunning\Splits\Final Fantasy X - PC - CSS%.lss`
 
 ### Verification Media
 - **Live Delta Loss Comparison**: `media_1791747607620_63d3f6f8.png` (LiveSplit UI vs. overlay matching time loss)
@@ -70,8 +73,16 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 
 ---
 
-## 5. Recommended Project Setup & Next Steps
+## 5. Future Feature Ideas & Roadmap
 
-1. **Future Feature Ideas**:
-   - Customizable styling modal (node width, color palette picker, OBS transparent background presets).
-   - Hotkey support for manual reset or comparison switching (PB vs Average vs Best Segments).
+1. **Custom Resolution & Responsive Viewport**:
+   - Dynamic canvas sizing beyond the current fixed 1920x1080 baseline (e.g. 1440p, 4K, ultrawide, or arbitrary OBS browser source dimensions).
+2. **Component Decoupling & Modular Layout**:
+   - Modularize individual HUD elements (Game Title/Category, Game/Real Timers, Horizontal Progress Track) into independent containers.
+   - Support arbitrary positioning, docking, and resizing of each element across custom stream overlay layouts.
+3. **Component Visibility Toggles**:
+   - Provide toggle on/off settings for each individual component (hide/show timers, title, or progress bar independently via URL query params or settings UI).
+4. **Custom Styling Modal**:
+   - In-overlay or external configuration panel for node spacing, font sizing, color palette overrides, and OBS chroma/transparency presets.
+5. **Hotkey & Comparison Switching**:
+   - Hotkey controls for manual reset or live comparison toggling (PB vs. Average vs. Best Segments).
