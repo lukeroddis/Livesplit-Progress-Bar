@@ -61,9 +61,6 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 - **Modular Entry Point**: [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html) (Modular HTML structure)
 - **Styles**: [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css) (HUD styling & animations)
 - **Overlay Engine**: [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) (WebSocket communication, .lss XML parser, 4-state delta engine)
-- **Standalone Build**: [gemini-code-1791738130877.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html) (Single-file build for zero-config OBS browser source usage)
-- **Latest Backup**: [gemini-code-1791738130877.html.bak3](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html.bak3)
-- **Reference Splits File**: `d:\Streaming\Speedrunning\Splits\Final Fantasy X - PC - CSS%.lss`
 
 ### Verification Media
 - **Live Delta Loss Comparison**: `media_1791747607620_63d3f6f8.png` (LiveSplit UI vs. overlay matching time loss)
@@ -75,12 +72,6 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 
 ## 5. Recommended Project Setup & Next Steps
 
-1. **Workspace Migration**:
-   - Dedicated repository directory established at: `C:\Users\Luke\Livesplit-Progress-Bar` (Complete).
-   - Backup `gemini-code-1791738130877.html.bak3` preserved in directory (Complete).
-2. **Modularization**:
-   - Split overlay into [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html), [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css), and [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) (Complete).
-   - Preserved [gemini-code-1791738130877.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html) as standalone fallback.
-3. **Future Feature Ideas**:
+1. **Future Feature Ideas**:
    - Customizable styling modal (node width, color palette picker, OBS transparent background presets).
    - Hotkey support for manual reset or comparison switching (PB vs Average vs Best Segments).
