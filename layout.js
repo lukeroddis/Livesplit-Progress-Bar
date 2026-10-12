@@ -343,22 +343,41 @@
         { val: "worst", label: "Worst Segments (🐢)" }
       ];
 
+      const isWR = curGhost === "wr" || curGhost.toLowerCase().includes("world record");
+      const isPB = curGhost === "pb" || curGhost.toLowerCase() === "personal best";
+      const isBest = curGhost === "best" || curGhost.toLowerCase() === "best segments";
+      const isAvg = curGhost === "average" || curGhost.toLowerCase() === "average segments";
+      const isWorst = curGhost === "worst" || curGhost.toLowerCase() === "worst segments";
+
       defaultGhostOpts.forEach(o => {
         const opt = document.createElement("option");
         opt.value = o.val;
         opt.innerText = o.label;
-        if (o.val === curGhost) opt.selected = true;
+        if (
+          (o.val === curGhost) ||
+          (o.val === "wr" && isWR) ||
+          (o.val === "pb" && isPB) ||
+          (o.val === "best" && isBest) ||
+          (o.val === "average" && isAvg) ||
+          (o.val === "worst" && isWorst)
+        ) {
+          opt.selected = true;
+        }
         selGhost.appendChild(opt);
       });
 
-      // Add custom comparisons if present
+      // Add custom comparisons if present (skipping default and WR matches)
       if (window.getComparisonsList) {
         const comps = window.getComparisonsList();
         comps.forEach(c => {
-          if (!["Personal Best", "Best Segments", "Average Segments", "Worst Segments"].includes(c)) {
+          const low = c.toLowerCase();
+          if (
+            !["personal best", "best segments", "average segments", "worst segments"].includes(low) &&
+            !low.includes("world record") && low !== "wr"
+          ) {
             const opt = document.createElement("option");
             opt.value = c;
-            opt.innerText = `🏃 ${c}`;
+            opt.innerText = `👤 ${c}`;
             if (c === curGhost) opt.selected = true;
             selGhost.appendChild(opt);
           }

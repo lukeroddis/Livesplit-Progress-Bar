@@ -526,7 +526,7 @@ body.edit-mode .layout-toolbar {
 .track-viewport {
   width: 100%;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   scroll-behavior: smooth;
   padding: 0;
   scrollbar-width: none;
@@ -541,7 +541,7 @@ body.edit-mode .layout-toolbar {
   display: flex;
   align-items: flex-end;
   min-width: max-content;
-  padding: 14px calc(var(--node-spacing) / 2) 8px;
+  padding: 42px calc(var(--node-spacing) / 2) 10px;
 }
 
 .split-item {

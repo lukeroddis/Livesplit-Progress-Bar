@@ -27,6 +27,7 @@ let isPolling = false;
 let inflightResolver = null;
 let lastSplitRecordedSec = 0;
 let previousDeltaSeconds = 0;
+let lastElapsedSec = 0;
 
 function setGameName(name) {
   const el = document.getElementById("game-name");
@@ -317,6 +318,30 @@ function formatDeltaLive(raw) {
   return { text: outputText, isAhead, signedSeconds };
 }
 
+function sanitizeComparisonTimes(times, fallbackTimes) {
+  if (!times || !Array.isArray(times) || times.length === 0) {
+    return fallbackTimes && Array.isArray(fallbackTimes) ? [...fallbackTimes] : [];
+  }
+  const len = splitsList.length > 0 ? splitsList.length : times.length;
+  const result = new Array(len);
+  let lastVal = 0;
+
+  for (let i = 0; i < len; i++) {
+    const raw = times[i];
+    if (raw !== null && raw !== undefined && !isNaN(raw) && raw > 0) {
+      lastVal = raw;
+      result[i] = raw;
+    } else if (fallbackTimes && fallbackTimes[i] !== null && fallbackTimes[i] !== undefined && !isNaN(fallbackTimes[i]) && fallbackTimes[i] > 0) {
+      const fb = fallbackTimes[i];
+      lastVal = Math.max(lastVal, fb);
+      result[i] = lastVal;
+    } else {
+      result[i] = lastVal > 0 ? lastVal : null;
+    }
+  }
+  return result;
+}
+
 function parseLSS(xmlText) {
   try {
     const parser = new DOMParser();
@@ -478,13 +503,22 @@ function parseLSS(xmlText) {
         comparisonsDataRT["Worst Segments"].push(cumWorstRT > 0 ? cumWorstRT : null);
       }
 
-      // 5. Custom comparisons
-      for (const cName in customSplitTimesGT) {
-        comparisonsDataGT[cName] = customSplitTimesGT[cName];
-      }
-      for (const cName in customSplitTimesRT) {
-        comparisonsDataRT[cName] = customSplitTimesRT[cName];
-      }
+      // 5. Custom comparisons (sanitized and cross-filled between GT/RT if one timing method is missing)
+      const allCustomKeys = new Set([...Object.keys(customSplitTimesGT), ...Object.keys(customSplitTimesRT)]);
+      allCustomKeys.forEach(cName => {
+        const rawGT = customSplitTimesGT[cName] || [];
+        const rawRT = customSplitTimesRT[cName] || [];
+        const hasGT = rawGT.some(t => t !== null && t > 0);
+        const hasRT = rawRT.some(t => t !== null && t > 0);
+
+        // Sanitize with fallback to PB times, cross-filling if one method is empty
+        const sanGT = sanitizeComparisonTimes(hasGT ? rawGT : (hasRT ? rawRT : []), comparisonTimesGT);
+        const sanRT = sanitizeComparisonTimes(hasRT ? rawRT : (hasGT ? rawGT : []), comparisonTimesRT);
+
+        comparisonsDataGT[cName] = sanGT;
+        comparisonsDataRT[cName] = sanRT;
+        if (!comparisonsList.includes(cName)) comparisonsList.push(cName);
+      });
 
       // Auto-detect timing method: if splits have NO GameTime at all (e.g. console speedruns), default to RealTime
       const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
@@ -592,6 +626,20 @@ function loadCachedSplits() {
       if (cachedCompsGT) comparisonsDataGT = JSON.parse(cachedCompsGT);
       const cachedCompsRT = localStorage.getItem("livesplit_comparisons_rt");
       if (cachedCompsRT) comparisonsDataRT = JSON.parse(cachedCompsRT);
+
+      if (!comparisonsDataGT["Personal Best"]) comparisonsDataGT["Personal Best"] = [...comparisonTimesGT];
+      if (!comparisonsDataRT["Personal Best"]) comparisonsDataRT["Personal Best"] = [...comparisonTimesRT];
+
+      // Cross-fill and sanitize custom comparisons
+      const allCachedCustom = new Set([...Object.keys(comparisonsDataGT), ...Object.keys(comparisonsDataRT)]);
+      allCachedCustom.forEach(cName => {
+        const cGT = comparisonsDataGT[cName];
+        const cRT = comparisonsDataRT[cName];
+        const hasGT = cGT && cGT.some(t => t !== null && t > 0);
+        const hasRT = cRT && cRT.some(t => t !== null && t > 0);
+        if (hasGT && !hasRT) comparisonsDataRT[cName] = sanitizeComparisonTimes(cGT, comparisonTimesRT);
+        if (hasRT && !hasGT) comparisonsDataGT[cName] = sanitizeComparisonTimes(cRT, comparisonTimesGT);
+      });
 
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
@@ -889,63 +937,99 @@ function getGhostComparisonInfo() {
 
   const isRT = (currentTimingMethod === "RealTime");
   const compData = isRT ? comparisonsDataRT : comparisonsDataGT;
+  const altData = isRT ? comparisonsDataGT : comparisonsDataRT;
   const compKeys = Object.keys(compData);
+  const altKeys = Object.keys(altData);
+  const fallbackTimes = isRT ? comparisonTimesRT : comparisonTimesGT;
 
-  // 1. World Record match (wr)
-  if (ghostComparison === "wr") {
+  const lowGhost = ghostComparison.toLowerCase().trim();
+
+  // 1. World Record match (wr / world record)
+  const isWRMatch = (lowGhost === "wr" || lowGhost.includes("world record"));
+  if (isWRMatch) {
+    // Check active compData first
     const wrKey = compKeys.find(k => k.toLowerCase().includes("world record") || k.toLowerCase() === "wr");
-    if (wrKey && compData[wrKey]) {
-      return { id: "wr", name: wrKey, icon: "🏆", times: compData[wrKey] };
+    if (wrKey && compData[wrKey] && compData[wrKey].some(t => t !== null && t > 0)) {
+      return { id: "wr", name: wrKey, icon: "🏆", times: sanitizeComparisonTimes(compData[wrKey], fallbackTimes) };
+    }
+    // Check alternate timing method compData if active timing method lacks WR entries
+    const altWrKey = altKeys.find(k => k.toLowerCase().includes("world record") || k.toLowerCase() === "wr");
+    if (altWrKey && altData[altWrKey] && altData[altWrKey].some(t => t !== null && t > 0)) {
+      return { id: "wr", name: altWrKey, icon: "🏆", times: sanitizeComparisonTimes(altData[altWrKey], fallbackTimes) };
     }
     // Fallback if no explicit WR track in .lss: use Best Segments / Sum of Best pace
-    if (compData["Best Segments"]) {
-      return { id: "wr", name: "Best Segments (WR Fallback)", icon: "🏆", times: compData["Best Segments"] };
+    if (compData["Best Segments"] && compData["Best Segments"].some(t => t !== null && t > 0)) {
+      return { id: "wr", name: "Best Segments (WR Fallback)", icon: "🏆", times: sanitizeComparisonTimes(compData["Best Segments"], fallbackTimes) };
     }
-    return { id: "wr", name: "Personal Best", icon: "🏆", times: compData["Personal Best"] || comparisonTimes };
+    return { id: "wr", name: "Personal Best", icon: "🏆", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
   }
 
   // 2. Personal Best (pb)
-  if (ghostComparison === "pb" || ghostComparison === "Personal Best") {
-    return { id: "pb", name: "Personal Best", icon: "🥈", times: compData["Personal Best"] || comparisonTimes };
+  if (lowGhost === "pb" || lowGhost === "personal best") {
+    return { id: "pb", name: "Personal Best", icon: "🥈", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
   }
 
   // 3. Best Segments (best)
-  if (ghostComparison === "best" || ghostComparison === "Best Segments") {
-    return { id: "best", name: "Best Segments", icon: "⭐", times: compData["Best Segments"] };
+  if (lowGhost === "best" || lowGhost === "best segments") {
+    return { id: "best", name: "Best Segments", icon: "⭐", times: sanitizeComparisonTimes(compData["Best Segments"] || fallbackTimes, fallbackTimes) };
   }
 
   // 4. Average Segments (average)
-  if (ghostComparison === "average" || ghostComparison === "Average Segments") {
-    return { id: "average", name: "Average Segments", icon: "📊", times: compData["Average Segments"] };
+  if (lowGhost === "average" || lowGhost === "average segments") {
+    return { id: "average", name: "Average Segments", icon: "📊", times: sanitizeComparisonTimes(compData["Average Segments"] || fallbackTimes, fallbackTimes) };
   }
 
   // 5. Worst Segments (worst)
-  if (ghostComparison === "worst" || ghostComparison === "Worst Segments") {
-    return { id: "worst", name: "Worst Segments", icon: "🐢", times: compData["Worst Segments"] };
+  if (lowGhost === "worst" || lowGhost === "worst segments") {
+    return { id: "worst", name: "Worst Segments", icon: "🐢", times: sanitizeComparisonTimes(compData["Worst Segments"] || fallbackTimes, fallbackTimes) };
   }
 
-  // 6. Direct match with any custom comparison
-  if (compData[ghostComparison]) {
-    return { id: ghostComparison, name: ghostComparison, icon: "🏃", times: compData[ghostComparison] };
+  // 6. Direct match with any custom comparison by name
+  if (compData[ghostComparison] && compData[ghostComparison].some(t => t !== null && t > 0)) {
+    return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(compData[ghostComparison], fallbackTimes) };
+  }
+  if (altData[ghostComparison] && altData[ghostComparison].some(t => t !== null && t > 0)) {
+    return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(altData[ghostComparison], fallbackTimes) };
   }
 
   return null;
 }
 
 function calculateGhostProgress(currentSec, times) {
-  if (!times || times.length === 0 || currentSec === null || currentSec <= 0) {
+  if (!times || !Array.isArray(times) || times.length === 0 || currentSec === null || currentSec <= 0) {
     return { segIdx: 0, ratio: 0, isFinished: false, targetSec: 0 };
   }
 
-  const lastTime = times[times.length - 1];
-  if (lastTime != null && currentSec >= lastTime) {
-    return { segIdx: times.length - 1, ratio: 1.0, isFinished: true, targetSec: lastTime };
+  // Find the last valid positive target time
+  let lastValidIdx = times.length - 1;
+  while (lastValidIdx >= 0 && (times[lastValidIdx] === null || times[lastValidIdx] === undefined || times[lastValidIdx] <= 0)) {
+    lastValidIdx--;
   }
 
-  for (let i = 0; i < times.length; i++) {
+  if (lastValidIdx < 0) {
+    return { segIdx: 0, ratio: 0, isFinished: false, targetSec: 0 };
+  }
+
+  const lastTime = times[lastValidIdx];
+  if (currentSec >= lastTime) {
+    return { segIdx: lastValidIdx, ratio: 1.0, isFinished: true, targetSec: lastTime };
+  }
+
+  for (let i = 0; i <= lastValidIdx; i++) {
     const tNext = times[i];
-    if (tNext == null) continue;
-    const tPrev = (i === 0) ? 0 : (times[i - 1] ?? 0);
+    if (tNext === null || tNext === undefined || tNext <= 0) continue;
+
+    // Search backwards for the previous positive target time
+    let tPrev = 0;
+    let pIdx = i - 1;
+    while (pIdx >= 0) {
+      if (times[pIdx] !== null && times[pIdx] !== undefined && times[pIdx] > 0) {
+        tPrev = times[pIdx];
+        break;
+      }
+      pIdx--;
+    }
+
     if (currentSec < tNext) {
       const dur = tNext - tPrev;
       const ratio = (dur > 0) ? Math.max(0, Math.min(1.0, (currentSec - tPrev) / dur)) : 0;
@@ -953,7 +1037,7 @@ function calculateGhostProgress(currentSec, times) {
     }
   }
 
-  return { segIdx: times.length - 1, ratio: 1.0, isFinished: true, targetSec: lastTime || 0 };
+  return { segIdx: lastValidIdx, ratio: 1.0, isFinished: true, targetSec: lastTime };
 }
 
 function updateGhostRunner(currentSec) {
@@ -1079,32 +1163,42 @@ function updateGhostRunner(currentSec) {
 function updateGhostBadge() {
   const badge = document.getElementById("ghost-badge");
   if (!badge) return;
-  if (ghostComparison === "off") {
+  const low = (ghostComparison || "").toLowerCase().trim();
+  if (!ghostComparison || ghostComparison === "off") {
     badge.innerText = "Ghost: Off";
     badge.style.color = "rgba(148, 163, 184, 0.9)";
-  } else if (ghostComparison === "wr") {
+  } else if (ghostComparison === "wr" || low.includes("world record")) {
     badge.innerText = "Ghost: 🏆 WR";
     badge.style.color = "#facc15";
-  } else if (ghostComparison === "pb") {
+  } else if (ghostComparison === "pb" || low === "personal best") {
     badge.innerText = "Ghost: 🥈 PB";
     badge.style.color = "#38bdf8";
-  } else if (ghostComparison === "best") {
+  } else if (ghostComparison === "best" || low === "best segments") {
     badge.innerText = "Ghost: ⭐ Best";
     badge.style.color = "#facc15";
-  } else if (ghostComparison === "average") {
+  } else if (ghostComparison === "average" || low === "average segments") {
     badge.innerText = "Ghost: 📊 Avg";
     badge.style.color = "#a78bfa";
-  } else if (ghostComparison === "worst") {
+  } else if (ghostComparison === "worst" || low === "worst segments") {
     badge.innerText = "Ghost: 🐢 Worst";
     badge.style.color = "#f87171";
   } else {
-    badge.innerText = `Ghost: 🏃 ${ghostComparison.slice(0, 8)}`;
+    badge.innerText = `Ghost: 👤 ${ghostComparison.slice(0, 8)}`;
     badge.style.color = "#38bdf8";
   }
 }
 
 function cycleGhostComparison() {
-  const options = ["off", "wr", "pb", "best", "average"];
+  const options = ["off", "wr", "pb", "best", "average", "worst"];
+  if (comparisonsList && comparisonsList.length > 0) {
+    comparisonsList.forEach(c => {
+      const low = c.toLowerCase();
+      if (!["personal best", "best segments", "average segments", "worst segments"].includes(low) &&
+          !low.includes("world record") && low !== "wr") {
+        if (!options.includes(c)) options.push(c);
+      }
+    });
+  }
   const curIdx = options.indexOf(ghostComparison);
   const next = (curIdx !== -1) ? options[(curIdx + 1) % options.length] : "off";
   setGhostComparison(next);
@@ -1114,13 +1208,15 @@ function setGhostComparison(val) {
   ghostComparison = val || "off";
   localStorage.setItem("livesplit_ghost_comparison", ghostComparison);
   updateGhostBadge();
+  const marker = document.getElementById("ghost-marker");
+  const edgeLeft = document.getElementById("ghost-edge-left");
+  const edgeRight = document.getElementById("ghost-edge-right");
   if (ghostComparison === "off") {
-    const marker = document.getElementById("ghost-marker");
-    const edgeLeft = document.getElementById("ghost-edge-left");
-    const edgeRight = document.getElementById("ghost-edge-right");
     if (marker) marker.style.display = "none";
     if (edgeLeft) edgeLeft.style.display = "none";
     if (edgeRight) edgeRight.style.display = "none";
+  } else if (lastElapsedSec > 0) {
+    updateGhostRunner(lastElapsedSec);
   }
   if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
     window.hudLayout.syncTrackModalUI();
@@ -1299,6 +1395,9 @@ async function pollLoop() {
     let currentTotalSec = (currentTimingMethod === "RealTime")
       ? (rtaSec ?? igtSec)
       : (igtSec ?? rtaSec);
+    if (currentTotalSec !== null) {
+      lastElapsedSec = currentTotalSec;
+    }
 
     // 3. Split Index
     const splitIdxStr = await sendCommand("getsplitindex");
@@ -1311,6 +1410,7 @@ async function pollLoop() {
         completedSplitTimes = {};
         lastSplitRecordedSec = 0;
         previousDeltaSeconds = 0;
+        lastElapsedSec = 0;
 
         // Discard uncommitted in-run gold split segments by default upon reset
         const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
@@ -1742,3 +1842,4 @@ window.cycleGhostComparison = cycleGhostComparison;
 window.getGhostComparisonInfo = getGhostComparisonInfo;
 window.calculateGhostProgress = calculateGhostProgress;
 window.setGhostOpacity = setGhostOpacity;
+window.sanitizeComparisonTimes = sanitizeComparisonTimes;

@@ -296,25 +296,73 @@ def test_comparison_curves_math():
     print("✓ Comparison curves (Best, Average, Worst) mathematical ordering passed.")
 
 
+def sanitize_comparison_times(times, fallback_times=None, total_len=None):
+    if not times:
+        return list(fallback_times) if fallback_times else []
+    target_len = total_len if total_len is not None else len(times)
+    result = [None] * target_len
+    last_val = 0.0
+
+    for i in range(target_len):
+        raw = times[i] if i < len(times) else None
+        if raw is not None and raw > 0:
+            last_val = raw
+            result[i] = raw
+        elif fallback_times and i < len(fallback_times) and fallback_times[i] is not None and fallback_times[i] > 0:
+            fb = fallback_times[i]
+            last_val = max(last_val, fb)
+            result[i] = last_val
+        else:
+            result[i] = last_val if last_val > 0 else None
+    return result
+
+
 def calculate_ghost_progress(current_sec, times):
     if not times or current_sec is None or current_sec <= 0:
         return 0, 0.0, False, 0.0
 
-    last_time = times[-1]
-    if last_time is not None and current_sec >= last_time:
-        return len(times) - 1, 1.0, True, last_time
+    last_valid_idx = len(times) - 1
+    while last_valid_idx >= 0 and (times[last_valid_idx] is None or times[last_valid_idx] <= 0):
+        last_valid_idx -= 1
 
-    for i in range(len(times)):
+    if last_valid_idx < 0:
+        return 0, 0.0, False, 0.0
+
+    last_time = times[last_valid_idx]
+    if current_sec >= last_time:
+        return last_valid_idx, 1.0, True, last_time
+
+    for i in range(last_valid_idx + 1):
         t_next = times[i]
-        if t_next is None:
+        if t_next is None or t_next <= 0:
             continue
-        t_prev = 0 if i == 0 else (times[i - 1] or 0)
+
+        t_prev = 0.0
+        p_idx = i - 1
+        while p_idx >= 0:
+            if times[p_idx] is not None and times[p_idx] > 0:
+                t_prev = times[p_idx]
+                break
+            p_idx -= 1
+
         if current_sec < t_next:
             dur = t_next - t_prev
             ratio = max(0.0, min(1.0, (current_sec - t_prev) / dur)) if dur > 0 else 0.0
             return i, ratio, False, t_next
 
-    return len(times) - 1, 1.0, True, last_time or 0.0
+    return last_valid_idx, 1.0, True, last_time
+
+
+def test_sanitize_comparison_times_unit():
+    # Sparse with holes and forward fill from fallback
+    times = [100.0, None, 300.0]
+    fallback = [120.0, 220.0, 320.0]
+    res = sanitize_comparison_times(times, fallback, 3)
+    assert res == [100.0, 220.0, 300.0]
+
+    # Empty list falls back cleanly
+    assert sanitize_comparison_times([], fallback, 3) == [120.0, 220.0, 320.0]
+    print("✓ sanitize_comparison_times unit tests passed.")
 
 
 def test_ghost_runner_progress():
@@ -344,6 +392,15 @@ def test_ghost_runner_progress():
     seg, ratio, finished, _ = calculate_ghost_progress(300, times)
     assert seg == 3 and math.isclose(ratio, 1.0) and finished
 
+    # Sparse array with missing split values
+    sparse_times = [60.0, None, 180.0]
+    seg, ratio, finished, _ = calculate_ghost_progress(30, sparse_times)
+    assert seg == 0 and math.isclose(ratio, 0.5)
+
+    # Empty/None array should return index 0 without throwing
+    seg, ratio, finished, _ = calculate_ghost_progress(30, [])
+    assert seg == 0 and ratio == 0.0
+
     print("✓ Live Ghost runner progress interpolation passed.")
 
 
@@ -360,6 +417,7 @@ def main():
         test_format_delta_unit()
         test_comparison_normalization_unit()
         test_comparison_curves_math()
+        test_sanitize_comparison_times_unit()
         test_ghost_runner_progress()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
