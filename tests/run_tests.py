@@ -404,6 +404,61 @@ def test_ghost_runner_progress():
     print("✓ Live Ghost runner progress interpolation passed.")
 
 
+def detect_timing_method_from_comp(split_idx, comp_sec, targets_gt, targets_rt):
+    if split_idx < 0 or comp_sec is None or comp_sec <= 0:
+        return None
+    gt_sec = targets_gt[split_idx] if targets_gt and split_idx < len(targets_gt) else None
+    rt_sec = targets_rt[split_idx] if targets_rt and split_idx < len(targets_rt) else None
+    if gt_sec is not None and rt_sec is not None and abs(gt_sec - rt_sec) > 1.0:
+        diff_gt = abs(comp_sec - gt_sec)
+        diff_rt = abs(comp_sec - rt_sec)
+        return "GameTime" if diff_gt <= diff_rt else "RealTime"
+    return None
+
+
+def test_detect_timing_method_unit():
+    # In FFX PC: GT targets ~206s (3:26), RT targets ~811s (13:31)
+    targets_gt = [206.0, 686.0]
+    targets_rt = [811.0, 1734.0]
+
+    # LiveSplit returns Game Time (206s) -> Should detect GameTime
+    assert detect_timing_method_from_comp(0, 206.0, targets_gt, targets_rt) == "GameTime"
+
+    # LiveSplit returns Real Time (811s) -> Should detect RealTime
+    assert detect_timing_method_from_comp(0, 811.0, targets_gt, targets_rt) == "RealTime"
+
+    # LiveSplit returns close GameTime value (202s) -> Should detect GameTime
+    assert detect_timing_method_from_comp(0, 202.0, targets_gt, targets_rt) == "GameTime"
+
+    # Boundary safety
+    assert detect_timing_method_from_comp(-1, 206.0, targets_gt, targets_rt) is None
+    assert detect_timing_method_from_comp(0, None, targets_gt, targets_rt) is None
+    assert detect_timing_method_from_comp(5, 206.0, targets_gt, targets_rt) is None
+    print("✓ detect_timing_method_from_comp unit tests passed.")
+
+
+def test_ghost_timescale_mismatch_defense():
+    # Runner target: 206.5s (3:26.5 PB)
+    # WR GameTime: 202.0s (3:22.0)
+    # WR RealTime: 811.0s (13:31.0 - contains 10 min cutscenes)
+    fallback_times = [206.5]
+    wr_cand_rt = [811.0]
+    wr_alt_gt = [202.0]
+
+    cur_ratio = abs(wr_cand_rt[0] - fallback_times[0]) / fallback_times[0]
+    alt_ratio = abs(wr_alt_gt[0] - fallback_times[0]) / fallback_times[0]
+
+    assert cur_ratio > 1.5, "RealTime WR should trigger scale mismatch (> 1.5)"
+    assert alt_ratio < 0.5, "GameTime WR should match scale (< 0.5)"
+
+    selected_times = wr_alt_gt if (cur_ratio > 1.5 and alt_ratio < 0.5) else wr_cand_rt
+    assert selected_times == [202.0]
+
+    seg, ratio, finished, target = calculate_ghost_progress(214.0, selected_times)
+    assert seg == 0 and math.isclose(ratio, 1.0) and finished
+    print("✓ Ghost runner timescale mismatch defense passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -419,6 +474,8 @@ def main():
         test_comparison_curves_math()
         test_sanitize_comparison_times_unit()
         test_ghost_runner_progress()
+        test_detect_timing_method_unit()
+        test_ghost_timescale_mismatch_defense()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

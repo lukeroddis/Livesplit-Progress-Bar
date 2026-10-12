@@ -278,6 +278,19 @@
         window.setGhostComparison("off");
         assertEqual(window.getGhostComparison(), "off");
       });
+      it("detects timing method from comparison split time", () => {
+        assertEqual(typeof window.detectTimingMethodFromComp, "function");
+        // Test with mock comparison arrays
+        window.comparisonTimesGT = [206.0, 686.0];
+        window.comparisonTimesRT = [811.0, 1734.0];
+        const resGT = window.detectTimingMethodFromComp(0, 206.0);
+        assertEqual(resGT, "GameTime");
+        assertEqual(window.getCurrentTimingMethod(), "GameTime");
+
+        const resRT = window.detectTimingMethodFromComp(0, 811.0);
+        assertEqual(resRT, "RealTime");
+        assertEqual(window.getCurrentTimingMethod(), "RealTime");
+      });
     });
 
     // --- RENDER RESULTS ---

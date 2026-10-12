@@ -520,12 +520,22 @@ function parseLSS(xmlText) {
         if (!comparisonsList.includes(cName)) comparisonsList.push(cName);
       });
 
-      // Auto-detect timing method: if splits have NO GameTime at all (e.g. console speedruns), default to RealTime
+      // Auto-detect timing method from the splits file:
+      // If splits have GameTime recorded (e.g. PC speedruns with load remover), default to GameTime.
+      // If no GameTime at all (e.g. console speedruns), default to RealTime.
       const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
                              bestSegmentTimesGT.some(t => t !== null && t > 0);
-      if (!hasAnyGameTime) {
-        currentTimingMethod = "RealTime";
-        localStorage.setItem("livesplit_timing_method", "RealTime");
+      const isManualMethod = (localStorage.getItem("livesplit_timing_method_manual") === "true");
+      if (!isManualMethod) {
+        currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+        localStorage.setItem("livesplit_timing_method", currentTimingMethod);
+      } else {
+        const savedMethod = localStorage.getItem("livesplit_timing_method");
+        if (savedMethod === "RealTime" || savedMethod === "GameTime") {
+          currentTimingMethod = savedMethod;
+        } else {
+          currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+        }
       }
 
       // Cache raw LSS and parsed data
@@ -573,6 +583,7 @@ function toggleGoldSegments() {
 function toggleTimingMethod() {
   const next = currentTimingMethod === "RealTime" ? "GameTime" : "RealTime";
   localStorage.setItem("livesplit_timing_method", next);
+  localStorage.setItem("livesplit_timing_method_manual", "true");
   applyActiveTimingMethod(next);
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(next === "RealTime" ? "switchto realtime" : "switchto gametime");
@@ -580,8 +591,9 @@ function toggleTimingMethod() {
 }
 
 function loadCachedSplits() {
+  const isManualMethod = (localStorage.getItem("livesplit_timing_method_manual") === "true");
   const savedMethod = localStorage.getItem("livesplit_timing_method");
-  if (savedMethod === "RealTime" || savedMethod === "GameTime") {
+  if (isManualMethod && (savedMethod === "RealTime" || savedMethod === "GameTime")) {
     currentTimingMethod = savedMethod;
   }
 
@@ -947,16 +959,30 @@ function getGhostComparisonInfo() {
   // 1. World Record match (wr / world record)
   const isWRMatch = (lowGhost === "wr" || lowGhost.includes("world record"));
   if (isWRMatch) {
-    // Check active compData first
     const wrKey = compKeys.find(k => k.toLowerCase().includes("world record") || k.toLowerCase() === "wr");
-    if (wrKey && compData[wrKey] && compData[wrKey].some(t => t !== null && t > 0)) {
-      return { id: "wr", name: wrKey, icon: "🏆", times: sanitizeComparisonTimes(compData[wrKey], fallbackTimes) };
-    }
-    // Check alternate timing method compData if active timing method lacks WR entries
     const altWrKey = altKeys.find(k => k.toLowerCase().includes("world record") || k.toLowerCase() === "wr");
-    if (altWrKey && altData[altWrKey] && altData[altWrKey].some(t => t !== null && t > 0)) {
-      return { id: "wr", name: altWrKey, icon: "🏆", times: sanitizeComparisonTimes(altData[altWrKey], fallbackTimes) };
+
+    const candTimes = (wrKey && compData[wrKey] && compData[wrKey].some(t => t !== null && t > 0)) ? compData[wrKey] : null;
+    const altTimes = (altWrKey && altData[altWrKey] && altData[altWrKey].some(t => t !== null && t > 0)) ? altData[altWrKey] : null;
+
+    if (candTimes) {
+      // Scale mismatch defense: if candidate WR has a massive scale discrepancy with active comparison times
+      // (e.g. RealTime WR has 13:31 with cutscenes while active target is 3:26/3:33, but GameTime WR has 3:22),
+      // prefer the alternate timing method's WR times to prevent absurd deltas and pin freezing!
+      if (altTimes && fallbackTimes && fallbackTimes.length > 0 && fallbackTimes[0] > 0) {
+        const curRatio = Math.abs(candTimes[0] - fallbackTimes[0]) / fallbackTimes[0];
+        const altRatio = Math.abs(altTimes[0] - fallbackTimes[0]) / fallbackTimes[0];
+        if (curRatio > 1.5 && altRatio < 0.5) {
+          return { id: "wr", name: altWrKey, icon: "🏆", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
+        }
+      }
+      return { id: "wr", name: wrKey, icon: "🏆", times: sanitizeComparisonTimes(candTimes, fallbackTimes) };
     }
+
+    if (altTimes) {
+      return { id: "wr", name: altWrKey, icon: "🏆", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
+    }
+
     // Fallback if no explicit WR track in .lss: use Best Segments / Sum of Best pace
     if (compData["Best Segments"] && compData["Best Segments"].some(t => t !== null && t > 0)) {
       return { id: "wr", name: "Best Segments (WR Fallback)", icon: "🏆", times: sanitizeComparisonTimes(compData["Best Segments"], fallbackTimes) };
@@ -986,7 +1012,16 @@ function getGhostComparisonInfo() {
 
   // 6. Direct match with any custom comparison by name
   if (compData[ghostComparison] && compData[ghostComparison].some(t => t !== null && t > 0)) {
-    return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(compData[ghostComparison], fallbackTimes) };
+    const cand = compData[ghostComparison];
+    const alt = altData[ghostComparison];
+    if (alt && alt.some(t => t !== null && t > 0) && fallbackTimes && fallbackTimes.length > 0 && fallbackTimes[0] > 0) {
+      const curRatio = Math.abs(cand[0] - fallbackTimes[0]) / fallbackTimes[0];
+      const altRatio = Math.abs(alt[0] - fallbackTimes[0]) / fallbackTimes[0];
+      if (curRatio > 1.5 && altRatio < 0.5) {
+        return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(alt, fallbackTimes) };
+      }
+    }
+    return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(cand, fallbackTimes) };
   }
   if (altData[ghostComparison] && altData[ghostComparison].some(t => t !== null && t > 0)) {
     return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(altData[ghostComparison], fallbackTimes) };
@@ -1286,7 +1321,23 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
   item.classList.add(stateClass);
 }
 
-let canQueryTimingMethod = true;
+function detectTimingMethodFromComp(splitIdx, compSec) {
+  if (splitIdx < 0 || compSec === null || compSec <= 0) return null;
+  const gtSec = (comparisonTimesGT && splitIdx < comparisonTimesGT.length) ? comparisonTimesGT[splitIdx] : null;
+  const rtSec = (comparisonTimesRT && splitIdx < comparisonTimesRT.length) ? comparisonTimesRT[splitIdx] : null;
+  if (gtSec !== null && rtSec !== null && Math.abs(gtSec - rtSec) > 1.0) {
+    const diffGT = Math.abs(compSec - gtSec);
+    const diffRT = Math.abs(compSec - rtSec);
+    const detected = (diffGT <= diffRT) ? "GameTime" : "RealTime";
+    if (detected !== currentTimingMethod) {
+      applyActiveTimingMethod(detected);
+      localStorage.setItem("livesplit_timing_method", detected);
+    }
+    return detected;
+  }
+  return null;
+}
+
 let canQueryComparison = true;
 
 function connect() {
@@ -1297,7 +1348,6 @@ function connect() {
     status.innerText = "CONNECTED";
     status.style.color = "#4ade80";
 
-    canQueryTimingMethod = true;
     canQueryComparison = true;
 
     // Query Game and Category from LiveSplit if not loaded from .lss
@@ -1341,19 +1391,6 @@ async function pollLoop() {
     if (pollTick === 0) {
       const isSyncEnabled = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
       if (isSyncEnabled) {
-        // Query active timing method (with fallback if unsupported)
-        if (canQueryTimingMethod) {
-          const lsMethod = await sendCommand("gettimingmethod", 40);
-          if (lsMethod && (lsMethod === "RealTime" || lsMethod === "GameTime")) {
-            if (lsMethod !== currentTimingMethod) {
-              applyActiveTimingMethod(lsMethod);
-              localStorage.setItem("livesplit_timing_method", lsMethod);
-            }
-          } else if (lsMethod === null) {
-            canQueryTimingMethod = false;
-          }
-        }
-
         // Query active comparison (with fallback if unsupported)
         if (canQueryComparison) {
           const lsComp = await sendCommand("getcomparisonname", 40);
@@ -1481,6 +1518,7 @@ async function pollLoop() {
             const rawCompTime = await sendCommand("getcomparisonsplittime");
             const compSec = timeStringToSeconds(rawCompTime);
             if (compSec !== null && compSec > 0) {
+              detectTimingMethodFromComp(0, compSec);
               comparisonTimes[0] = compSec;
               if (currentTimingMethod === "RealTime") comparisonTimesRT[0] = compSec;
               else comparisonTimesGT[0] = compSec;
@@ -1611,6 +1649,7 @@ async function pollLoop() {
             const rawNextComp = await sendCommand("getcomparisonsplittime");
             const nextCompSec = timeStringToSeconds(rawNextComp);
             if (nextCompSec !== null && nextCompSec > 0) {
+              detectTimingMethodFromComp(idx, nextCompSec);
               comparisonTimes[idx] = nextCompSec;
               if (currentTimingMethod === "RealTime") comparisonTimesRT[idx] = nextCompSec;
               else comparisonTimesGT[idx] = nextCompSec;
@@ -1843,3 +1882,6 @@ window.getGhostComparisonInfo = getGhostComparisonInfo;
 window.calculateGhostProgress = calculateGhostProgress;
 window.setGhostOpacity = setGhostOpacity;
 window.sanitizeComparisonTimes = sanitizeComparisonTimes;
+window.detectTimingMethodFromComp = detectTimingMethodFromComp;
+window.applyActiveTimingMethod = applyActiveTimingMethod;
+window.getCurrentTimingMethod = () => currentTimingMethod;
