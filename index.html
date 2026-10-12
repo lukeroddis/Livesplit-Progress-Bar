@@ -34,6 +34,7 @@
         <option value="horizontal">Angle: Flat</option>
       </select>
     </div>
+    <button class="toolbar-btn" id="btn-open-track-modal" title="Customize progress bar geometry, font sizes, and layout">🎨 Bar Styles</button>
     <button class="toolbar-btn" id="btn-reset-layout" title="Reset all elements to default positions">↺ Reset</button>
     <button class="toolbar-btn btn-primary" id="btn-lock-layout" title="Lock layout and save (Press Esc or E)">🔒 Lock Layout</button>
   </div>
@@ -101,8 +102,65 @@
       <span id="timing-method-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to toggle Game / Real Time">Game Time</span>
       <span id="split-density-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</span>
       <span id="split-angle-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</span>
+      <span id="track-style-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Customize progress bar positions, fonts, and sizes">🎨 Bar Styles</span>
       <span id="layout-edit-btn" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout</span>
       <div id="connection-status">Connecting...</div>
+    </div>
+  </div>
+
+  <!-- Track Customizer Modal -->
+  <div class="track-modal-backdrop" id="track-modal" style="display: none;">
+    <div class="track-modal-dialog">
+      <div class="track-modal-header">
+        <h3>🎨 Progress Bar Customizer</h3>
+        <button class="track-modal-close" id="btn-close-track-modal" title="Close">✕</button>
+      </div>
+      <div class="track-modal-body">
+        
+        <!-- Positions -->
+        <div class="modal-section-title">Layout Positions</div>
+        <div class="modal-row">
+          <label>Split Name Position</label>
+          <div class="segmented-control" id="ctrl-name-pos">
+            <button class="seg-btn active" data-val="top">Top</button>
+            <button class="seg-btn" data-val="bottom">Bottom</button>
+          </div>
+        </div>
+        <div class="modal-row">
+          <label>Delta / Time Position</label>
+          <div class="segmented-control" id="ctrl-delta-pos">
+            <button class="seg-btn active" data-val="top">Top</button>
+            <button class="seg-btn" data-val="bottom">Bottom</button>
+          </div>
+        </div>
+
+        <!-- Typography -->
+        <div class="modal-section-title">Typography</div>
+        <div class="modal-row">
+          <label>Split Name Font Size <span class="val-badge" id="val-name-font">17px</span></label>
+          <input type="range" id="slider-name-font" min="12" max="24" value="17" step="1">
+        </div>
+        <div class="modal-row">
+          <label>Delta & Time Font Size <span class="val-badge" id="val-delta-font">15px</span></label>
+          <input type="range" id="slider-delta-font" min="11" max="22" value="15" step="1">
+        </div>
+
+        <!-- Bar & Dot Sizes -->
+        <div class="modal-section-title">Bar & Dot Geometry</div>
+        <div class="modal-row">
+          <label>Bar Thickness <span class="val-badge" id="val-bar-height">6px</span></label>
+          <input type="range" id="slider-bar-height" min="3" max="16" value="6" step="1">
+        </div>
+        <div class="modal-row">
+          <label>Node Dot Size <span class="val-badge" id="val-dot-size">15px</span></label>
+          <input type="range" id="slider-dot-size" min="8" max="24" value="15" step="1">
+        </div>
+
+      </div>
+      <div class="track-modal-footer">
+        <button class="toolbar-btn" id="btn-reset-track-style">↺ Reset Styles</button>
+        <button class="toolbar-btn btn-primary" id="btn-save-track-style">Done</button>
+      </div>
     </div>
   </div>
 

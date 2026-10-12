@@ -97,7 +97,16 @@ The overlay supports in-browser visual editing via pointer drag-and-drop and sca
   - In high-density split layouts (or long split titles), names can collide horizontally.
   - The overlay actively measures node spacing and text widths; if overlap is detected (or spacing $< 175\text{px}$), it automatically rotates labels and deltas to a **40° angle** (`rotate(-40deg)`).
   - Can be set to **`Auto (Smart)`**, forced **`40° Tilt`**, or forced **`Flat`** via toolbar dropdown or the **`Angle: Auto`** footer badge.
-* **Lock & Save**: Press **`Esc`**, **`E`**, or click **`🔒 Lock Layout`**. Coordinates, scales, splits count, and angle preferences are saved to `localStorage` and remembered across OBS launches.
+* **Progress Bar Customizer (Positions, Fonts & Bar Geometry)**:
+  - Click the **`🎨 Bar Styles`** button in the Layout Editor toolbar or bottom utility bar to open the styling drawer with real-time live preview.
+  - **Split Name Position**: Place split titles on **`Top`** or **`Bottom`** of the progress bar line.
+  - **Delta / Time Position**: Place delta and cumulative split times on **`Top`** or **`Bottom`** of the progress bar line.
+  - **Split Name Font Size**: Slider control from `12px` to `24px` (default `17px`).
+  - **Delta & Time Font Size**: Slider control from `11px` to `22px` (default `15px`).
+  - **Bar Thickness**: Slider control from `3px` to `16px` (default `6px`).
+  - **Node Dot Size**: Slider control from `8px` to `24px` (default `15px`).
+  - Persistent in `localStorage` under `livesplit_track_style` with one-click **`↺ Reset Styles`** support.
+* **Lock & Save**: Press **`Esc`**, **`E`**, or click **`🔒 Lock Layout`**. Coordinates, scales, splits count, track styles, and angle preferences are saved to `localStorage` and remembered across OBS launches.
 * **Reset**: Click **`↺ Reset`** in the editor toolbar to restore defaults for the current screen resolution.
 
 ### Standalone URL Parameter Views
@@ -108,6 +117,12 @@ For multi-source OBS setups or targeted browser sources:
 * `index.html?view=track` — Shows only the Horizontal Split Track.
 * `index.html?splits=all` — Forces all splits to fit on screen without scrolling (or `?splits=10`, `?splits=12`).
 * `index.html?angle=40` — Forces 40° angled text mode (or `?angle=flat`).
+* `index.html?namepos=top|bottom` — Configures split title position.
+* `index.html?deltapos=top|bottom` — Configures delta/time position.
+* `index.html?barsize=8` — Configures connector bar thickness in pixels.
+* `index.html?dotsize=18` — Configures node dot size in pixels.
+* `index.html?namefont=18` — Configures split title font size in pixels.
+* `index.html?deltafont=16` — Configures delta font size in pixels.
 * `index.html?edit=1` — Automatically launches into Edit Mode on load.
 * `index.html?hide=title,timers` — Hides specific components directly via URL query.
 

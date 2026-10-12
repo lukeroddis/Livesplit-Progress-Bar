@@ -13,6 +13,13 @@
 
   --text-muted: rgba(226, 232, 240, 0.9);
   --node-spacing: 220px;
+
+  /* Customizable Progress Bar Geometries & Typography */
+  --bar-height: 6px;
+  --dot-size: 15px;
+  --name-font-size: 17px;
+  --delta-font-size: 15px;
+  --dot-bottom: 5px;
 }
 
 * {
@@ -395,21 +402,98 @@ body.edit-mode .layout-toolbar {
   justify-content: flex-end;
   width: var(--node-spacing);
   flex-shrink: 0;
-  height: 76px;
+  height: calc(var(--dot-size, 15px) + var(--name-font-size, 17px) + var(--delta-font-size, 15px) + 34px);
+  transition: height 0.2s ease;
+}
+
+/* ============================================================
+   TRACK POSITIONAL CONFIGURATIONS (Top / Bottom)
+   ============================================================ */
+/* Default / Fallback: Both on Top */
+.track {
+  --dot-bottom: 5px;
+}
+
+.track.pos-name-top.pos-delta-top {
+  --dot-bottom: 5px;
+}
+.track.pos-name-top.pos-delta-top .split-item {
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 34px);
+}
+.track.pos-name-top.pos-delta-top .dot {
+  bottom: var(--dot-bottom);
+}
+.track.pos-name-top.pos-delta-top .split-name {
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px);
+}
+.track.pos-name-top.pos-delta-top .split-delta {
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + 14px);
+}
+
+/* Layout 2: Name on Top, Delta on Bottom */
+.track.pos-name-top.pos-delta-bottom {
+  --dot-bottom: calc(var(--delta-font-size) + 12px);
+}
+.track.pos-name-top.pos-delta-bottom .split-item {
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
+}
+.track.pos-name-top.pos-delta-bottom .dot {
+  bottom: var(--dot-bottom);
+}
+.track.pos-name-top.pos-delta-bottom .split-name {
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px);
+}
+.track.pos-name-top.pos-delta-bottom .split-delta {
+  bottom: 4px;
+}
+
+/* Layout 3: Delta on Top, Name on Bottom */
+.track.pos-name-bottom.pos-delta-top {
+  --dot-bottom: calc(var(--name-font-size) + 12px);
+}
+.track.pos-name-bottom.pos-delta-top .split-item {
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
+}
+.track.pos-name-bottom.pos-delta-top .dot {
+  bottom: var(--dot-bottom);
+}
+.track.pos-name-bottom.pos-delta-top .split-delta {
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px);
+}
+.track.pos-name-bottom.pos-delta-top .split-name {
+  bottom: 4px;
+}
+
+/* Layout 4: Both on Bottom */
+.track.pos-name-bottom.pos-delta-bottom {
+  --dot-bottom: calc(var(--name-font-size) + var(--delta-font-size) + 24px);
+}
+.track.pos-name-bottom.pos-delta-bottom .split-item {
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
+}
+.track.pos-name-bottom.pos-delta-bottom .dot {
+  bottom: var(--dot-bottom);
+}
+.track.pos-name-bottom.pos-delta-bottom .split-name {
+  bottom: calc(var(--delta-font-size) + 10px);
+}
+.track.pos-name-bottom.pos-delta-bottom .split-delta {
+  bottom: 4px;
 }
 
 /* Connector Bar */
 .segment-bar-bg {
   position: absolute;
-  bottom: 5px;
+  bottom: calc(var(--dot-bottom, 5px) + (var(--dot-size, 15px) - var(--bar-height, 6px)) / 2);
   right: 50%;
   width: var(--node-spacing);
-  height: 6px;
+  height: var(--bar-height, 6px);
   background: var(--line-idle);
   box-shadow: 0 1px 4px rgba(0,0,0,0.95);
   z-index: 1;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: calc(var(--bar-height, 6px) / 2);
+  transition: height 0.2s ease, bottom 0.2s ease;
 }
 
 .split-item.origin-node .segment-bar-bg {
@@ -422,7 +506,7 @@ body.edit-mode .layout-toolbar {
   background: var(--node-active);
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.85);
   transition: width 0.1s linear, background 0.2s ease, box-shadow 0.2s ease;
-  border-radius: 3px;
+  border-radius: calc(var(--bar-height, 6px) / 2);
 }
 
 /* 4-State Fill Styles */
@@ -466,8 +550,8 @@ body.edit-mode .layout-toolbar {
 .dot {
   position: relative;
   z-index: 2;
-  width: 15px;
-  height: 15px;
+  width: var(--dot-size, 15px);
+  height: var(--dot-size, 15px);
   border-radius: 50%;
   background: var(--node-idle);
   border: 2px solid rgba(15, 23, 42, 0.95);
@@ -479,24 +563,22 @@ body.edit-mode .layout-toolbar {
 /* Split Titles */
 .split-name {
   position: absolute;
-  bottom: 21px;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
   text-align: center;
-  font-size: 17px;
+  font-size: var(--name-font-size, 17px);
   font-weight: 700;
   color: var(--text-muted);
   text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
   pointer-events: none;
   letter-spacing: 0.2px;
-  transition: color 0.2s ease, font-size 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 /* Split Delta & Cumulative Split Time Displays */
 .split-delta {
   position: absolute;
-  bottom: 47px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -506,15 +588,16 @@ body.edit-mode .layout-toolbar {
   white-space: nowrap;
   font-family: "JetBrains Mono", Consolas, monospace;
   text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
+  transition: all 0.2s ease;
 }
 
 .split-delta-val {
-  font-size: 16px;
+  font-size: var(--delta-font-size, 16px);
   font-weight: 700;
 }
 
 .split-time-val {
-  font-size: 15px;
+  font-size: calc(var(--delta-font-size, 15px) - 1px);
   font-weight: 700;
   color: #ffffff;
   text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
@@ -523,7 +606,7 @@ body.edit-mode .layout-toolbar {
 .split-time-val.target-time {
   color: rgba(203, 213, 225, 0.7);
   font-weight: 600;
-  font-size: 14px;
+  font-size: calc(var(--delta-font-size, 15px) - 2px);
 }
 
 /* Completed Dots mapped to states */
@@ -603,40 +686,57 @@ body.edit-mode .layout-toolbar {
 }
 
 .track.angled-text .split-item {
-  height: 112px;
+  height: 116px;
 }
 
-.track.angled-text .split-name {
-  bottom: 24px;
-  left: calc(50% + 4px);
+/* When names or deltas are on TOP in angled mode */
+.track.angled-text.pos-name-top .split-name,
+.track.angled-text:not(.pos-name-bottom) .split-name {
   transform-origin: bottom left;
   transform: rotate(-40deg);
   text-align: left;
   white-space: nowrap;
-  font-size: 14px;
   letter-spacing: 0.25px;
+  left: calc(50% + 4px);
 }
 
-.track.angled-text .split-delta {
-  bottom: 44px;
-  left: calc(50% + 18px);
+.track.angled-text.pos-delta-top .split-delta,
+.track.angled-text:not(.pos-delta-bottom) .split-delta {
   transform-origin: bottom left;
   transform: rotate(-40deg);
   justify-content: flex-start;
-  gap: 6px;
+  left: calc(50% + 18px);
+}
+
+/* When names or deltas are on BOTTOM in angled mode */
+.track.angled-text.pos-name-bottom .split-name {
+  transform-origin: top left;
+  transform: rotate(40deg);
+  text-align: left;
   white-space: nowrap;
+  letter-spacing: 0.25px;
+  left: calc(50% + 4px);
 }
 
-.track.angled-text .split-delta-val {
-  font-size: 13px;
+.track.angled-text.pos-delta-bottom .split-delta {
+  transform-origin: top left;
+  transform: rotate(40deg);
+  justify-content: flex-start;
+  left: calc(50% + 18px);
 }
 
-.track.angled-text .split-time-val {
-  font-size: 12px;
+.track.angled-text.pos-name-bottom .split-item,
+.track.angled-text.pos-delta-bottom .split-item {
+  height: 120px;
 }
 
-.track.angled-text .split-item.current .split-name {
+.track.angled-text.pos-name-top .split-item.current .split-name,
+.track.angled-text:not(.pos-name-bottom) .split-item.current .split-name {
   transform: rotate(-40deg) scale(1.08);
+}
+
+.track.angled-text.pos-name-bottom .split-item.current .split-name {
+  transform: rotate(40deg) scale(1.08);
 }
 
 /* Footer Status Bar */
@@ -677,3 +777,188 @@ body.edit-mode .footer-bar,
 }
 
 #file-input { display: none; }
+
+/* ============================================================
+   TRACK CUSTOMIZER MODAL
+   ============================================================ */
+.track-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.track-modal-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.track-modal-dialog {
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9), 0 0 24px rgba(56, 189, 248, 0.2);
+  border-radius: 16px;
+  width: 440px;
+  max-width: 92vw;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  animation: modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-pop {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.track-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(30, 41, 59, 0.85);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.track-modal-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-modal-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition: all 0.15s ease;
+}
+
+.track-modal-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.track-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.modal-section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-top: 4px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  padding-bottom: 4px;
+}
+
+.modal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-row .val-badge {
+  font-family: monospace;
+  font-size: 12px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.segmented-control {
+  display: flex;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.seg-btn {
+  flex: 1;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.seg-btn:hover {
+  color: #ffffff;
+}
+
+.seg-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.modal-row input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.modal-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.modal-row input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.track-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(30, 41, 59, 0.85);
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
