@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LiveSplit Overlay - In-Browser Test Runner</title>
+  <style>
+    body {
+      background: #090d16;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 40px;
+      margin: 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      padding-bottom: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .badge.pass { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+    .badge.fail { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .suite-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .suite-title {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 12px 20px;
+      font-weight: 700;
+      font-size: 15px;
+      color: #38bdf8;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .test-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      font-size: 14px;
+    }
+    .test-row:last-child { border-bottom: none; }
+    .test-name { color: #cbd5e1; }
+    .status-pill {
+      font-size: 12px;
+      font-family: monospace;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .status-pill.ok { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .status-pill.error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .error-msg { font-size: 12px; color: #f87171; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- Hidden dummy DOM required for script imports -->
+  <div style="display:none;">
+    <div id="game-name"></div>
+    <div id="category-name"></div>
+    <div id="timer-rta"></div>
+    <div id="timer-igt"></div>
+    <div id="block-igt"></div>
+    <div id="block-rta"></div>
+    <div id="track-viewport"><div id="track"></div></div>
+    <div id="hud-comp-title"></div>
+    <div id="hud-comp-timers"></div>
+    <div id="hud-comp-track"></div>
+    <span id="gold-toggle-badge"></span>
+    <span id="timing-method-badge"></span>
+    <span id="comparison-badge"></span>
+    <span id="bg-opacity-badge"></span>
+    <span id="split-density-badge"></span>
+    <span id="split-angle-badge"></span>
+    <input type="file" id="file-input">
+  </div>
+
+  <div class="header">
+    <h1>🧪 LiveSplit Overlay Unit Tests</h1>
+    <div id="total-badge" class="badge pass">Running...</div>
+  </div>
+
+  <div id="results"></div>
+
+  <!-- Load application scripts -->
+  <script src="../layout.js"></script>
+  <script src="../overlay.js"></script>
+
+  <script>
+    const suites = [];
+    let currentSuite = null;
+    let totalPassed = 0;
+    let totalFailed = 0;
+
+    function describe(name, fn) {
+      currentSuite = { name, tests: [] };
+      suites.push(currentSuite);
+      fn();
+    }
+
+    function it(name, testFn) {
+      try {
+        testFn();
+        currentSuite.tests.push({ name, pass: true });
+        totalPassed++;
+      } catch (err) {
+        currentSuite.tests.push({ name, pass: false, error: err.message });
+        totalFailed++;
+      }
+    }
+
+    function assertEqual(actual, expected, message) {
+      const aStr = JSON.stringify(actual);
+      const eStr = JSON.stringify(expected);
+      if (aStr !== eStr) {
+        throw new Error(message || `Expected ${eStr}, got ${aStr}`);
+      }
+    }
+
+    // --- TEST DEFINITIONS ---
+
+    describe("Time Conversion: timeStringToSeconds", () => {
+      it("parses seconds only correctly", () => {
+        assertEqual(window.timeStringToSeconds("45.2"), 45.2);
+      });
+      it("parses MM:SS correctly", () => {
+        assertEqual(window.timeStringToSeconds("01:23.45"), 83.45);
+      });
+      it("parses HH:MM:SS correctly", () => {
+        assertEqual(window.timeStringToSeconds("01:02:03"), 3723);
+      });
+      it("parses days format DD.HH:MM:SS correctly", () => {
+        assertEqual(window.timeStringToSeconds("1.00:00:00"), 86400);
+      });
+      it("returns null on empty, hyphen, or invalid input", () => {
+        assertEqual(window.timeStringToSeconds("-"), null);
+        assertEqual(window.timeStringToSeconds(""), null);
+        assertEqual(window.timeStringToSeconds(null), null);
+      });
+    });
+
+    describe("Time Formatting: formatTargetTime", () => {
+      it("formats zero seconds as 0:00", () => {
+        assertEqual(window.formatTargetTime(0), "0:00");
+      });
+      it("formats under 1 hour as MM:SS", () => {
+        assertEqual(window.formatTargetTime(125), "2:05");
+      });
+      it("formats over 1 hour as H:MM:SS", () => {
+        assertEqual(window.formatTargetTime(3665), "1:01:05");
+      });
+      it("returns empty string on null or NaN", () => {
+        assertEqual(window.formatTargetTime(null), "");
+        assertEqual(window.formatTargetTime(NaN), "");
+      });
+    });
+
+    describe("Delta Formatting: formatDeltaSeconds", () => {
+      it("formats neutral delta under 0.05s as ±0.0", () => {
+        assertEqual(window.formatDeltaSeconds(0.0), "±0.0");
+        assertEqual(window.formatDeltaSeconds(0.04), "±0.0");
+        assertEqual(window.formatDeltaSeconds(-0.04), "±0.0");
+      });
+      it("formats ahead deltas with minus sign", () => {
+        assertEqual(window.formatDeltaSeconds(-1.5), "-1.5");
+        assertEqual(window.formatDeltaSeconds(-65.2), "-1:05");
+      });
+      it("formats behind deltas with plus sign", () => {
+        assertEqual(window.formatDeltaSeconds(12.3), "+12.3");
+        assertEqual(window.formatDeltaSeconds(125.0), "+2:05");
+      });
+    });
+
+    describe("Comparison Normalization", () => {
+      it("normalizes Personal Best aliases", () => {
+        assertEqual(window.normalizeComparisonName("pb"), "Personal Best");
+        assertEqual(window.normalizeComparisonName("Personal Best"), "Personal Best");
+      });
+      it("normalizes Best Segments aliases", () => {
+        assertEqual(window.normalizeComparisonName("sum of best"), "Best Segments");
+        assertEqual(window.normalizeComparisonName("best splits"), "Best Segments");
+      });
+      it("normalizes Average Segments aliases", () => {
+        assertEqual(window.normalizeComparisonName("average"), "Average Segments");
+      });
+      it("normalizes Worst Segments aliases", () => {
+        assertEqual(window.normalizeComparisonName("worst"), "Worst Segments");
+      });
+      it("returns null for empty or hyphen string", () => {
+        assertEqual(window.normalizeComparisonName("-"), null);
+      });
+      it("generates correct short badge strings", () => {
+        assertEqual(window.getShortComparisonName("Personal Best"), "PB");
+        assertEqual(window.getShortComparisonName("Best Segments"), "Best Segs");
+        assertEqual(window.getShortComparisonName("Average Segments"), "Average");
+        assertEqual(window.getShortComparisonName("Worst Segments"), "Worst");
+      });
+    });
+
+    describe("Live Delta String Parsing: formatDeltaLive", () => {
+      it("parses unicode minus and fractions", () => {
+        const res = window.formatDeltaLive("−5.2");
+        assertEqual(res.isAhead, true);
+        assertEqual(res.signedSeconds, -5.2);
+      });
+      it("parses positive minutes and seconds", () => {
+        const res = window.formatDeltaLive("+1:20.5");
+        assertEqual(res.isAhead, false);
+        assertEqual(res.text, "+1:20");
+      });
+    });
+
+    // --- RENDER RESULTS ---
+    const resultsContainer = document.getElementById("results");
+    suites.forEach((suite) => {
+      const card = document.createElement("div");
+      card.className = "suite-card";
+
+      const title = document.createElement("div");
+      title.className = "suite-title";
+      title.innerText = suite.name;
+      card.appendChild(title);
+
+      suite.tests.forEach((t) => {
+        const row = document.createElement("div");
+        row.className = "test-row";
+        row.innerHTML = `
+          <div>
+            <div class="test-name">${t.name}</div>
+            ${t.error ? `<div class="error-msg">⚠️ ${t.error}</div>` : ""}
+          </div>
+          <span class="status-pill ${t.pass ? "ok" : "error"}">${t.pass ? "PASSED" : "FAILED"}</span>
+        `;
+        card.appendChild(row);
+      });
+
+      resultsContainer.appendChild(card);
+    });
+
+    const badge = document.getElementById("total-badge");
+    if (totalFailed === 0) {
+      badge.className = "badge pass";
+      badge.innerText = `✓ ALL ${totalPassed} TESTS PASSED`;
+    } else {
+      badge.className = "badge fail";
+      badge.innerText = `❌ ${totalFailed} FAILED / ${totalPassed} PASSED`;
+    }
+  </script>
+</body>
+</html>

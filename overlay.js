@@ -443,13 +443,15 @@ function parseLSS(xmlText) {
       comparisonsDataRT["Average Segments"] = [];
       for (let i = 0; i < segments.length; i++) {
         const hgt = segmentHistoriesGT[i];
-        const pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
+        let pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
+        if (pbDurGT !== null && pbDurGT <= 0) pbDurGT = bestSegmentTimesGT[i];
         const avgGT = hgt.length > 0 ? (hgt.reduce((a, b) => a + b, 0) / hgt.length) : (pbDurGT ?? bestSegmentTimesGT[i]);
         if (avgGT != null && avgGT > 0) cumAvgGT += avgGT;
         comparisonsDataGT["Average Segments"].push(cumAvgGT > 0 ? cumAvgGT : null);
 
         const hrt = segmentHistoriesRT[i];
-        const pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
+        let pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
+        if (pbDurRT !== null && pbDurRT <= 0) pbDurRT = bestSegmentTimesRT[i];
         const avgRT = hrt.length > 0 ? (hrt.reduce((a, b) => a + b, 0) / hrt.length) : (pbDurRT ?? bestSegmentTimesRT[i]);
         if (avgRT != null && avgRT > 0) cumAvgRT += avgRT;
         comparisonsDataRT["Average Segments"].push(cumAvgRT > 0 ? cumAvgRT : null);
@@ -462,13 +464,15 @@ function parseLSS(xmlText) {
       comparisonsDataRT["Worst Segments"] = [];
       for (let i = 0; i < segments.length; i++) {
         const hgt = segmentHistoriesGT[i];
-        const pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
+        let pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
+        if (pbDurGT !== null && pbDurGT <= 0) pbDurGT = bestSegmentTimesGT[i];
         const worstGT = hgt.length > 0 ? Math.max(...hgt) : (pbDurGT ?? bestSegmentTimesGT[i]);
         if (worstGT != null && worstGT > 0) cumWorstGT += worstGT;
         comparisonsDataGT["Worst Segments"].push(cumWorstGT > 0 ? cumWorstGT : null);
 
         const hrt = segmentHistoriesRT[i];
-        const pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
+        let pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
+        if (pbDurRT !== null && pbDurRT <= 0) pbDurRT = bestSegmentTimesRT[i];
         const worstRT = hrt.length > 0 ? Math.max(...hrt) : (pbDurRT ?? bestSegmentTimesRT[i]);
         if (worstRT != null && worstRT > 0) cumWorstRT += worstRT;
         comparisonsDataRT["Worst Segments"].push(cumWorstRT > 0 ? cumWorstRT : null);
@@ -508,6 +512,9 @@ function parseLSS(xmlText) {
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
       renderTrack();
+      if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
+        window.hudLayout.syncTrackModalUI();
+      }
     }
   } catch (e) {
     console.error("Failed to parse .lss XML", e);
@@ -589,6 +596,9 @@ function loadCachedSplits() {
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
       renderTrack();
+      if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
+        window.hudLayout.syncTrackModalUI();
+      }
       return;
     } catch (e) {
       console.warn("Failed loading cached split JSON, falling back to defaults", e);
@@ -608,6 +618,9 @@ function loadCachedSplits() {
   updateGoldBadge();
   applyActiveComparison(currentComparison, false);
   renderTrack();
+  if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
+    window.hudLayout.syncTrackModalUI();
+  }
 }
 
 function sendCommand(cmd, timeoutMs = 80) {
@@ -1433,8 +1446,14 @@ window.onload = () => {
   connect();
 };
 
-// Global exports for layout.js
+// Global exports for layout.js and unit tests
 window.applyActiveComparison = applyActiveComparison;
 window.getCurrentComparison = () => currentComparison;
 window.getComparisonsList = () => comparisonsList;
 window.cycleComparison = cycleComparison;
+window.timeStringToSeconds = timeStringToSeconds;
+window.formatTargetTime = formatTargetTime;
+window.formatDeltaSeconds = formatDeltaSeconds;
+window.formatDeltaLive = formatDeltaLive;
+window.normalizeComparisonName = normalizeComparisonName;
+window.getShortComparisonName = getShortComparisonName;

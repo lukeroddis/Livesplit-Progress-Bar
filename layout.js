@@ -483,7 +483,7 @@
     const angleParam = params.get("angle");
 
     if (splitsParam) {
-      localStorage.setItem("livesplit_visible_splits", splitsParam.toLowerCase().trim());
+      setVisibleSplits(splitsParam.toLowerCase().trim());
     }
     if (angleParam) {
       const a = angleParam.toLowerCase().trim();

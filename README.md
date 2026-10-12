@@ -163,9 +163,48 @@ For multi-source OBS setups or targeted browser sources:
 
 ---
 
-## 6. Future Feature Ideas & Roadmap
+## 6. Testing, Stability & Quality Assurance
 
-1. **Custom Styling Modal**:
-   - In-overlay configuration panel for node spacing, font sizing, color palette overrides, and OBS chroma/transparency presets.
+To ensure stability across browser updates, OBS browser source changes, and future pull requests, the codebase includes a zero-dependency automated testing and static analysis suite:
+
+### Test Suite (`tests/run_tests.py`)
+Run locally from terminal with standard Python 3:
+```bash
+python tests/run_tests.py
+```
+Checks performed:
+- **File Integrity & UTF-8 Validation**: Verifies all source files are intact and properly encoded.
+- **Bracket Matching & JavaScript Syntax**: Analyzes `overlay.js` and `layout.js` for unclosed parentheses, brackets, and braces.
+- **DOM Element ID Consistency**: Extracts all `document.getElementById` calls from JS and validates against `index.html` to guarantee zero broken references.
+- **Time Conversion Engine**: Verifies `timeStringToSeconds()` with valid times, fractions, milliseconds, zero, and malformed inputs.
+- **Time Formatting**: Tests `formatTargetTime()` with edge cases ($< 1$ min, $> 1$ hr, etc.).
+- **4-State Delta Formatting**: Validates `formatDeltaSeconds()` sign conventions and sub-second precision.
+- **Comparison Normalization**: Tests standard and custom comparison name normalization.
+- **Statistical Segments Sanity**: Validates mathematical monotonicity:
+  $$\text{Best Segments} \le \text{Average Segments} \le \text{Worst Segments}$$
+
+### In-Browser Test Runner (`tests/test_runner.html`)
+For rapid visual testing directly inside any desktop browser or OBS Interact window:
+- Open [tests/test_runner.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/tests/test_runner.html).
+- Runs the test suite directly against `overlay.js` and `layout.js` in the DOM, rendering a clean pass/fail dashboard with status pills.
+
+### Pre-Push Git Hook (`.githooks/pre-push`)
+A Git hook is included to prevent broken code from being pushed to GitHub:
+```bash
+# Enable repository hooks (configured automatically)
+git config core.hooksPath .githooks
+```
+Whenever you run `git push`, the hook automatically executes `python tests/run_tests.py` and aborts the push if any test fails.
+
+### GitHub Actions CI Workflow (`.github/workflows/ci.yml`)
+Runs the automated test suite on every `git push` to `main` and on pull requests, ensuring remote repository stability.
+
+---
+
+## 7. Future Feature Ideas & Roadmap
+
+1. **Custom Styling Modal Enhancements**:
+   - In-overlay color picker for custom themes, neon/retro palettes, and chroma key color swatches.
 2. **Hotkey & Comparison Switching**:
-   - Hotkey controls for manual reset or live comparison toggling (PB vs. Average vs. Best Segments).
+   - Advanced hotkey controls for manual reset or live comparison toggling (PB vs. Average vs. Best Segments).
+

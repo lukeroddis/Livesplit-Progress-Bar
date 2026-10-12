@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Git pre-push hook for LiveSplit Progress Bar
+echo "=================================================="
+echo " Running pre-push automated tests and checks..."
+echo "=================================================="
+
+# Run the automated test suite
+python tests/run_tests.py
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  echo ""
+  echo "❌ Push aborted: One or more automated tests failed."
+  echo "   Please fix the issues above before pushing to remote."
+  exit 1
+fi
+
+echo "✓ All pre-push checks passed successfully."
+exit 0
