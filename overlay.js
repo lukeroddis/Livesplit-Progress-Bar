@@ -1083,6 +1083,27 @@ function calculateGhostProgress(currentSec, times) {
   return { segIdx: lastValidIdx, ratio: 1.0, isFinished: true, targetSec: lastTime };
 }
 
+function getNodeTextThreshold(nodeEl, isNext = false) {
+  if (!nodeEl) return 45;
+  const track = document.getElementById("track");
+  const isAngled = track && track.classList.contains("angled-text");
+  const nameEl = nodeEl.querySelector(".split-name");
+  const deltaEl = nodeEl.querySelector(".split-delta");
+  const nameW = nameEl ? nameEl.offsetWidth : 60;
+  const deltaW = deltaEl ? deltaEl.offsetWidth : 50;
+
+  if (isAngled) {
+    if (!isNext) {
+      return Math.max(45, (nameW * 0.76) + 12);
+    } else {
+      return Math.max(45, (deltaW / 2) + 15);
+    }
+  }
+
+  const maxW = Math.max(nameW, deltaW, 50);
+  return (maxW / 2) + 14;
+}
+
 function updateGhostRunner(currentSec) {
   const marker = document.getElementById("ghost-marker");
   const edgeLeft = document.getElementById("ghost-edge-left");
@@ -1107,15 +1128,21 @@ function updateGhostRunner(currentSec) {
 
   let startX = 0;
   let endX = 0;
+  let prevNode = null;
+  let nextNode = null;
 
   if (segIdx === 0) {
+    prevNode = nodeStart;
     startX = nodeStart.offsetLeft + (nodeStart.offsetWidth / 2);
     const item0 = document.getElementById("item-0");
+    nextNode = item0;
     endX = item0 ? (item0.offsetLeft + (item0.offsetWidth / 2)) : startX + 220;
   } else {
     const prevItem = document.getElementById(`item-${segIdx - 1}`);
     const currentItem = document.getElementById(`item-${segIdx}`);
     if (prevItem && currentItem) {
+      prevNode = prevItem;
+      nextNode = currentItem;
       startX = prevItem.offsetLeft + (prevItem.offsetWidth / 2);
       endX = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
     } else {
@@ -1191,6 +1218,14 @@ function updateGhostRunner(currentSec) {
     if (marker) {
       marker.style.display = "flex";
       marker.style.transform = `translateX(${ghostX}px) translate(-50%, -100%)`;
+
+      // Dynamically shrink pin when hovering over split text, extend longer in open track
+      const distPrev = Math.abs(ghostX - startX);
+      const distNext = Math.abs(endX - ghostX);
+      const prevThreshold = getNodeTextThreshold(prevNode, false);
+      const nextThreshold = getNodeTextThreshold(nextNode, true);
+      const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
+      marker.classList.toggle("compact", isHoveringText);
 
       const iconEl = document.getElementById("ghost-icon");
       if (iconEl) iconEl.innerText = ghostInfo.icon;
@@ -1883,6 +1918,7 @@ window.setGhostComparison = setGhostComparison;
 window.cycleGhostComparison = cycleGhostComparison;
 window.getGhostComparisonInfo = getGhostComparisonInfo;
 window.calculateGhostProgress = calculateGhostProgress;
+window.getNodeTextThreshold = getNodeTextThreshold;
 window.setGhostOpacity = setGhostOpacity;
 window.sanitizeComparisonTimes = sanitizeComparisonTimes;
 window.detectTimingMethodFromComp = detectTimingMethodFromComp;

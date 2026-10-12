@@ -459,6 +459,39 @@ def test_ghost_timescale_mismatch_defense():
     print("✓ Ghost runner timescale mismatch defense passed.")
 
 
+def is_hovering_split_text(ghost_x, start_x, end_x, prev_threshold, next_threshold):
+    dist_prev = abs(ghost_x - start_x)
+    dist_next = abs(end_x - ghost_x)
+    return (dist_prev < prev_threshold) or (dist_next < next_threshold)
+
+
+def test_dynamic_pin_sizing_proximity():
+    # Setup a track segment from node 0 (x=50) to node 1 (x=350)
+    start_x = 50.0
+    end_x = 350.0
+    prev_threshold = 45.0  # Threshold around node 0
+    next_threshold = 55.0  # Threshold around node 1 (e.g. longer split title)
+
+    # 1. At start node (dist_prev = 0) -> Hovering text -> Compact
+    assert is_hovering_split_text(50.0, start_x, end_x, prev_threshold, next_threshold) is True
+
+    # 2. Just inside start node text boundary (dist_prev = 40 < 45) -> Compact
+    assert is_hovering_split_text(90.0, start_x, end_x, prev_threshold, next_threshold) is True
+
+    # 3. Open track space (dist_prev = 100 > 45, dist_next = 200 > 55) -> Extended / longer pin
+    assert is_hovering_split_text(150.0, start_x, end_x, prev_threshold, next_threshold) is False
+    assert is_hovering_split_text(200.0, start_x, end_x, prev_threshold, next_threshold) is False
+    assert is_hovering_split_text(250.0, start_x, end_x, prev_threshold, next_threshold) is False
+
+    # 4. Approaching target node text boundary (dist_next = 50 < 55) -> Compact
+    assert is_hovering_split_text(300.0, start_x, end_x, prev_threshold, next_threshold) is True
+
+    # 5. Right at target node (dist_next = 0) -> Compact
+    assert is_hovering_split_text(350.0, start_x, end_x, prev_threshold, next_threshold) is True
+
+    print("✓ Dynamic pin sizing proximity check passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -476,6 +509,7 @@ def main():
         test_ghost_runner_progress()
         test_detect_timing_method_unit()
         test_ghost_timescale_mismatch_defense()
+        test_dynamic_pin_sizing_proximity()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

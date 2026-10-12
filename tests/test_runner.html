@@ -291,6 +291,17 @@
         assertEqual(resRT, "RealTime");
         assertEqual(window.getCurrentTimingMethod(), "RealTime");
       });
+      it("dynamically adjusts ghost pin size threshold based on split text", () => {
+        assertEqual(typeof window.getNodeTextThreshold, "function");
+        // Null node fallback
+        assertEqual(window.getNodeTextThreshold(null), 45);
+
+        // Mock node element with split text
+        const mockNode = document.createElement("div");
+        mockNode.innerHTML = '<div class="split-name">Sinspawn Ammes</div><div class="split-delta"></div>';
+        const thresh = window.getNodeTextThreshold(mockNode, false);
+        assert(thresh >= 35, "Threshold should be at least 35px");
+      });
     });
 
     // --- RENDER RESULTS ---
