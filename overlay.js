@@ -467,6 +467,7 @@ function renderTrack() {
     track.appendChild(item);
   });
 
+  updateTrackDensityAndAngle();
   updateTrackStatus(currentIndex);
 }
 
@@ -940,9 +941,116 @@ window.addEventListener("drop", (e) => {
   }
 });
 
+function updateTrackDensityAndAngle() {
+  const viewport = document.getElementById("track-viewport");
+  const track = document.getElementById("track");
+  if (!viewport || !track) return;
+
+  const viewportWidth = viewport.clientWidth || window.innerWidth || 1920;
+  const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+  const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+
+  let spacing = 220;
+
+  if (splitPref === "all") {
+    // Fit all splits on screen without scrolling
+    const totalCount = Math.max(1, splitsList.length + 1); // +1 for the Start node
+    spacing = Math.max(45, Math.floor((viewportWidth - 50) / totalCount));
+  } else if (splitPref !== "auto") {
+    const num = parseInt(splitPref, 10);
+    if (!isNaN(num) && num > 0) {
+      spacing = Math.max(45, Math.floor(viewportWidth / num));
+    }
+  } else {
+    // Default auto spacing
+    spacing = 220;
+  }
+
+  // Set the CSS variable dynamically
+  document.documentElement.style.setProperty("--node-spacing", `${spacing}px`);
+
+  // Update UI indicators
+  const splitBadge = document.getElementById("split-density-badge");
+  if (splitBadge) {
+    splitBadge.innerText = (splitPref === "all") 
+      ? "Splits: All" 
+      : (splitPref === "auto" ? "Splits: Auto" : `Splits: ${splitPref}`);
+  }
+  const splitSelect = document.getElementById("select-visible-splits");
+  if (splitSelect) {
+    splitSelect.value = splitPref;
+  }
+
+  // Determine whether to apply 40° angle
+  let shouldAngle = false;
+  if (anglePref === "angled" || anglePref === "40") {
+    shouldAngle = true;
+  } else if (anglePref === "horizontal" || anglePref === "flat") {
+    shouldAngle = false;
+  } else {
+    // Intelligent collision detection:
+    // If node spacing is under 175px, text is very prone to collision
+    if (spacing < 175) {
+      shouldAngle = true;
+    } else {
+      const nameElements = track.querySelectorAll(".split-name");
+      for (const el of nameElements) {
+        if (el.scrollWidth > (spacing - 24)) {
+          shouldAngle = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (shouldAngle) {
+    track.classList.add("angled-text");
+  } else {
+    track.classList.remove("angled-text");
+  }
+
+  const angleBadge = document.getElementById("split-angle-badge");
+  if (angleBadge) {
+    angleBadge.innerText = (anglePref === "auto")
+      ? (shouldAngle ? "Angle: Auto (40°)" : "Angle: Auto (Flat)")
+      : (anglePref === "angled" ? "Angle: 40°" : "Angle: Flat");
+  }
+  const angleSelect = document.getElementById("select-split-angle");
+  if (angleSelect) {
+    angleSelect.value = anglePref;
+  }
+
+  if (currentIndex >= 0) {
+    updateTrackStatus(currentIndex);
+  }
+}
+
+window.updateTrackDensityAndAngle = updateTrackDensityAndAngle;
+
+function cycleVisibleSplits() {
+  const current = localStorage.getItem("livesplit_visible_splits") || "auto";
+  const sequence = ["auto", "8", "10", "12", "16", "all"];
+  const nextIdx = (sequence.indexOf(current) + 1) % sequence.length;
+  const nextVal = sequence[nextIdx];
+  localStorage.setItem("livesplit_visible_splits", nextVal);
+  updateTrackDensityAndAngle();
+}
+
+function cycleSplitAngle() {
+  const current = localStorage.getItem("livesplit_split_angle") || "auto";
+  const sequence = ["auto", "angled", "horizontal"];
+  const nextIdx = (sequence.indexOf(current) + 1) % sequence.length;
+  const nextVal = sequence[nextIdx];
+  localStorage.setItem("livesplit_split_angle", nextVal);
+  updateTrackDensityAndAngle();
+}
+
 window.onload = () => {
   document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
   document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
+  document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
+  document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
   loadCachedSplits();
+  updateTrackDensityAndAngle();
   connect();
 };

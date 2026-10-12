@@ -90,7 +90,14 @@ The overlay supports in-browser visual editing via pointer drag-and-drop and sca
 * **Proportional Resize**: Click and drag the bottom-right resize grip (**`⤡`**) to scale smoothly (40% to 250%). All typography and split geometries scale with 100% geometric parity.
 * **Toggle Visibility**: Click the **`👁`** icon on any component header, or use the checkboxes (**`Title`**, **`Timers`**, **`Track`**) in the top toolbar.
 * **Bottom Dock Snapping**: Drag the Progress Track near the bottom to snap to a full-width bottom dock, or click the **`⚓ Dock / ⛵ Float`** button.
-* **Lock & Save**: Press **`Esc`**, **`E`**, or click **`🔒 Lock Layout`**. Coordinates and scales are saved to `localStorage` (`livesplit_hud_layout`) and remembered across OBS launches.
+* **Visible Splits Control**:
+  - Adjust how many splits fit on the screen (**`Auto`**, **`5`**, **`8`**, **`10`**, **`12`**, **`16`**, **`20`**, or **`Fit All`**).
+  - Configurable via dropdown in the Layout Editor or click the **`Splits: Auto`** badge in the bottom utility bar to cycle on the fly.
+* **Intelligent Overlap Tracking & 40° Angle Tilt**:
+  - In high-density split layouts (or long split titles), names can collide horizontally.
+  - The overlay actively measures node spacing and text widths; if overlap is detected (or spacing $< 175\text{px}$), it automatically rotates labels and deltas to a **40° angle** (`rotate(-40deg)`).
+  - Can be set to **`Auto (Smart)`**, forced **`40° Tilt`**, or forced **`Flat`** via toolbar dropdown or the **`Angle: Auto`** footer badge.
+* **Lock & Save**: Press **`Esc`**, **`E`**, or click **`🔒 Lock Layout`**. Coordinates, scales, splits count, and angle preferences are saved to `localStorage` and remembered across OBS launches.
 * **Reset**: Click **`↺ Reset`** in the editor toolbar to restore defaults for the current screen resolution.
 
 ### Standalone URL Parameter Views
@@ -99,6 +106,8 @@ For multi-source OBS setups or targeted browser sources:
 * `index.html?view=title` — Shows only the Game Title and Category.
 * `index.html?view=timers` — Shows only the Dual Timers (IGT & RTA).
 * `index.html?view=track` — Shows only the Horizontal Split Track.
+* `index.html?splits=all` — Forces all splits to fit on screen without scrolling (or `?splits=10`, `?splits=12`).
+* `index.html?angle=40` — Forces 40° angled text mode (or `?angle=flat`).
 * `index.html?edit=1` — Automatically launches into Edit Mode on load.
 * `index.html?hide=title,timers` — Hides specific components directly via URL query.
 

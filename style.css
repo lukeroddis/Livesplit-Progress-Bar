@@ -264,6 +264,34 @@ body.edit-mode .layout-toolbar {
   color: #cbd5e1;
 }
 
+.toolbar-select-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.toolbar-select-group select {
+  background: rgba(30, 41, 59, 0.9);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.toolbar-select-group select:hover,
+.toolbar-select-group select:focus {
+  border-color: #38bdf8;
+  background: rgba(15, 23, 42, 0.95);
+  color: #ffffff;
+}
+
 /* ============================================================
    COMPONENT INTERNAL STYLES
    ============================================================ */
@@ -561,6 +589,54 @@ body.edit-mode .layout-toolbar {
 .delta-gold {
   color: var(--gold-color) !important;
   text-shadow: 0 0 10px rgba(250, 204, 21, 0.85), 0 2px 4px #000 !important;
+}
+
+/* ============================================================
+   ANGLED TEXT MODE (40° Tilt for High-Density Splits)
+   ============================================================ */
+.track {
+  transition: padding 0.25s ease;
+}
+
+.track.angled-text {
+  padding-top: 54px;
+}
+
+.track.angled-text .split-item {
+  height: 112px;
+}
+
+.track.angled-text .split-name {
+  bottom: 24px;
+  left: calc(50% + 4px);
+  transform-origin: bottom left;
+  transform: rotate(-40deg);
+  text-align: left;
+  white-space: nowrap;
+  font-size: 14px;
+  letter-spacing: 0.25px;
+}
+
+.track.angled-text .split-delta {
+  bottom: 44px;
+  left: calc(50% + 18px);
+  transform-origin: bottom left;
+  transform: rotate(-40deg);
+  justify-content: flex-start;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.track.angled-text .split-delta-val {
+  font-size: 13px;
+}
+
+.track.angled-text .split-time-val {
+  font-size: 12px;
+}
+
+.track.angled-text .split-item.current .split-name {
+  transform: rotate(-40deg) scale(1.08);
 }
 
 /* Footer Status Bar */

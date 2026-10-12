@@ -17,6 +17,23 @@
       <label><input type="checkbox" id="cb-toggle-timers" checked> Timers</label>
       <label><input type="checkbox" id="cb-toggle-track" checked> Track</label>
     </div>
+    <div class="toolbar-select-group">
+      <select id="select-visible-splits" title="Number of splits visible on screen">
+        <option value="auto">Splits: Auto</option>
+        <option value="5">Splits: 5</option>
+        <option value="8">Splits: 8</option>
+        <option value="10">Splits: 10</option>
+        <option value="12">Splits: 12</option>
+        <option value="16">Splits: 16</option>
+        <option value="20">Splits: 20</option>
+        <option value="all">Splits: Fit All</option>
+      </select>
+      <select id="select-split-angle" title="Text orientation on split nodes">
+        <option value="auto">Angle: Auto (Smart)</option>
+        <option value="angled">Angle: 40° Tilt</option>
+        <option value="horizontal">Angle: Flat</option>
+      </select>
+    </div>
     <button class="toolbar-btn" id="btn-reset-layout" title="Reset all elements to default positions">↺ Reset</button>
     <button class="toolbar-btn btn-primary" id="btn-lock-layout" title="Lock layout and save (Press Esc or E)">🔒 Lock Layout</button>
   </div>
@@ -82,6 +99,8 @@
     <div style="display:flex; gap:14px; align-items:center;">
       <span id="gold-toggle-badge" style="cursor:pointer; color: #facc15; text-decoration: underline;" title="Click to toggle Gold Splits">Golds: ON</span>
       <span id="timing-method-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to toggle Game / Real Time">Game Time</span>
+      <span id="split-density-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</span>
+      <span id="split-angle-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</span>
       <span id="layout-edit-btn" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout</span>
       <div id="connection-status">Connecting...</div>
     </div>

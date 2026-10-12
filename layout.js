@@ -191,6 +191,17 @@
       }
     }
 
+    const splitsParam = params.get("splits");
+    const angleParam = params.get("angle");
+
+    if (splitsParam) {
+      localStorage.setItem("livesplit_visible_splits", splitsParam.toLowerCase().trim());
+    }
+    if (angleParam) {
+      const a = angleParam.toLowerCase().trim();
+      localStorage.setItem("livesplit_split_angle", (a === "40" || a === "angled") ? "angled" : ((a === "flat" || a === "horizontal") ? "horizontal" : "auto"));
+    }
+
     if (edit === "1" || edit === "true") {
       setTimeout(() => setEditMode(true), 100);
     }
@@ -365,9 +376,26 @@
       }
     });
 
+    // Toolbar selects
+    const splitSelect = document.getElementById("select-visible-splits");
+    if (splitSelect) {
+      splitSelect.addEventListener("change", () => {
+        localStorage.setItem("livesplit_visible_splits", splitSelect.value);
+        if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+      });
+    }
+
+    const angleSelect = document.getElementById("select-split-angle");
+    if (angleSelect) {
+      angleSelect.addEventListener("change", () => {
+        localStorage.setItem("livesplit_split_angle", angleSelect.value);
+        if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+      });
+    }
+
     // Keyboard Hotkeys: 'E' / 'F2' toggles edit mode, 'Escape' exits edit mode
     window.addEventListener("keydown", (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
 
       if (e.key === "e" || e.key === "E" || e.key === "F2") {
         e.preventDefault();
@@ -392,6 +420,10 @@
           state.y = Math.max(0, Math.min(h - 50, state.y));
         }
         applyComponentLayout(id);
+      }
+
+      if (window.updateTrackDensityAndAngle) {
+        window.updateTrackDensityAndAngle();
       }
     });
   }
