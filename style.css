@@ -4,7 +4,7 @@
   --node-active: #38bdf8;
   --timer-green: #4ade80;
   --gold-color: #facc15;
-
+  
   /* LiveSplit 4-State Delta Color Scheme */
   --ahead-gaining: #16a34a;    /* Dark / saturated green */
   --ahead-losing: #86efac;     /* Light green */
@@ -22,33 +22,256 @@
   user-select: none;
 }
 
-body {
+html, body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  overflow: hidden;
-  width: 1920px;
-  height: 1080px;
+  user-select: none;
   position: relative;
 }
 
 /* ============================================================
-   TOP BAR: Game Title & Dynamic Timers
+   HUD COMPONENTS & MODULAR LAYOUT
    ============================================================ */
-.top-bar {
+.hud-component {
   position: absolute;
-  top: 16px;
-  left: 42px;
-  right: 42px;
-  display: flex;
+  box-sizing: border-box;
+  transform-origin: top left;
+  z-index: 20;
+  transition: outline 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hud-component.is-hidden {
+  display: none !important;
+}
+
+.hud-component.edit-hidden {
+  opacity: 0.35 !important;
+  border-style: dotted !important;
+}
+
+/* Edit Mode styling */
+body.edit-mode .hud-component {
+  outline: 2px dashed rgba(56, 189, 248, 0.7);
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+  cursor: grab;
+}
+
+body.edit-mode .hud-component:hover {
+  outline: 2px solid #38bdf8;
+  background: rgba(15, 23, 42, 0.92);
+}
+
+body.edit-mode .hud-component.is-dragging {
+  outline: 2px solid #4ade80 !important;
+  opacity: 0.9;
+  cursor: grabbing !important;
+  z-index: 100 !important;
+}
+
+body.edit-mode .hud-component.is-scaling {
+  outline: 2px solid #facc15 !important;
+  z-index: 100 !important;
+}
+
+/* Header inside each component during Edit Mode */
+.hud-component-header {
+  display: none;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
+  padding: 4px 10px;
+  background: rgba(30, 41, 59, 0.95);
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 11px;
+  font-family: monospace;
+  color: #cbd5e1;
+  user-select: none;
+}
+
+body.edit-mode .hud-component-header {
+  display: flex;
+}
+
+.hud-drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #38bdf8;
+  cursor: grab;
+}
+
+.hud-comp-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-scale-badge {
+  font-size: 10px;
+  color: #94a3b8;
+  padding: 1px 5px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+}
+
+.hud-btn-icon {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.hud-btn-icon:hover {
+  color: #ffffff;
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.2);
+}
+
+/* Resize corner handle */
+.hud-resize-handle {
+  display: none;
+  position: absolute;
+  right: 0px;
+  bottom: 0px;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.25);
+  border-top-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  user-select: none;
   z-index: 10;
 }
 
+body.edit-mode .hud-resize-handle {
+  display: flex;
+}
+
+/* Docked Bottom state for Track */
+#hud-comp-track.docked-bottom {
+  position: absolute;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  top: auto !important;
+  width: 100% !important;
+  border-radius: 0 !important;
+}
+
+/* Floating Layout Toolbar */
+.layout-toolbar {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85), 0 0 16px rgba(56, 189, 248, 0.25);
+  border-radius: 30px;
+  padding: 6px 18px;
+  z-index: 1000;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  opacity: 0;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: #f1f5f9;
+}
+
+body.edit-mode .layout-toolbar {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.toolbar-title {
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-btn {
+  background: rgba(51, 65, 85, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #e2e8f0;
+  border-radius: 16px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.toolbar-btn:hover {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+}
+
+.toolbar-btn.btn-primary {
+  background: #16a34a;
+  border-color: #22c55e;
+  color: #ffffff;
+}
+
+.toolbar-btn.btn-primary:hover {
+  background: #22c55e;
+}
+
+.toolbar-checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px;
+  border-left: 1px solid rgba(148, 163, 184, 0.25);
+  border-right: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.toolbar-checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #cbd5e1;
+}
+
+/* ============================================================
+   COMPONENT INTERNAL STYLES
+   ============================================================ */
 .title-group {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 4px 6px;
 }
 
 .game-name {
@@ -70,6 +293,7 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 32px;
+  padding: 4px 6px;
 }
 
 .timer-block {
@@ -112,18 +336,8 @@ body {
 }
 
 /* ============================================================
-   BOTTOM DOCK: Horizontal Split Track
+   PROGRESS BAR TRACK
    ============================================================ */
-.bottom-dock {
-  position: absolute;
-  bottom: 0px;
-  left: 0px;
-  right: 0px;
-  display: flex;
-  flex-direction: column;
-  z-index: 10;
-}
-
 .track-viewport {
   width: 100%;
   overflow-x: auto;
@@ -351,7 +565,7 @@ body {
 
 /* Footer Status Bar */
 .footer-bar {
-  position: absolute;
+  position: fixed;
   bottom: 2px;
   left: 14px;
   right: 14px;
@@ -364,9 +578,12 @@ body {
   transition: opacity 0.2s ease;
   text-shadow: 0 1px 3px rgba(0,0,0,0.95);
   pointer-events: none;
+  z-index: 50;
 }
 
-.bottom-dock:hover .footer-bar {
+body:hover .footer-bar,
+body.edit-mode .footer-bar,
+.footer-bar:hover {
   opacity: 1;
   pointer-events: auto;
 }

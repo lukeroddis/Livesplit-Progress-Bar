@@ -59,7 +59,8 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 
 ### Core Files
 - **Modular Entry Point**: [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html) (Modular HTML structure)
-- **Styles**: [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css) (HUD styling & animations)
+- **Styles**: [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css) (HUD styling & animations, responsive canvas, layout editor UI)
+- **Layout Engine**: [layout.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/layout.js) (Interactive drag & drop, proportional scaling, visibility toggles, localStorage persistence, and URL views)
 - **Overlay Engine**: [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) (WebSocket communication, .lss XML parser, 4-state delta engine)
 - **Standalone Build**: [gemini-code-1791738130877.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html) (Single-file standalone fallback)
 - **Latest Backup**: [gemini-code-1791738130877.html.bak3](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html.bak3)
@@ -73,16 +74,39 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 
 ---
 
-## 5. Future Feature Ideas & Roadmap
+## 5. Interactive HUD Layout Editor & Controls
 
-1. **Custom Resolution & Responsive Viewport**:
-   - Dynamic canvas sizing beyond the current fixed 1920x1080 baseline (e.g. 1440p, 4K, ultrawide, or arbitrary OBS browser source dimensions).
-2. **Component Decoupling & Modular Layout**:
-   - Modularize individual HUD elements (Game Title/Category, Game/Real Timers, Horizontal Progress Track) into independent containers.
-   - Support arbitrary positioning, docking, and resizing of each element across custom stream overlay layouts.
-3. **Component Visibility Toggles**:
-   - Provide toggle on/off settings for each individual component (hide/show timers, title, or progress bar independently via URL query params or settings UI).
-4. **Custom Styling Modal**:
-   - In-overlay or external configuration panel for node spacing, font sizing, color palette overrides, and OBS chroma/transparency presets.
-5. **Hotkey & Comparison Switching**:
+The overlay supports in-browser visual editing via pointer drag-and-drop and scaling:
+
+### How to Edit in OBS or Browser
+1. **In OBS**: Right-click your Browser Source $\rightarrow$ **Interact**.
+2. **In Browser**: Open [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html).
+3. **Toggle Edit Mode**:
+   - Press hotkey **`E`** or **`F2`**, or click **`⚙ Edit Layout`** in the bottom utility bar.
+   - Bounding outlines, move headers, and the floating editor toolbar will appear.
+
+### Layout Controls
+* **Move**: Click and drag any component header (`:::`) or body to position it anywhere on screen.
+* **Proportional Resize**: Click and drag the bottom-right resize grip (**`⤡`**) to scale smoothly (40% to 250%). All typography and split geometries scale with 100% geometric parity.
+* **Toggle Visibility**: Click the **`👁`** icon on any component header, or use the checkboxes (**`Title`**, **`Timers`**, **`Track`**) in the top toolbar.
+* **Bottom Dock Snapping**: Drag the Progress Track near the bottom to snap to a full-width bottom dock, or click the **`⚓ Dock / ⛵ Float`** button.
+* **Lock & Save**: Press **`Esc`**, **`E`**, or click **`🔒 Lock Layout`**. Coordinates and scales are saved to `localStorage` (`livesplit_hud_layout`) and remembered across OBS launches.
+* **Reset**: Click **`↺ Reset`** in the editor toolbar to restore defaults for the current screen resolution.
+
+### Standalone URL Parameter Views
+For multi-source OBS setups or targeted browser sources:
+* `index.html` — Full overlay with custom saved layout.
+* `index.html?view=title` — Shows only the Game Title and Category.
+* `index.html?view=timers` — Shows only the Dual Timers (IGT & RTA).
+* `index.html?view=track` — Shows only the Horizontal Split Track.
+* `index.html?edit=1` — Automatically launches into Edit Mode on load.
+* `index.html?hide=title,timers` — Hides specific components directly via URL query.
+
+---
+
+## 6. Future Feature Ideas & Roadmap
+
+1. **Custom Styling Modal**:
+   - In-overlay configuration panel for node spacing, font sizing, color palette overrides, and OBS chroma/transparency presets.
+2. **Hotkey & Comparison Switching**:
    - Hotkey controls for manual reset or live comparison toggling (PB vs. Average vs. Best Segments).
