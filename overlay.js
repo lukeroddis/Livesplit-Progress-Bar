@@ -12,6 +12,8 @@ let comparisonTimesGT = [];
 let comparisonTimesRT = [];
 let bestSegmentTimesGT = [];
 let bestSegmentTimesRT = [];
+let baselineBestSegmentTimesGT = [];
+let baselineBestSegmentTimesRT = [];
 let completedSplitTimes = {};
 let currentTimingMethod = "GameTime";
 let lockedDeltas = {}; 
@@ -291,6 +293,10 @@ function parseLSS(xmlText) {
       }
 
       // Cache raw LSS and parsed data
+      baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
+      baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
+      localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(baselineBestSegmentTimesGT));
+      localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(baselineBestSegmentTimesRT));
       localStorage.setItem("livesplit_raw_lss", xmlText);
       localStorage.setItem("livesplit_segments", JSON.stringify(splitsList));
       localStorage.setItem("livesplit_targets_gt", JSON.stringify(comparisonTimesGT));
@@ -353,6 +359,17 @@ function loadCachedSplits() {
       comparisonTimesRT = JSON.parse(localStorage.getItem("livesplit_targets_rt") || "[]");
       bestSegmentTimesGT = JSON.parse(localStorage.getItem("livesplit_golds_gt") || "[]");
       bestSegmentTimesRT = JSON.parse(localStorage.getItem("livesplit_golds_rt") || "[]");
+      
+      const cachedBaseGT = localStorage.getItem("livesplit_baseline_golds_gt");
+      const cachedBaseRT = localStorage.getItem("livesplit_baseline_golds_rt");
+      if (cachedBaseGT && cachedBaseRT) {
+        baselineBestSegmentTimesGT = JSON.parse(cachedBaseGT);
+        baselineBestSegmentTimesRT = JSON.parse(cachedBaseRT);
+      } else {
+        baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
+        baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
+      }
+
       updateGoldBadge();
       applyActiveTimingMethod(currentTimingMethod);
       renderTrack();
@@ -368,6 +385,8 @@ function loadCachedSplits() {
   comparisonTimesRT = [...DEFAULT_TARGETS];
   bestSegmentTimesGT = [...DEFAULT_BESTS];
   bestSegmentTimesRT = [...DEFAULT_BESTS];
+  baselineBestSegmentTimesGT = [...DEFAULT_BESTS];
+  baselineBestSegmentTimesRT = [...DEFAULT_BESTS];
 
   updateGoldBadge();
   applyActiveTimingMethod(currentTimingMethod);
@@ -746,6 +765,22 @@ async function pollLoop() {
         completedSplitTimes = {};
         lastSplitRecordedSec = 0;
         previousDeltaSeconds = 0;
+
+        // Discard uncommitted in-run gold split segments by default upon reset
+        const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
+        if (discardOnReset && baselineBestSegmentTimesGT.length > 0) {
+          bestSegmentTimesGT = [...baselineBestSegmentTimesGT];
+          bestSegmentTimesRT = [...baselineBestSegmentTimesRT];
+          const isRT = currentTimingMethod === "RealTime";
+          bestSegmentTimes = splitsList.map((_, i) => {
+            return isRT 
+              ? (bestSegmentTimesRT[i] ?? bestSegmentTimesGT[i] ?? null)
+              : (bestSegmentTimesGT[i] ?? bestSegmentTimesRT[i] ?? null);
+          });
+          localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
+          localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+        }
+
         for (let i = 0; i < splitsList.length; i++) {
           const deltaSpan = document.getElementById(`delta-val-${i}`);
           const timeSpan = document.getElementById(`time-val-${i}`);
@@ -834,10 +869,18 @@ async function pollLoop() {
               bestSegmentTimes[prevIdx] = segmentDurationSec;
               if (currentTimingMethod === "RealTime") {
                 bestSegmentTimesRT[prevIdx] = segmentDurationSec;
-                localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
               } else {
                 bestSegmentTimesGT[prevIdx] = segmentDurationSec;
-                localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
+              }
+
+              // Only write to persistent storage immediately if the user opted out of discarding on reset
+              const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
+              if (!discardOnReset) {
+                if (currentTimingMethod === "RealTime") {
+                  localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+                } else {
+                  localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
+                }
               }
             }
           }
@@ -881,6 +924,15 @@ async function pollLoop() {
                   }
                 }
               }
+
+              // Completed PB run: commit both targets AND newly earned best segments to baseline!
+              baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
+              baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
+              localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(baselineBestSegmentTimesGT));
+              localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(baselineBestSegmentTimesRT));
+              localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
+              localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+
               if (currentTimingMethod === "RealTime") {
                 localStorage.setItem("livesplit_targets_rt", JSON.stringify(comparisonTimesRT));
               } else {

@@ -212,6 +212,16 @@
           <input type="range" id="slider-dot-size" min="8" max="24" value="15" step="1">
         </div>
 
+        <!-- Run & Reset Behavior -->
+        <div class="modal-section-title">Run & Reset Behavior</div>
+        <div class="modal-row">
+          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+            <span>Discard In-Run Golds on Reset</span>
+            <input type="checkbox" id="cb-discard-golds-reset" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+          </label>
+          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">When resetting an aborted run, discard temporary gold segments and preserve canonical .lss baseline.</span>
+        </div>
+
       </div>
       <div class="track-modal-footer">
         <button class="toolbar-btn" id="btn-reset-track-style">↺ Reset Styles</button>

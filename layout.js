@@ -297,6 +297,12 @@
       sDotSize.value = currentTrackStyle.dotSize;
       vDotSize.innerText = `${currentTrackStyle.dotSize}px`;
     }
+
+    // Discard in-run golds on reset checkbox
+    const cbDiscard = document.getElementById("cb-discard-golds-reset");
+    if (cbDiscard) {
+      cbDiscard.checked = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
+    }
   }
 
   function openTrackModal() {
@@ -859,6 +865,11 @@
       currentTrackStyle.bgOpacity = nextVal;
       applyTrackStyle();
       saveTrackStyle();
+    });
+
+    // Discard in-run golds on reset checkbox listener
+    document.getElementById("cb-discard-golds-reset")?.addEventListener("change", (e) => {
+      localStorage.setItem("livesplit_discard_golds_on_reset", e.target.checked ? "true" : "false");
     });
 
     // Live slider input listeners

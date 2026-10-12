@@ -53,6 +53,12 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 - While runner is on pace for a Gold split ($t_{\text{seg}} \le t_{\text{best}}$), the delta span `#delta-val-${currentIndex}` remains blank.
 - As soon as $t_{\text{seg}} > t_{\text{best}}$, the delta appears and ticks synchronously in memory ($t_{\text{current}} - t_{\text{target}}$) without additional WebSocket round trips.
 
+### Reset Behavior & Gold Split Lifecycle
+- **LiveSplit Server Limitation**: When resetting in LiveSplit, the desktop app presents a local dialog asking whether to update best segments (*"You have beaten at least one of your best segments. Do you want to update them?"*). The LiveSplit Server WebSocket API does **not** expose or broadcast the runner's response to this prompt; it simply emits a reset signal (`getsplitindex = -1`, phase `NotRunning`).
+- **Discard by Default on Reset**: Because the dialog choice cannot be queried through the server, the overlay **discards temporary in-run gold splits by default upon receiving the reset signal**, safely reverting all best segments back to the canonical baseline established by the loaded `.lss` file. This prevents aborted or abandoned runs from polluting your official best segment times.
+- **User Controllable**: A toggle (**`Discard In-Run Golds on Reset`**) is available in the `🎨 Bar Styles` customizer modal if you ever wish to alter this behavior.
+- **Run Completion**: When a full run is finished and achieves a new Personal Best, all newly beaten segment times are automatically committed to the persistent baseline.
+
 ---
 
 ## 4. File Structure & Reference Assets
