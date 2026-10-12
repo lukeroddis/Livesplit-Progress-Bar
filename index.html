@@ -248,12 +248,25 @@
         <!-- Live Ghost Runner -->
         <div class="modal-section-title">Live Ghost Runner</div>
         <div class="modal-row">
-          <label>Ghost Comparison Pace</label>
+          <label>Ghost Pins (Toggle Multiple)</label>
+          <div class="ghost-pill-row" id="ghost-pill-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
+            <button type="button" class="preset-pill-btn" data-ghost-pill="off" id="ghost-pill-off">Off</button>
+            <button type="button" class="preset-pill-btn" data-ghost-pill="wr" id="ghost-pill-wr">🏆 WR</button>
+            <button type="button" class="preset-pill-btn" data-ghost-pill="pb" id="ghost-pill-pb">🥈 PB</button>
+            <button type="button" class="preset-pill-btn" data-ghost-pill="best" id="ghost-pill-best">⭐ Best</button>
+            <button type="button" class="preset-pill-btn" data-ghost-pill="average" id="ghost-pill-average">📊 Avg</button>
+            <button type="button" class="preset-pill-btn" data-ghost-pill="worst" id="ghost-pill-worst">🐢 Worst</button>
+          </div>
+        </div>
+        <div class="modal-row">
+          <label>Quick Preset</label>
           <select id="select-ghost-comparison" class="modal-select">
             <option value="off">Off (Disabled)</option>
             <option value="wr">World Record (🏆)</option>
             <option value="pb">Personal Best (🥈)</option>
+            <option value="wr,pb">Dual: WR (🏆) + PB (🥈)</option>
             <option value="best">Best Segments (⭐)</option>
+            <option value="wr,best">Dual: WR (🏆) + Best (⭐)</option>
             <option value="average">Average Segments (📊)</option>
             <option value="worst">Worst Segments (🐢)</option>
           </select>
@@ -262,7 +275,7 @@
           <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
           <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
         </div>
-        <div class="modal-hint" id="ghost-hint">💡 Displays a live ghost pin (e.g. 🏆 or 🥈) advancing along the progress bar to show where that run was at the current second.</div>
+        <div class="modal-hint" id="ghost-hint">💡 Toggle multiple pins (e.g. 🏆 WR and 🥈 PB) to compare against multiple paces simultaneously on the progress bar.</div>
 
         <!-- Run & Reset Behavior -->
         <div class="modal-section-title">Run & Reset Behavior</div>

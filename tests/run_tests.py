@@ -107,7 +107,7 @@ def test_dom_id_consistency():
     defined_ids = set(re.findall(r'id=["\']([^"\']+)["\']', html))
 
     # Dynamic IDs generated at runtime in JS
-    dynamic_prefixes = ("item-", "fill-", "delta-", "delta-val-", "time-val-", "node-")
+    dynamic_prefixes = ("item-", "fill-", "delta-", "delta-val-", "time-val-", "node-", "ghost-marker-")
 
     for js_file in ["layout.js", "overlay.js"]:
         path = os.path.join(ROOT_DIR, js_file)
@@ -492,6 +492,61 @@ def test_dynamic_pin_sizing_proximity():
     print("✓ Dynamic pin sizing proximity check passed.")
 
 
+def parse_active_ghosts(val):
+    if isinstance(val, list):
+        res = [x for x in val if x]
+    elif isinstance(val, str):
+        if "," in val:
+            res = [x.strip() for x in val.split(",") if x.strip()]
+        elif not val.strip() or val.strip().lower() == "off":
+            res = ["off"]
+        else:
+            res = [val.strip()]
+    else:
+        res = ["off"]
+    return res if res else ["off"]
+
+
+def toggle_ghost_selection(current_list, ghost_id):
+    gid = (ghost_id or "").strip()
+    if not gid or gid == "off":
+        return ["off"]
+    active = [x for x in current_list if x and x != "off"]
+    if gid in active:
+        active.remove(gid)
+    else:
+        active.append(gid)
+    return active if active else ["off"]
+
+
+def test_multi_ghost_selection_logic():
+    # Parsing strings and arrays
+    assert parse_active_ghosts("wr,pb") == ["wr", "pb"]
+    assert parse_active_ghosts(["wr", "pb"]) == ["wr", "pb"]
+    assert parse_active_ghosts("off") == ["off"]
+    assert parse_active_ghosts("") == ["off"]
+    assert parse_active_ghosts(None) == ["off"]
+
+    # Toggle logic
+    active = ["off"]
+    active = toggle_ghost_selection(active, "wr")
+    assert active == ["wr"]
+
+    active = toggle_ghost_selection(active, "pb")
+    assert active == ["wr", "pb"]
+
+    active = toggle_ghost_selection(active, "best")
+    assert active == ["wr", "pb", "best"]
+
+    active = toggle_ghost_selection(active, "wr")
+    assert active == ["pb", "best"]
+
+    active = toggle_ghost_selection(active, "off")
+    assert active == ["off"]
+
+    print("✓ Multi-Ghost selection & toggle logic passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -510,6 +565,7 @@ def main():
         test_detect_timing_method_unit()
         test_ghost_timescale_mismatch_defense()
         test_dynamic_pin_sizing_proximity()
+        test_multi_ghost_selection_logic()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

@@ -949,11 +949,33 @@ function updateLiveSegmentProgress(currentSec) {
 // ============================================================
 // LIVE GHOST RUNNER COMPARISON ENGINE
 // ============================================================
-let ghostComparison = localStorage.getItem("livesplit_ghost_comparison") || "off";
+let activeGhostComparisons = loadActiveGhostComparisons();
+let ghostComparison = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
 let ghostOpacity = parseFloat(localStorage.getItem("livesplit_ghost_opacity") || "85") / 100;
 
-function getGhostComparisonInfo() {
-  if (!ghostComparison || ghostComparison === "off") return null;
+function loadActiveGhostComparisons() {
+  const savedMulti = localStorage.getItem("livesplit_active_ghosts");
+  if (savedMulti) {
+    try {
+      const parsed = JSON.parse(savedMulti);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length === 0) return ["off"];
+    } catch (e) {}
+  }
+  const single = localStorage.getItem("livesplit_ghost_comparison") || "off";
+  return single === "off" ? ["off"] : [single];
+}
+
+function saveActiveGhostComparisons() {
+  localStorage.setItem("livesplit_active_ghosts", JSON.stringify(activeGhostComparisons));
+  const primary = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
+  ghostComparison = primary;
+  localStorage.setItem("livesplit_ghost_comparison", primary);
+}
+
+function getGhostComparisonInfo(targetGhost = null) {
+  const gChoice = targetGhost || ghostComparison;
+  if (!gChoice || gChoice === "off") return null;
 
   const isRT = (currentTimingMethod === "RealTime");
   const compData = isRT ? comparisonsDataRT : comparisonsDataGT;
@@ -962,7 +984,7 @@ function getGhostComparisonInfo() {
   const altKeys = Object.keys(altData);
   const fallbackTimes = isRT ? comparisonTimesRT : comparisonTimesGT;
 
-  const lowGhost = ghostComparison.toLowerCase().trim();
+  const lowGhost = gChoice.toLowerCase().trim();
 
   // 1. World Record match (wr / world record)
   const isWRMatch = (lowGhost === "wr" || lowGhost.includes("world record"));
@@ -974,65 +996,62 @@ function getGhostComparisonInfo() {
     const altTimes = (altWrKey && altData[altWrKey] && altData[altWrKey].some(t => t !== null && t > 0)) ? altData[altWrKey] : null;
 
     if (candTimes) {
-      // Scale mismatch defense: if candidate WR has a massive scale discrepancy with active comparison times
-      // (e.g. RealTime WR has 13:31 with cutscenes while active target is 3:26/3:33, but GameTime WR has 3:22),
-      // prefer the alternate timing method's WR times to prevent absurd deltas and pin freezing!
       if (altTimes && fallbackTimes && fallbackTimes.length > 0 && fallbackTimes[0] > 0) {
         const curRatio = Math.abs(candTimes[0] - fallbackTimes[0]) / fallbackTimes[0];
         const altRatio = Math.abs(altTimes[0] - fallbackTimes[0]) / fallbackTimes[0];
         if (curRatio > 1.5 && altRatio < 0.5) {
-          return { id: "wr", name: altWrKey, icon: "🏆", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
+          return { id: "wr", name: altWrKey, icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
         }
       }
-      return { id: "wr", name: wrKey, icon: "🏆", times: sanitizeComparisonTimes(candTimes, fallbackTimes) };
+      return { id: "wr", name: wrKey, icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(candTimes, fallbackTimes) };
     }
 
     if (altTimes) {
-      return { id: "wr", name: altWrKey, icon: "🏆", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
+      return { id: "wr", name: altWrKey, icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
     }
 
     // Fallback if no explicit WR track in .lss: use Best Segments / Sum of Best pace
     if (compData["Best Segments"] && compData["Best Segments"].some(t => t !== null && t > 0)) {
-      return { id: "wr", name: "Best Segments (WR Fallback)", icon: "🏆", times: sanitizeComparisonTimes(compData["Best Segments"], fallbackTimes) };
+      return { id: "wr", name: "Best Segments (WR Fallback)", icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(compData["Best Segments"], fallbackTimes) };
     }
-    return { id: "wr", name: "Personal Best", icon: "🏆", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
+    return { id: "wr", name: "Personal Best", icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
   }
 
   // 2. Personal Best (pb)
   if (lowGhost === "pb" || lowGhost === "personal best") {
-    return { id: "pb", name: "Personal Best", icon: "🥈", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
+    return { id: "pb", name: "Personal Best", icon: "🥈", color: "#38bdf8", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
   }
 
   // 3. Best Segments (best)
   if (lowGhost === "best" || lowGhost === "best segments") {
-    return { id: "best", name: "Best Segments", icon: "⭐", times: sanitizeComparisonTimes(compData["Best Segments"] || fallbackTimes, fallbackTimes) };
+    return { id: "best", name: "Best Segments", icon: "⭐", color: "#eab308", times: sanitizeComparisonTimes(compData["Best Segments"] || fallbackTimes, fallbackTimes) };
   }
 
   // 4. Average Segments (average)
   if (lowGhost === "average" || lowGhost === "average segments") {
-    return { id: "average", name: "Average Segments", icon: "📊", times: sanitizeComparisonTimes(compData["Average Segments"] || fallbackTimes, fallbackTimes) };
+    return { id: "average", name: "Average Segments", icon: "📊", color: "#a78bfa", times: sanitizeComparisonTimes(compData["Average Segments"] || fallbackTimes, fallbackTimes) };
   }
 
   // 5. Worst Segments (worst)
   if (lowGhost === "worst" || lowGhost === "worst segments") {
-    return { id: "worst", name: "Worst Segments", icon: "🐢", times: sanitizeComparisonTimes(compData["Worst Segments"] || fallbackTimes, fallbackTimes) };
+    return { id: "worst", name: "Worst Segments", icon: "🐢", color: "#f87171", times: sanitizeComparisonTimes(compData["Worst Segments"] || fallbackTimes, fallbackTimes) };
   }
 
   // 6. Direct match with any custom comparison by name
-  if (compData[ghostComparison] && compData[ghostComparison].some(t => t !== null && t > 0)) {
-    const cand = compData[ghostComparison];
-    const alt = altData[ghostComparison];
+  if (compData[gChoice] && compData[gChoice].some(t => t !== null && t > 0)) {
+    const cand = compData[gChoice];
+    const alt = altData[gChoice];
     if (alt && alt.some(t => t !== null && t > 0) && fallbackTimes && fallbackTimes.length > 0 && fallbackTimes[0] > 0) {
       const curRatio = Math.abs(cand[0] - fallbackTimes[0]) / fallbackTimes[0];
       const altRatio = Math.abs(alt[0] - fallbackTimes[0]) / fallbackTimes[0];
       if (curRatio > 1.5 && altRatio < 0.5) {
-        return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(alt, fallbackTimes) };
+        return { id: gChoice, name: gChoice, icon: "👤", color: "#06b6d4", times: sanitizeComparisonTimes(alt, fallbackTimes) };
       }
     }
-    return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(cand, fallbackTimes) };
+    return { id: gChoice, name: gChoice, icon: "👤", color: "#06b6d4", times: sanitizeComparisonTimes(cand, fallbackTimes) };
   }
-  if (altData[ghostComparison] && altData[ghostComparison].some(t => t !== null && t > 0)) {
-    return { id: ghostComparison, name: ghostComparison, icon: "👤", times: sanitizeComparisonTimes(altData[ghostComparison], fallbackTimes) };
+  if (altData[gChoice] && altData[gChoice].some(t => t !== null && t > 0)) {
+    return { id: gChoice, name: gChoice, icon: "👤", color: "#06b6d4", times: sanitizeComparisonTimes(altData[gChoice], fallbackTimes) };
   }
 
   return null;
@@ -1104,56 +1123,57 @@ function getNodeTextThreshold(nodeEl, isNext = false) {
   return (maxW / 2) + 14;
 }
 
+function getOrCreateGhostMarker(ghostInfo) {
+  const markerId = `ghost-marker-${ghostInfo.id}`;
+  let marker = document.getElementById(markerId);
+  const track = document.getElementById("track");
+  if (!track) return null;
+
+  if (!marker) {
+    marker = document.createElement("div");
+    marker.id = markerId;
+    marker.className = `ghost-marker ghost-theme-${ghostInfo.id}`;
+    marker.innerHTML = `
+      <div class="ghost-icon-wrap"><span class="ghost-icon">${ghostInfo.icon}</span></div>
+      <div class="ghost-needle"></div>
+    `;
+    track.appendChild(marker);
+  } else {
+    if (!track.contains(marker)) {
+      track.appendChild(marker);
+    }
+    marker.className = `ghost-marker ghost-theme-${ghostInfo.id}`;
+    const iconSpan = marker.querySelector(".ghost-icon");
+    if (iconSpan) iconSpan.innerText = ghostInfo.icon;
+  }
+  return marker;
+}
+
+function hideAllGhostMarkers() {
+  const staticMarker = document.getElementById("ghost-marker");
+  if (staticMarker) staticMarker.style.display = "none";
+  const dynamicMarkers = document.querySelectorAll(".ghost-marker");
+  dynamicMarkers.forEach(m => {
+    m.style.display = "none";
+  });
+}
+
 function updateGhostRunner(currentSec) {
-  const marker = document.getElementById("ghost-marker");
   const edgeLeft = document.getElementById("ghost-edge-left");
   const edgeRight = document.getElementById("ghost-edge-right");
   const viewport = document.getElementById("track-viewport");
 
   if (!viewport) return;
 
-  const ghostInfo = getGhostComparisonInfo();
-  if (!ghostInfo || currentSec === null || currentSec <= 0 || splitsList.length === 0) {
-    if (marker) marker.style.display = "none";
+  const activeList = activeGhostComparisons.filter(g => g && g !== "off");
+  if (activeList.length === 0 || currentSec === null || currentSec <= 0 || splitsList.length === 0) {
+    hideAllGhostMarkers();
     if (edgeLeft) edgeLeft.style.display = "none";
     if (edgeRight) edgeRight.style.display = "none";
     return;
   }
 
-  const { segIdx, ratio } = calculateGhostProgress(currentSec, ghostInfo.times);
-
-  // Calculate physical track X coordinates
-  const nodeStart = document.getElementById("node-start");
-  if (!nodeStart) return;
-
-  let startX = 0;
-  let endX = 0;
-  let prevNode = null;
-  let nextNode = null;
-
-  if (segIdx === 0) {
-    prevNode = nodeStart;
-    startX = nodeStart.offsetLeft + (nodeStart.offsetWidth / 2);
-    const item0 = document.getElementById("item-0");
-    nextNode = item0;
-    endX = item0 ? (item0.offsetLeft + (item0.offsetWidth / 2)) : startX + 220;
-  } else {
-    const prevItem = document.getElementById(`item-${segIdx - 1}`);
-    const currentItem = document.getElementById(`item-${segIdx}`);
-    if (prevItem && currentItem) {
-      prevNode = prevItem;
-      nextNode = currentItem;
-      startX = prevItem.offsetLeft + (prevItem.offsetWidth / 2);
-      endX = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
-    } else {
-      if (marker) marker.style.display = "none";
-      return;
-    }
-  }
-
-  const ghostX = startX + ratio * (endX - startX);
-
-  // Compute live delta vs ghost at runner's current progress
+  // Pre-calculate runner's current progress in segment for live delta calculations
   let runnerSegProgress = 0;
   if (currentIndex >= 0 && currentIndex < splitsList.length) {
     const curTarget = comparisonTimes[currentIndex];
@@ -1163,59 +1183,81 @@ function updateGhostRunner(currentSec) {
     runnerSegProgress = (dur > 0) ? Math.min(1.0, elapsedInSeg / dur) : 0;
   }
 
-  const ghostTimes = ghostInfo.times;
-  let ghostTimeAtRunnerPos = 0;
-  if (currentIndex >= 0 && currentIndex < ghostTimes.length) {
-    const gNext = ghostTimes[currentIndex] ?? comparisonTimes[currentIndex] ?? 0;
-    const gPrev = (currentIndex === 0) ? 0 : (ghostTimes[currentIndex - 1] ?? (comparisonTimes[currentIndex - 1] || 0));
-    ghostTimeAtRunnerPos = gPrev + runnerSegProgress * (gNext - gPrev);
-  } else {
-    ghostTimeAtRunnerPos = ghostTimes[ghostTimes.length - 1] || 0;
-  }
-
-  const liveDeltaGhost = currentSec - ghostTimeAtRunnerPos;
-  const isAhead = (liveDeltaGhost <= 0);
-  const deltaStr = formatDeltaSeconds(liveDeltaGhost);
-
-  // Check viewport bounds for off-screen pills
   const scrollLeft = viewport.scrollLeft;
   const clientWidth = viewport.clientWidth;
   const visibleMin = scrollLeft + 25;
   const visibleMax = scrollLeft + clientWidth - 25;
 
-  if (ghostX < visibleMin) {
-    // Off-screen to the left (behind camera)
-    if (marker) marker.style.display = "none";
-    if (edgeRight) edgeRight.style.display = "none";
-    if (edgeLeft) {
-      edgeLeft.style.display = "flex";
-      const iconEl = document.getElementById("ghost-edge-left-icon");
-      const valEl = document.getElementById("ghost-edge-left-val");
-      if (iconEl) iconEl.innerText = ghostInfo.icon;
-      if (valEl) {
-        valEl.innerText = deltaStr;
-        valEl.style.color = isAhead ? "#22c55e" : "#ef4444";
+  const nodeStart = document.getElementById("node-start");
+  if (!nodeStart) return;
+
+  const leftOffscreenGhosts = [];
+  const rightOffscreenGhosts = [];
+  const renderedMarkerIds = new Set();
+
+  activeList.forEach((gId) => {
+    const ghostInfo = getGhostComparisonInfo(gId);
+    if (!ghostInfo) return;
+
+    const marker = getOrCreateGhostMarker(ghostInfo);
+    if (!marker) return;
+    renderedMarkerIds.add(marker.id);
+
+    const { segIdx, ratio } = calculateGhostProgress(currentSec, ghostInfo.times);
+
+    // Calculate physical track X coordinates
+    let startX = 0;
+    let endX = 0;
+    let prevNode = null;
+    let nextNode = null;
+
+    if (segIdx === 0) {
+      prevNode = nodeStart;
+      startX = nodeStart.offsetLeft + (nodeStart.offsetWidth / 2);
+      const item0 = document.getElementById("item-0");
+      nextNode = item0;
+      endX = item0 ? (item0.offsetLeft + (item0.offsetWidth / 2)) : startX + 220;
+    } else {
+      const prevItem = document.getElementById(`item-${segIdx - 1}`);
+      const currentItem = document.getElementById(`item-${segIdx}`);
+      if (prevItem && currentItem) {
+        prevNode = prevItem;
+        nextNode = currentItem;
+        startX = prevItem.offsetLeft + (prevItem.offsetWidth / 2);
+        endX = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
+      } else {
+        marker.style.display = "none";
+        return;
       }
     }
-  } else if (ghostX > visibleMax) {
-    // Off-screen to the right (ahead of camera)
-    if (marker) marker.style.display = "none";
-    if (edgeLeft) edgeLeft.style.display = "none";
-    if (edgeRight) {
-      edgeRight.style.display = "flex";
-      const iconEl = document.getElementById("ghost-edge-right-icon");
-      const valEl = document.getElementById("ghost-edge-right-val");
-      if (iconEl) iconEl.innerText = ghostInfo.icon;
-      if (valEl) {
-        valEl.innerText = deltaStr;
-        valEl.style.color = isAhead ? "#22c55e" : "#ef4444";
-      }
+
+    const ghostX = startX + ratio * (endX - startX);
+
+    // Compute live delta vs this ghost
+    const ghostTimes = ghostInfo.times;
+    let ghostTimeAtRunnerPos = 0;
+    if (currentIndex >= 0 && currentIndex < ghostTimes.length) {
+      const gNext = ghostTimes[currentIndex] ?? comparisonTimes[currentIndex] ?? 0;
+      const gPrev = (currentIndex === 0) ? 0 : (ghostTimes[currentIndex - 1] ?? (comparisonTimes[currentIndex - 1] || 0));
+      ghostTimeAtRunnerPos = gPrev + runnerSegProgress * (gNext - gPrev);
+    } else {
+      ghostTimeAtRunnerPos = ghostTimes[ghostTimes.length - 1] || 0;
     }
-  } else {
-    // On-screen!
-    if (edgeLeft) edgeLeft.style.display = "none";
-    if (edgeRight) edgeRight.style.display = "none";
-    if (marker) {
+
+    const liveDeltaGhost = currentSec - ghostTimeAtRunnerPos;
+    const isAhead = (liveDeltaGhost <= 0);
+    const deltaStr = formatDeltaSeconds(liveDeltaGhost);
+
+    if (ghostX < visibleMin) {
+      // Off-screen to the left
+      marker.style.display = "none";
+      leftOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
+    } else if (ghostX > visibleMax) {
+      // Off-screen to the right
+      marker.style.display = "none";
+      rightOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
+    } else {
+      // On-screen!
       marker.style.display = "flex";
       marker.style.transform = `translateX(${ghostX}px) translateX(-50%)`;
 
@@ -1226,71 +1268,173 @@ function updateGhostRunner(currentSec) {
       const nextThreshold = getNodeTextThreshold(nextNode, true);
       const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
       marker.classList.toggle("compact", isHoveringText);
-
-      const iconEl = document.getElementById("ghost-icon");
-      if (iconEl) iconEl.innerText = ghostInfo.icon;
     }
+  });
+
+  // Hide static template marker and any marker not in active list
+  const staticMarker = document.getElementById("ghost-marker");
+  if (staticMarker) staticMarker.style.display = "none";
+  document.querySelectorAll(".ghost-marker").forEach((m) => {
+    if (!renderedMarkerIds.has(m.id)) {
+      m.style.display = "none";
+    }
+  });
+
+  // Render left off-screen pills
+  if (leftOffscreenGhosts.length > 0 && edgeLeft) {
+    edgeLeft.style.display = "flex";
+    if (leftOffscreenGhosts.length === 1) {
+      const g = leftOffscreenGhosts[0];
+      edgeLeft.innerHTML = `<span>❮</span> <span id="ghost-edge-left-icon">${g.ghostInfo.icon}</span> <span id="ghost-edge-left-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span>`;
+    } else {
+      let html = `<span style="opacity:0.7;">❮</span> `;
+      html += leftOffscreenGhosts.map(g => {
+        const col = g.isAhead ? "#22c55e" : "#ef4444";
+        return `<span>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
+      }).join(" &nbsp;");
+      edgeLeft.innerHTML = html;
+    }
+  } else if (edgeLeft) {
+    edgeLeft.style.display = "none";
+  }
+
+  // Render right off-screen pills
+  if (rightOffscreenGhosts.length > 0 && edgeRight) {
+    edgeRight.style.display = "flex";
+    if (rightOffscreenGhosts.length === 1) {
+      const g = rightOffscreenGhosts[0];
+      edgeRight.innerHTML = `<span id="ghost-edge-right-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span> <span id="ghost-edge-right-icon">${g.ghostInfo.icon}</span> <span>❯</span>`;
+    } else {
+      let html = rightOffscreenGhosts.map(g => {
+        const col = g.isAhead ? "#22c55e" : "#ef4444";
+        return `<span>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
+      }).join(" &nbsp;");
+      html += ` <span style="opacity:0.7;">❯</span>`;
+      edgeRight.innerHTML = html;
+    }
+  } else if (edgeRight) {
+    edgeRight.style.display = "none";
   }
 }
 
 function updateGhostBadge() {
   const badge = document.getElementById("ghost-badge");
   if (!badge) return;
-  const low = (ghostComparison || "").toLowerCase().trim();
-  if (!ghostComparison || ghostComparison === "off") {
+  const active = activeGhostComparisons.filter(g => g && g !== "off");
+  if (active.length === 0) {
     badge.innerText = "Ghost: Off";
     badge.style.color = "rgba(148, 163, 184, 0.9)";
-  } else if (ghostComparison === "wr" || low.includes("world record")) {
-    badge.innerText = "Ghost: 🏆 WR";
-    badge.style.color = "#facc15";
-  } else if (ghostComparison === "pb" || low === "personal best") {
-    badge.innerText = "Ghost: 🥈 PB";
-    badge.style.color = "#38bdf8";
-  } else if (ghostComparison === "best" || low === "best segments") {
-    badge.innerText = "Ghost: ⭐ Best";
-    badge.style.color = "#facc15";
-  } else if (ghostComparison === "average" || low === "average segments") {
-    badge.innerText = "Ghost: 📊 Avg";
-    badge.style.color = "#a78bfa";
-  } else if (ghostComparison === "worst" || low === "worst segments") {
-    badge.innerText = "Ghost: 🐢 Worst";
-    badge.style.color = "#f87171";
-  } else {
-    badge.innerText = `Ghost: 👤 ${ghostComparison.slice(0, 8)}`;
-    badge.style.color = "#38bdf8";
+    return;
   }
+
+  const labelMap = {
+    wr: "🏆 WR",
+    pb: "🥈 PB",
+    best: "⭐ Best",
+    average: "📊 Avg",
+    worst: "🐢 Worst"
+  };
+
+  const labels = active.map(id => {
+    const low = id.toLowerCase();
+    if (labelMap[low]) return labelMap[low];
+    if (low.includes("world record")) return "🏆 WR";
+    if (low === "personal best") return "🥈 PB";
+    if (low === "best segments") return "⭐ Best";
+    if (low === "average segments") return "📊 Avg";
+    if (low === "worst segments") return "🐢 Worst";
+    return `👤 ${id.slice(0, 8)}`;
+  });
+
+  badge.innerText = `Ghost: ${labels.join(" + ")}`;
+  badge.style.color = active.includes("wr") ? "#facc15" : (active.includes("pb") ? "#38bdf8" : "#eab308");
 }
 
 function cycleGhostComparison() {
-  const options = ["off", "wr", "pb", "best", "average", "worst"];
-  if (comparisonsList && comparisonsList.length > 0) {
-    comparisonsList.forEach(c => {
-      const low = c.toLowerCase();
-      if (!["personal best", "best segments", "average segments", "worst segments"].includes(low) &&
-          !low.includes("world record") && low !== "wr") {
-        if (!options.includes(c)) options.push(c);
-      }
-    });
-  }
-  const curIdx = options.indexOf(ghostComparison);
-  const next = (curIdx !== -1) ? options[(curIdx + 1) % options.length] : "off";
-  setGhostComparison(next);
+  const presets = [
+    ["off"],
+    ["wr"],
+    ["pb"],
+    ["wr", "pb"],
+    ["best"],
+    ["wr", "best"],
+    ["average"],
+    ["worst"]
+  ];
+
+  const curKey = activeGhostComparisons.filter(g => g !== "off").sort().join(",");
+  let curIdx = -1;
+  presets.forEach((p, idx) => {
+    const pKey = p.filter(g => g !== "off").sort().join(",");
+    if (pKey === curKey) curIdx = idx;
+  });
+
+  const nextIdx = (curIdx + 1) % presets.length;
+  setGhostComparison(presets[nextIdx]);
 }
 
 function setGhostComparison(val) {
-  ghostComparison = val || "off";
-  localStorage.setItem("livesplit_ghost_comparison", ghostComparison);
+  if (Array.isArray(val)) {
+    activeGhostComparisons = val.filter(Boolean);
+  } else if (typeof val === "string") {
+    if (val.includes(",")) {
+      activeGhostComparisons = val.split(",").map(s => s.trim()).filter(Boolean);
+    } else {
+      activeGhostComparisons = (!val.trim() || val.trim().toLowerCase() === "off") ? ["off"] : [val.trim()];
+    }
+  } else {
+    activeGhostComparisons = ["off"];
+  }
+  if (activeGhostComparisons.length === 0) {
+    activeGhostComparisons = ["off"];
+  }
+
+  saveActiveGhostComparisons();
   updateGhostBadge();
-  const marker = document.getElementById("ghost-marker");
+  hideAllGhostMarkers();
+
   const edgeLeft = document.getElementById("ghost-edge-left");
   const edgeRight = document.getElementById("ghost-edge-right");
-  if (ghostComparison === "off") {
-    if (marker) marker.style.display = "none";
+  if (activeGhostComparisons.length === 1 && activeGhostComparisons[0] === "off") {
     if (edgeLeft) edgeLeft.style.display = "none";
     if (edgeRight) edgeRight.style.display = "none";
   } else if (lastElapsedSec > 0) {
     updateGhostRunner(lastElapsedSec);
   }
+
+  if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
+    window.hudLayout.syncTrackModalUI();
+  }
+}
+
+function toggleGhostComparison(ghostId) {
+  const id = (ghostId || "").trim();
+  if (!id || id === "off") {
+    activeGhostComparisons = ["off"];
+  } else {
+    let list = activeGhostComparisons.filter(g => g !== "off");
+    const idx = list.indexOf(id);
+    if (idx !== -1) {
+      list.splice(idx, 1);
+    } else {
+      list.push(id);
+    }
+    activeGhostComparisons = list.length > 0 ? list : ["off"];
+  }
+
+  saveActiveGhostComparisons();
+  updateGhostBadge();
+  hideAllGhostMarkers();
+
+  const edgeLeft = document.getElementById("ghost-edge-left");
+  const edgeRight = document.getElementById("ghost-edge-right");
+  if (activeGhostComparisons.length === 1 && activeGhostComparisons[0] === "off") {
+    if (edgeLeft) edgeLeft.style.display = "none";
+    if (edgeRight) edgeRight.style.display = "none";
+  } else if (lastElapsedSec > 0) {
+    updateGhostRunner(lastElapsedSec);
+  }
+
   if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
     window.hudLayout.syncTrackModalUI();
   }
@@ -1914,7 +2058,9 @@ window.formatDeltaLive = formatDeltaLive;
 window.normalizeComparisonName = normalizeComparisonName;
 window.getShortComparisonName = getShortComparisonName;
 window.getGhostComparison = () => ghostComparison;
+window.getActiveGhostComparisons = () => [...activeGhostComparisons];
 window.setGhostComparison = setGhostComparison;
+window.toggleGhostComparison = toggleGhostComparison;
 window.cycleGhostComparison = cycleGhostComparison;
 window.getGhostComparisonInfo = getGhostComparisonInfo;
 window.calculateGhostProgress = calculateGhostProgress;

@@ -1274,6 +1274,107 @@ body.edit-mode .footer-bar,
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
 }
 
+/* Theme-Specific Glow & Needle Colors */
+.ghost-theme-wr {
+  z-index: 25;
+}
+.ghost-theme-wr .ghost-icon-wrap {
+  border-color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-wr .ghost-needle {
+  background: #facc15;
+  box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
+}
+
+.ghost-theme-pb {
+  z-index: 24;
+}
+.ghost-theme-pb .ghost-icon-wrap {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-pb .ghost-needle {
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.9);
+}
+
+.ghost-theme-best {
+  z-index: 23;
+}
+.ghost-theme-best .ghost-icon-wrap {
+  border-color: #eab308;
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-best .ghost-needle {
+  background: #eab308;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.9);
+}
+
+.ghost-theme-average {
+  z-index: 22;
+}
+.ghost-theme-average .ghost-icon-wrap {
+  border-color: #a78bfa;
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-average .ghost-needle {
+  background: #a78bfa;
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.9);
+}
+
+.ghost-theme-worst {
+  z-index: 21;
+}
+.ghost-theme-worst .ghost-icon-wrap {
+  border-color: #f87171;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-worst .ghost-needle {
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.9);
+}
+
+.ghost-theme-pb.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.ghost-theme-best.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.ghost-theme-average.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.ghost-theme-worst.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+
+/* Modal Ghost Pill Toggle Colors */
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="wr"].active {
+  background: #facc15;
+  color: #0f172a;
+  border-color: #facc15;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="pb"].active {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="best"].active {
+  background: #eab308;
+  color: #0f172a;
+  border-color: #eab308;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="average"].active {
+  background: #a78bfa;
+  color: #0f172a;
+  border-color: #a78bfa;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="worst"].active {
+  background: #f87171;
+  color: #0f172a;
+  border-color: #f87171;
+}
+
 /* Off-screen Edge Pills */
 .ghost-edge-pill {
   position: absolute;

@@ -328,40 +328,52 @@
       cbSync.checked = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
     }
 
+    // Ghost Runner pills & dropdown sync
+    const activeGhosts = window.getActiveGhostComparisons ? window.getActiveGhostComparisons() : (localStorage.getItem("livesplit_active_ghosts") ? JSON.parse(localStorage.getItem("livesplit_active_ghosts")) : [(localStorage.getItem("livesplit_ghost_comparison") || "off")]);
+    const activeList = Array.isArray(activeGhosts) ? activeGhosts.filter(g => g && g !== "off") : [];
+    const activeKey = activeList.length === 0 ? "off" : activeList.join(",");
+
+    // Sync modal pills
+    const pillRow = document.getElementById("ghost-pill-row");
+    if (pillRow) {
+      const pillBtns = pillRow.querySelectorAll(".preset-pill-btn");
+      pillBtns.forEach((btn) => {
+        const pillVal = btn.getAttribute("data-ghost-pill");
+        if (pillVal === "off") {
+          btn.classList.toggle("active", activeList.length === 0);
+        } else {
+          btn.classList.toggle("active", activeList.includes(pillVal));
+        }
+      });
+    }
+
     // Ghost Runner dropdown sync
     const selGhost = document.getElementById("select-ghost-comparison");
     if (selGhost) {
-      const curGhost = window.getGhostComparison ? window.getGhostComparison() : (localStorage.getItem("livesplit_ghost_comparison") || "off");
       selGhost.innerHTML = "";
 
       const defaultGhostOpts = [
         { val: "off", label: "Off (Disabled)" },
         { val: "wr", label: "World Record (🏆)" },
         { val: "pb", label: "Personal Best (🥈)" },
+        { val: "wr,pb", label: "Dual: WR (🏆) + PB (🥈)" },
         { val: "best", label: "Best Segments (⭐)" },
+        { val: "wr,best", label: "Dual: WR (🏆) + Best (⭐)" },
         { val: "average", label: "Average Segments (📊)" },
         { val: "worst", label: "Worst Segments (🐢)" }
       ];
 
-      const isWR = curGhost === "wr" || curGhost.toLowerCase().includes("world record");
-      const isPB = curGhost === "pb" || curGhost.toLowerCase() === "personal best";
-      const isBest = curGhost === "best" || curGhost.toLowerCase() === "best segments";
-      const isAvg = curGhost === "average" || curGhost.toLowerCase() === "average segments";
-      const isWorst = curGhost === "worst" || curGhost.toLowerCase() === "worst segments";
-
+      let optionMatched = false;
       defaultGhostOpts.forEach(o => {
         const opt = document.createElement("option");
         opt.value = o.val;
         opt.innerText = o.label;
-        if (
-          (o.val === curGhost) ||
-          (o.val === "wr" && isWR) ||
-          (o.val === "pb" && isPB) ||
-          (o.val === "best" && isBest) ||
-          (o.val === "average" && isAvg) ||
-          (o.val === "worst" && isWorst)
-        ) {
+        const optList = o.val === "off" ? [] : o.val.split(",");
+        const isMatch = (o.val === "off" && activeList.length === 0) ||
+          (optList.length === activeList.length && optList.every(id => activeList.includes(id)));
+        if (isMatch) {
           opt.selected = true;
+          optionMatched = true;
         }
         selGhost.appendChild(opt);
       });
@@ -378,10 +390,22 @@
             const opt = document.createElement("option");
             opt.value = c;
             opt.innerText = `👤 ${c}`;
-            if (c === curGhost) opt.selected = true;
+            if (activeList.length === 1 && activeList[0] === c) {
+              opt.selected = true;
+              optionMatched = true;
+            }
             selGhost.appendChild(opt);
           }
         });
+      }
+
+      // If activeList has custom multi-selection not in default presets, add dynamic option
+      if (!optionMatched && activeList.length > 0) {
+        const customOpt = document.createElement("option");
+        customOpt.value = activeKey;
+        customOpt.innerText = `Custom: ${activeList.join(" + ")}`;
+        customOpt.selected = true;
+        selGhost.appendChild(customOpt);
       }
     }
 
@@ -927,12 +951,26 @@
     }
 
     // Background Preset buttons
-    document.querySelectorAll(".preset-pill-btn").forEach((btn) => {
+    document.querySelectorAll(".preset-pill-btn[data-preset-bg]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const val = parseInt(btn.getAttribute("data-preset-bg"), 10);
-        currentTrackStyle.bgOpacity = val;
-        applyTrackStyle();
-        saveTrackStyle();
+        if (!isNaN(val)) {
+          currentTrackStyle.bgOpacity = val;
+          applyTrackStyle();
+          saveTrackStyle();
+        }
+      });
+    });
+
+    // Ghost Runner Pill Buttons
+    document.querySelectorAll("#ghost-pill-row .preset-pill-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const pillVal = btn.getAttribute("data-ghost-pill");
+        if (pillVal) {
+          if (window.toggleGhostComparison) {
+            window.toggleGhostComparison(pillVal);
+          }
+        }
       });
     });
 

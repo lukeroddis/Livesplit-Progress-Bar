@@ -273,10 +273,50 @@
       it("handles ghost setting toggles and cycling", () => {
         assertEqual(typeof window.setGhostComparison, "function");
         assertEqual(typeof window.cycleGhostComparison, "function");
+        assertEqual(typeof window.toggleGhostComparison, "function");
+        assertEqual(typeof window.getActiveGhostComparisons, "function");
+
         window.setGhostComparison("pb");
         assertEqual(window.getGhostComparison(), "pb");
-        window.setGhostComparison("off");
+        assertEqual(window.getActiveGhostComparisons(), ["pb"]);
+
+        // Multi-ghost via array
+        window.setGhostComparison(["wr", "pb"]);
+        assertEqual(window.getActiveGhostComparisons(), ["wr", "pb"]);
+        assertEqual(window.getGhostComparison(), "wr");
+
+        // Multi-ghost via comma-separated string
+        window.setGhostComparison("wr,pb");
+        assertEqual(window.getActiveGhostComparisons(), ["wr", "pb"]);
+
+        // Toggle on a third ghost
+        window.toggleGhostComparison("best");
+        assertEqual(window.getActiveGhostComparisons(), ["wr", "pb", "best"]);
+
+        // Toggle off an active ghost
+        window.toggleGhostComparison("wr");
+        assertEqual(window.getActiveGhostComparisons(), ["pb", "best"]);
+
+        // Toggle off clears all
+        window.toggleGhostComparison("off");
+        assertEqual(window.getActiveGhostComparisons(), ["off"]);
         assertEqual(window.getGhostComparison(), "off");
+      });
+      it("resolves multi-ghost comparison info and icons", () => {
+        const wrInfo = window.getGhostComparisonInfo("wr");
+        assertEqual(typeof wrInfo, "object");
+        assertEqual(wrInfo.id, "wr");
+        assertEqual(wrInfo.icon, "🏆");
+
+        const pbInfo = window.getGhostComparisonInfo("pb");
+        assertEqual(typeof pbInfo, "object");
+        assertEqual(pbInfo.id, "pb");
+        assertEqual(pbInfo.icon, "🥈");
+
+        const bestInfo = window.getGhostComparisonInfo("best");
+        assertEqual(typeof bestInfo, "object");
+        assertEqual(bestInfo.id, "best");
+        assertEqual(bestInfo.icon, "⭐");
       });
       it("detects timing method from comparison split time", () => {
         assertEqual(typeof window.detectTimingMethodFromComp, "function");
