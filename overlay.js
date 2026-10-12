@@ -969,19 +969,48 @@ function updateTrackDensityAndAngle() {
   // Set the CSS variable dynamically
   document.documentElement.style.setProperty("--node-spacing", `${spacing}px`);
 
-  // Update UI indicators
+  // Update UI indicators & Spin Box inputs
   const splitBadge = document.getElementById("split-density-badge");
   if (splitBadge) {
     splitBadge.innerText = (splitPref === "all") 
       ? "Splits: All" 
       : (splitPref === "auto" ? "Splits: Auto" : `Splits: ${splitPref}`);
   }
-  const splitSelect = document.getElementById("select-visible-splits");
-  if (splitSelect) {
-    splitSelect.value = splitPref;
+
+  const numInput = document.getElementById("input-visible-splits");
+  const modalNumInput = document.getElementById("modal-input-visible-splits");
+  const btnAll = document.getElementById("btn-splits-fit-all");
+  const btnAuto = document.getElementById("btn-splits-auto");
+  const modalBtnAll = document.getElementById("modal-btn-splits-all");
+  const modalBtnAuto = document.getElementById("modal-btn-splits-auto");
+  const valBadge = document.getElementById("val-visible-splits");
+
+  const isAll = (splitPref === "all");
+  const isAuto = (splitPref === "auto");
+  const intVal = parseInt(splitPref, 10);
+  const isNum = !isNaN(intVal) && intVal > 0;
+
+  if (btnAll) btnAll.classList.toggle("active", isAll);
+  if (modalBtnAll) modalBtnAll.classList.toggle("active", isAll);
+  if (btnAuto) btnAuto.classList.toggle("active", isAuto);
+  if (modalBtnAuto) modalBtnAuto.classList.toggle("active", isAuto);
+
+  if (isNum) {
+    if (numInput) numInput.value = intVal;
+    if (modalNumInput) modalNumInput.value = intVal;
+    if (valBadge) valBadge.innerText = `${intVal} splits`;
+  } else if (isAll) {
+    const total = Math.max(1, splitsList.length);
+    if (numInput) numInput.value = total;
+    if (modalNumInput) modalNumInput.value = total;
+    if (valBadge) valBadge.innerText = `Fit All (${total})`;
+  } else {
+    if (numInput) numInput.value = 8;
+    if (modalNumInput) modalNumInput.value = 8;
+    if (valBadge) valBadge.innerText = "Auto";
   }
 
-  // Determine whether to apply 40° angle
+  // Determine whether to apply 40° angle strictly to split names
   let shouldAngle = false;
   if (anglePref === "angled" || anglePref === "40") {
     shouldAngle = true;
@@ -1005,6 +1034,15 @@ function updateTrackDensityAndAngle() {
 
   if (shouldAngle) {
     track.classList.add("angled-text");
+    // Enforce opposing delta positioning when angled mode is active
+    if (window.hudLayout) {
+      const style = window.hudLayout.getTrackStyle();
+      if (style && style.namePos === style.deltaPos) {
+        style.deltaPos = style.namePos === "top" ? "bottom" : "top";
+        if (window.hudLayout.saveTrackStyle) window.hudLayout.saveTrackStyle();
+        if (window.hudLayout.syncTrackModalUI) window.hudLayout.syncTrackModalUI();
+      }
+    }
   } else {
     track.classList.remove("angled-text");
   }
@@ -1029,11 +1067,16 @@ window.updateTrackDensityAndAngle = updateTrackDensityAndAngle;
 
 function cycleVisibleSplits() {
   const current = localStorage.getItem("livesplit_visible_splits") || "auto";
-  const sequence = ["auto", "8", "10", "12", "16", "all"];
-  const nextIdx = (sequence.indexOf(current) + 1) % sequence.length;
+  const sequence = ["auto", "6", "8", "10", "12", "16", "all"];
+  const curIdx = sequence.indexOf(current);
+  const nextIdx = (curIdx !== -1) ? ((curIdx + 1) % sequence.length) : 0;
   const nextVal = sequence[nextIdx];
-  localStorage.setItem("livesplit_visible_splits", nextVal);
-  updateTrackDensityAndAngle();
+  if (window.setVisibleSplits) {
+    window.setVisibleSplits(nextVal);
+  } else {
+    localStorage.setItem("livesplit_visible_splits", nextVal);
+    updateTrackDensityAndAngle();
+  }
 }
 
 function cycleSplitAngle() {
@@ -1042,6 +1085,16 @@ function cycleSplitAngle() {
   const nextIdx = (sequence.indexOf(current) + 1) % sequence.length;
   const nextVal = sequence[nextIdx];
   localStorage.setItem("livesplit_split_angle", nextVal);
+  if (window.hudLayout) {
+    if (nextVal === "angled") {
+      const style = window.hudLayout.getTrackStyle();
+      if (style) {
+        style.deltaPos = (style.namePos === "top") ? "bottom" : "top";
+        window.hudLayout.saveTrackStyle();
+      }
+    }
+    window.hudLayout.applyTrackStyle();
+  }
   updateTrackDensityAndAngle();
 }
 

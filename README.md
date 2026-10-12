@@ -90,22 +90,26 @@ The overlay supports in-browser visual editing via pointer drag-and-drop and sca
 * **Proportional Resize**: Click and drag the bottom-right resize grip (**`⤡`**) to scale smoothly (40% to 250%). All typography and split geometries scale with 100% geometric parity.
 * **Toggle Visibility**: Click the **`👁`** icon on any component header, or use the checkboxes (**`Title`**, **`Timers`**, **`Track`**) in the top toolbar.
 * **Bottom Dock Snapping**: Drag the Progress Track near the bottom to snap to a full-width bottom dock, or click the **`⚓ Dock / ⛵ Float`** button.
-* **Visible Splits Control**:
-  - Adjust how many splits fit on the screen (**`Auto`**, **`5`**, **`8`**, **`10`**, **`12`**, **`16`**, **`20`**, or **`Fit All`**).
-  - Configurable via dropdown in the Layout Editor or click the **`Splits: Auto`** badge in the bottom utility bar to cycle on the fly.
-* **Intelligent Overlap Tracking & 40° Angle Tilt**:
-  - In high-density split layouts (or long split titles), names can collide horizontally.
-  - The overlay actively measures node spacing and text widths; if overlap is detected (or spacing $< 175\text{px}$), it automatically rotates labels and deltas to a **40° angle** (`rotate(-40deg)`).
-  - Can be set to **`Auto (Smart)`**, forced **`40° Tilt`**, or forced **`Flat`** via toolbar dropdown or the **`Angle: Auto`** footer badge.
-* **Progress Bar Customizer (Positions, Fonts & Bar Geometry)**:
-  - Click the **`🎨 Bar Styles`** button in the Layout Editor toolbar or bottom utility bar to open the styling drawer with real-time live preview.
-  - **Split Name Position**: Place split titles on **`Top`** or **`Bottom`** of the progress bar line.
-  - **Delta / Time Position**: Place delta and cumulative split times on **`Top`** or **`Bottom`** of the progress bar line.
+* **Visible Splits Spin Box & Fit All**:
+  - Exact integer control over how many splits fit on screen via a dedicated number spin box with `-` / `+` arrow buttons (supports any integer from `2` to `60`).
+  - Includes one-click **`All`** (fits every split on screen with zero horizontal scrolling) and **`Auto`** (standard 220px spacing) quick buttons.
+  - Available directly in the floating Layout Editor toolbar and the **`🎨 Bar Styles`** customizer modal, or by clicking the **`Splits: X`** footer badge.
+* **Intelligent 40° Angle Tilt (Opposing-Side Anti-Collision)**:
+  - In high-density split layouts (or long split titles), horizontal text can collide.
+  - When angled mode is active (or triggered automatically by Auto collision detection):
+    - **Angle is strictly applied to Split Names**: Split titles rotate at 40° for maximum horizontal clearance.
+    - **Deltas & Timers Remain 100% Horizontal on Opposing End**: Split deltas and cumulative times are never rotated, and are automatically forced to the opposite side of the progress bar line (e.g. Split Names on Top $\implies$ Timers on Bottom; Split Names on Bottom $\implies$ Timers on Top). This completely eliminates text overlap between titles and timers!
+    - **Anti-Truncation Clearance**: Dynamic baseline and generous bounding box padding ensure angled labels never clip or truncate against container edges.
+  - Configurable as **`Auto (Smart)`**, **`40° Tilt`**, or **`Flat`** via the toolbar, modal, or footer badge.
+* **Progress Bar Customizer (Positions, Fonts, Geometry & Density)**:
+  - Click the **`🎨 Bar Styles`** button in the Layout Editor toolbar or bottom utility bar to open the styling modal with live preview.
+  - **Split Name & Delta Position**: Choose **`Top`** or **`Bottom`** (automatically keeps timers on the opposing end when angled).
+  - **Visible Splits & Angle Mode**: In-modal spin box, Fit All / Auto toggles, and angle mode selector.
   - **Split Name Font Size**: Slider control from `12px` to `24px` (default `17px`).
   - **Delta & Time Font Size**: Slider control from `11px` to `22px` (default `15px`).
   - **Bar Thickness**: Slider control from `3px` to `16px` (default `6px`).
   - **Node Dot Size**: Slider control from `8px` to `24px` (default `15px`).
-  - Persistent in `localStorage` under `livesplit_track_style` with one-click **`↺ Reset Styles`** support.
+  - Persistent in `localStorage` with one-click **`↺ Reset Styles`** support.
 * **Lock & Save**: Press **`Esc`**, **`E`**, or click **`🔒 Lock Layout`**. Coordinates, scales, splits count, track styles, and angle preferences are saved to `localStorage` and remembered across OBS launches.
 * **Reset**: Click **`↺ Reset`** in the editor toolbar to restore defaults for the current screen resolution.
 

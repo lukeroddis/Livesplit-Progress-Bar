@@ -17,17 +17,17 @@
       <label><input type="checkbox" id="cb-toggle-timers" checked> Timers</label>
       <label><input type="checkbox" id="cb-toggle-track" checked> Track</label>
     </div>
+    <div class="toolbar-spinbox-group" title="Exact number of splits visible on screen (or Fit All)">
+      <label for="input-visible-splits">Splits:</label>
+      <div class="spinbox-control">
+        <button type="button" class="spinbox-btn" id="btn-splits-dec" title="Decrease visible splits">-</button>
+        <input type="number" id="input-visible-splits" min="2" max="60" step="1" value="8" title="Number of visible splits (2 to 60)">
+        <button type="button" class="spinbox-btn" id="btn-splits-inc" title="Increase visible splits">+</button>
+      </div>
+      <button type="button" class="toolbar-pill-btn" id="btn-splits-fit-all" title="Fit all splits on screen without scrolling">All</button>
+      <button type="button" class="toolbar-pill-btn" id="btn-splits-auto" title="Auto spacing (220px)">Auto</button>
+    </div>
     <div class="toolbar-select-group">
-      <select id="select-visible-splits" title="Number of splits visible on screen">
-        <option value="auto">Splits: Auto</option>
-        <option value="5">Splits: 5</option>
-        <option value="8">Splits: 8</option>
-        <option value="10">Splits: 10</option>
-        <option value="12">Splits: 12</option>
-        <option value="16">Splits: 16</option>
-        <option value="20">Splits: 20</option>
-        <option value="all">Splits: Fit All</option>
-      </select>
       <select id="select-split-angle" title="Text orientation on split nodes">
         <option value="auto">Angle: Auto (Smart)</option>
         <option value="angled">Angle: 40° Tilt</option>
@@ -131,6 +131,30 @@
           <div class="segmented-control" id="ctrl-delta-pos">
             <button class="seg-btn active" data-val="top">Top</button>
             <button class="seg-btn" data-val="bottom">Bottom</button>
+          </div>
+        </div>
+        <div class="modal-hint" id="opposing-hint">💡 When 40° angle is active, timers stay horizontal on the opposite side to eliminate overlap.</div>
+
+        <!-- Visible Splits & Angle -->
+        <div class="modal-section-title">Visible Splits & Angle</div>
+        <div class="modal-row">
+          <label>Visible Splits on Screen <span class="val-badge" id="val-visible-splits">Auto</span></label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div class="spinbox-control">
+              <button type="button" class="spinbox-btn" id="modal-splits-dec">-</button>
+              <input type="number" id="modal-input-visible-splits" min="2" max="60" step="1" value="8" style="width: 48px;">
+              <button type="button" class="spinbox-btn" id="modal-splits-inc">+</button>
+            </div>
+            <button type="button" class="toolbar-btn" id="modal-btn-splits-all">Fit All</button>
+            <button type="button" class="toolbar-btn" id="modal-btn-splits-auto">Auto (220px)</button>
+          </div>
+        </div>
+        <div class="modal-row">
+          <label>Split Text Angle</label>
+          <div class="segmented-control" id="ctrl-modal-angle">
+            <button class="seg-btn" data-val="auto">Auto (Smart)</button>
+            <button class="seg-btn" data-val="angled">40° Tilt</button>
+            <button class="seg-btn" data-val="horizontal">Flat</button>
           </div>
         </div>
 

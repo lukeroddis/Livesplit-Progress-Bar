@@ -98,11 +98,27 @@
     }
   }
 
+  function enforceOpposingTrackPositions() {
+    if (!currentTrackStyle) return;
+    const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+    const track = document.getElementById("track");
+    const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
+    if (isAngled) {
+      if (currentTrackStyle.namePos === "top") {
+        currentTrackStyle.deltaPos = "bottom";
+      } else {
+        currentTrackStyle.deltaPos = "top";
+      }
+    }
+  }
+
   function applyTrackStyle() {
     if (!currentTrackStyle) return;
     const root = document.documentElement;
     const track = document.getElementById("track");
     if (!root || !track) return;
+
+    enforceOpposingTrackPositions();
 
     // Set CSS custom variables
     root.style.setProperty("--bar-height", `${currentTrackStyle.barHeight}px`);
@@ -121,16 +137,79 @@
     }
   }
 
+  function setVisibleSplits(val) {
+    if (val === "all" || val === "auto") {
+      localStorage.setItem("livesplit_visible_splits", val);
+    } else {
+      let num = parseInt(val, 10);
+      if (isNaN(num) || num < 2) num = 2;
+      if (num > 60) num = 60;
+      localStorage.setItem("livesplit_visible_splits", String(num));
+    }
+    if (window.updateTrackDensityAndAngle) {
+      window.updateTrackDensityAndAngle();
+    }
+    syncTrackModalUI();
+  }
+  window.setVisibleSplits = setVisibleSplits;
+
   function syncTrackModalUI() {
     if (!currentTrackStyle) return;
 
-    // Segmented buttons
+    const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+    const track = document.getElementById("track");
+    const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
+
+    // Opposing hint visibility
+    const hint = document.getElementById("opposing-hint");
+    if (hint) {
+      hint.style.display = isAngled ? "block" : "none";
+    }
+
+    // Segmented buttons for Name and Delta
     document.querySelectorAll("#ctrl-name-pos .seg-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.getAttribute("data-val") === currentTrackStyle.namePos);
     });
     document.querySelectorAll("#ctrl-delta-pos .seg-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.getAttribute("data-val") === currentTrackStyle.deltaPos);
     });
+
+    // Angle buttons in modal and toolbar select
+    document.querySelectorAll("#ctrl-modal-angle .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === anglePref);
+    });
+    const angleSelect = document.getElementById("select-split-angle");
+    if (angleSelect) angleSelect.value = anglePref;
+
+    // Visible splits sync across toolbar and modal
+    const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+    const spinInput = document.getElementById("input-visible-splits");
+    const modalSpinInput = document.getElementById("modal-input-visible-splits");
+    const valBadge = document.getElementById("val-visible-splits");
+    const btnAll = document.getElementById("btn-splits-fit-all");
+    const btnAuto = document.getElementById("btn-splits-auto");
+    const modalBtnAll = document.getElementById("modal-btn-splits-all");
+    const modalBtnAuto = document.getElementById("modal-btn-splits-auto");
+
+    const isAll = (splitPref === "all");
+    const isAuto = (splitPref === "auto");
+    const intVal = parseInt(splitPref, 10);
+    const isNum = !isNaN(intVal) && intVal > 0;
+
+    if (btnAll) btnAll.classList.toggle("active", isAll);
+    if (modalBtnAll) modalBtnAll.classList.toggle("active", isAll);
+    if (btnAuto) btnAuto.classList.toggle("active", isAuto);
+    if (modalBtnAuto) modalBtnAuto.classList.toggle("active", isAuto);
+
+    if (isNum) {
+      if (spinInput) spinInput.value = intVal;
+      if (modalSpinInput) modalSpinInput.value = intVal;
+      if (valBadge) valBadge.innerText = `${intVal} splits`;
+    } else if (isAll) {
+      if (valBadge) valBadge.innerText = "Fit All";
+    } else {
+      if (valBadge) valBadge.innerText = "Auto";
+    }
 
     // Range sliders & badges
     const sNameFont = document.getElementById("slider-name-font");
@@ -514,22 +593,90 @@
       }
     });
 
-    // Toolbar selects
-    const splitSelect = document.getElementById("select-visible-splits");
-    if (splitSelect) {
-      splitSelect.addEventListener("change", () => {
-        localStorage.setItem("livesplit_visible_splits", splitSelect.value);
+    // Toolbar Spin Box & Pills for Visible Splits
+    document.getElementById("btn-splits-dec")?.addEventListener("click", () => {
+      const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+      setVisibleSplits(Math.max(2, cur - 1));
+    });
+    document.getElementById("btn-splits-inc")?.addEventListener("click", () => {
+      const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+      setVisibleSplits(Math.min(60, cur + 1));
+    });
+
+    const spinInput = document.getElementById("input-visible-splits");
+    if (spinInput) {
+      spinInput.addEventListener("input", (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (!isNaN(val) && val >= 2 && val <= 60) setVisibleSplits(val);
+      });
+      spinInput.addEventListener("change", (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val) || val < 2) val = 2;
+        if (val > 60) val = 60;
+        e.target.value = val;
+        setVisibleSplits(val);
+      });
+    }
+
+    document.getElementById("btn-splits-fit-all")?.addEventListener("click", () => setVisibleSplits("all"));
+    document.getElementById("btn-splits-auto")?.addEventListener("click", () => setVisibleSplits("auto"));
+
+    // Modal Spin Box & Pills
+    document.getElementById("modal-splits-dec")?.addEventListener("click", () => {
+      const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+      setVisibleSplits(Math.max(2, cur - 1));
+    });
+    document.getElementById("modal-splits-inc")?.addEventListener("click", () => {
+      const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+      setVisibleSplits(Math.min(60, cur + 1));
+    });
+
+    const modalSpinInput = document.getElementById("modal-input-visible-splits");
+    if (modalSpinInput) {
+      modalSpinInput.addEventListener("input", (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (!isNaN(val) && val >= 2 && val <= 60) setVisibleSplits(val);
+      });
+      modalSpinInput.addEventListener("change", (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val) || val < 2) val = 2;
+        if (val > 60) val = 60;
+        e.target.value = val;
+        setVisibleSplits(val);
+      });
+    }
+
+    document.getElementById("modal-btn-splits-all")?.addEventListener("click", () => setVisibleSplits("all"));
+    document.getElementById("modal-btn-splits-auto")?.addEventListener("click", () => setVisibleSplits("auto"));
+
+    // Toolbar Angle Select
+    const angleSelect = document.getElementById("select-split-angle");
+    if (angleSelect) {
+      angleSelect.addEventListener("change", () => {
+        const val = angleSelect.value;
+        localStorage.setItem("livesplit_split_angle", val);
+        if (val === "angled") {
+          currentTrackStyle.deltaPos = (currentTrackStyle.namePos === "top") ? "bottom" : "top";
+          saveTrackStyle();
+        }
+        applyTrackStyle();
         if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
       });
     }
 
-    const angleSelect = document.getElementById("select-split-angle");
-    if (angleSelect) {
-      angleSelect.addEventListener("change", () => {
-        localStorage.setItem("livesplit_split_angle", angleSelect.value);
+    // Modal Angle Segmented Control
+    document.querySelectorAll("#ctrl-modal-angle .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-val");
+        localStorage.setItem("livesplit_split_angle", val);
+        if (val === "angled") {
+          currentTrackStyle.deltaPos = (currentTrackStyle.namePos === "top") ? "bottom" : "top";
+          saveTrackStyle();
+        }
+        applyTrackStyle();
         if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
       });
-    }
+    });
 
     // Track Styler modal triggers
     document.getElementById("btn-open-track-modal")?.addEventListener("click", openTrackModal);
@@ -545,10 +692,16 @@
       }
     });
 
-    // Segmented controls for Name and Delta positions
+    // Segmented controls for Name and Delta positions (enforce opposing sides when angled)
     document.querySelectorAll("#ctrl-name-pos .seg-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         currentTrackStyle.namePos = btn.getAttribute("data-val");
+        const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+        const track = document.getElementById("track");
+        const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
+        if (isAngled) {
+          currentTrackStyle.deltaPos = (currentTrackStyle.namePos === "top") ? "bottom" : "top";
+        }
         applyTrackStyle();
         saveTrackStyle();
       });
@@ -556,7 +709,15 @@
 
     document.querySelectorAll("#ctrl-delta-pos .seg-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        currentTrackStyle.deltaPos = btn.getAttribute("data-val");
+        const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+        const track = document.getElementById("track");
+        const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
+        if (isAngled) {
+          currentTrackStyle.deltaPos = btn.getAttribute("data-val");
+          currentTrackStyle.namePos = (currentTrackStyle.deltaPos === "top") ? "bottom" : "top";
+        } else {
+          currentTrackStyle.deltaPos = btn.getAttribute("data-val");
+        }
         applyTrackStyle();
         saveTrackStyle();
       });
@@ -662,6 +823,10 @@
     openTrackModal,
     closeTrackModal,
     resetTrackStyle,
+    applyTrackStyle,
+    saveTrackStyle,
+    syncTrackModalUI,
+    setVisibleSplits,
     setEditMode,
     resetLayout,
     applyAllLayouts

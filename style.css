@@ -299,6 +299,115 @@ body.edit-mode .layout-toolbar {
   color: #ffffff;
 }
 
+.toolbar-spinbox-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.toolbar-spinbox-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spinbox-control {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.spinbox-control:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
+}
+
+.spinbox-btn {
+  background: rgba(51, 65, 85, 0.6);
+  border: none;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+  width: 20px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+  line-height: 1;
+}
+
+.spinbox-btn:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.spinbox-control input[type="number"] {
+  width: 38px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.spinbox-control input[type="number"]::-webkit-outer-spin-button,
+.spinbox-control input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.toolbar-pill-btn {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+  border-radius: 12px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.toolbar-pill-btn:hover {
+  border-color: #38bdf8;
+  color: #ffffff;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.toolbar-pill-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+  font-weight: 700;
+}
+
+.modal-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.6);
+  border-left: 3px solid #38bdf8;
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
+  margin-top: -4px;
+  line-height: 1.4;
+}
+
 /* ============================================================
    COMPONENT INTERNAL STYLES
    ============================================================ */
@@ -675,64 +784,108 @@ body.edit-mode .layout-toolbar {
 }
 
 /* ============================================================
-   ANGLED TEXT MODE (40° Tilt for High-Density Splits)
+   ANGLED TEXT MODE (40° Tilt strictly on Split Names)
+   Enforces Opposing Side rule:
+   - Split names rotate 40°
+   - Timers & Deltas remain strictly horizontal on opposite side
+   - Expanded bounding box padding ensures zero truncation
    ============================================================ */
 .track {
   transition: padding 0.25s ease;
 }
 
+/* 1. General Angled Track Base: Generous clearance */
 .track.angled-text {
-  padding-top: 54px;
+  padding-top: 36px;
+  padding-bottom: 18px;
+  min-height: 215px;
 }
 
-.track.angled-text .split-item {
-  height: 116px;
+/* Deltas are NEVER rotated when angled text mode is active */
+.track.angled-text .split-delta {
+  transform: translateX(-50%) !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: nowrap;
 }
 
-/* When names or deltas are on TOP in angled mode */
+/* ------------------------------------------------------------
+   Case A: Names on TOP (Default) -> Deltas forced to BOTTOM
+   ------------------------------------------------------------ */
+.track.angled-text.pos-name-top,
+.track.angled-text:not(.pos-name-bottom) {
+  --dot-bottom: calc(var(--delta-font-size, 15px) + 16px);
+}
+
+.track.angled-text.pos-name-top .split-item,
+.track.angled-text:not(.pos-name-bottom) .split-item {
+  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + 120px);
+}
+
+.track.angled-text.pos-name-top .dot,
+.track.angled-text:not(.pos-name-bottom) .dot {
+  bottom: var(--dot-bottom);
+}
+
 .track.angled-text.pos-name-top .split-name,
 .track.angled-text:not(.pos-name-bottom) .split-name {
+  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 6px);
+  left: calc(50% + 4px);
   transform-origin: bottom left;
   transform: rotate(-40deg);
   text-align: left;
   white-space: nowrap;
   letter-spacing: 0.25px;
-  left: calc(50% + 4px);
 }
 
-.track.angled-text.pos-delta-top .split-delta,
-.track.angled-text:not(.pos-delta-bottom) .split-delta {
-  transform-origin: bottom left;
-  transform: rotate(-40deg);
-  justify-content: flex-start;
-  left: calc(50% + 18px);
-}
-
-/* When names or deltas are on BOTTOM in angled mode */
-.track.angled-text.pos-name-bottom .split-name {
-  transform-origin: top left;
-  transform: rotate(40deg);
-  text-align: left;
-  white-space: nowrap;
-  letter-spacing: 0.25px;
-  left: calc(50% + 4px);
-}
-
-.track.angled-text.pos-delta-bottom .split-delta {
-  transform-origin: top left;
-  transform: rotate(40deg);
-  justify-content: flex-start;
-  left: calc(50% + 18px);
-}
-
-.track.angled-text.pos-name-bottom .split-item,
-.track.angled-text.pos-delta-bottom .split-item {
-  height: 120px;
+.track.angled-text.pos-name-top .split-delta,
+.track.angled-text:not(.pos-name-bottom) .split-delta {
+  bottom: 8px !important;
+  top: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
 }
 
 .track.angled-text.pos-name-top .split-item.current .split-name,
 .track.angled-text:not(.pos-name-bottom) .split-item.current .split-name {
   transform: rotate(-40deg) scale(1.08);
+}
+
+/* ------------------------------------------------------------
+   Case B: Names on BOTTOM -> Deltas forced to TOP
+   High dot baseline prevents any downward angle clipping!
+   ------------------------------------------------------------ */
+.track.angled-text.pos-name-bottom {
+  --dot-bottom: calc(var(--name-font-size, 17px) + 115px);
+  padding-top: 20px;
+  padding-bottom: 30px;
+  min-height: 235px;
+}
+
+.track.angled-text.pos-name-bottom .split-item {
+  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + var(--delta-font-size, 15px) + 24px);
+}
+
+.track.angled-text.pos-name-bottom .dot {
+  bottom: var(--dot-bottom);
+}
+
+.track.angled-text.pos-name-bottom .split-name {
+  top: calc(100% - var(--dot-bottom) + 8px);
+  bottom: auto;
+  left: calc(50% + 4px);
+  transform-origin: top left;
+  transform: rotate(40deg);
+  text-align: left;
+  white-space: nowrap;
+  letter-spacing: 0.25px;
+}
+
+.track.angled-text.pos-name-bottom .split-delta {
+  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 8px) !important;
+  top: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
 }
 
 .track.angled-text.pos-name-bottom .split-item.current .split-name {
