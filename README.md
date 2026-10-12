@@ -1,210 +1,136 @@
-# LiveSplit Minimal Overlay — Project Handoff
+# LiveSplit Minimal Overlay
 
-## 1. Project Overview & Motivation
-A lightweight, widescreen-optimized HUD/overlay designed for speedrunners (1080p, 1440p, 4K) running as a standalone webpage or OBS Browser Source. 
+A modern, widescreen-optimized HUD and progress bar overlay for speedrunners, designed for standalone web browsers and OBS Studio Browser Sources (1080p, 1440p, 4K).
 
-Unlike traditional LiveSplit layouts that occupy substantial vertical screen space over modern 16:9 gameplay, this overlay uses:
-- **Bottom-Docked Horizontal Track**: Visual progress bar per segment, node dots, side-by-side delta and target/completed split times, and auto-scrolling to keep the active split centered.
-- **Top Bar**: Game title, category, and dynamic dual timers (Game Time and Real Time).
-- **Accurate LiveSplit State Parity**: Native 4-state delta coloring, Best Segment (Gold split) detection, and live delta appearing dynamically upon time loss.
+Traditional LiveSplit layouts take up substantial vertical screen space over modern 16:9 gameplay. This overlay delivers a minimal, bottom-docked or floating horizontal progress track, dynamic dual timers, and full LiveSplit state parity—freeing up screen real estate for the game.
 
 ---
 
-## 2. Current Implementation Progress
+## ⚡ Quick Start Guide (60 Seconds)
 
-| Feature / Module | Status | Notes |
+### 1. Enable LiveSplit Server
+1. In LiveSplit, right-click $\rightarrow$ **Edit Layout** $\rightarrow$ add **Control $\rightarrow$ LiveSplit Server**.
+2. Right-click $\rightarrow$ **Control $\rightarrow$ Start Server** (defaults to `ws://localhost:16834`).
+
+### 2. Open the Overlay
+* **In Desktop Browser**: Open [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html) in Chrome, Edge, or Firefox.
+* **In OBS Studio**:
+  1. Add a **Browser Source** pointing to the local path of `index.html` (or your local web server).
+  2. Set Width to `1920` and Height to `1080` (or your native canvas resolution).
+  3. Enable **Shutdown source when not visible** and **Refresh browser when scene becomes active**.
+
+### 3. Load Your Splits
+* Simply **drag and drop** your LiveSplit `.lss` splits file directly onto the browser window.
+* Your splits, PB targets, best segment histories, and metadata are automatically parsed and saved to local browser storage.
+
+---
+
+## 🎮 Key Features & Capabilities
+
+### 1. Minimal Horizontal Split Track
+* **Visual Progress Nodes**: Interactive node dots and connecting lines indicate completed, current, and upcoming splits.
+* **Auto-Centering Track**: Smoothly scrolls the active split to keep it centered on screen regardless of how many splits your run has.
+* **Side-by-Side Typography**: Displays both the locked split delta and the final cumulative time side by side.
+* **Accurate 4-State LiveSplit Coloring**:
+  - Ahead & Gaining Time: Dark Green
+  - Ahead & Losing Time: Light Green
+  - Behind & Gaining Time: Light Red
+  - Behind & Losing Time: Dark Red
+  - Gold Split (Personal Best Segment): Vivid Gold / Yellow
+* **Intelligent Live Delta Reveal**: Hides the active delta while on pace for a Gold split; dynamically reveals the ticking delta the moment time is lost.
+
+### 2. Dynamic Dual Timers
+* **Primary Timer (54px)**: Auto-detects and prioritizes the active timing method (Game Time vs Real Time), swapping primary display dynamically.
+* **Secondary Timer (24px)**: Keeps the alternate time format visible with low visual intrusion.
+
+### 3. Interactive HUD Layout Editor
+Edit and customize your layout in real time directly inside the browser or OBS Interact window:
+* **Toggle Edit Mode**: Press **`E`** or **`F2`**, or click **`⚙ Edit Layout`** in the bottom utility bar.
+* **Freeform Drag & Drop**: Click and drag any component header (`:::`) or container to move it anywhere on screen.
+* **Proportional Scaling**: Drag the bottom-right resize grip (**`⤡`**) to scale any element smoothly from `40%` to `250%`. Typography and geometries scale proportionally.
+* **Component Toggles**: Hide or show the **Game Title**, **Dual Timers**, or **Progress Track** independently.
+* **Bottom Dock Snapping**: Drag the Progress Track near the bottom to snap to a full-width dock, or click **`⚓ Dock / ⛵ Float`**.
+* **Lock & Save**: Press **`Esc`** or click **`🔒 Lock Layout`**. Layout settings are remembered across browser sessions and OBS reboots.
+
+### 4. High-Density Split Controls & 40° Angle Tilt
+* **Spin Box Split Density**: Control exactly how many splits fit on screen with an integer spin box (`2` to `60` splits), or choose one-click **`All`** (fit all without scrolling) or **`Auto`** (standard 220px spacing).
+* **Anti-Collision 40° Angle Tilt**:
+  - Automatically rotates split titles at a 40° angle when split density increases.
+  - **Opposing-Side Rule**: Deltas and times remain strictly flat (0°) and are forced to the opposite side of the connector bar (e.g. Titles on Top $\implies$ Timers on Bottom), eliminating text overlap.
+  - Generous bounding box clearance prevents text clipping or truncation.
+
+### 5. High-Contrast Glassmorphic Background Plates
+* Solves washed-out text and illegibility on bright game scenes (skyboxes, bright pavement, snow):
+  - Dark semi-transparent plate (`rgba(15, 23, 42, opacity)`) with frosted glass backdrop blur.
+  - **Live Opacity Slider**: Adjustable from `0%` (fully transparent) to `95%` (dark contrast).
+  - **Presets**: `0% (Off)`, `35% Subtle`, `55% Glass`, `80% Dark`.
+  - **Frosted Blur Slider**: Configurable from `0px` to `20px`.
+  - **Component Control**: Toggle background plates independently on Game Title, Timers, or Track.
+
+### 6. Multiple Comparison Targets
+Seamlessly switch target benchmarks:
+* **Personal Best (PB)**
+* **Best Segments (Sum of Best)**
+* **Average Segments** (calculated dynamically from `<SegmentHistory>`)
+* **Worst Segments** (calculated dynamically from `<SegmentHistory>`)
+* **Custom Comparisons** (any comparison tracks declared in your `.lss` file)
+* *Quick Cycle*: Click the **`Comp: PB`** badge in the bottom utility bar to cycle comparisons on the fly.
+
+---
+
+## 🎛️ Standalone OBS URL Parameters
+
+For multi-monitor or multi-source OBS setups, load specific isolated components using URL parameters:
+
+| URL Parameter | Function | Example |
 | :--- | :--- | :--- |
-| **LiveSplit WebSocket Integration** | Complete | Connects to `ws://localhost:16834/livesplit`. Auto-reconnects on drop. |
-| **Fast Polling Engine** | Optimized | 30 FPS tick strictly queries 3 native commands (`igt`, `rta`, `splitindex`). Zero stalls. |
-| **Target Time Sync** | Optimized | `getcomparisonsplittime` queried only once per split transition. |
-| **`.lss` XML Parsing** | Complete | Extracts names, Personal Best times, and parses `<SegmentHistory>` attempts. |
-| **Gold Split Precision** | Complete & Verified | Compares segment duration against $\min(\text{BestSegment}, \text{SegmentHistory})$ with a 50ms buffer ($t_{\text{seg}} < t_{\text{best}} - 0.05\text{s}$). |
-| **Active Split Live Delta** | Complete & Verified | Hidden while on pace for Gold ($t_{\text{elapsed}} \le t_{\text{best}}$); displays dynamically once losing time ($t_{\text{elapsed}} > t_{\text{best}}$). |
-| **Side-by-Side Typography** | Complete | Completed splits display both the locked delta and the final cumulative time side by side. |
-| **4-State LiveSplit Coloring** | Complete | Ahead Gaining (dark green), Ahead Losing (light green), Behind Gaining (light red), Behind Losing (dark red), and Gold (yellow). |
-| **Multi-Game Generalization** | Complete | Auto-queries game/category from LiveSplit; auto-detects console vs PC runs (`RealTime` vs `GameTime`). |
-| **Dynamic Timers** | Complete | Primary 54px green timer swaps dynamically between Game Time and Real Time depending on the active method. |
-| **Cache & Offline Storage** | Complete | LocalStorage persists `.lss` XML, splits, user toggle preferences, and records new PBs. |
+| `?view=track` | Display only the Progress Track | `index.html?view=track` |
+| `?view=timers` | Display only the Dual Timers | `index.html?view=timers` |
+| `?view=title` | Display only the Game Title & Category | `index.html?view=title` |
+| `?splits=all` | Fit all splits on screen without scrolling | `index.html?splits=all` |
+| `?splits=12` | Force exactly 12 splits on screen | `index.html?splits=12` |
+| `?angle=40` | Force 40° angled split titles | `index.html?angle=40` |
+| `?bg=55` | Set background plate opacity to 55% | `index.html?bg=55` |
+| `?bgblur=8` | Set frosted glass blur in pixels | `index.html?bgblur=8` |
+| `?namepos=top\|bottom` | Set split title position | `index.html?namepos=top` |
+| `?deltapos=top\|bottom` | Set delta and time position | `index.html?deltapos=bottom` |
+| `?edit=1` | Launch directly into Layout Edit Mode | `index.html?edit=1` |
+| `?hide=title,timers` | Hide specific components via query | `index.html?hide=title,timers` |
 
 ---
 
-## 3. Key Technical Decisions & Protocol Nuances
+## 🧪 Testing & Code Stability
 
-### LiveSplit Server WebSocket Protocol (`ws://localhost:16834/livesplit`)
-- **Blacklisted Commands**: 
-  - `gettimingmethod`: **DO NOT USE**. LiveSplit Server does not implement this command and will never reply, inducing 80ms timeouts and queue desynchronization.
-- **Continuous Polling Commands (Every 33ms)**:
-  - `getcurrentgametime`
-  - `getcurrentrealtime`
-  - `getsplitindex`
-- **Event-Driven Transition Commands (Queried only on split change / start / reset)**:
-  - `getlastsplittime`: Fetches exact recorded cumulative split time.
-  - `getdelta`: Fetches official LiveSplit delta string (e.g., `-0.4`, `+1:23.2`).
-  - `getcomparisonsplittime`: Fetches active comparison target for the upcoming split.
-  - `getgamename` & `getcategoryname`: Queries active split metadata when connected.
+The repository includes a zero-dependency automated test suite and static analysis engine:
 
-### Gold Split Calculation & `<SegmentHistory>`
-- In LiveSplit `.lss` files, `<BestSegmentTime>` can lag behind actual runs or become stale. The parser scans all valid `GameTime` and `RealTime` nodes within `<SegmentHistory><Time>` across all past attempts:
-  $$\text{BestSegment}_{\text{effective}} = \min\left(\text{BestSegmentTime}, \min(\text{SegmentHistory})\right)$$
-- To prevent false golds from sub-frame precision differences or timer start jitter, the overlay enforces:
-  $$\text{isGold} \iff \text{segmentDuration} < (\text{bestSec} - 0.05)$$
-
-### Live Delta Display Trigger
-- While runner is on pace for a Gold split ($t_{\text{seg}} \le t_{\text{best}}$), the delta span `#delta-val-${currentIndex}` remains blank.
-- As soon as $t_{\text{seg}} > t_{\text{best}}$, the delta appears and ticks synchronously in memory ($t_{\text{current}} - t_{\text{target}}$) without additional WebSocket round trips.
-
-### Reset Behavior & Gold Split Lifecycle
-- **LiveSplit Server Limitation**: When resetting in LiveSplit, the desktop app presents a local dialog asking whether to update best segments (*"You have beaten at least one of your best segments. Do you want to update them?"*). The LiveSplit Server WebSocket API does **not** expose or broadcast the runner's response to this prompt; it simply emits a reset signal (`getsplitindex = -1`, phase `NotRunning`).
-- **Discard by Default on Reset**: Because the dialog choice cannot be queried through the server, the overlay **discards temporary in-run gold splits by default upon receiving the reset signal**, safely reverting all best segments back to the canonical baseline established by the loaded `.lss` file. This prevents aborted or abandoned runs from polluting your official best segment times.
-- **User Controllable**: A toggle (**`Discard In-Run Golds on Reset`**) is available in the `🎨 Bar Styles` customizer modal if you ever wish to alter this behavior.
-- **Run Completion**: When a full run is finished and achieves a new Personal Best, all newly beaten segment times are automatically committed to the persistent baseline.
-
-### Comparisons & Timing Method Synchronization
-- **LiveSplit Server Signal Limitations**: LiveSplit Server does **not** broadcast unsolicited event signals or push notifications when hotkeys are pressed in-game. It operates strictly on a request-response model. Furthermore, while setter commands (`setcomparison <name>`, `switchto realtime`, `switchto gametime`) are universal across all server versions, query commands like `getcomparisonname` are not present in older standalone plugin builds.
-- **Two-Way Synchronization**:
-  1. **Hotkeys Auto-Detection**: The overlay polls LiveSplit with a non-blocking 40ms guarded tick. When LiveSplit responds to comparison or timing changes, the overlay switches targets and timer hierarchy seamlessly without needing to replicate global hotkeys or fight window focus.
-  2. **Dedicated In-Layout Selector**: An **Active Comparison** dropdown is provided in the `🎨 Bar Styles` customizer dialog, allowing instant switching between:
-     - **`Personal Best (PB)`**
-     - **`Best Segments (Sum of Best)`**
-     - **`Average Segments`** (computed dynamically from `<SegmentHistory>`)
-     - **`Worst Segments`** (computed dynamically from `<SegmentHistory>`)
-     - **Custom comparisons** (any comparison tracks declared in the `.lss` XML)
-  3. **Footer Badge Quick-Cycle**: Clicking the **`Comp: PB`** badge in the bottom utility bar immediately cycles to the next comparison on the fly.
-  4. **LiveSplit Remote Control**: When switched in the overlay, `setcomparison` and `switchto` are sent over WebSocket, keeping both LiveSplit and the overlay 100% in sync.
-
----
-
-## 4. File Structure & Reference Assets
-
-### Core Files
-- **Modular Entry Point**: [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html) (Modular HTML structure)
-- **Styles**: [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css) (HUD styling & animations, responsive canvas, layout editor UI)
-- **Layout Engine**: [layout.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/layout.js) (Interactive drag & drop, proportional scaling, visibility toggles, localStorage persistence, and URL views)
-- **Overlay Engine**: [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) (WebSocket communication, .lss XML parser, 4-state delta engine)
-- **Standalone Build**: [gemini-code-1791738130877.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html) (Single-file standalone fallback)
-- **Latest Backup**: [gemini-code-1791738130877.html.bak3](file:///c:/Users/Luke/Livesplit-Progress-Bar/gemini-code-1791738130877.html.bak3)
-- **Reference Splits File**: `d:\Streaming\Speedrunning\Splits\Final Fantasy X - PC - CSS%.lss`
-
-### Verification Media
-- **Live Delta Loss Comparison**: `media_1791747607620_63d3f6f8.png` (LiveSplit UI vs. overlay matching time loss)
-- **4-State Delta Colors**: `media_1791743715096_412581f8.png` (Dark green vs. gold segments)
-- **Side-by-Side Metrics**: `media_1791742814572_a5876dc3.png` (Delta alongside split time)
-- **Gold Split Progress Bar**: `media_1791742705834_7b1a28af.jpg` (Golden progress bar rendering)
-
----
-
-## 5. Interactive HUD Layout Editor & Controls
-
-The overlay supports in-browser visual editing via pointer drag-and-drop and scaling:
-
-### How to Edit in OBS or Browser
-1. **In OBS**: Right-click your Browser Source $\rightarrow$ **Interact**.
-2. **In Browser**: Open [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html).
-3. **Toggle Edit Mode**:
-   - Press hotkey **`E`** or **`F2`**, or click **`⚙ Edit Layout`** in the bottom utility bar.
-   - Bounding outlines, move headers, and the floating editor toolbar will appear.
-
-### Layout Controls
-* **Move**: Click and drag any component header (`:::`) or body to position it anywhere on screen.
-* **Proportional Resize**: Click and drag the bottom-right resize grip (**`⤡`**) to scale smoothly (40% to 250%). All typography and split geometries scale with 100% geometric parity.
-* **Toggle Visibility**: Click the **`👁`** icon on any component header, or use the checkboxes (**`Title`**, **`Timers`**, **`Track`**) in the top toolbar.
-* **Bottom Dock Snapping**: Drag the Progress Track near the bottom to snap to a full-width bottom dock, or click the **`⚓ Dock / ⛵ Float`** button.
-* **Visible Splits Spin Box & Fit All**:
-  - Exact integer control over how many splits fit on screen via a dedicated number spin box with `-` / `+` arrow buttons (supports any integer from `2` to `60`).
-  - Includes one-click **`All`** (fits every split on screen with zero horizontal scrolling) and **`Auto`** (standard 220px spacing) quick buttons.
-  - Available directly in the floating Layout Editor toolbar and the **`🎨 Bar Styles`** customizer modal, or by clicking the **`Splits: X`** footer badge.
-* **Intelligent 40° Angle Tilt (Opposing-Side Anti-Collision)**:
-  - In high-density split layouts (or long split titles), horizontal text can collide.
-  - When angled mode is active (or triggered automatically by Auto collision detection):
-    - **Angle is strictly applied to Split Names**: Split titles rotate at 40° for maximum horizontal clearance.
-    - **Deltas & Timers Remain 100% Horizontal on Opposing End**: Split deltas and cumulative times are never rotated, and are automatically forced to the opposite side of the progress bar line (e.g. Split Names on Top $\implies$ Timers on Bottom; Split Names on Bottom $\implies$ Timers on Top). This completely eliminates text overlap between titles and timers!
-    - **Anti-Truncation Clearance**: Dynamic baseline and generous bounding box padding ensure angled labels never clip or truncate against container edges.
-  - Configurable as **`Auto (Smart)`**, **`40° Tilt`**, or **`Flat`** via the toolbar, modal, or footer badge.
-* **Semi-Transparent Background Plates & Glassmorphism (High-Contrast Readability)**:
-  - Solves text washout and illegibility over bright game scenes, skyboxes, or light stone pavement (such as FFX Kilika bridge).
-  - Renders a semi-transparent dark plate (`rgba(15, 23, 42, opacity)`) with frosted glass blur behind the Game Title, Dual Timers, and Progress Track.
-  - **Full Custom Control**:
-    - **Opacity Slider**: Smooth control from `0%` (fully transparent) to `95%` (high-contrast dark). Default is `55%` glass.
-    - **One-Click Presets**: `0% (Off)`, `35% Subtle`, `55% Glass`, and `80% Dark`.
-    - **Frosted Blur Slider**: Configurable from `0px` to `20px` (default `8px`).
-    - **Per-Component Toggles**: Independently enable/disable background plates for **`Title`**, **`Timers`**, and **`Track`**.
-    - **Footer Badge Quick-Cycle**: Click **`BG: 55%`** in the bottom utility bar to cycle through presets on the fly.
-* **Progress Bar Customizer (Positions, Fonts, Geometry & Density)**:
-  - Click the **`🎨 Bar Styles`** button in the Layout Editor toolbar or bottom utility bar to open the styling modal with live preview.
-  - **Background Plate & Readability**: Adjust background opacity, frosted blur, presets, and component targets.
-  - **Split Name & Delta Position**: Choose **`Top`** or **`Bottom`** (automatically keeps timers on the opposing end when angled).
-  - **Visible Splits & Angle Mode**: In-modal spin box, Fit All / Auto toggles, and angle mode selector.
-  - **Split Name Font Size**: Slider control from `12px` to `24px` (default `17px`).
-  - **Delta & Time Font Size**: Slider control from `11px` to `22px` (default `15px`).
-  - **Bar Thickness**: Slider control from `3px` to `16px` (default `6px`).
-  - **Node Dot Size**: Slider control from `8px` to `24px` (default `15px`).
-  - Persistent in `localStorage` with one-click **`↺ Reset Styles`** support.
-* **Lock & Save**: Press **`Esc`**, **`E`**, or click **`🔒 Lock Layout`**. Coordinates, scales, splits count, track styles, and angle preferences are saved to `localStorage` and remembered across OBS launches.
-* **Reset**: Click **`↺ Reset`** in the editor toolbar to restore defaults for the current screen resolution.
-
-### Standalone URL Parameter Views
-For multi-source OBS setups or targeted browser sources:
-* `index.html` — Full overlay with custom saved layout.
-* `index.html?view=title` — Shows only the Game Title and Category.
-* `index.html?view=timers` — Shows only the Dual Timers (IGT & RTA).
-* `index.html?view=track` — Shows only the Horizontal Split Track.
-* `index.html?splits=all` — Forces all splits to fit on screen without scrolling (or `?splits=10`, `?splits=12`).
-* `index.html?angle=40` — Forces 40° angled text mode (or `?angle=flat`).
-* `index.html?bg=55` — Sets background opacity to 55% (or `?bg=0`, `?bg=off`, `?bg=glass`, `?bg=dark`).
-* `index.html?bgblur=8` — Sets frosted glass blur in pixels (e.g. `?bgblur=12`).
-* `index.html?namepos=top|bottom` — Configures split title position.
-* `index.html?deltapos=top|bottom` — Configures delta/time position.
-* `index.html?barsize=8` — Configures connector bar thickness in pixels.
-* `index.html?dotsize=18` — Configures node dot size in pixels.
-* `index.html?namefont=18` — Configures split title font size in pixels.
-* `index.html?deltafont=16` — Configures delta font size in pixels.
-* `index.html?edit=1` — Automatically launches into Edit Mode on load.
-* `index.html?hide=title,timers` — Hides specific components directly via URL query.
-
----
-
-## 6. Testing, Stability & Quality Assurance
-
-To ensure stability across browser updates, OBS browser source changes, and future pull requests, the codebase includes a zero-dependency automated testing and static analysis suite:
-
-### Test Suite (`tests/run_tests.py`)
-Run locally from terminal with standard Python 3:
 ```bash
+# Run automated tests and static checks
 python tests/run_tests.py
 ```
-Checks performed:
-- **File Integrity & UTF-8 Validation**: Verifies all source files are intact and properly encoded.
-- **Bracket Matching & JavaScript Syntax**: Analyzes `overlay.js` and `layout.js` for unclosed parentheses, brackets, and braces.
-- **DOM Element ID Consistency**: Extracts all `document.getElementById` calls from JS and validates against `index.html` to guarantee zero broken references.
-- **Time Conversion Engine**: Verifies `timeStringToSeconds()` with valid times, fractions, milliseconds, zero, and malformed inputs.
-- **Time Formatting**: Tests `formatTargetTime()` with edge cases ($< 1$ min, $> 1$ hr, etc.).
-- **4-State Delta Formatting**: Validates `formatDeltaSeconds()` sign conventions and sub-second precision.
-- **Comparison Normalization**: Tests standard and custom comparison name normalization.
-- **Statistical Segments Sanity**: Validates mathematical monotonicity:
-  $$\text{Best Segments} \le \text{Average Segments} \le \text{Worst Segments}$$
 
-### In-Browser Test Runner (`tests/test_runner.html`)
-For rapid visual testing directly inside any desktop browser or OBS Interact window:
-- Open [tests/test_runner.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/tests/test_runner.html).
-- Runs the test suite directly against `overlay.js` and `layout.js` in the DOM, rendering a clean pass/fail dashboard with status pills.
-
-### Pre-Push Git Hook (`.githooks/pre-push`)
-A Git hook is included to prevent broken code from being pushed to GitHub:
-```bash
-# Enable repository hooks (configured automatically)
-git config core.hooksPath .githooks
-```
-Whenever you run `git push`, the hook automatically executes `python tests/run_tests.py` and aborts the push if any test fails.
-
-### GitHub Actions CI Workflow (`.github/workflows/ci.yml`)
-Runs the automated test suite on every `git push` to `main` and on pull requests, ensuring remote repository stability.
+* **Visual In-Browser Test Runner**: Open [tests/test_runner.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/tests/test_runner.html) in any browser to inspect assertions visually with live status badges.
+* **Pre-Push Git Hook**: Automated checks run before every `git push` via `.githooks/pre-push`.
+* **GitHub Actions CI**: Automated test runs on every push and PR via `.github/workflows/ci.yml`.
 
 ---
 
-## 7. Future Feature Ideas & Roadmap
+## 🗺️ Roadmap & Upcoming Ideas
 
-1. **Custom Styling Modal Enhancements**:
-   - In-overlay color picker for custom themes, neon/retro palettes, and chroma key color swatches.
-2. **Hotkey & Comparison Switching**:
-   - Advanced hotkey controls for manual reset or live comparison toggling (PB vs. Average vs. Best Segments).
+- [ ] **Custom Color Palette Overrides**: Custom chroma key presets, neon/retro themes, and custom accent colors.
+- [ ] **Custom Resolution Presets**: Instant one-click sizing for ultrawide (21:9), vertical (9:16 for TikTok/Shorts), and 4K setups.
+- [ ] **Global Hotkey Integration**: Additional remote hotkey hooks for comparison switching.
 
+---
+
+## 🛠️ For Developers & AI Agents
+
+Technical documentation, LiveSplit Server WebSocket nuances, XML parsing architecture, and coding rules are maintained in:
+
+👉 **[Agent & Developer Architecture Guide (AGENT_GUIDE.md)](file:///c:/Users/Luke/Livesplit-Progress-Bar/AGENT_GUIDE.md)**
+
+---
+
+## 🤖 Attribution & AI Pair Programming
+
+This project is developed with AI pair programming using **Google DeepMind Antigravity**.  
+All features, tests, and architectural changes are proposed, implemented with AI assistance, and reviewed and approved by [@lukeroddis](https://github.com/lukeroddis).
