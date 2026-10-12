@@ -327,6 +327,53 @@
     if (cbSync) {
       cbSync.checked = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
     }
+
+    // Ghost Runner dropdown sync
+    const selGhost = document.getElementById("select-ghost-comparison");
+    if (selGhost) {
+      const curGhost = window.getGhostComparison ? window.getGhostComparison() : (localStorage.getItem("livesplit_ghost_comparison") || "off");
+      selGhost.innerHTML = "";
+
+      const defaultGhostOpts = [
+        { val: "off", label: "Off (Disabled)" },
+        { val: "wr", label: "World Record (🏆)" },
+        { val: "pb", label: "Personal Best (🥈)" },
+        { val: "best", label: "Best Segments (⭐)" },
+        { val: "average", label: "Average Segments (📊)" },
+        { val: "worst", label: "Worst Segments (🐢)" }
+      ];
+
+      defaultGhostOpts.forEach(o => {
+        const opt = document.createElement("option");
+        opt.value = o.val;
+        opt.innerText = o.label;
+        if (o.val === curGhost) opt.selected = true;
+        selGhost.appendChild(opt);
+      });
+
+      // Add custom comparisons if present
+      if (window.getComparisonsList) {
+        const comps = window.getComparisonsList();
+        comps.forEach(c => {
+          if (!["Personal Best", "Best Segments", "Average Segments", "Worst Segments"].includes(c)) {
+            const opt = document.createElement("option");
+            opt.value = c;
+            opt.innerText = `🏃 ${c}`;
+            if (c === curGhost) opt.selected = true;
+            selGhost.appendChild(opt);
+          }
+        });
+      }
+    }
+
+    // Ghost Runner opacity slider
+    const sGhostOp = document.getElementById("slider-ghost-opacity");
+    const vGhostOp = document.getElementById("val-ghost-opacity");
+    const ghostOpVal = parseInt(localStorage.getItem("livesplit_ghost_opacity") || "85", 10);
+    if (sGhostOp && vGhostOp) {
+      sGhostOp.value = ghostOpVal;
+      vGhostOp.innerText = `${ghostOpVal}%`;
+    }
   }
 
   function openTrackModal() {
@@ -523,6 +570,13 @@
         const num = parseInt(bgBlurParam, 10);
         if (!isNaN(num)) currentTrackStyle.bgBlur = Math.max(0, Math.min(25, num));
       }
+    }
+
+    const ghostParam = params.get("ghost");
+    if (ghostParam) {
+      const g = ghostParam.toLowerCase().trim();
+      if (window.setGhostComparison) window.setGhostComparison(g);
+      else localStorage.setItem("livesplit_ghost_comparison", g);
     }
 
     if (edit === "1" || edit === "true") {
@@ -907,6 +961,30 @@
     document.getElementById("cb-sync-livesplit-hotkeys")?.addEventListener("change", (e) => {
       localStorage.setItem("livesplit_sync_hotkeys", e.target.checked ? "true" : "false");
     });
+
+    // Ghost Runner dropdown listener
+    document.getElementById("select-ghost-comparison")?.addEventListener("change", (e) => {
+      if (window.setGhostComparison) {
+        window.setGhostComparison(e.target.value);
+      } else {
+        localStorage.setItem("livesplit_ghost_comparison", e.target.value);
+      }
+    });
+
+    // Ghost Runner opacity slider listener
+    const sliderGhostOp = document.getElementById("slider-ghost-opacity");
+    if (sliderGhostOp) {
+      sliderGhostOp.addEventListener("input", () => {
+        const valBadge = document.getElementById("val-ghost-opacity");
+        if (valBadge) valBadge.innerText = `${sliderGhostOp.value}%`;
+        if (window.setGhostOpacity) {
+          window.setGhostOpacity(sliderGhostOp.value);
+        }
+      });
+      sliderGhostOp.addEventListener("change", () => {
+        localStorage.setItem("livesplit_ghost_opacity", sliderGhostOp.value);
+      });
+    }
 
     // Live slider input listeners
     const sliderNameFont = document.getElementById("slider-name-font");

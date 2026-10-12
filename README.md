@@ -76,6 +76,19 @@ Seamlessly switch target benchmarks:
 * **Custom Comparisons** (any comparison tracks declared in your `.lss` file)
 * *Quick Cycle*: Click the **`Comp: PB`** badge in the bottom utility bar to cycle comparisons on the fly.
 
+### 7. Live Ghost Runner Comparison (Live Racing Pace)
+Bring the "ghost runner" mechanic from racing games directly to your speedrun HUD:
+* **Interactive Ghost Pin**: A sleek, glowing marker advances along the progress track in real time to show where a comparison run was at that exact second:
+  - **World Record (`🏆`)**: Shows World Record position live on the bar.
+  - **Personal Best (`🥈`)**: Race against your Personal Best ghost.
+  - **Best Segments (`⭐`)**: Race against your theoretical Sum of Best / Gold pace.
+  - **Average Pace (`📊`)**: Race against your historical average run.
+* **Smart Off-Screen Edge Beacons**: If the ghost is outside your visible split window in scrolling mode, subtle pulsing pills appear at the track edges (`❮ 🏆 -14.2s` or `+18.5s 🏆 ❯`), showing real-time gap and direction without clutter.
+* **Zero-Clutter & Configurable**:
+  - Completely optional (`Off` by default).
+  - Configurable ghost pin opacity slider (`30%` to `100%`) in **`🎨 Bar Styles`**.
+  - Quick cycling via the **`Ghost: Off`** footer utility badge.
+
 ---
 
 ## 🎛️ Standalone OBS URL Parameters
@@ -90,6 +103,7 @@ For multi-monitor or multi-source OBS setups, load specific isolated components 
 | `?splits=all` | Fit all splits on screen without scrolling | `index.html?splits=all` |
 | `?splits=12` | Force exactly 12 splits on screen | `index.html?splits=12` |
 | `?angle=40` | Force 40° angled split titles | `index.html?angle=40` |
+| `?ghost=wr` | Enable Live Ghost Runner against World Record (`wr`, `pb`, `best`, `average`, `off`) | `index.html?ghost=wr` |
 | `?bg=55` | Set background plate opacity to 55% | `index.html?bg=55` |
 | `?bgblur=8` | Set frosted glass blur in pixels | `index.html?bgblur=8` |
 | `?namepos=top\|bottom` | Set split title position | `index.html?namepos=top` |

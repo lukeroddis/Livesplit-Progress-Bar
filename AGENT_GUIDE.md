@@ -76,6 +76,13 @@ Query these **strictly upon split index transition, start, or reset**:
     - Split Names on Bottom $\implies$ Deltas/Timers on Top.
   * This prevents title and timer text from ever colliding.
 
+### 5. Live Ghost Runner Calculation (`calculateGhostProgress`)
+* Given current run elapsed seconds $t$ and cumulative comparison split timestamps $C = [c_0, c_1, \dots, c_n]$:
+  - If $t \ge c_n$: Ghost has finished (progress 1.0 at final split).
+  - Else find interval $c_{k-1} \le t < c_k$. Progress ratio $p = \frac{t - c_{k-1}}{c_k - c_{k-1}}$.
+  - Physical X: $\text{X}_{\text{ghost}} = \text{startX}_k + p \times (\text{endX}_k - \text{startX}_k)$.
+  - Screen bounds check: If $\text{X}_{\text{ghost}} < \text{scrollLeft}$, activate left edge pill (`❮ 🏆`); if $\text{X}_{\text{ghost}} > \text{scrollLeft} + \text{clientWidth}$, activate right edge pill (`🏆 ❯`).
+
 ---
 
 ## 4. LocalStorage Keys & State Schema
@@ -85,6 +92,8 @@ Query these **strictly upon split index transition, start, or reset**:
 | `livesplit_hud_layout_v2` | JSON Object | Positions (`x`, `y`, `docked`) and scales for `title`, `timers`, `track`. |
 | `livesplit_visible_splits` | String (`"auto"`, `"all"`, or `"2"`–`"60"`) | Number of splits visible on track. |
 | `livesplit_split_angle` | String (`"auto"`, `"angle"`, `"flat"`) | Split name tilt angle preference. |
+| `livesplit_ghost_comparison` | String (`"off"`, `"wr"`, `"pb"`, `"best"`, `"average"`, or custom) | Live ghost runner comparison target. |
+| `livesplit_ghost_opacity` | String / Integer (`"30"`–`"100"`) | Live ghost pin visual opacity percentage. |
 | `livesplit_bg_opacity` | Float (`0.0`–`0.95`) | Frosted glass background opacity. |
 | `livesplit_bg_blur` | Integer (`0`–`20`) | Background backdrop-filter blur in pixels. |
 | `livesplit_bg_targets` | JSON Object (`{title: bool, timers: bool, track: bool}`) | Independent background plate toggles. |

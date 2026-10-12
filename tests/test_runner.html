@@ -87,6 +87,7 @@
     <span id="gold-toggle-badge"></span>
     <span id="timing-method-badge"></span>
     <span id="comparison-badge"></span>
+    <span id="ghost-badge"></span>
     <span id="bg-opacity-badge"></span>
     <span id="split-density-badge"></span>
     <span id="split-angle-badge"></span>
@@ -225,6 +226,39 @@
         const res = window.formatDeltaLive("+1:20.5");
         assertEqual(res.isAhead, false);
         assertEqual(res.text, "+1:20");
+      });
+    });
+
+    describe("Live Ghost Runner Engine", () => {
+      it("calculates ghost segment index and ratio across run", () => {
+        const times = [60, 120, 180, 240];
+        const r0 = window.calculateGhostProgress(0, times);
+        assertEqual(r0.segIdx, 0);
+        assertEqual(r0.ratio, 0);
+
+        const r30 = window.calculateGhostProgress(30, times);
+        assertEqual(r30.segIdx, 0);
+        assertEqual(Math.abs(r30.ratio - 0.5) < 0.001, true);
+
+        const r90 = window.calculateGhostProgress(90, times);
+        assertEqual(r90.segIdx, 1);
+        assertEqual(Math.abs(r90.ratio - 0.5) < 0.001, true);
+
+        const rFin = window.calculateGhostProgress(240, times);
+        assertEqual(rFin.segIdx, 3);
+        assertEqual(rFin.isFinished, true);
+
+        const rOver = window.calculateGhostProgress(300, times);
+        assertEqual(rOver.segIdx, 3);
+        assertEqual(rOver.isFinished, true);
+      });
+      it("handles ghost setting toggles and cycling", () => {
+        assertEqual(typeof window.setGhostComparison, "function");
+        assertEqual(typeof window.cycleGhostComparison, "function");
+        window.setGhostComparison("pb");
+        assertEqual(window.getGhostComparison(), "pb");
+        window.setGhostComparison("off");
+        assertEqual(window.getGhostComparison(), "off");
       });
     });
 

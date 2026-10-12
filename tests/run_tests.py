@@ -290,10 +290,61 @@ def test_comparison_curves_math():
         cum_worst.append(tot)
     assert cum_worst == [62.0, 122.0, 187.0]
 
-    # Monotonicity check: Best < Average <= Worst
+    # Monotonicity check: Best <= Average <= Worst
     for i in range(len(pb)):
         assert cum_best[i] <= cum_avg[i] <= cum_worst[i], f"Curve ordering violation at index {i}"
     print("✓ Comparison curves (Best, Average, Worst) mathematical ordering passed.")
+
+
+def calculate_ghost_progress(current_sec, times):
+    if not times or current_sec is None or current_sec <= 0:
+        return 0, 0.0, False, 0.0
+
+    last_time = times[-1]
+    if last_time is not None and current_sec >= last_time:
+        return len(times) - 1, 1.0, True, last_time
+
+    for i in range(len(times)):
+        t_next = times[i]
+        if t_next is None:
+            continue
+        t_prev = 0 if i == 0 else (times[i - 1] or 0)
+        if current_sec < t_next:
+            dur = t_next - t_prev
+            ratio = max(0.0, min(1.0, (current_sec - t_prev) / dur)) if dur > 0 else 0.0
+            return i, ratio, False, t_next
+
+    return len(times) - 1, 1.0, True, last_time or 0.0
+
+
+def test_ghost_runner_progress():
+    times = [60.0, 120.0, 180.0, 240.0]
+
+    # At start / 0 sec
+    seg, ratio, finished, _ = calculate_ghost_progress(0, times)
+    assert seg == 0 and ratio == 0.0 and not finished
+
+    # Midway through first segment
+    seg, ratio, finished, _ = calculate_ghost_progress(30, times)
+    assert seg == 0 and math.isclose(ratio, 0.5) and not finished
+
+    # Exactly at split 0 boundary
+    seg, ratio, finished, _ = calculate_ghost_progress(60, times)
+    assert seg == 1 and math.isclose(ratio, 0.0) and not finished
+
+    # Midway through split 1
+    seg, ratio, finished, _ = calculate_ghost_progress(90, times)
+    assert seg == 1 and math.isclose(ratio, 0.5) and not finished
+
+    # At finish line
+    seg, ratio, finished, _ = calculate_ghost_progress(240, times)
+    assert seg == 3 and math.isclose(ratio, 1.0) and finished
+
+    # Beyond finish line
+    seg, ratio, finished, _ = calculate_ghost_progress(300, times)
+    assert seg == 3 and math.isclose(ratio, 1.0) and finished
+
+    print("✓ Live Ghost runner progress interpolation passed.")
 
 
 def main():
@@ -309,6 +360,7 @@ def main():
         test_format_delta_unit()
         test_comparison_normalization_unit()
         test_comparison_curves_math()
+        test_ghost_runner_progress()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

@@ -88,7 +88,19 @@
       </div>
     </div>
     <div class="track-viewport" id="track-viewport">
-      <div class="track" id="track"></div>
+      <div class="track" id="track">
+        <div class="ghost-marker" id="ghost-marker" style="display: none;">
+          <div class="ghost-icon-wrap"><span id="ghost-icon">🏆</span></div>
+          <div class="ghost-needle"></div>
+          <div class="ghost-delta" id="ghost-delta">+0.0s</div>
+        </div>
+      </div>
+      <div class="ghost-edge-pill ghost-edge-left" id="ghost-edge-left" style="display: none;">
+        <span>❮</span> <span id="ghost-edge-left-icon">🏆</span> <span id="ghost-edge-left-val">0.0s</span>
+      </div>
+      <div class="ghost-edge-pill ghost-edge-right" id="ghost-edge-right" style="display: none;">
+        <span id="ghost-edge-right-val">0.0s</span> <span id="ghost-edge-right-icon">🏆</span> <span>❯</span>
+      </div>
     </div>
     <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
   </div>
@@ -101,6 +113,7 @@
       <span id="gold-toggle-badge" style="cursor:pointer; color: #facc15; text-decoration: underline;" title="Click to toggle Gold Splits">Golds: ON</span>
       <span id="timing-method-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to toggle Game / Real Time">Game Time</span>
       <span id="comparison-badge" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Click to cycle active comparison (or use LiveSplit hotkeys)">Comp: PB</span>
+      <span id="ghost-badge" style="cursor:pointer; color: #facc15; text-decoration: underline;" title="Click to cycle Live Ghost Runner (Off / 🏆 WR / 🥈 PB / ⭐ Best / 📊 Avg)">Ghost: Off</span>
       <span id="bg-opacity-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle background plate opacity (55% / 80% / Off / 35%)">BG: 55%</span>
       <span id="split-density-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</span>
       <span id="split-angle-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</span>
@@ -231,6 +244,25 @@
           </label>
           <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Tracks LiveSplit comparison and timing method switches in real time without replicating hotkeys.</span>
         </div>
+
+        <!-- Live Ghost Runner -->
+        <div class="modal-section-title">Live Ghost Runner</div>
+        <div class="modal-row">
+          <label>Ghost Comparison Pace</label>
+          <select id="select-ghost-comparison" class="modal-select">
+            <option value="off">Off (Disabled)</option>
+            <option value="wr">World Record (🏆)</option>
+            <option value="pb">Personal Best (🥈)</option>
+            <option value="best">Best Segments (⭐)</option>
+            <option value="average">Average Segments (📊)</option>
+            <option value="worst">Worst Segments (🐢)</option>
+          </select>
+        </div>
+        <div class="modal-row" id="row-ghost-opacity">
+          <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
+          <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
+        </div>
+        <div class="modal-hint" id="ghost-hint">💡 Displays a live ghost pin (e.g. 🏆 or 🥈) advancing along the progress bar to show where that run was at the current second.</div>
 
         <!-- Run & Reset Behavior -->
         <div class="modal-section-title">Run & Reset Behavior</div>

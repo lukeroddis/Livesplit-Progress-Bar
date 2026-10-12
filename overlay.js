@@ -716,6 +716,22 @@ function renderTrack() {
     track.appendChild(item);
   });
 
+  // Inject or preserve live ghost marker inside #track
+  let ghostMarker = document.getElementById("ghost-marker");
+  if (!ghostMarker) {
+    ghostMarker = document.createElement("div");
+    ghostMarker.className = "ghost-marker";
+    ghostMarker.id = "ghost-marker";
+    ghostMarker.style.display = "none";
+    ghostMarker.innerHTML = `
+      <div class="ghost-icon-wrap"><span id="ghost-icon">🏆</span></div>
+      <div class="ghost-needle"></div>
+      <div class="ghost-delta" id="ghost-delta">+0.0s</div>
+    `;
+  }
+  track.appendChild(ghostMarker);
+  track.style.setProperty("--ghost-opacity", ghostOpacity);
+
   updateTrackDensityAndAngle();
   updateTrackStatus(currentIndex);
 }
@@ -859,6 +875,265 @@ function updateLiveSegmentProgress(currentSec) {
       deltaSpan.innerText = "";
       deltaSpan.className = "split-delta-val";
     }
+  }
+}
+
+// ============================================================
+// LIVE GHOST RUNNER COMPARISON ENGINE
+// ============================================================
+let ghostComparison = localStorage.getItem("livesplit_ghost_comparison") || "off";
+let ghostOpacity = parseFloat(localStorage.getItem("livesplit_ghost_opacity") || "85") / 100;
+
+function getGhostComparisonInfo() {
+  if (!ghostComparison || ghostComparison === "off") return null;
+
+  const isRT = (currentTimingMethod === "RealTime");
+  const compData = isRT ? comparisonsDataRT : comparisonsDataGT;
+  const compKeys = Object.keys(compData);
+
+  // 1. World Record match (wr)
+  if (ghostComparison === "wr") {
+    const wrKey = compKeys.find(k => k.toLowerCase().includes("world record") || k.toLowerCase() === "wr");
+    if (wrKey && compData[wrKey]) {
+      return { id: "wr", name: wrKey, icon: "🏆", times: compData[wrKey] };
+    }
+    // Fallback if no explicit WR track in .lss: use Best Segments / Sum of Best pace
+    if (compData["Best Segments"]) {
+      return { id: "wr", name: "Best Segments (WR Fallback)", icon: "🏆", times: compData["Best Segments"] };
+    }
+    return { id: "wr", name: "Personal Best", icon: "🏆", times: compData["Personal Best"] || comparisonTimes };
+  }
+
+  // 2. Personal Best (pb)
+  if (ghostComparison === "pb" || ghostComparison === "Personal Best") {
+    return { id: "pb", name: "Personal Best", icon: "🥈", times: compData["Personal Best"] || comparisonTimes };
+  }
+
+  // 3. Best Segments (best)
+  if (ghostComparison === "best" || ghostComparison === "Best Segments") {
+    return { id: "best", name: "Best Segments", icon: "⭐", times: compData["Best Segments"] };
+  }
+
+  // 4. Average Segments (average)
+  if (ghostComparison === "average" || ghostComparison === "Average Segments") {
+    return { id: "average", name: "Average Segments", icon: "📊", times: compData["Average Segments"] };
+  }
+
+  // 5. Worst Segments (worst)
+  if (ghostComparison === "worst" || ghostComparison === "Worst Segments") {
+    return { id: "worst", name: "Worst Segments", icon: "🐢", times: compData["Worst Segments"] };
+  }
+
+  // 6. Direct match with any custom comparison
+  if (compData[ghostComparison]) {
+    return { id: ghostComparison, name: ghostComparison, icon: "🏃", times: compData[ghostComparison] };
+  }
+
+  return null;
+}
+
+function calculateGhostProgress(currentSec, times) {
+  if (!times || times.length === 0 || currentSec === null || currentSec <= 0) {
+    return { segIdx: 0, ratio: 0, isFinished: false, targetSec: 0 };
+  }
+
+  const lastTime = times[times.length - 1];
+  if (lastTime != null && currentSec >= lastTime) {
+    return { segIdx: times.length - 1, ratio: 1.0, isFinished: true, targetSec: lastTime };
+  }
+
+  for (let i = 0; i < times.length; i++) {
+    const tNext = times[i];
+    if (tNext == null) continue;
+    const tPrev = (i === 0) ? 0 : (times[i - 1] ?? 0);
+    if (currentSec < tNext) {
+      const dur = tNext - tPrev;
+      const ratio = (dur > 0) ? Math.max(0, Math.min(1.0, (currentSec - tPrev) / dur)) : 0;
+      return { segIdx: i, ratio, isFinished: false, targetSec: tNext };
+    }
+  }
+
+  return { segIdx: times.length - 1, ratio: 1.0, isFinished: true, targetSec: lastTime || 0 };
+}
+
+function updateGhostRunner(currentSec) {
+  const marker = document.getElementById("ghost-marker");
+  const edgeLeft = document.getElementById("ghost-edge-left");
+  const edgeRight = document.getElementById("ghost-edge-right");
+  const viewport = document.getElementById("track-viewport");
+
+  if (!viewport) return;
+
+  const ghostInfo = getGhostComparisonInfo();
+  if (!ghostInfo || currentSec === null || currentSec <= 0 || splitsList.length === 0) {
+    if (marker) marker.style.display = "none";
+    if (edgeLeft) edgeLeft.style.display = "none";
+    if (edgeRight) edgeRight.style.display = "none";
+    return;
+  }
+
+  const { segIdx, ratio } = calculateGhostProgress(currentSec, ghostInfo.times);
+
+  // Calculate physical track X coordinates
+  const nodeStart = document.getElementById("node-start");
+  if (!nodeStart) return;
+
+  let startX = 0;
+  let endX = 0;
+
+  if (segIdx === 0) {
+    startX = nodeStart.offsetLeft + (nodeStart.offsetWidth / 2);
+    const item0 = document.getElementById("item-0");
+    endX = item0 ? (item0.offsetLeft + (item0.offsetWidth / 2)) : startX + 220;
+  } else {
+    const prevItem = document.getElementById(`item-${segIdx - 1}`);
+    const currentItem = document.getElementById(`item-${segIdx}`);
+    if (prevItem && currentItem) {
+      startX = prevItem.offsetLeft + (prevItem.offsetWidth / 2);
+      endX = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
+    } else {
+      if (marker) marker.style.display = "none";
+      return;
+    }
+  }
+
+  const ghostX = startX + ratio * (endX - startX);
+
+  // Compute live delta vs ghost at runner's current progress
+  let runnerSegProgress = 0;
+  if (currentIndex >= 0 && currentIndex < splitsList.length) {
+    const curTarget = comparisonTimes[currentIndex];
+    const prevTarget = (currentIndex > 0) ? (comparisonTimes[currentIndex - 1] || 0) : 0;
+    const dur = curTarget ? (curTarget - prevTarget) : 0;
+    const elapsedInSeg = Math.max(0, currentSec - lastSplitRecordedSec);
+    runnerSegProgress = (dur > 0) ? Math.min(1.0, elapsedInSeg / dur) : 0;
+  }
+
+  const ghostTimes = ghostInfo.times;
+  let ghostTimeAtRunnerPos = 0;
+  if (currentIndex >= 0 && currentIndex < ghostTimes.length) {
+    const gNext = ghostTimes[currentIndex] ?? comparisonTimes[currentIndex] ?? 0;
+    const gPrev = (currentIndex === 0) ? 0 : (ghostTimes[currentIndex - 1] ?? (comparisonTimes[currentIndex - 1] || 0));
+    ghostTimeAtRunnerPos = gPrev + runnerSegProgress * (gNext - gPrev);
+  } else {
+    ghostTimeAtRunnerPos = ghostTimes[ghostTimes.length - 1] || 0;
+  }
+
+  const liveDeltaGhost = currentSec - ghostTimeAtRunnerPos;
+  const isAhead = (liveDeltaGhost <= 0);
+  const deltaStr = formatDeltaSeconds(liveDeltaGhost);
+
+  // Check viewport bounds for off-screen pills
+  const scrollLeft = viewport.scrollLeft;
+  const clientWidth = viewport.clientWidth;
+  const visibleMin = scrollLeft + 25;
+  const visibleMax = scrollLeft + clientWidth - 25;
+
+  if (ghostX < visibleMin) {
+    // Off-screen to the left (behind camera)
+    if (marker) marker.style.display = "none";
+    if (edgeRight) edgeRight.style.display = "none";
+    if (edgeLeft) {
+      edgeLeft.style.display = "flex";
+      const iconEl = document.getElementById("ghost-edge-left-icon");
+      const valEl = document.getElementById("ghost-edge-left-val");
+      if (iconEl) iconEl.innerText = ghostInfo.icon;
+      if (valEl) {
+        valEl.innerText = deltaStr;
+        valEl.style.color = isAhead ? "#22c55e" : "#ef4444";
+      }
+    }
+  } else if (ghostX > visibleMax) {
+    // Off-screen to the right (ahead of camera)
+    if (marker) marker.style.display = "none";
+    if (edgeLeft) edgeLeft.style.display = "none";
+    if (edgeRight) {
+      edgeRight.style.display = "flex";
+      const iconEl = document.getElementById("ghost-edge-right-icon");
+      const valEl = document.getElementById("ghost-edge-right-val");
+      if (iconEl) iconEl.innerText = ghostInfo.icon;
+      if (valEl) {
+        valEl.innerText = deltaStr;
+        valEl.style.color = isAhead ? "#22c55e" : "#ef4444";
+      }
+    }
+  } else {
+    // On-screen!
+    if (edgeLeft) edgeLeft.style.display = "none";
+    if (edgeRight) edgeRight.style.display = "none";
+    if (marker) {
+      marker.style.display = "flex";
+      marker.style.transform = `translateX(${ghostX}px) translate(-50%, -50%)`;
+
+      const iconEl = document.getElementById("ghost-icon");
+      const deltaEl = document.getElementById("ghost-delta");
+      if (iconEl) iconEl.innerText = ghostInfo.icon;
+      if (deltaEl) {
+        deltaEl.innerText = deltaStr;
+        deltaEl.className = `ghost-delta ${isAhead ? "delta-ahead" : "delta-behind"}`;
+      }
+    }
+  }
+}
+
+function updateGhostBadge() {
+  const badge = document.getElementById("ghost-badge");
+  if (!badge) return;
+  if (ghostComparison === "off") {
+    badge.innerText = "Ghost: Off";
+    badge.style.color = "rgba(148, 163, 184, 0.9)";
+  } else if (ghostComparison === "wr") {
+    badge.innerText = "Ghost: 🏆 WR";
+    badge.style.color = "#facc15";
+  } else if (ghostComparison === "pb") {
+    badge.innerText = "Ghost: 🥈 PB";
+    badge.style.color = "#38bdf8";
+  } else if (ghostComparison === "best") {
+    badge.innerText = "Ghost: ⭐ Best";
+    badge.style.color = "#facc15";
+  } else if (ghostComparison === "average") {
+    badge.innerText = "Ghost: 📊 Avg";
+    badge.style.color = "#a78bfa";
+  } else if (ghostComparison === "worst") {
+    badge.innerText = "Ghost: 🐢 Worst";
+    badge.style.color = "#f87171";
+  } else {
+    badge.innerText = `Ghost: 🏃 ${ghostComparison.slice(0, 8)}`;
+    badge.style.color = "#38bdf8";
+  }
+}
+
+function cycleGhostComparison() {
+  const options = ["off", "wr", "pb", "best", "average"];
+  const curIdx = options.indexOf(ghostComparison);
+  const next = (curIdx !== -1) ? options[(curIdx + 1) % options.length] : "off";
+  setGhostComparison(next);
+}
+
+function setGhostComparison(val) {
+  ghostComparison = val || "off";
+  localStorage.setItem("livesplit_ghost_comparison", ghostComparison);
+  updateGhostBadge();
+  if (ghostComparison === "off") {
+    const marker = document.getElementById("ghost-marker");
+    const edgeLeft = document.getElementById("ghost-edge-left");
+    const edgeRight = document.getElementById("ghost-edge-right");
+    if (marker) marker.style.display = "none";
+    if (edgeLeft) edgeLeft.style.display = "none";
+    if (edgeRight) edgeRight.style.display = "none";
+  }
+  if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
+    window.hudLayout.syncTrackModalUI();
+  }
+}
+
+function setGhostOpacity(pct) {
+  const parsed = parseInt(pct, 10);
+  if (!isNaN(parsed) && parsed >= 30 && parsed <= 100) {
+    ghostOpacity = parsed / 100;
+    localStorage.setItem("livesplit_ghost_opacity", parsed.toString());
+    const track = document.getElementById("track");
+    if (track) track.style.setProperty("--ghost-opacity", ghostOpacity);
   }
 }
 
@@ -1075,6 +1350,7 @@ async function pollLoop() {
           }
         }
         updateTrackStatus(idx);
+        updateGhostRunner(0);
         await syncLiveSplitMetadata();
 
         // Check active comparison on reset
@@ -1249,6 +1525,7 @@ async function pollLoop() {
       } else {
         if (currentTotalSec !== null) {
           updateLiveSegmentProgress(currentTotalSec);
+          updateGhostRunner(currentTotalSec);
         }
       }
     }
@@ -1439,10 +1716,12 @@ window.onload = () => {
   document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
   document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
   document.getElementById("comparison-badge")?.addEventListener("click", cycleComparison);
+  document.getElementById("ghost-badge")?.addEventListener("click", cycleGhostComparison);
   document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
   loadCachedSplits();
   updateTrackDensityAndAngle();
+  updateGhostBadge();
   connect();
 };
 
@@ -1457,3 +1736,9 @@ window.formatDeltaSeconds = formatDeltaSeconds;
 window.formatDeltaLive = formatDeltaLive;
 window.normalizeComparisonName = normalizeComparisonName;
 window.getShortComparisonName = getShortComparisonName;
+window.getGhostComparison = () => ghostComparison;
+window.setGhostComparison = setGhostComparison;
+window.cycleGhostComparison = cycleGhostComparison;
+window.getGhostComparisonInfo = getGhostComparisonInfo;
+window.calculateGhostProgress = calculateGhostProgress;
+window.setGhostOpacity = setGhostOpacity;
