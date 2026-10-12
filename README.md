@@ -101,8 +101,18 @@ The overlay supports in-browser visual editing via pointer drag-and-drop and sca
     - **Deltas & Timers Remain 100% Horizontal on Opposing End**: Split deltas and cumulative times are never rotated, and are automatically forced to the opposite side of the progress bar line (e.g. Split Names on Top $\implies$ Timers on Bottom; Split Names on Bottom $\implies$ Timers on Top). This completely eliminates text overlap between titles and timers!
     - **Anti-Truncation Clearance**: Dynamic baseline and generous bounding box padding ensure angled labels never clip or truncate against container edges.
   - Configurable as **`Auto (Smart)`**, **`40° Tilt`**, or **`Flat`** via the toolbar, modal, or footer badge.
+* **Semi-Transparent Background Plates & Glassmorphism (High-Contrast Readability)**:
+  - Solves text washout and illegibility over bright game scenes, skyboxes, or light stone pavement (such as FFX Kilika bridge).
+  - Renders a semi-transparent dark plate (`rgba(15, 23, 42, opacity)`) with frosted glass blur behind the Game Title, Dual Timers, and Progress Track.
+  - **Full Custom Control**:
+    - **Opacity Slider**: Smooth control from `0%` (fully transparent) to `95%` (high-contrast dark). Default is `55%` glass.
+    - **One-Click Presets**: `0% (Off)`, `35% Subtle`, `55% Glass`, and `80% Dark`.
+    - **Frosted Blur Slider**: Configurable from `0px` to `20px` (default `8px`).
+    - **Per-Component Toggles**: Independently enable/disable background plates for **`Title`**, **`Timers`**, and **`Track`**.
+    - **Footer Badge Quick-Cycle**: Click **`BG: 55%`** in the bottom utility bar to cycle through presets on the fly.
 * **Progress Bar Customizer (Positions, Fonts, Geometry & Density)**:
   - Click the **`🎨 Bar Styles`** button in the Layout Editor toolbar or bottom utility bar to open the styling modal with live preview.
+  - **Background Plate & Readability**: Adjust background opacity, frosted blur, presets, and component targets.
   - **Split Name & Delta Position**: Choose **`Top`** or **`Bottom`** (automatically keeps timers on the opposing end when angled).
   - **Visible Splits & Angle Mode**: In-modal spin box, Fit All / Auto toggles, and angle mode selector.
   - **Split Name Font Size**: Slider control from `12px` to `24px` (default `17px`).
@@ -121,6 +131,8 @@ For multi-source OBS setups or targeted browser sources:
 * `index.html?view=track` — Shows only the Horizontal Split Track.
 * `index.html?splits=all` — Forces all splits to fit on screen without scrolling (or `?splits=10`, `?splits=12`).
 * `index.html?angle=40` — Forces 40° angled text mode (or `?angle=flat`).
+* `index.html?bg=55` — Sets background opacity to 55% (or `?bg=0`, `?bg=off`, `?bg=glass`, `?bg=dark`).
+* `index.html?bgblur=8` — Sets frosted glass blur in pixels (e.g. `?bgblur=12`).
 * `index.html?namepos=top|bottom` — Configures split title position.
 * `index.html?deltapos=top|bottom` — Configures delta/time position.
 * `index.html?barsize=8` — Configures connector bar thickness in pixels.

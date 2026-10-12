@@ -20,6 +20,10 @@
   --name-font-size: 17px;
   --delta-font-size: 15px;
   --dot-bottom: 5px;
+  
+  /* Background Plate & Readability */
+  --bg-opacity: 0.55;
+  --bg-blur: 8px;
 }
 
 * {
@@ -59,6 +63,28 @@ html, body {
 .hud-component.edit-hidden {
   opacity: 0.35 !important;
   border-style: dotted !important;
+}
+
+/* Semi-transparent background plate & glassmorphism */
+.hud-component.has-bg {
+  background: rgba(15, 23, 42, var(--bg-opacity, 0.55));
+  backdrop-filter: blur(var(--bg-blur, 8px));
+  -webkit-backdrop-filter: blur(var(--bg-blur, 8px));
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, calc(var(--bg-opacity, 0.55) * 0.28));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65));
+}
+
+#hud-comp-title.has-bg .title-group {
+  padding: 8px 14px;
+}
+
+#hud-comp-timers.has-bg .timer-group {
+  padding: 8px 16px;
+}
+
+#hud-comp-track.has-bg:not(.docked-bottom) {
+  padding-bottom: 6px;
 }
 
 /* Edit Mode styling */
@@ -182,6 +208,21 @@ body.edit-mode .hud-resize-handle {
   top: auto !important;
   width: 100% !important;
   border-radius: 0 !important;
+}
+
+#hud-comp-track.docked-bottom.has-bg {
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-top: 1px solid rgba(148, 163, 184, calc(var(--bg-opacity, 0.55) * 0.35)) !important;
+  background: linear-gradient(
+    to top,
+    rgba(10, 15, 30, calc(var(--bg-opacity, 0.55) * 1.15)) 0%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.95)) 70%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.82)) 100%
+  ) !important;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65)) !important;
 }
 
 /* Floating Layout Toolbar */
@@ -1077,6 +1118,31 @@ body.edit-mode .footer-bar,
 .seg-btn.active {
   background: #38bdf8;
   color: #0f172a;
+  font-weight: 700;
+}
+
+.preset-pill-btn {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-pill-btn:hover {
+  border-color: #38bdf8;
+  color: #ffffff;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.preset-pill-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
   font-weight: 700;
 }
 

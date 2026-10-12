@@ -15,7 +15,12 @@
     nameFontSize: 17,      // px
     deltaFontSize: 15,     // px
     barHeight: 6,          // px
-    dotSize: 15            // px
+    dotSize: 15,           // px
+    bgOpacity: 55,         // % (0 to 95)
+    bgBlur: 8,             // px (0 to 20)
+    bgTitle: true,         // boolean
+    bgTimers: true,        // boolean
+    bgTrack: true          // boolean
   };
 
   let layoutState = null;
@@ -126,6 +131,21 @@
     root.style.setProperty("--name-font-size", `${currentTrackStyle.nameFontSize}px`);
     root.style.setProperty("--delta-font-size", `${currentTrackStyle.deltaFontSize}px`);
 
+    const opacityVal = (currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55);
+    const blurPx = (currentTrackStyle.bgBlur != null ? currentTrackStyle.bgBlur : 8);
+    root.style.setProperty("--bg-opacity", (opacityVal / 100).toFixed(2));
+    root.style.setProperty("--bg-blur", `${blurPx}px`);
+
+    // Toggle .has-bg on components
+    const isBgActive = opacityVal > 0;
+    const elTitle = document.getElementById("hud-comp-title");
+    const elTimers = document.getElementById("hud-comp-timers");
+    const elTrack = document.getElementById("hud-comp-track");
+
+    if (elTitle) elTitle.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTitle !== false);
+    if (elTimers) elTimers.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTimers !== false);
+    if (elTrack) elTrack.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTrack !== false);
+
     // Remove existing positional classes and set active ones
     track.classList.remove("pos-name-top", "pos-name-bottom", "pos-delta-top", "pos-delta-bottom");
     track.classList.add(`pos-name-${currentTrackStyle.namePos}`, `pos-delta-${currentTrackStyle.deltaPos}`);
@@ -164,6 +184,44 @@
     const hint = document.getElementById("opposing-hint");
     if (hint) {
       hint.style.display = isAngled ? "block" : "none";
+    }
+
+    // Background Opacity & Blur sync
+    const opacityVal = (currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55);
+    const sBgOpacity = document.getElementById("slider-bg-opacity");
+    const vBgOpacity = document.getElementById("val-bg-opacity");
+    if (sBgOpacity && vBgOpacity) {
+      sBgOpacity.value = opacityVal;
+      vBgOpacity.innerText = (opacityVal === 0) ? "0% (Off)" : `${opacityVal}%`;
+    }
+
+    const blurPx = (currentTrackStyle.bgBlur != null ? currentTrackStyle.bgBlur : 8);
+    const sBgBlur = document.getElementById("slider-bg-blur");
+    const vBgBlur = document.getElementById("val-bg-blur");
+    if (sBgBlur && vBgBlur) {
+      sBgBlur.value = blurPx;
+      vBgBlur.innerText = `${blurPx}px`;
+    }
+
+    // Preset buttons highlight
+    document.querySelectorAll(".preset-pill-btn").forEach((btn) => {
+      const pVal = parseInt(btn.getAttribute("data-preset-bg"), 10);
+      btn.classList.toggle("active", pVal === opacityVal);
+    });
+
+    // Checkboxes for individual component background
+    const cbTitle = document.getElementById("cb-bg-title");
+    if (cbTitle) cbTitle.checked = currentTrackStyle.bgTitle !== false;
+    const cbTimers = document.getElementById("cb-bg-timers");
+    if (cbTimers) cbTimers.checked = currentTrackStyle.bgTimers !== false;
+    const cbTrack = document.getElementById("cb-bg-track");
+    if (cbTrack) cbTrack.checked = currentTrackStyle.bgTrack !== false;
+
+    // Footer badge sync
+    const bgBadge = document.getElementById("bg-opacity-badge");
+    if (bgBadge) {
+      bgBadge.innerText = (opacityVal === 0) ? "BG: Off" : `BG: ${opacityVal}%`;
+      bgBadge.style.color = (opacityVal > 0) ? "#38bdf8" : "rgba(148, 163, 184, 0.7)";
     }
 
     // Segmented buttons for Name and Delta
@@ -417,6 +475,24 @@
       if (dotSizeParam) currentTrackStyle.dotSize = parseInt(dotSizeParam, 10) || currentTrackStyle.dotSize;
       if (nameFontParam) currentTrackStyle.nameFontSize = parseInt(nameFontParam, 10) || currentTrackStyle.nameFontSize;
       if (deltaFontParam) currentTrackStyle.deltaFontSize = parseInt(deltaFontParam, 10) || currentTrackStyle.deltaFontSize;
+
+      const bgParam = params.get("bg");
+      const bgBlurParam = params.get("bgblur");
+      if (bgParam) {
+        const b = bgParam.toLowerCase().trim();
+        if (b === "0" || b === "off" || b === "none" || b === "false") currentTrackStyle.bgOpacity = 0;
+        else if (b === "subtle" || b === "light") currentTrackStyle.bgOpacity = 35;
+        else if (b === "glass" || b === "medium") currentTrackStyle.bgOpacity = 55;
+        else if (b === "dark" || b === "solid") currentTrackStyle.bgOpacity = 80;
+        else {
+          const num = parseInt(b, 10);
+          if (!isNaN(num)) currentTrackStyle.bgOpacity = Math.max(0, Math.min(95, num));
+        }
+      }
+      if (bgBlurParam) {
+        const num = parseInt(bgBlurParam, 10);
+        if (!isNaN(num)) currentTrackStyle.bgBlur = Math.max(0, Math.min(25, num));
+      }
     }
 
     if (edit === "1" || edit === "true") {
@@ -721,6 +797,68 @@
         applyTrackStyle();
         saveTrackStyle();
       });
+    });
+
+    // Background Opacity slider
+    const sliderBgOpacity = document.getElementById("slider-bg-opacity");
+    if (sliderBgOpacity) {
+      sliderBgOpacity.addEventListener("input", () => {
+        currentTrackStyle.bgOpacity = parseInt(sliderBgOpacity.value, 10);
+        const vBg = document.getElementById("val-bg-opacity");
+        if (vBg) vBg.innerText = (currentTrackStyle.bgOpacity === 0) ? "0% (Off)" : `${currentTrackStyle.bgOpacity}%`;
+        applyTrackStyle();
+      });
+      sliderBgOpacity.addEventListener("change", saveTrackStyle);
+    }
+
+    // Background Blur slider
+    const sliderBgBlur = document.getElementById("slider-bg-blur");
+    if (sliderBgBlur) {
+      sliderBgBlur.addEventListener("input", () => {
+        currentTrackStyle.bgBlur = parseInt(sliderBgBlur.value, 10);
+        const vBlur = document.getElementById("val-bg-blur");
+        if (vBlur) vBlur.innerText = `${currentTrackStyle.bgBlur}px`;
+        applyTrackStyle();
+      });
+      sliderBgBlur.addEventListener("change", saveTrackStyle);
+    }
+
+    // Background Preset buttons
+    document.querySelectorAll(".preset-pill-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = parseInt(btn.getAttribute("data-preset-bg"), 10);
+        currentTrackStyle.bgOpacity = val;
+        applyTrackStyle();
+        saveTrackStyle();
+      });
+    });
+
+    // Component background checkboxes
+    document.getElementById("cb-bg-title")?.addEventListener("change", (e) => {
+      currentTrackStyle.bgTitle = e.target.checked;
+      applyTrackStyle();
+      saveTrackStyle();
+    });
+    document.getElementById("cb-bg-timers")?.addEventListener("change", (e) => {
+      currentTrackStyle.bgTimers = e.target.checked;
+      applyTrackStyle();
+      saveTrackStyle();
+    });
+    document.getElementById("cb-bg-track")?.addEventListener("change", (e) => {
+      currentTrackStyle.bgTrack = e.target.checked;
+      applyTrackStyle();
+      saveTrackStyle();
+    });
+
+    // Footer BG badge click to cycle presets: 55% -> 80% -> 0% -> 35% -> 55%
+    document.getElementById("bg-opacity-badge")?.addEventListener("click", () => {
+      const presets = [55, 80, 0, 35];
+      const cur = currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55;
+      const idx = presets.indexOf(cur);
+      const nextVal = (idx !== -1) ? presets[(idx + 1) % presets.length] : 55;
+      currentTrackStyle.bgOpacity = nextVal;
+      applyTrackStyle();
+      saveTrackStyle();
     });
 
     // Live slider input listeners
