@@ -1217,7 +1217,7 @@ function updateGhostRunner(currentSec) {
     if (edgeRight) edgeRight.style.display = "none";
     if (marker) {
       marker.style.display = "flex";
-      marker.style.transform = `translateX(${ghostX}px) translate(-50%, -100%)`;
+      marker.style.transform = `translateX(${ghostX}px) translateX(-50%)`;
 
       // Dynamically shrink pin when hovering over split text, extend longer in open track
       const distPrev = Math.abs(ghostX - startX);

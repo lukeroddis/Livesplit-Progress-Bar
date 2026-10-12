@@ -562,10 +562,14 @@ body.edit-mode .layout-toolbar {
 /* Default / Fallback: Both on Top */
 .track {
   --dot-bottom: 5px;
+  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--name-font-size, 17px) + var(--delta-font-size, 15px) + 20px);
+  --ghost-needle-length: calc(var(--name-font-size, 17px) + var(--delta-font-size, 15px) + (var(--dot-size) - var(--bar-height)) / 2 + 21px);
 }
 
 .track.pos-name-top.pos-delta-top {
   --dot-bottom: 5px;
+  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 20px);
+  --ghost-needle-length: calc(var(--name-font-size) + var(--delta-font-size) + (var(--dot-size) - var(--bar-height)) / 2 + 21px);
 }
 .track.pos-name-top.pos-delta-top .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 34px);
@@ -583,6 +587,8 @@ body.edit-mode .layout-toolbar {
 /* Layout 2: Name on Top, Delta on Bottom */
 .track.pos-name-top.pos-delta-bottom {
   --dot-bottom: calc(var(--delta-font-size) + 12px);
+  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + 12px);
+  --ghost-needle-length: calc(var(--name-font-size) + (var(--dot-size) - var(--bar-height)) / 2 + 13px);
 }
 .track.pos-name-top.pos-delta-bottom .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
@@ -600,6 +606,8 @@ body.edit-mode .layout-toolbar {
 /* Layout 3: Delta on Top, Name on Bottom */
 .track.pos-name-bottom.pos-delta-top {
   --dot-bottom: calc(var(--name-font-size) + 12px);
+  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--delta-font-size) + 12px);
+  --ghost-needle-length: calc(var(--delta-font-size) + (var(--dot-size) - var(--bar-height)) / 2 + 13px);
 }
 .track.pos-name-bottom.pos-delta-top .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
@@ -617,6 +625,8 @@ body.edit-mode .layout-toolbar {
 /* Layout 4: Both on Bottom */
 .track.pos-name-bottom.pos-delta-bottom {
   --dot-bottom: calc(var(--name-font-size) + var(--delta-font-size) + 24px);
+  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + 10px);
+  --ghost-needle-length: calc((var(--dot-size) - var(--bar-height)) / 2 + 11px);
 }
 .track.pos-name-bottom.pos-delta-bottom .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
@@ -856,6 +866,8 @@ body.edit-mode .layout-toolbar {
 .track.angled-text.pos-name-top,
 .track.angled-text:not(.pos-name-bottom) {
   --dot-bottom: calc(var(--delta-font-size, 15px) + 16px);
+  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size, 15px) + 70px);
+  --ghost-needle-length: calc((var(--dot-size, 15px) - var(--bar-height, 6px)) / 2 + 71px);
 }
 
 .track.angled-text.pos-name-top .split-item,
@@ -1206,17 +1218,19 @@ body.edit-mode .footer-bar,
    ============================================================ */
 .ghost-marker {
   position: absolute;
-  bottom: calc(var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + 1px);
+  bottom: var(--ghost-pin-bottom, calc(10px + var(--dot-bottom, 5px) + var(--dot-size, 15px) + var(--name-font-size, 17px) + 12px));
   left: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   pointer-events: none;
   z-index: 20;
   opacity: var(--ghost-opacity, 0.85);
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, bottom 0.2s ease;
   will-change: transform;
-  transform: translate(-50%, -100%);
+  transform: translateX(-50%);
 }
 
 .ghost-icon-wrap {
@@ -1232,17 +1246,22 @@ body.edit-mode .footer-bar,
   font-size: 13px;
   line-height: 1;
   user-select: none;
-  transform-origin: bottom center;
+  transform-origin: center center;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
 }
 
 .ghost-needle {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   width: 2px;
-  height: 22px;
+  height: var(--ghost-needle-length, 34px);
   background: #facc15;
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
   border-radius: 1px;
   transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top center;
 }
 
 /* Compact / shrunk pin state when hovering over split text */
@@ -1251,7 +1270,7 @@ body.edit-mode .footer-bar,
 }
 
 .ghost-marker.compact .ghost-icon-wrap {
-  transform: scale(0.8);
+  transform: scale(0.82);
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
 }
 
