@@ -59,6 +59,19 @@ Unlike traditional LiveSplit layouts that occupy substantial vertical screen spa
 - **User Controllable**: A toggle (**`Discard In-Run Golds on Reset`**) is available in the `🎨 Bar Styles` customizer modal if you ever wish to alter this behavior.
 - **Run Completion**: When a full run is finished and achieves a new Personal Best, all newly beaten segment times are automatically committed to the persistent baseline.
 
+### Comparisons & Timing Method Synchronization
+- **LiveSplit Server Signal Limitations**: LiveSplit Server does **not** broadcast unsolicited event signals or push notifications when hotkeys are pressed in-game. It operates strictly on a request-response model. Furthermore, while setter commands (`setcomparison <name>`, `switchto realtime`, `switchto gametime`) are universal across all server versions, query commands like `getcomparisonname` are not present in older standalone plugin builds.
+- **Two-Way Synchronization**:
+  1. **Hotkeys Auto-Detection**: The overlay polls LiveSplit with a non-blocking 40ms guarded tick. When LiveSplit responds to comparison or timing changes, the overlay switches targets and timer hierarchy seamlessly without needing to replicate global hotkeys or fight window focus.
+  2. **Dedicated In-Layout Selector**: An **Active Comparison** dropdown is provided in the `🎨 Bar Styles` customizer dialog, allowing instant switching between:
+     - **`Personal Best (PB)`**
+     - **`Best Segments (Sum of Best)`**
+     - **`Average Segments`** (computed dynamically from `<SegmentHistory>`)
+     - **`Worst Segments`** (computed dynamically from `<SegmentHistory>`)
+     - **Custom comparisons** (any comparison tracks declared in the `.lss` XML)
+  3. **Footer Badge Quick-Cycle**: Clicking the **`Comp: PB`** badge in the bottom utility bar immediately cycles to the next comparison on the fly.
+  4. **LiveSplit Remote Control**: When switched in the overlay, `setcomparison` and `switchto` are sent over WebSocket, keeping both LiveSplit and the overlay 100% in sync.
+
 ---
 
 ## 4. File Structure & Reference Assets

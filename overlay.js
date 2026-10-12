@@ -14,6 +14,10 @@ let bestSegmentTimesGT = [];
 let bestSegmentTimesRT = [];
 let baselineBestSegmentTimesGT = [];
 let baselineBestSegmentTimesRT = [];
+let comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+let currentComparison = "Personal Best";
+let comparisonsDataGT = {};
+let comparisonsDataRT = {};
 let completedSplitTimes = {};
 let currentTimingMethod = "GameTime";
 let lockedDeltas = {}; 
@@ -73,6 +77,45 @@ function updateTimerDisplayHierarchy() {
   }
 }
 
+function getShortComparisonName(name) {
+  if (name === "Personal Best") return "PB";
+  if (name === "Best Segments") return "Best Segs";
+  if (name === "Average Segments") return "Average";
+  if (name === "Worst Segments") return "Worst";
+  return name.length > 10 ? name.slice(0, 9) + "…" : name;
+}
+
+function normalizeComparisonName(raw) {
+  if (!raw || raw === "-" || raw.trim() === "") return null;
+  const str = raw.trim();
+  const lower = str.toLowerCase();
+  if (lower === "personal best" || lower === "pb") return "Personal Best";
+  if (lower === "best segments" || lower === "best splits" || lower === "sum of best") return "Best Segments";
+  if (lower === "average segments" || lower === "average") return "Average Segments";
+  if (lower === "worst segments" || lower === "worst") return "Worst Segments";
+
+  for (const c of comparisonsList) {
+    if (c.toLowerCase() === lower) return c;
+  }
+  return str;
+}
+
+function initDefaultComparisons() {
+  comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+  comparisonsDataGT["Personal Best"] = [...DEFAULT_TARGETS];
+  comparisonsDataRT["Personal Best"] = [...DEFAULT_TARGETS];
+
+  let sumBest = 0;
+  comparisonsDataGT["Best Segments"] = DEFAULT_BESTS.map(b => (sumBest += b));
+  comparisonsDataRT["Best Segments"] = [...comparisonsDataGT["Best Segments"]];
+
+  comparisonsDataGT["Average Segments"] = DEFAULT_TARGETS.map(t => Math.round(t * 1.08));
+  comparisonsDataRT["Average Segments"] = [...comparisonsDataGT["Average Segments"]];
+
+  comparisonsDataGT["Worst Segments"] = DEFAULT_TARGETS.map(t => Math.round(t * 1.25));
+  comparisonsDataRT["Worst Segments"] = [...comparisonsDataGT["Worst Segments"]];
+}
+
 function applyActiveTimingMethod(method) {
   if (method && (method === "GameTime" || method === "RealTime")) {
     currentTimingMethod = method;
@@ -85,10 +128,15 @@ function applyActiveTimingMethod(method) {
   updateTimerDisplayHierarchy();
 
   const isRT = currentTimingMethod === "RealTime";
+  const activeTargets = isRT 
+    ? (comparisonsDataRT[currentComparison] || comparisonTimesRT)
+    : (comparisonsDataGT[currentComparison] || comparisonTimesGT);
+  const fallbackTargets = isRT
+    ? (comparisonsDataGT[currentComparison] || comparisonTimesGT)
+    : (comparisonsDataRT[currentComparison] || comparisonTimesRT);
+
   comparisonTimes = splitsList.map((_, i) => {
-    return isRT 
-      ? (comparisonTimesRT[i] ?? comparisonTimesGT[i] ?? null)
-      : (comparisonTimesGT[i] ?? comparisonTimesRT[i] ?? null);
+    return activeTargets[i] ?? fallbackTargets[i] ?? null;
   });
 
   bestSegmentTimes = splitsList.map((_, i) => {
@@ -106,6 +154,56 @@ function applyActiveTimingMethod(method) {
       }
     }
   }
+}
+
+function applyActiveComparison(compName, updateLiveSplit = false) {
+  const norm = normalizeComparisonName(compName) || "Personal Best";
+  currentComparison = norm;
+  localStorage.setItem("livesplit_current_comparison", currentComparison);
+
+  const isRT = currentTimingMethod === "RealTime";
+  const activeTargets = isRT 
+    ? (comparisonsDataRT[currentComparison] || comparisonTimesRT)
+    : (comparisonsDataGT[currentComparison] || comparisonTimesGT);
+  const fallbackTargets = isRT
+    ? (comparisonsDataGT[currentComparison] || comparisonTimesGT)
+    : (comparisonsDataRT[currentComparison] || comparisonTimesRT);
+
+  comparisonTimes = splitsList.map((_, i) => {
+    return activeTargets[i] ?? fallbackTargets[i] ?? null;
+  });
+
+  const badge = document.getElementById("comparison-badge");
+  if (badge) {
+    badge.innerText = `Comp: ${getShortComparisonName(currentComparison)}`;
+  }
+
+  const selComp = document.getElementById("select-active-comparison");
+  if (selComp && selComp.value !== currentComparison) {
+    selComp.value = currentComparison;
+  }
+
+  for (let i = 0; i < splitsList.length; i++) {
+    if (!lockedDeltas[i]) {
+      const timeSpan = document.getElementById(`time-val-${i}`);
+      if (timeSpan) {
+        const targetVal = formatTargetTime(comparisonTimes[i]);
+        timeSpan.innerText = targetVal || "-";
+      }
+    }
+  }
+
+  if (updateLiveSplit && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(`setcomparison ${currentComparison}`);
+  }
+}
+
+function cycleComparison() {
+  if (comparisonsList.length === 0) return;
+  const currentIdx = comparisonsList.indexOf(currentComparison);
+  const nextIdx = (currentIdx + 1) % comparisonsList.length;
+  const nextComp = comparisonsList[nextIdx];
+  applyActiveComparison(nextComp, true);
 }
 
 function timeStringToSeconds(tStr) {
@@ -242,8 +340,25 @@ function parseLSS(xmlText) {
       comparisonTimesRT = [];
       bestSegmentTimesGT = [];
       bestSegmentTimesRT = [];
+      comparisonsDataGT = {};
+      comparisonsDataRT = {};
+      comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
 
-      segments.forEach(seg => {
+      // Collect any custom comparisons declared in root <Comparisons>
+      const declaredComps = Array.from(xml.querySelectorAll("Comparisons > Comparison"));
+      declaredComps.forEach(c => {
+        const cName = c.textContent.trim();
+        if (cName && !comparisonsList.includes(cName)) {
+          comparisonsList.push(cName);
+        }
+      });
+
+      const segmentHistoriesGT = [];
+      const segmentHistoriesRT = [];
+      const customSplitTimesGT = {};
+      const customSplitTimesRT = {};
+
+      segments.forEach((seg, segIdx) => {
         const name = seg.querySelector("Name")?.textContent.trim() || "Split";
 
         let pbGT = null;
@@ -264,16 +379,35 @@ function parseLSS(xmlText) {
         let bestSecGT = timeStringToSeconds(bestGT);
         let bestSecRT = timeStringToSeconds(bestRT);
 
-        // LiveSplit calculates Best Segment from the minimum of BestSegmentTime and all attempts in SegmentHistory
+        // Collect segment history for calculating Average Segments and Worst Segments
+        const segHistGT = [];
+        const segHistRT = [];
         const historyTimes = Array.from(seg.querySelectorAll("SegmentHistory > Time"));
         historyTimes.forEach(tNode => {
           const hgt = timeStringToSeconds(tNode.querySelector("GameTime")?.textContent);
           const hrt = timeStringToSeconds(tNode.querySelector("RealTime")?.textContent);
           if (hgt !== null && hgt > 0) {
+            segHistGT.push(hgt);
             if (bestSecGT === null || hgt < bestSecGT) bestSecGT = hgt;
           }
           if (hrt !== null && hrt > 0) {
+            segHistRT.push(hrt);
             if (bestSecRT === null || hrt < bestSecRT) bestSecRT = hrt;
+          }
+        });
+
+        // Collect custom comparison split times
+        const splitTimeNodes = Array.from(seg.querySelectorAll("SplitTimes > SplitTime"));
+        splitTimeNodes.forEach(st => {
+          const stName = st.getAttribute("name");
+          if (stName && stName !== "Personal Best") {
+            if (!customSplitTimesGT[stName]) customSplitTimesGT[stName] = [];
+            if (!customSplitTimesRT[stName]) customSplitTimesRT[stName] = [];
+            const sgt = timeStringToSeconds(st.querySelector("GameTime")?.textContent);
+            const srt = timeStringToSeconds(st.querySelector("RealTime")?.textContent);
+            customSplitTimesGT[stName][segIdx] = sgt;
+            customSplitTimesRT[stName][segIdx] = srt;
+            if (!comparisonsList.includes(stName)) comparisonsList.push(stName);
           }
         });
 
@@ -282,7 +416,71 @@ function parseLSS(xmlText) {
         comparisonTimesRT.push(timeStringToSeconds(pbRT));
         bestSegmentTimesGT.push(bestSecGT);
         bestSegmentTimesRT.push(bestSecRT);
+        segmentHistoriesGT.push(segHistGT);
+        segmentHistoriesRT.push(segHistRT);
       });
+
+      // 1. Personal Best targets
+      comparisonsDataGT["Personal Best"] = [...comparisonTimesGT];
+      comparisonsDataRT["Personal Best"] = [...comparisonTimesRT];
+
+      // 2. Best Segments targets (Sum of Best)
+      let cumBestGT = 0;
+      let cumBestRT = 0;
+      comparisonsDataGT["Best Segments"] = bestSegmentTimesGT.map(s => {
+        if (s !== null && s > 0) cumBestGT += s;
+        return cumBestGT > 0 ? cumBestGT : null;
+      });
+      comparisonsDataRT["Best Segments"] = bestSegmentTimesRT.map(s => {
+        if (s !== null && s > 0) cumBestRT += s;
+        return cumBestRT > 0 ? cumBestRT : null;
+      });
+
+      // 3. Average Segments targets
+      let cumAvgGT = 0;
+      let cumAvgRT = 0;
+      comparisonsDataGT["Average Segments"] = [];
+      comparisonsDataRT["Average Segments"] = [];
+      for (let i = 0; i < segments.length; i++) {
+        const hgt = segmentHistoriesGT[i];
+        const pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
+        const avgGT = hgt.length > 0 ? (hgt.reduce((a, b) => a + b, 0) / hgt.length) : (pbDurGT ?? bestSegmentTimesGT[i]);
+        if (avgGT != null && avgGT > 0) cumAvgGT += avgGT;
+        comparisonsDataGT["Average Segments"].push(cumAvgGT > 0 ? cumAvgGT : null);
+
+        const hrt = segmentHistoriesRT[i];
+        const pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
+        const avgRT = hrt.length > 0 ? (hrt.reduce((a, b) => a + b, 0) / hrt.length) : (pbDurRT ?? bestSegmentTimesRT[i]);
+        if (avgRT != null && avgRT > 0) cumAvgRT += avgRT;
+        comparisonsDataRT["Average Segments"].push(cumAvgRT > 0 ? cumAvgRT : null);
+      }
+
+      // 4. Worst Segments targets
+      let cumWorstGT = 0;
+      let cumWorstRT = 0;
+      comparisonsDataGT["Worst Segments"] = [];
+      comparisonsDataRT["Worst Segments"] = [];
+      for (let i = 0; i < segments.length; i++) {
+        const hgt = segmentHistoriesGT[i];
+        const pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
+        const worstGT = hgt.length > 0 ? Math.max(...hgt) : (pbDurGT ?? bestSegmentTimesGT[i]);
+        if (worstGT != null && worstGT > 0) cumWorstGT += worstGT;
+        comparisonsDataGT["Worst Segments"].push(cumWorstGT > 0 ? cumWorstGT : null);
+
+        const hrt = segmentHistoriesRT[i];
+        const pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
+        const worstRT = hrt.length > 0 ? Math.max(...hrt) : (pbDurRT ?? bestSegmentTimesRT[i]);
+        if (worstRT != null && worstRT > 0) cumWorstRT += worstRT;
+        comparisonsDataRT["Worst Segments"].push(cumWorstRT > 0 ? cumWorstRT : null);
+      }
+
+      // 5. Custom comparisons
+      for (const cName in customSplitTimesGT) {
+        comparisonsDataGT[cName] = customSplitTimesGT[cName];
+      }
+      for (const cName in customSplitTimesRT) {
+        comparisonsDataRT[cName] = customSplitTimesRT[cName];
+      }
 
       // Auto-detect timing method: if splits have NO GameTime at all (e.g. console speedruns), default to RealTime
       const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
@@ -303,9 +501,12 @@ function parseLSS(xmlText) {
       localStorage.setItem("livesplit_targets_rt", JSON.stringify(comparisonTimesRT));
       localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
       localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+      localStorage.setItem("livesplit_comparisons_list", JSON.stringify(comparisonsList));
+      localStorage.setItem("livesplit_comparisons_gt", JSON.stringify(comparisonsDataGT));
+      localStorage.setItem("livesplit_comparisons_rt", JSON.stringify(comparisonsDataRT));
 
       updateGoldBadge();
-      applyActiveTimingMethod(currentTimingMethod);
+      applyActiveComparison(currentComparison, false);
       renderTrack();
     }
   } catch (e) {
@@ -332,12 +533,20 @@ function toggleTimingMethod() {
   const next = currentTimingMethod === "RealTime" ? "GameTime" : "RealTime";
   localStorage.setItem("livesplit_timing_method", next);
   applyActiveTimingMethod(next);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(next === "RealTime" ? "switchto realtime" : "switchto gametime");
+  }
 }
 
 function loadCachedSplits() {
   const savedMethod = localStorage.getItem("livesplit_timing_method");
   if (savedMethod === "RealTime" || savedMethod === "GameTime") {
     currentTimingMethod = savedMethod;
+  }
+
+  const savedComp = localStorage.getItem("livesplit_current_comparison");
+  if (savedComp) {
+    currentComparison = savedComp;
   }
 
   const savedGame = localStorage.getItem("livesplit_game");
@@ -370,8 +579,15 @@ function loadCachedSplits() {
         baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
       }
 
+      const cachedCompsList = localStorage.getItem("livesplit_comparisons_list");
+      if (cachedCompsList) comparisonsList = JSON.parse(cachedCompsList);
+      const cachedCompsGT = localStorage.getItem("livesplit_comparisons_gt");
+      if (cachedCompsGT) comparisonsDataGT = JSON.parse(cachedCompsGT);
+      const cachedCompsRT = localStorage.getItem("livesplit_comparisons_rt");
+      if (cachedCompsRT) comparisonsDataRT = JSON.parse(cachedCompsRT);
+
       updateGoldBadge();
-      applyActiveTimingMethod(currentTimingMethod);
+      applyActiveComparison(currentComparison, false);
       renderTrack();
       return;
     } catch (e) {
@@ -387,9 +603,10 @@ function loadCachedSplits() {
   bestSegmentTimesRT = [...DEFAULT_BESTS];
   baselineBestSegmentTimesGT = [...DEFAULT_BESTS];
   baselineBestSegmentTimesRT = [...DEFAULT_BESTS];
+  initDefaultComparisons();
 
   updateGoldBadge();
-  applyActiveTimingMethod(currentTimingMethod);
+  applyActiveComparison(currentComparison, false);
   renderTrack();
 }
 
@@ -685,6 +902,9 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
   item.classList.add(stateClass);
 }
 
+let canQueryTimingMethod = true;
+let canQueryComparison = true;
+
 function connect() {
   ws = new WebSocket(WS_URL);
 
@@ -692,6 +912,9 @@ function connect() {
     const status = document.getElementById("connection-status");
     status.innerText = "CONNECTED";
     status.style.color = "#4ade80";
+
+    canQueryTimingMethod = true;
+    canQueryComparison = true;
 
     // Query Game and Category from LiveSplit if not loaded from .lss
     if (!localStorage.getItem("livesplit_raw_lss")) {
@@ -725,8 +948,43 @@ function connect() {
   ws.onerror = () => ws.close();
 }
 
+let pollTick = 0;
+
 async function pollLoop() {
   while (ws && ws.readyState === WebSocket.OPEN) {
+    // 0. Periodic Auto-Sync with LiveSplit hotkeys (every ~500ms)
+    pollTick = (pollTick + 1) % 15;
+    if (pollTick === 0) {
+      const isSyncEnabled = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
+      if (isSyncEnabled) {
+        // Query active timing method (with fallback if unsupported)
+        if (canQueryTimingMethod) {
+          const lsMethod = await sendCommand("gettimingmethod", 40);
+          if (lsMethod && (lsMethod === "RealTime" || lsMethod === "GameTime")) {
+            if (lsMethod !== currentTimingMethod) {
+              applyActiveTimingMethod(lsMethod);
+              localStorage.setItem("livesplit_timing_method", lsMethod);
+            }
+          } else if (lsMethod === null) {
+            canQueryTimingMethod = false;
+          }
+        }
+
+        // Query active comparison (with fallback if unsupported)
+        if (canQueryComparison) {
+          const lsComp = await sendCommand("getcomparisonname", 40);
+          if (lsComp && lsComp !== "-" && lsComp.trim()) {
+            const norm = normalizeComparisonName(lsComp.trim());
+            if (norm && norm !== currentComparison) {
+              applyActiveComparison(norm, false);
+            }
+          } else if (lsComp === null) {
+            canQueryComparison = false;
+          }
+        }
+      }
+    }
+
     // 1. Game Time
     const igt = await sendCommand("getcurrentgametime");
     let igtSec = null;
@@ -805,6 +1063,20 @@ async function pollLoop() {
         }
         updateTrackStatus(idx);
         await syncLiveSplitMetadata();
+
+        // Check active comparison on reset
+        const isSyncEnabled = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
+        if (isSyncEnabled && canQueryComparison) {
+          const lsComp = await sendCommand("getcomparisonname", 40);
+          if (lsComp && lsComp !== "-" && lsComp.trim()) {
+            const norm = normalizeComparisonName(lsComp.trim());
+            if (norm && norm !== currentComparison) {
+              applyActiveComparison(norm, false);
+            }
+          } else if (lsComp === null) {
+            canQueryComparison = false;
+          }
+        }
       } 
       // Completed Split
       else if (idx !== currentIndex) {
@@ -1153,9 +1425,16 @@ function cycleSplitAngle() {
 window.onload = () => {
   document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
   document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
+  document.getElementById("comparison-badge")?.addEventListener("click", cycleComparison);
   document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
   loadCachedSplits();
   updateTrackDensityAndAngle();
   connect();
 };
+
+// Global exports for layout.js
+window.applyActiveComparison = applyActiveComparison;
+window.getCurrentComparison = () => currentComparison;
+window.getComparisonsList = () => comparisonsList;
+window.cycleComparison = cycleComparison;

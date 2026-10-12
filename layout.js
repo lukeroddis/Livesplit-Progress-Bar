@@ -303,6 +303,30 @@
     if (cbDiscard) {
       cbDiscard.checked = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
     }
+
+    // Active Comparison dropdown sync
+    const selComp = document.getElementById("select-active-comparison");
+    if (selComp && window.getComparisonsList) {
+      const comps = window.getComparisonsList();
+      const curComp = window.getCurrentComparison ? window.getCurrentComparison() : "Personal Best";
+      selComp.innerHTML = "";
+      comps.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c;
+        let label = c;
+        if (c === "Personal Best") label = "Personal Best (PB)";
+        else if (c === "Best Segments") label = "Best Segments (Sum of Best)";
+        opt.innerText = label;
+        if (c === curComp) opt.selected = true;
+        selComp.appendChild(opt);
+      });
+    }
+
+    // Auto-sync with LiveSplit hotkeys checkbox
+    const cbSync = document.getElementById("cb-sync-livesplit-hotkeys");
+    if (cbSync) {
+      cbSync.checked = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
+    }
   }
 
   function openTrackModal() {
@@ -870,6 +894,18 @@
     // Discard in-run golds on reset checkbox listener
     document.getElementById("cb-discard-golds-reset")?.addEventListener("change", (e) => {
       localStorage.setItem("livesplit_discard_golds_on_reset", e.target.checked ? "true" : "false");
+    });
+
+    // Active comparison dropdown listener
+    document.getElementById("select-active-comparison")?.addEventListener("change", (e) => {
+      if (window.applyActiveComparison) {
+        window.applyActiveComparison(e.target.value, true);
+      }
+    });
+
+    // Auto-sync with LiveSplit hotkeys listener
+    document.getElementById("cb-sync-livesplit-hotkeys")?.addEventListener("change", (e) => {
+      localStorage.setItem("livesplit_sync_hotkeys", e.target.checked ? "true" : "false");
     });
 
     // Live slider input listeners
