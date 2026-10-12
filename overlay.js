@@ -653,6 +653,15 @@ function loadCachedSplits() {
         if (hasRT && !hasGT) comparisonsDataGT[cName] = sanitizeComparisonTimes(cRT, comparisonTimesGT);
       });
 
+      const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
+                             bestSegmentTimesGT.some(t => t !== null && t > 0);
+      const isManualMethod = (localStorage.getItem("livesplit_timing_method_manual") === "true");
+      if (!isManualMethod) {
+        currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+        localStorage.setItem("livesplit_timing_method", currentTimingMethod);
+      }
+      applyActiveTimingMethod(currentTimingMethod);
+
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
       renderTrack();
@@ -782,13 +791,12 @@ function renderTrack() {
     ghostMarker = document.createElement("div");
     ghostMarker.className = "ghost-marker";
     ghostMarker.id = "ghost-marker";
-    ghostMarker.style.display = "none";
-    ghostMarker.innerHTML = `
-      <div class="ghost-icon-wrap"><span id="ghost-icon">🏆</span></div>
-      <div class="ghost-needle"></div>
-      <div class="ghost-delta" id="ghost-delta">+0.0s</div>
-    `;
   }
+  ghostMarker.style.display = "none";
+  ghostMarker.innerHTML = `
+    <div class="ghost-icon-wrap"><span id="ghost-icon">🏆</span></div>
+    <div class="ghost-needle"></div>
+  `;
   track.appendChild(ghostMarker);
   track.style.setProperty("--ghost-opacity", ghostOpacity);
 
@@ -1182,15 +1190,10 @@ function updateGhostRunner(currentSec) {
     if (edgeRight) edgeRight.style.display = "none";
     if (marker) {
       marker.style.display = "flex";
-      marker.style.transform = `translateX(${ghostX}px) translate(-50%, -50%)`;
+      marker.style.transform = `translateX(${ghostX}px) translate(-50%, -100%)`;
 
       const iconEl = document.getElementById("ghost-icon");
-      const deltaEl = document.getElementById("ghost-delta");
       if (iconEl) iconEl.innerText = ghostInfo.icon;
-      if (deltaEl) {
-        deltaEl.innerText = deltaStr;
-        deltaEl.className = `ghost-delta ${isAhead ? "delta-ahead" : "delta-behind"}`;
-      }
     }
   }
 }
