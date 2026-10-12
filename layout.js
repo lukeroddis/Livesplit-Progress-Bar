@@ -16,6 +16,7 @@
     deltaFontSize: 15,     // px
     barHeight: 6,          // px
     dotSize: 15,           // px
+    ghostPinLength: 16,    // px (6 to 36)
     bgOpacity: 55,         // % (0 to 95)
     bgBlur: 8,             // px (0 to 20)
     bgTitle: true,         // boolean
@@ -130,6 +131,8 @@
     root.style.setProperty("--dot-size", `${currentTrackStyle.dotSize}px`);
     root.style.setProperty("--name-font-size", `${currentTrackStyle.nameFontSize}px`);
     root.style.setProperty("--delta-font-size", `${currentTrackStyle.deltaFontSize}px`);
+    const pinLength = (currentTrackStyle.ghostPinLength != null ? currentTrackStyle.ghostPinLength : 16);
+    root.style.setProperty("--ghost-needle-length", `${pinLength}px`);
 
     const opacityVal = (currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55);
     const blurPx = (currentTrackStyle.bgBlur != null ? currentTrackStyle.bgBlur : 8);
@@ -409,6 +412,15 @@
       }
     }
 
+    // Ghost Runner pin length slider
+    const sGhostLen = document.getElementById("slider-ghost-pin-length");
+    const vGhostLen = document.getElementById("val-ghost-pin-length");
+    const pinLenVal = currentTrackStyle.ghostPinLength != null ? currentTrackStyle.ghostPinLength : 16;
+    if (sGhostLen && vGhostLen) {
+      sGhostLen.value = pinLenVal;
+      vGhostLen.innerText = `${pinLenVal}px`;
+    }
+
     // Ghost Runner opacity slider
     const sGhostOp = document.getElementById("slider-ghost-opacity");
     const vGhostOp = document.getElementById("val-ghost-opacity");
@@ -595,6 +607,12 @@
       if (dotSizeParam) currentTrackStyle.dotSize = parseInt(dotSizeParam, 10) || currentTrackStyle.dotSize;
       if (nameFontParam) currentTrackStyle.nameFontSize = parseInt(nameFontParam, 10) || currentTrackStyle.nameFontSize;
       if (deltaFontParam) currentTrackStyle.deltaFontSize = parseInt(deltaFontParam, 10) || currentTrackStyle.deltaFontSize;
+
+      const ghostLenParam = params.get("ghostlen") || params.get("ghostlength") || params.get("pinlen");
+      if (ghostLenParam) {
+        const num = parseInt(ghostLenParam, 10);
+        if (!isNaN(num)) currentTrackStyle.ghostPinLength = Math.max(4, Math.min(60, num));
+      }
 
       const bgParam = params.get("bg");
       const bgBlurParam = params.get("bgblur");
@@ -1027,6 +1045,18 @@
         localStorage.setItem("livesplit_ghost_comparison", e.target.value);
       }
     });
+
+    // Ghost Runner pin length slider listener
+    const sliderGhostLen = document.getElementById("slider-ghost-pin-length");
+    if (sliderGhostLen) {
+      sliderGhostLen.addEventListener("input", () => {
+        currentTrackStyle.ghostPinLength = parseInt(sliderGhostLen.value, 10);
+        const valBadge = document.getElementById("val-ghost-pin-length");
+        if (valBadge) valBadge.innerText = `${sliderGhostLen.value}px`;
+        applyTrackStyle();
+      });
+      sliderGhostLen.addEventListener("change", saveTrackStyle);
+    }
 
     // Ghost Runner opacity slider listener
     const sliderGhostOp = document.getElementById("slider-ghost-opacity");

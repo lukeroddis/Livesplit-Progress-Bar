@@ -562,14 +562,12 @@ body.edit-mode .layout-toolbar {
 /* Default / Fallback: Both on Top */
 .track {
   --dot-bottom: 5px;
-  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--name-font-size, 17px) + var(--delta-font-size, 15px) + 20px);
-  --ghost-needle-length: calc(var(--name-font-size, 17px) + var(--delta-font-size, 15px) + (var(--dot-size) - var(--bar-height)) / 2 + 21px);
+  --ghost-needle-length: 16px;
+  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + (var(--dot-size) + var(--bar-height)) / 2 + var(--ghost-needle-length, 16px));
 }
 
 .track.pos-name-top.pos-delta-top {
   --dot-bottom: 5px;
-  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 20px);
-  --ghost-needle-length: calc(var(--name-font-size) + var(--delta-font-size) + (var(--dot-size) - var(--bar-height)) / 2 + 21px);
 }
 .track.pos-name-top.pos-delta-top .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 34px);
@@ -587,8 +585,6 @@ body.edit-mode .layout-toolbar {
 /* Layout 2: Name on Top, Delta on Bottom */
 .track.pos-name-top.pos-delta-bottom {
   --dot-bottom: calc(var(--delta-font-size) + 12px);
-  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + 12px);
-  --ghost-needle-length: calc(var(--name-font-size) + (var(--dot-size) - var(--bar-height)) / 2 + 13px);
 }
 .track.pos-name-top.pos-delta-bottom .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
@@ -606,8 +602,6 @@ body.edit-mode .layout-toolbar {
 /* Layout 3: Delta on Top, Name on Bottom */
 .track.pos-name-bottom.pos-delta-top {
   --dot-bottom: calc(var(--name-font-size) + 12px);
-  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + var(--delta-font-size) + 12px);
-  --ghost-needle-length: calc(var(--delta-font-size) + (var(--dot-size) - var(--bar-height)) / 2 + 13px);
 }
 .track.pos-name-bottom.pos-delta-top .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
@@ -625,8 +619,6 @@ body.edit-mode .layout-toolbar {
 /* Layout 4: Both on Bottom */
 .track.pos-name-bottom.pos-delta-bottom {
   --dot-bottom: calc(var(--name-font-size) + var(--delta-font-size) + 24px);
-  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size) + 10px);
-  --ghost-needle-length: calc((var(--dot-size) - var(--bar-height)) / 2 + 11px);
 }
 .track.pos-name-bottom.pos-delta-bottom .split-item {
   height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
@@ -866,8 +858,6 @@ body.edit-mode .layout-toolbar {
 .track.angled-text.pos-name-top,
 .track.angled-text:not(.pos-name-bottom) {
   --dot-bottom: calc(var(--delta-font-size, 15px) + 16px);
-  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + var(--dot-size, 15px) + 70px);
-  --ghost-needle-length: calc((var(--dot-size, 15px) - var(--bar-height, 6px)) / 2 + 71px);
 }
 
 .track.angled-text.pos-name-top .split-item,
@@ -1218,7 +1208,7 @@ body.edit-mode .footer-bar,
    ============================================================ */
 .ghost-marker {
   position: absolute;
-  bottom: var(--ghost-pin-bottom, calc(10px + var(--dot-bottom, 5px) + var(--dot-size, 15px) + var(--name-font-size, 17px) + 12px));
+  bottom: var(--ghost-pin-bottom, calc(10px + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--ghost-needle-length, 16px)));
   left: 0;
   display: flex;
   align-items: center;
@@ -1256,7 +1246,7 @@ body.edit-mode .footer-bar,
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: var(--ghost-needle-length, 34px);
+  height: var(--ghost-needle-length, 16px);
   background: #facc15;
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
   border-radius: 1px;
@@ -1266,7 +1256,7 @@ body.edit-mode .footer-bar,
 
 /* Compact / shrunk pin state when hovering over split text */
 .ghost-marker.compact .ghost-needle {
-  height: 6px;
+  height: 5px;
 }
 
 .ghost-marker.compact .ghost-icon-wrap {

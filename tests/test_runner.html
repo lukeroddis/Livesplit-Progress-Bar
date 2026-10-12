@@ -342,6 +342,13 @@
         const thresh = window.getNodeTextThreshold(mockNode, false);
         assert(thresh >= 35, "Threshold should be at least 35px");
       });
+      it("supports customizable and lowered ghost pin needle length", () => {
+        if (window.hudLayout && window.hudLayout.getTrackStyle) {
+          const style = window.hudLayout.getTrackStyle();
+          assertEqual(typeof style.ghostPinLength, "number");
+          assertEqual(style.ghostPinLength, 16);
+        }
+      });
     });
 
     // --- RENDER RESULTS ---

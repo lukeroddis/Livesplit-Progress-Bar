@@ -271,11 +271,15 @@
             <option value="worst">Worst Segments (🐢)</option>
           </select>
         </div>
+        <div class="modal-row" id="row-ghost-pin-length">
+          <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
+          <input type="range" id="slider-ghost-pin-length" min="6" max="36" value="16" step="1">
+        </div>
         <div class="modal-row" id="row-ghost-opacity">
           <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
           <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
         </div>
-        <div class="modal-hint" id="ghost-hint">💡 Toggle multiple pins (e.g. 🏆 WR and 🥈 PB) to compare against multiple paces simultaneously on the progress bar.</div>
+        <div class="modal-hint" id="ghost-hint">💡 Pins extend to this length in open track space and automatically compact over split text. Toggle multiple pins to compare paces live.</div>
 
         <!-- Run & Reset Behavior -->
         <div class="modal-section-title">Run & Reset Behavior</div>
