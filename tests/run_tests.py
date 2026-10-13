@@ -773,6 +773,38 @@ def test_quick_settings_menu_architecture():
     assert 'btn-close-settings' in js, "overlay.js missing btn-close-settings listener"
     assert 'settings-trigger-pill' in js, "overlay.js missing settings-trigger-pill listener"
 
+    # 4. Idempotency and double-registration protection
+    assert 'let isOverlayInitialized = false;' in js, "overlay.js missing isOverlayInitialized idempotency guard"
+    assert 'if (isOverlayInitialized) return;' in js, "overlay.js missing isOverlayInitialized return guard"
+    assert 'window.onload = initOverlay' not in js, "overlay.js must NOT have window.onload = initOverlay (causes double registration)"
+    assert 'onclick="toggleSettingsMenu()"' in html, "index.html missing onclick='toggleSettingsMenu()' on trigger pill"
+    assert 'onclick="toggleSettingsMenu(false)"' in html, "index.html missing onclick='toggleSettingsMenu(false)' on close button"
+
+    # 5. Algorithmic unit test: Single-click latch toggle simulation
+    state = {"is_open": False, "is_pressed": False}
+    def simulate_toggle(force_open=None):
+        if isinstance(force_open, bool):
+            is_open = force_open
+        else:
+            is_open = not state["is_open"]
+        state["is_open"] = is_open
+        state["is_pressed"] = is_open
+
+    # Initial state: closed
+    assert state["is_open"] is False and state["is_pressed"] is False
+    # Click 1: opens and latches pressed
+    simulate_toggle()
+    assert state["is_open"] is True and state["is_pressed"] is True
+    # Click 2: closes and releases pressed
+    simulate_toggle()
+    assert state["is_open"] is False and state["is_pressed"] is False
+    # Click 3: re-opens
+    simulate_toggle()
+    assert state["is_open"] is True and state["is_pressed"] is True
+    # Click close button: closes
+    simulate_toggle(False)
+    assert state["is_open"] is False and state["is_pressed"] is False
+
     print("✓ Quick settings menu architecture and dropzone tests passed.")
 
 

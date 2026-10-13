@@ -491,6 +491,29 @@
         assertEqual(wrap.classList.contains("menu-open"), false);
         assertEqual(pill.classList.contains("is-pressed"), false);
       });
+      it("remains idempotent and maintains single-click latching even if initOverlay is repeatedly called", () => {
+        const wrap = document.getElementById("quick-settings-wrap");
+        const pill = document.getElementById("settings-trigger-pill");
+
+        // Simulate duplicate initialization calls (such as DOMContentLoaded + window.onload)
+        if (typeof window.initOverlay === "function") {
+          window.initOverlay();
+          window.initOverlay();
+        }
+
+        wrap.classList.remove("menu-open");
+        pill.classList.remove("is-pressed");
+
+        // Single click must reliably open and latch pressed, without immediate cancellation
+        pill.click();
+        assertEqual(wrap.classList.contains("menu-open"), true);
+        assertEqual(pill.classList.contains("is-pressed"), true);
+
+        // Second click must reliably unpress and close
+        pill.click();
+        assertEqual(wrap.classList.contains("menu-open"), false);
+        assertEqual(pill.classList.contains("is-pressed"), false);
+      });
     });
 
     // --- RENDER RESULTS ---

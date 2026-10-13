@@ -2576,7 +2576,12 @@ function toggleSettingsMenu(forceOpen) {
 // ============================================================
 // 15. INITIALIZATION & GLOBAL WINDOW INTERFACE
 // ============================================================
+let isOverlayInitialized = false;
+
 function initOverlay() {
+  if (isOverlayInitialized) return;
+  isOverlayInitialized = true;
+
   document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
   document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
   document.getElementById("comparison-badge")?.addEventListener("click", cycleComparison);
@@ -2589,16 +2594,26 @@ function initOverlay() {
   const closeBtn = document.getElementById("btn-close-settings");
 
   // Toggle open / pressed-down state when clicking trigger pill
-  triggerPill?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleSettingsMenu();
-  });
+  if (triggerPill) {
+    triggerPill.onclick = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      toggleSettingsMenu();
+    };
+  }
 
   // Explicit close button in header
-  closeBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleSettingsMenu(false);
-  });
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      toggleSettingsMenu(false);
+    };
+  }
 
   // Escape key to dismiss
   document.addEventListener("keydown", (e) => {
@@ -2627,7 +2642,6 @@ if (document.readyState === "loading") {
 } else {
   initOverlay();
 }
-window.onload = initOverlay;
 
 // Global exports for layout.js and unit tests
 window.applyActiveComparison = applyActiveComparison;
@@ -2660,3 +2674,4 @@ window.toggleTimingMethod = toggleTimingMethod;
 window.resetSettingsMenuPosition = resetSettingsMenuPosition;
 window.toggleSettingsMenu = toggleSettingsMenu;
 window.handleUndoSplit = handleUndoSplit;
+window.initOverlay = initOverlay;

@@ -108,7 +108,7 @@
   <!-- Floating Settings & .lss Loader Menu (Bottom Right Corner) -->
   <div class="quick-settings-wrap" id="quick-settings-wrap">
     <!-- Unobtrusive Trigger Pill in Bottom-Right Corner (Click to latch open / close) -->
-    <button type="button" class="settings-trigger-pill" id="settings-trigger-pill" aria-label="Open LiveSplit Settings and Load Splits" aria-pressed="false" title="Click to open LiveSplit Settings &amp; .lss Loader">
+    <button type="button" class="settings-trigger-pill" id="settings-trigger-pill" onclick="toggleSettingsMenu()" aria-label="Open LiveSplit Settings and Load Splits" aria-pressed="false" title="Click to open LiveSplit Settings &amp; .lss Loader">
       <span class="trigger-icon">⚙️</span>
       <span class="trigger-text">Settings &amp; .lss</span>
     </button>
@@ -131,7 +131,7 @@
             <span id="connection-status">Connecting...</span>
           </div>
           <button type="button" class="settings-reset-pos-btn" id="btn-reset-settings-pos" title="Reset Menu Position to Bottom-Right">↺</button>
-          <button type="button" class="settings-close-btn" id="btn-close-settings" title="Close Settings">✕</button>
+          <button type="button" class="settings-close-btn" id="btn-close-settings" onclick="toggleSettingsMenu(false)" title="Close Settings">✕</button>
         </div>
       </div>
 
