@@ -556,6 +556,12 @@ function parseLSS(xmlText) {
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
       renderTrack();
+      const dropDesc = document.getElementById("dropzone-desc");
+      if (dropDesc) {
+        const gName = game || localStorage.getItem("livesplit_game") || "";
+        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${segments.length} splits loaded ✓`;
+        dropDesc.style.color = "#38bdf8";
+      }
       if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
         window.hudLayout.syncTrackModalUI();
       }
@@ -665,6 +671,12 @@ function loadCachedSplits() {
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
       renderTrack();
+      const dropDesc = document.getElementById("dropzone-desc");
+      if (dropDesc && splitsList.length > 0) {
+        const gName = localStorage.getItem("livesplit_game") || "";
+        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${splitsList.length} splits loaded ✓`;
+        dropDesc.style.color = "#38bdf8";
+      }
       if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
         window.hudLayout.syncTrackModalUI();
       }
@@ -1587,8 +1599,11 @@ function connect() {
 
   ws.onopen = async () => {
     const status = document.getElementById("connection-status");
-    status.innerText = "CONNECTED";
-    status.style.color = "#4ade80";
+    if (status) {
+      status.innerText = "CONNECTED";
+      status.style.color = "#4ade80";
+      status.closest(".connection-status-pill")?.classList.add("connected");
+    }
 
     canQueryComparison = true;
 
@@ -1616,8 +1631,11 @@ function connect() {
     isPolling = false;
     inflightResolver = null;
     const status = document.getElementById("connection-status");
-    status.innerText = "DISCONNECTED";
-    status.style.color = "#ef4444";
+    if (status) {
+      status.innerText = "DISCONNECTED";
+      status.style.color = "#ef4444";
+      status.closest(".connection-status-pill")?.classList.remove("connected");
+    }
     setTimeout(connect, 1500);
   };
 
@@ -1918,14 +1936,31 @@ async function pollLoop() {
 }
 
 const fileInput = document.getElementById("file-input");
-fileInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (evt) => parseLSS(evt.target.result);
-    reader.readAsText(file);
-  }
-});
+if (fileInput) {
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => parseLSS(evt.target.result);
+      reader.readAsText(file);
+    }
+  });
+}
+
+const fileDropzone = document.getElementById("file-trigger");
+if (fileDropzone) {
+  ["dragenter", "dragover"].forEach((evt) => {
+    fileDropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      fileDropzone.classList.add("drag-over");
+    });
+  });
+  ["dragleave", "drop"].forEach((evt) => {
+    fileDropzone.addEventListener(evt, () => {
+      fileDropzone.classList.remove("drag-over");
+    });
+  });
+}
 
 window.addEventListener("dragover", (e) => e.preventDefault());
 window.addEventListener("drop", (e) => {
@@ -2124,6 +2159,16 @@ window.onload = () => {
   document.getElementById("ghost-badge")?.addEventListener("click", cycleGhostComparison);
   document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
+
+  // Quick settings panel pin and trigger toggle
+  const quickWrap = document.getElementById("quick-settings-wrap");
+  document.getElementById("btn-pin-settings")?.addEventListener("click", () => {
+    quickWrap?.classList.toggle("pinned");
+  });
+  document.getElementById("settings-trigger-pill")?.addEventListener("click", () => {
+    quickWrap?.classList.toggle("pinned");
+  });
+
   loadCachedSplits();
   updateTrackDensityAndAngle();
   updateGhostBadge();

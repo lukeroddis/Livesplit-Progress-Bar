@@ -105,22 +105,83 @@
     <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
   </div>
 
-  <!-- Footer Utility Bar -->
-  <div class="footer-bar" id="footer-bar">
-    <label id="file-trigger" for="file-input">Load / Drop .lss file</label>
-    <input type="file" id="file-input" accept=".lss,.xml">
-    <div style="display:flex; gap:14px; align-items:center;">
-      <span id="gold-toggle-badge" style="cursor:pointer; color: #facc15; text-decoration: underline;" title="Click to toggle Gold Splits">Golds: ON</span>
-      <span id="timing-method-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to toggle Game / Real Time">Game Time</span>
-      <span id="comparison-badge" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Click to cycle active comparison (or use LiveSplit hotkeys)">Comp: PB</span>
-      <span id="ghost-badge" style="cursor:pointer; color: #facc15; text-decoration: underline;" title="Click to cycle Live Ghost Runner (Off / 🏆 WR / 🥈 PB / ⭐ Best / 📊 Avg)">Ghost: Off</span>
-      <span id="bg-opacity-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle background plate opacity (55% / 80% / Off / 35%)">BG: 55%</span>
-      <span id="split-density-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</span>
-      <span id="split-angle-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</span>
-      <span id="track-orient-badge" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Click to toggle Horizontal / Vertical layout">Orient: Horiz</span>
-      <span id="track-style-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Customize progress bar positions, fonts, and sizes">🎨 Bar Styles</span>
-      <span id="layout-edit-btn" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout</span>
-      <div id="connection-status">Connecting...</div>
+  <!-- Floating Settings & .lss Loader Menu (Bottom Right Corner) -->
+  <div class="quick-settings-wrap" id="quick-settings-wrap">
+    <!-- Unobtrusive Trigger Pill in Bottom-Right Corner (Fades in slightly on mouseover window) -->
+    <button type="button" class="settings-trigger-pill" id="settings-trigger-pill" aria-label="Open Settings and Load Splits" title="Hover to open Quick Settings &amp; .lss Loader">
+      <span class="trigger-icon">⚙️</span>
+      <span class="trigger-text">Settings &amp; .lss</span>
+    </button>
+
+    <!-- Large Quick Settings Card Panel (Reveals smoothly on hover) -->
+    <div class="settings-menu-panel footer-bar" id="footer-bar">
+      <!-- Card Header -->
+      <div class="settings-menu-header">
+        <div class="settings-header-left">
+          <div class="settings-menu-title">
+            <span class="settings-title-icon">⚙️</span>
+            <span>LiveSplit Settings</span>
+          </div>
+          <div class="settings-menu-subtitle">Auto-hides when mouse moves away</div>
+        </div>
+        <div class="settings-header-right">
+          <div class="connection-status-pill" title="LiveSplit Server WebSocket Connection">
+            <span class="status-dot"></span>
+            <span id="connection-status">Connecting...</span>
+          </div>
+          <button type="button" class="settings-pin-btn" id="btn-pin-settings" title="Pin / Keep Settings Open">📌</button>
+        </div>
+      </div>
+
+      <!-- Prominent .lss Splits File Dropzone -->
+      <div class="settings-dropzone-wrap">
+        <label id="file-trigger" for="file-input" class="settings-file-dropzone" title="Click or drop a LiveSplit splits file (.lss/.xml)">
+          <div class="dropzone-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              <line x1="12" y1="11" x2="12" y2="17"></line>
+              <polyline points="9 14 12 11 15 14"></polyline>
+            </svg>
+          </div>
+          <div class="dropzone-text-group">
+            <span class="dropzone-primary-text">Load or Drop .lss Splits File</span>
+            <span class="dropzone-secondary-text" id="dropzone-desc">Click to browse or drag &amp; drop LiveSplit file here</span>
+          </div>
+          <span class="dropzone-browse-badge">BROWSE</span>
+        </label>
+        <input type="file" id="file-input" accept=".lss,.xml">
+      </div>
+
+      <!-- Section: Pace & Comparisons -->
+      <div class="settings-section">
+        <div class="settings-section-header">PACE &amp; COMPARISONS</div>
+        <div class="settings-grid">
+          <button type="button" class="settings-tile-btn" id="comparison-badge" style="color: #38bdf8;" title="Click to cycle active comparison (or use LiveSplit hotkeys)">Comp: PB</button>
+          <button type="button" class="settings-tile-btn" id="ghost-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle Live Ghost Runner (Off / 🏆 WR / 🥈 PB / ⭐ Best / 📊 Avg)">Ghost: Off</button>
+          <button type="button" class="settings-tile-btn" id="timing-method-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to toggle Game / Real Time">Game Time</button>
+          <button type="button" class="settings-tile-btn" id="gold-toggle-badge" style="color: #facc15;" title="Click to toggle Gold Splits">Golds: ON</button>
+        </div>
+      </div>
+
+      <!-- Section: Track & Display -->
+      <div class="settings-section">
+        <div class="settings-section-header">TRACK &amp; DISPLAY</div>
+        <div class="settings-grid">
+          <button type="button" class="settings-tile-btn" id="track-orient-badge" style="color: #38bdf8;" title="Click to toggle Horizontal / Vertical layout">Orient: Horiz</button>
+          <button type="button" class="settings-tile-btn" id="split-density-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</button>
+          <button type="button" class="settings-tile-btn" id="split-angle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</button>
+          <button type="button" class="settings-tile-btn" id="bg-opacity-badge" style="color: #38bdf8;" title="Click to cycle background plate opacity (55% / 80% / Off / 35%)">BG: 55%</button>
+        </div>
+      </div>
+
+      <!-- Section: Actions (Bar Styles modal & Edit Layout mode) -->
+      <div class="settings-section">
+        <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
+        <div class="settings-actions-row">
+          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" title="Customize progress bar positions, fonts, and sizes">🎨 Bar Styles Modal</button>
+          <button type="button" class="settings-action-btn action-edit-layout" id="layout-edit-btn" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout Mode</button>
+        </div>
+      </div>
     </div>
   </div>
 

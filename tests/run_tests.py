@@ -693,6 +693,72 @@ def test_start_node_and_bar_fill_geometry():
     print("✓ Start node cyan lighting and progress bar fill geometry tests passed.")
 
 
+def test_quick_settings_menu_architecture():
+    """Verify the large hover-triggered quick settings menu card and .lss dropzone."""
+    html_path = os.path.join(ROOT_DIR, "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+
+    js_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(js_path, "r", encoding="utf-8") as f:
+        js = f.read()
+
+    # 1. HTML structure requirements
+    required_classes = [
+        "quick-settings-wrap",
+        "settings-trigger-pill",
+        "settings-menu-panel",
+        "settings-file-dropzone",
+        "settings-grid",
+        "settings-tile-btn",
+        "settings-actions-row",
+        "connection-status-pill",
+        "status-dot"
+    ]
+    for cls in required_classes:
+        assert f'class="{cls}' in html or f' {cls}' in html, f"index.html missing class '{cls}'"
+
+    required_ids = [
+        "quick-settings-wrap",
+        "settings-trigger-pill",
+        "footer-bar",
+        "file-trigger",
+        "file-input",
+        "connection-status",
+        "btn-pin-settings",
+        "comparison-badge",
+        "ghost-badge",
+        "timing-method-badge",
+        "gold-toggle-badge",
+        "track-orient-badge",
+        "split-density-badge",
+        "split-angle-badge",
+        "bg-opacity-badge",
+        "track-style-badge",
+        "layout-edit-btn"
+    ]
+    for elem_id in required_ids:
+        assert f'id="{elem_id}"' in html, f"index.html missing ID '{elem_id}'"
+
+    # 2. CSS styles: invisible/hidden default state + hover reveal
+    assert ".quick-settings-wrap" in css, "style.css missing .quick-settings-wrap"
+    assert ".settings-trigger-pill" in css, "style.css missing .settings-trigger-pill"
+    assert ".settings-menu-panel" in css, "style.css missing .settings-menu-panel"
+    assert ".settings-file-dropzone" in css, "style.css missing .settings-file-dropzone"
+    assert ".quick-settings-wrap:hover .settings-menu-panel" in css, "style.css missing hover reveal rule"
+    assert "transform-origin: bottom right;" in css, "style.css missing transform-origin for menu panel"
+
+    # 3. overlay.js drag and drop feedback & pin listeners
+    assert 'fileDropzone.classList.add("drag-over")' in js, "overlay.js missing drag-over class toggle"
+    assert 'btn-pin-settings' in js, "overlay.js missing btn-pin-settings listener"
+
+    print("✓ Quick settings menu architecture and dropzone tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -715,6 +781,7 @@ def main():
         test_track_orientation_unit()
         test_ghost_pin_length_zero_track()
         test_start_node_and_bar_fill_geometry()
+        test_quick_settings_menu_architecture()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
