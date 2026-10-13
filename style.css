@@ -20,6 +20,7 @@
   --name-font-size: 17px;
   --delta-font-size: 15px;
   --dot-bottom: 5px;
+  --ghost-needle-length: 16px;
   
   /* Background Plate & Readability */
   --bg-opacity: 0.55;
@@ -599,7 +600,7 @@ body.edit-mode .layout-toolbar {
   display: flex;
   align-items: flex-end;
   min-width: max-content;
-  padding: 42px calc(var(--node-spacing) / 2) 10px;
+  padding: 42px calc(var(--node-spacing) / 2) var(--track-padding-bottom, 10px);
 }
 
 .split-item {
@@ -620,8 +621,8 @@ body.edit-mode .layout-toolbar {
 /* Default / Fallback: Both on Top */
 .track {
   --dot-bottom: 5px;
-  --ghost-needle-length: 16px;
-  --ghost-pin-bottom: calc(10px + var(--dot-bottom) + (var(--dot-size) + var(--bar-height)) / 2 + var(--ghost-needle-length, 16px));
+  --track-padding-bottom: 10px;
+  --ghost-pin-bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom) + (var(--dot-size) + var(--bar-height)) / 2 + var(--ghost-needle-length, 16px));
 }
 
 .track.pos-name-top.pos-delta-top {
@@ -897,8 +898,9 @@ body.edit-mode .layout-toolbar {
 
 /* 1. General Angled Track Base: Generous clearance */
 .track.angled-text {
+  --track-padding-bottom: 18px;
   padding-top: 36px;
-  padding-bottom: 18px;
+  padding-bottom: var(--track-padding-bottom, 18px);
   min-height: 215px;
 }
 
@@ -1487,7 +1489,7 @@ body.edit-mode .footer-bar,
    ============================================================ */
 .ghost-marker {
   position: absolute;
-  bottom: var(--ghost-pin-bottom, calc(10px + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--ghost-needle-length, 16px)));
+  bottom: var(--ghost-pin-bottom, calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--ghost-needle-length, 16px)));
   left: 0;
   display: flex;
   align-items: center;
@@ -1535,7 +1537,7 @@ body.edit-mode .footer-bar,
 
 /* Compact / shrunk pin state when hovering over split text */
 .ghost-marker.compact .ghost-needle {
-  height: 5px;
+  height: min(5px, var(--ghost-needle-length, 16px));
 }
 
 .ghost-marker.compact .ghost-icon-wrap {
@@ -1545,7 +1547,7 @@ body.edit-mode .footer-bar,
 
 /* Zero-length Ghost Pin: Ghost runs directly along track */
 .track.ghost-on-track:not(.vertical) .ghost-marker {
-  bottom: calc(var(--dot-bottom, 5px) + (var(--dot-size, 15px) / 2) - 13px) !important;
+  bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) / 2) - 13px) !important;
 }
 
 .track.ghost-on-track .ghost-needle {

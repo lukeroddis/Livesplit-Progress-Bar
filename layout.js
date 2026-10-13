@@ -191,6 +191,7 @@
     root.style.setProperty("--delta-font-size", `${currentTrackStyle.deltaFontSize}px`);
     const pinLength = (currentTrackStyle.ghostPinLength != null ? currentTrackStyle.ghostPinLength : 16);
     root.style.setProperty("--ghost-needle-length", `${pinLength}px`);
+    track.style.setProperty("--ghost-needle-length", `${pinLength}px`);
     track.classList.toggle("ghost-on-track", pinLength === 0);
 
     const opacityVal = (currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55);

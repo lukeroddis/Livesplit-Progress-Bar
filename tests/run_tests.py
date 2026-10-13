@@ -643,9 +643,11 @@ def test_ghost_pin_length_zero_track():
     css_path = os.path.join(ROOT_DIR, "style.css")
     with open(css_path, "r", encoding="utf-8") as f:
         css = f.read()
+    assert "--ghost-needle-length: 16px;" in css, "style.css missing :root --ghost-needle-length definition"
     assert ".track.ghost-on-track" in css, "style.css missing .track.ghost-on-track rule"
     assert ".track.ghost-on-track .ghost-needle" in css and "display: none" in css, \
         "style.css: ghost needle must be hidden when on track"
+    assert "--track-padding-bottom" in css, "style.css missing --track-padding-bottom definition"
 
     # 5. Static verification of layout.js
     js_path = os.path.join(ROOT_DIR, "layout.js")
@@ -653,9 +655,11 @@ def test_ghost_pin_length_zero_track():
         js = f.read()
     assert 'track.classList.toggle("ghost-on-track", pinLength === 0)' in js, \
         "layout.js missing track ghost-on-track toggle"
+    assert 'track.style.setProperty("--ghost-needle-length"' in js, \
+        "layout.js missing track.style.setProperty for --ghost-needle-length"
     assert "0px (On Track)" in js, "layout.js missing '0px (On Track)' badge label"
 
-    print("✓ Zero-length ghost pin (running along track) unit tests passed.")
+    print("✓ Zero-length ghost pin and needle sizing unit tests passed.")
 
 
 def main():
