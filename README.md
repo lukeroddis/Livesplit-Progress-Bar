@@ -17,6 +17,8 @@ A modern HUD and progress bar overlay for speedrunners, designed for standalone 
 
 Traditional LiveSplit layouts can take up substantial vertical screen space over modern 16:9 gameplay. This LiveSplit Progress Bar delivers a minimalist approach, where the track, timers and game information can be split and move around freely, allowing speedrunners to customise their layout and maximise the real estate for the game.
 
+The Progress Bar provides ample customisation of number of splits shown, horizontal/vertical layout, and the enabling of ghost pins where you can pace your current run against comparisons such as the World Record or Personal Best.
+
 ---
 
 ## ⚡ Quick Start Guide (60 Seconds)
