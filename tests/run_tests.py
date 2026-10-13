@@ -731,6 +731,7 @@ def test_quick_settings_menu_architecture():
         "connection-status",
         "btn-pin-settings",
         "btn-reset-settings-pos",
+        "btn-close-settings",
         "ctrl-timer-display",
         "comparison-badge",
         "ghost-badge",
@@ -746,17 +747,22 @@ def test_quick_settings_menu_architecture():
     for elem_id in required_ids:
         assert f'id="{elem_id}"' in html, f"index.html missing ID '{elem_id}'"
 
-    # 2. CSS styles: invisible/hidden default state + hover reveal
+    # 2. CSS styles: invisible/hidden default state + hover reveal + grace period selectors
     assert ".quick-settings-wrap" in css, "style.css missing .quick-settings-wrap"
     assert ".settings-trigger-pill" in css, "style.css missing .settings-trigger-pill"
     assert ".settings-menu-panel" in css, "style.css missing .settings-menu-panel"
     assert ".settings-file-dropzone" in css, "style.css missing .settings-file-dropzone"
     assert ".quick-settings-wrap:hover .settings-menu-panel" in css, "style.css missing hover reveal rule"
+    assert ".quick-settings-wrap.hover-active .settings-menu-panel" in css, "style.css missing hover-active rule"
+    assert ".settings-close-btn" in css, "style.css missing .settings-close-btn"
     assert "transform-origin: bottom right;" in css, "style.css missing transform-origin for menu panel"
 
-    # 3. overlay.js drag and drop feedback & pin listeners
+    # 3. overlay.js drag and drop feedback, hover grace period, and pin/close listeners
     assert 'fileDropzone.classList.add("drag-over")' in js, "overlay.js missing drag-over class toggle"
     assert 'btn-pin-settings' in js, "overlay.js missing btn-pin-settings listener"
+    assert 'btn-close-settings' in js, "overlay.js missing btn-close-settings listener"
+    assert 'settings-trigger-pill' in js, "overlay.js missing settings-trigger-pill listener"
+    assert 'setMenuHoverActive' in js, "overlay.js missing hover grace period bridging"
 
     print("✓ Quick settings menu architecture and dropzone tests passed.")
 

@@ -2418,6 +2418,7 @@ function cycleSplitAngle() {
 function resetSettingsMenuPosition() {
   const panel = document.getElementById("footer-bar");
   const quickWrap = document.getElementById("quick-settings-wrap");
+  const triggerPill = document.getElementById("settings-trigger-pill");
   if (!panel) return;
   panel.style.left = "";
   panel.style.top = "";
@@ -2425,7 +2426,10 @@ function resetSettingsMenuPosition() {
   panel.style.bottom = "";
   panel.classList.remove("is-custom-pos");
   panel.classList.remove("is-dragging");
+  panel.classList.remove("is-hovered");
   quickWrap?.classList.remove("pinned");
+  quickWrap?.classList.remove("hover-active");
+  triggerPill?.classList.remove("active");
   localStorage.removeItem("livesplit_settings_pos");
 }
 
@@ -2564,13 +2568,88 @@ function initOverlay() {
   document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
 
-  // Quick settings panel pin and trigger toggle
+  // Quick settings panel pin, close, and hover grace period setup
   const quickWrap = document.getElementById("quick-settings-wrap");
-  document.getElementById("btn-pin-settings")?.addEventListener("click", () => {
-    quickWrap?.classList.toggle("pinned");
+  const panel = document.getElementById("footer-bar");
+  const triggerPill = document.getElementById("settings-trigger-pill");
+  const pinBtn = document.getElementById("btn-pin-settings");
+  const closeBtn = document.getElementById("btn-close-settings");
+
+  let hoverCloseTimeout = null;
+
+  function setMenuHoverActive(active, delay = 0) {
+    if (hoverCloseTimeout) {
+      clearTimeout(hoverCloseTimeout);
+      hoverCloseTimeout = null;
+    }
+    if (active) {
+      panel?.classList.add("is-hovered");
+      quickWrap?.classList.add("hover-active");
+    } else {
+      if (delay > 0) {
+        hoverCloseTimeout = setTimeout(() => {
+          panel?.classList.remove("is-hovered");
+          quickWrap?.classList.remove("hover-active");
+          hoverCloseTimeout = null;
+        }, delay);
+      } else {
+        panel?.classList.remove("is-hovered");
+        quickWrap?.classList.remove("hover-active");
+      }
+    }
+  }
+
+  // Hover grace period listeners to bridge any spatial gap between pill and floating panel
+  triggerPill?.addEventListener("mouseenter", () => {
+    setMenuHoverActive(true);
   });
-  document.getElementById("settings-trigger-pill")?.addEventListener("click", () => {
-    quickWrap?.classList.toggle("pinned");
+  triggerPill?.addEventListener("mouseleave", () => {
+    setMenuHoverActive(false, 650);
+  });
+  panel?.addEventListener("mouseenter", () => {
+    setMenuHoverActive(true);
+  });
+  panel?.addEventListener("mouseleave", () => {
+    setMenuHoverActive(false, 400);
+  });
+
+  // Toggle pinning/unpinning when clicking trigger pill
+  triggerPill?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isPinned = quickWrap?.classList.toggle("pinned");
+    triggerPill.classList.toggle("active", isPinned);
+    if (!isPinned) {
+      setMenuHoverActive(false, 0);
+    }
+  });
+
+  // Pin button listener
+  pinBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isPinned = quickWrap?.classList.toggle("pinned");
+    triggerPill?.classList.toggle("active", isPinned);
+    if (!isPinned) {
+      setMenuHoverActive(false, 0);
+    }
+  });
+
+  // Explicit close button listener
+  closeBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    quickWrap?.classList.remove("pinned");
+    triggerPill?.classList.remove("active");
+    setMenuHoverActive(false, 0);
+  });
+
+  // Escape key to dismiss
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (quickWrap?.classList.contains("pinned") || quickWrap?.classList.contains("hover-active")) {
+        quickWrap?.classList.remove("pinned");
+        triggerPill?.classList.remove("active");
+        setMenuHoverActive(false, 0);
+      }
+    }
   });
 
   // Direct click on timer blocks to focus timing method

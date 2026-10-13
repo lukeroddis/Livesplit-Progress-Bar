@@ -1298,12 +1298,15 @@ body:hover .settings-trigger-pill {
 
 /* Highlighting the trigger directly */
 .settings-trigger-pill:hover,
+.settings-trigger-pill.active,
 .quick-settings-wrap:hover .settings-trigger-pill,
+.quick-settings-wrap.hover-active .settings-trigger-pill,
 .quick-settings-wrap.pinned .settings-trigger-pill {
   opacity: 1;
   color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.5);
+  border-color: rgba(56, 189, 248, 0.6);
   background: rgba(15, 23, 42, 0.98);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25), 0 4px 18px rgba(0, 0, 0, 0.5);
 }
 
 /* Large Settings Card Panel */
@@ -1350,9 +1353,11 @@ body:hover .settings-trigger-pill {
   background: rgba(56, 189, 248, 0.5);
 }
 
-/* Reveal when hovering over the bottom-right wrap, or when pinned, or in edit-mode */
+/* Reveal when hovering over the bottom-right wrap, when hovered with grace period, when pinned, or in edit-mode */
 .quick-settings-wrap:hover .settings-menu-panel,
+.quick-settings-wrap.hover-active .settings-menu-panel,
 .settings-menu-panel:hover,
+.settings-menu-panel.is-hovered,
 .settings-menu-panel.is-dragging,
 .quick-settings-wrap.pinned .settings-menu-panel,
 body.edit-mode .settings-menu-panel {
@@ -1509,6 +1514,28 @@ body.edit-mode .settings-menu-panel {
   background: rgba(56, 189, 248, 0.2);
   border-color: #38bdf8;
   color: #38bdf8;
+}
+
+.settings-close-btn {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.settings-close-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.5);
 }
 
 /* Dropzone */
