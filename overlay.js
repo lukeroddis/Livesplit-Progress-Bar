@@ -60,6 +60,9 @@ function setGameName(name) {
   if (el && name) {
     el.innerText = name;
     updatePageTitle();
+    if (window.hudLayout && typeof window.hudLayout.autoLoadProfileForGame === "function") {
+      window.hudLayout.autoLoadProfileForGame(name);
+    }
   }
 }
 
@@ -2245,6 +2248,14 @@ window.addEventListener("drop", (e) => {
     const reader = new FileReader();
     reader.onload = (evt) => parseLSS(evt.target.result);
     reader.readAsText(file);
+  } else if (file && (file.name.endsWith(".json") || file.name.endsWith(".lshud"))) {
+    if (window.hudLayout && typeof window.hudLayout.importProfileFromFile === "function") {
+      window.hudLayout.importProfileFromFile(file).then((name) => {
+        console.log(`Imported layout profile: ${name}`);
+      }).catch((err) => {
+        console.error("Layout profile import failed:", err);
+      });
+    }
   }
 });
 

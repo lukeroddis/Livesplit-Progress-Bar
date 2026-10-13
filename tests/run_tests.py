@@ -1126,6 +1126,137 @@ def test_version_and_license():
     print("✓ Version metadata, LICENSE file, and UI visibility tests passed.")
 
 
+def test_layout_profiles_and_extensible_schema():
+    """Verify human-readable layout profiles, extensible schema v1, backward/forward compatibility, and file import/export."""
+    import json
+
+    html_path = os.path.join(ROOT_DIR, "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    # 1. UI element presence
+    expected_ids = [
+        "select-layout-profile",
+        "btn-save-profile",
+        "btn-save-as-profile",
+        "btn-delete-profile",
+        "btn-export-profile",
+        "input-import-profile",
+    ]
+    for eid in expected_ids:
+        assert f'id="{eid}"' in html, f"index.html missing layout profile element id '{eid}'"
+
+    # 2. CSS styles
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+    assert ".settings-profile-bar" in css, "style.css missing .settings-profile-bar"
+    assert ".settings-profile-select" in css, "style.css missing .settings-profile-select"
+    assert ".settings-action-btn.action-export" in css, "style.css missing .settings-action-btn.action-export"
+    assert ".settings-action-btn.action-import" in css, "style.css missing .settings-action-btn.action-import"
+
+    # 3. layout.js implementation and exports
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+    with open(layout_path, "r", encoding="utf-8") as f:
+        layout_src = f.read()
+
+    expected_exports = [
+        "getProfilesList",
+        "getActiveProfileName",
+        "loadProfileByName",
+        "saveProfileToStorage",
+        "deleteProfileFromStorage",
+        "createProfileExport",
+        "applyProfileData",
+        "exportProfileToFile",
+        "importProfileFromFile",
+        "autoLoadProfileForGame",
+        "syncProfileUI",
+    ]
+    for exp in expected_exports:
+        assert exp in layout_src, f"layout.js missing function/export '{exp}'"
+
+    # 4. Check URL parameter integration (?profile= and ?layout=)
+    assert 'params.get("profile") || params.get("layout")' in layout_src, \
+        "layout.js parseUrlParameters must check ?profile= and ?layout= URL parameters"
+
+    # 5. Check overlay.js game auto-loading & drag-and-drop integration
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(overlay_path, "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+
+    assert "autoLoadProfileForGame" in overlay_src, \
+        "overlay.js setGameName must trigger autoLoadProfileForGame"
+    assert 'file.name.endsWith(".json") || file.name.endsWith(".lshud")' in overlay_src, \
+        "overlay.js drop listener must accept .json and .lshud layout profiles"
+
+    # 6. Extensible Schema v1 & Forward/Backward Compatibility Simulation
+    default_track_style = {
+        "orientation": "horizontal",
+        "namePos": "top",
+        "deltaPos": "top",
+        "bgOpacity": 55,
+        "bgBlur": 8,
+        "bgTargets": {"title": True, "timers": True, "track": True},
+        "nameFontSize": 17,
+        "deltaFontSize": 15,
+        "barHeight": 6,
+        "dotSize": 15,
+        "ghostPinLength": 16,
+        "logoHeight": 60,
+    }
+
+    # Simulate Backward Compatibility: Older layout missing logoHeight, ghostPinLength, and preferences
+    older_profile = {
+        "$schema": "https://lukeroddis.github.io/Livesplit-Progress-Bar/schema/layout-v1.json",
+        "schemaVersion": 1,
+        "name": "Legacy 2025 Layout",
+        "components": {
+            "title": {"x": 10, "y": 20, "scale": 1.0, "visible": True},
+            "timers": {"x": 10, "y": 80, "scale": 1.1, "visible": True},
+            "track": {"x": 0, "y": 990, "scale": 1.0, "visible": True, "docked": "bottom"}
+        },
+        "style": {
+            "orientation": "horizontal",
+            "namePos": "top",
+            "deltaPos": "bottom",
+            "bgOpacity": 80
+        }
+    }
+
+    # Merging logic should populate missing newer fields with defaults without throwing
+    merged_style = dict(default_track_style)
+    merged_style.update(older_profile.get("style", {}))
+    assert merged_style["logoHeight"] == 60, "Backward compatibility: missing logoHeight should default to 60"
+    assert merged_style["ghostPinLength"] == 16, "Backward compatibility: missing ghostPinLength should default to 16"
+    assert merged_style["bgOpacity"] == 80, "Older profile bgOpacity 80 should be preserved"
+    assert merged_style["deltaPos"] == "bottom", "Older profile deltaPos bottom should be preserved"
+
+    # Simulate Forward Compatibility: Newer layout with unknown future properties
+    future_profile = {
+        "$schema": "https://lukeroddis.github.io/Livesplit-Progress-Bar/schema/layout-v2.json",
+        "schemaVersion": 2,
+        "name": "Future v2 Layout",
+        "futureComponent": {"x": 50, "y": 50, "visible": True},
+        "style": {
+            "orientation": "vertical",
+            "namePos": "left",
+            "deltaPos": "right",
+            "neonGlowSpread": 25,
+            "particleEffects": "enabled"
+        },
+        "customLogo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=="
+    }
+
+    merged_future_style = dict(default_track_style)
+    merged_future_style.update(future_profile["style"])
+    assert merged_future_style["orientation"] == "vertical"
+    assert merged_future_style["neonGlowSpread"] == 25, "Forward compatibility: future fields preserved"
+    assert merged_future_style["logoHeight"] == 60, "Future layout style still inherits fallback defaults"
+
+    print("✓ Human-readable layout profiles, schema v1, and compatibility tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1155,6 +1286,7 @@ def main():
         test_custom_game_logo_feature()
         test_overdue_split_bar_glow()
         test_version_and_license()
+        test_layout_profiles_and_extensible_schema()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

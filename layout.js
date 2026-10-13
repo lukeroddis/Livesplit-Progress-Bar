@@ -173,6 +173,279 @@
     }
   }
 
+  // ============================================================
+  // EXTENSIBLE LAYOUT PROFILES & BACKWARD-COMPATIBLE SCHEMAS
+  // ============================================================
+  const PROFILES_INDEX_KEY = "livesplit_profiles_index";
+  const ACTIVE_PROFILE_KEY = "livesplit_active_profile";
+  const PROFILE_KEY_PREFIX = "livesplit_profile_";
+
+  function getProfilesList() {
+    try {
+      const idx = localStorage.getItem(PROFILES_INDEX_KEY);
+      if (idx) {
+        const parsed = JSON.parse(idx);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to read profiles index", e);
+    }
+    return ["Default"];
+  }
+
+  function saveProfilesList(list) {
+    try {
+      localStorage.setItem(PROFILES_INDEX_KEY, JSON.stringify(list));
+    } catch (e) {
+      console.warn("Failed to save profiles index", e);
+    }
+  }
+
+  function getActiveProfileName() {
+    return localStorage.getItem(ACTIVE_PROFILE_KEY) || "Default";
+  }
+
+  function setActiveProfileName(name) {
+    try {
+      localStorage.setItem(ACTIVE_PROFILE_KEY, name);
+    } catch (e) {
+      console.warn("Failed to set active profile", e);
+    }
+  }
+
+  function getProfileData(name) {
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY_PREFIX + name);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.warn("Failed to load profile data for: " + name, e);
+    }
+    return null;
+  }
+
+  function saveProfileToStorage(name, data) {
+    try {
+      localStorage.setItem(PROFILE_KEY_PREFIX + name, JSON.stringify(data));
+      const list = getProfilesList();
+      if (!list.includes(name)) {
+        list.push(name);
+        saveProfilesList(list);
+      }
+    } catch (e) {
+      console.warn("Failed to save profile to storage", e);
+    }
+  }
+
+  function deleteProfileFromStorage(name) {
+    if (name === "Default") return false;
+    try {
+      localStorage.removeItem(PROFILE_KEY_PREFIX + name);
+      let list = getProfilesList().filter((p) => p !== name);
+      if (list.length === 0) list = ["Default"];
+      saveProfilesList(list);
+      if (getActiveProfileName() === name) {
+        setActiveProfileName("Default");
+        loadProfileByName("Default");
+      }
+      syncProfileUI();
+      return true;
+    } catch (e) {
+      console.warn("Failed to delete profile", e);
+      return false;
+    }
+  }
+
+  function createProfileExport(profileName) {
+    const name = profileName || getActiveProfileName() || "Default";
+    return {
+      $schema: "https://lukeroddis.github.io/Livesplit-Progress-Bar/schema/layout-v1.json",
+      schemaVersion: 1,
+      name: name,
+      exportedAt: new Date().toISOString(),
+      generator: "LiveSplit Minimal Overlay " + (window.APP_VERSION || "v1.0.0"),
+      components: layoutState ? JSON.parse(JSON.stringify(layoutState)) : getDefaultLayout(),
+      style: currentTrackStyle ? Object.assign({}, currentTrackStyle) : Object.assign({}, DEFAULT_TRACK_STYLE),
+      preferences: {
+        timerDisplayMode: (window.getTimerDisplayMode ? window.getTimerDisplayMode() : localStorage.getItem("livesplit_timer_display_mode")) || "both",
+        timingMethodFocus: (window.getCurrentTimingMethod ? window.getCurrentTimingMethod() : localStorage.getItem("livesplit_timing_method")) || "GameTime",
+        ghostComparison: localStorage.getItem("livesplit_ghost_comparison") || "off",
+        ghostOpacity: parseInt(localStorage.getItem("livesplit_ghost_opacity"), 10) || 85,
+        splitDensity: localStorage.getItem("livesplit_visible_splits") || "auto",
+        splitAngle: localStorage.getItem("livesplit_split_angle") || "auto",
+        discardGoldsOnReset: (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false"),
+        syncHotkeys: (localStorage.getItem("livesplit_sync_hotkeys") !== "false")
+      },
+      customLogo: localStorage.getItem(LOGO_STORAGE_KEY) || null
+    };
+  }
+
+  function applyProfileData(data, saveAsName) {
+    if (!data || typeof data !== "object") {
+      throw new Error("Invalid layout profile: expected JSON object");
+    }
+
+    // 1. Components (deep merge with defaults to support older versions missing newer components or properties)
+    const defLayout = getDefaultLayout();
+    layoutState = Object.assign({}, defLayout);
+    if (data.components && typeof data.components === "object") {
+      for (const compId of COMPONENTS) {
+        if (data.components[compId] && typeof data.components[compId] === "object") {
+          layoutState[compId] = Object.assign({}, defLayout[compId], data.components[compId]);
+        }
+      }
+    }
+    saveLayout();
+    applyAllLayouts();
+
+    // 2. Track Style (deep merge with DEFAULT_TRACK_STYLE so older layouts missing newer style properties gracefully use defaults)
+    currentTrackStyle = Object.assign({}, DEFAULT_TRACK_STYLE, data.style || {});
+    saveTrackStyle();
+    applyTrackStyle();
+
+    // 3. Preferences (apply with fallback)
+    const prefs = data.preferences || {};
+    if (prefs.timerDisplayMode && window.setTimerDisplayMode) {
+      window.setTimerDisplayMode(prefs.timerDisplayMode);
+    }
+    if (prefs.timingMethodFocus && window.setTimingMethodFocus) {
+      window.setTimingMethodFocus(prefs.timingMethodFocus);
+    }
+    if (prefs.ghostComparison != null && window.setGhostComparison) {
+      window.setGhostComparison(prefs.ghostComparison);
+    }
+    if (prefs.ghostOpacity != null && window.setGhostOpacity) {
+      window.setGhostOpacity(prefs.ghostOpacity);
+    }
+    if (prefs.splitDensity != null) {
+      setVisibleSplits(prefs.splitDensity);
+    }
+    if (prefs.splitAngle != null) {
+      localStorage.setItem("livesplit_split_angle", prefs.splitAngle);
+      if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+    }
+    if (prefs.discardGoldsOnReset != null) {
+      localStorage.setItem("livesplit_discard_golds_on_reset", prefs.discardGoldsOnReset ? "true" : "false");
+    }
+    if (prefs.syncHotkeys != null) {
+      localStorage.setItem("livesplit_sync_hotkeys", prefs.syncHotkeys ? "true" : "false");
+    }
+
+    // 4. Custom Game Logo
+    if ("customLogo" in data) {
+      if (data.customLogo) {
+        saveGameLogo(data.customLogo);
+      } else {
+        removeGameLogo();
+      }
+    }
+
+    // 5. Update UI controls
+    syncTrackModalUI();
+    if (window.updateGhostBadge) window.updateGhostBadge();
+
+    // 6. Optionally save into named profiles
+    if (saveAsName) {
+      const profName = saveAsName.trim();
+      if (profName) {
+        saveProfileToStorage(profName, data);
+        setActiveProfileName(profName);
+      }
+    }
+
+    syncProfileUI();
+  }
+
+  function loadProfileByName(name) {
+    if (!name) return false;
+    const data = getProfileData(name);
+    if (data) {
+      applyProfileData(data, name);
+      return true;
+    } else if (name === "Default") {
+      const def = createProfileExport("Default");
+      saveProfileToStorage("Default", def);
+      setActiveProfileName("Default");
+      applyProfileData(def, "Default");
+      return true;
+    }
+    return false;
+  }
+
+  function exportProfileToFile(profileName) {
+    const name = profileName || getActiveProfileName() || "Default";
+    const data = createProfileExport(name);
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+    a.href = url;
+    a.download = `livesplit-layout-${safeName}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importProfileFromFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) return reject(new Error("No file selected"));
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!parsed || typeof parsed !== "object") {
+            throw new Error("File does not contain a valid JSON layout object");
+          }
+          const profileName = parsed.name || file.name.replace(/\.[^.]+$/, "") || "Imported Layout";
+          applyProfileData(parsed, profileName);
+          resolve(profileName);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsText(file);
+    });
+  }
+
+  function syncProfileUI() {
+    const select = document.getElementById("select-layout-profile");
+    const btnDel = document.getElementById("btn-delete-profile");
+    if (!select) return;
+
+    const list = getProfilesList();
+    const active = getActiveProfileName();
+
+    select.innerHTML = "";
+    list.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = `Profile: ${p}`;
+      if (p === active) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    if (btnDel) {
+      btnDel.style.display = (active === "Default") ? "none" : "inline-block";
+    }
+  }
+
+  function autoLoadProfileForGame(gameName) {
+    if (!gameName || typeof gameName !== "string") return false;
+    const cleanGame = gameName.trim().toLowerCase();
+    const list = getProfilesList();
+    const match = list.find((p) => p.trim().toLowerCase() === cleanGame);
+    if (match && match !== getActiveProfileName()) {
+      console.log(`Auto-switching layout profile to match game: "${match}"`);
+      loadProfileByName(match);
+      return true;
+    }
+    return false;
+  }
+
   function enforceOpposingTrackPositions() {
     if (!currentTrackStyle) return;
     if (currentTrackStyle.orientation === "vertical") return;
@@ -795,6 +1068,12 @@
 
   function parseUrlParameters() {
     const params = new URLSearchParams(window.location.search);
+
+    const profileParam = params.get("profile") || params.get("layout");
+    if (profileParam) {
+      loadProfileByName(profileParam.trim());
+    }
+
     const view = params.get("view"); // 'title' | 'timers' | 'track' | 'all'
     const edit = params.get("edit"); // '1' | 'true'
     const hide = params.get("hide"); // 'title,timers'
@@ -1481,6 +1760,76 @@
       });
     }
 
+    // Layout Profiles & Import/Export Controls
+    const selectProfile = document.getElementById("select-layout-profile");
+    if (selectProfile) {
+      selectProfile.addEventListener("change", (e) => {
+        loadProfileByName(e.target.value);
+      });
+    }
+
+    const btnSaveProfile = document.getElementById("btn-save-profile");
+    if (btnSaveProfile) {
+      btnSaveProfile.addEventListener("click", () => {
+        const active = getActiveProfileName();
+        const exportData = createProfileExport(active);
+        saveProfileToStorage(active, exportData);
+        const origText = btnSaveProfile.innerText;
+        btnSaveProfile.innerText = "✓ Saved!";
+        setTimeout(() => {
+          btnSaveProfile.innerText = origText;
+        }, 1200);
+      });
+    }
+
+    const btnSaveAsProfile = document.getElementById("btn-save-as-profile");
+    if (btnSaveAsProfile) {
+      btnSaveAsProfile.addEventListener("click", () => {
+        const name = window.prompt("Enter a name for this layout profile (e.g. Mario 64, Retro 4:3, Bottom Bar):");
+        if (name && name.trim()) {
+          const trimmed = name.trim();
+          const exportData = createProfileExport(trimmed);
+          saveProfileToStorage(trimmed, exportData);
+          setActiveProfileName(trimmed);
+          syncProfileUI();
+        }
+      });
+    }
+
+    const btnDeleteProfile = document.getElementById("btn-delete-profile");
+    if (btnDeleteProfile) {
+      btnDeleteProfile.addEventListener("click", () => {
+        const active = getActiveProfileName();
+        if (active && active !== "Default") {
+          if (window.confirm(`Delete layout profile "${active}"?`)) {
+            deleteProfileFromStorage(active);
+          }
+        }
+      });
+    }
+
+    const btnExportProfile = document.getElementById("btn-export-profile");
+    if (btnExportProfile) {
+      btnExportProfile.addEventListener("click", () => {
+        exportProfileToFile();
+      });
+    }
+
+    const inputImportProfile = document.getElementById("input-import-profile");
+    if (inputImportProfile) {
+      inputImportProfile.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          importProfileFromFile(file).then((profName) => {
+            console.log(`Successfully imported layout profile: ${profName}`);
+          }).catch((err) => {
+            window.alert(`Failed to import layout profile: ${err.message}`);
+          });
+          e.target.value = "";
+        }
+      });
+    }
+
     // Keyboard Hotkeys: 'E' / 'F2' toggles edit mode, 'Escape' exits modal or edit mode
     window.addEventListener("keydown", (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
@@ -1524,17 +1873,24 @@
 
   // Initialize layout engine
   window.addEventListener("DOMContentLoaded", () => {
-    layoutState = loadSavedLayout();
-    currentTrackStyle = loadSavedTrackStyle();
-    applyAllLayouts();
-    applyTrackStyle();
-    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
-    if (savedLogo) {
-      applyGameLogo(savedLogo);
+    const activeProf = getActiveProfileName();
+    const activeData = (activeProf && activeProf !== "Default") ? getProfileData(activeProf) : null;
+    if (activeData) {
+      applyProfileData(activeData, activeProf);
+    } else {
+      layoutState = loadSavedLayout();
+      currentTrackStyle = loadSavedTrackStyle();
+      applyAllLayouts();
+      applyTrackStyle();
+      const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
+      if (savedLogo) {
+        applyGameLogo(savedLogo);
+      }
     }
     parseUrlParameters();
     setupPointerListeners();
     setupToolbarAndControls();
+    syncProfileUI();
   });
 
   // Export layout helpers globally if needed
@@ -1554,6 +1910,17 @@
     applyAllLayouts,
     applyGameLogo,
     removeGameLogo,
-    saveGameLogo
+    saveGameLogo,
+    getProfilesList,
+    getActiveProfileName,
+    loadProfileByName,
+    saveProfileToStorage,
+    deleteProfileFromStorage,
+    createProfileExport,
+    applyProfileData,
+    exportProfileToFile,
+    importProfileFromFile,
+    autoLoadProfileForGame,
+    syncProfileUI
   };
 })();

@@ -104,7 +104,57 @@ Query these **strictly upon split index transition, start, or reset**:
 | `livesplit_timing_method_manual` | Boolean string (`"true"` / `"false"`) | Whether runner manually overrode timing method focus. |
 | `livesplit_discard_gold_on_reset` | Boolean | Whether to discard in-run golds when a reset signal arrives. |
 | `livesplit_custom_logo` | String (Data URL or URI) | Custom uploaded game logo image replacing text title. |
+| `livesplit_profiles_index` | JSON Array (`string[]`) | Registered profile names list (`["Default", "Mario 64", ...]`). |
+| `livesplit_active_profile` | String | Name of the currently active layout profile. |
+| `livesplit_profile_<name>` | JSON Object | Saved layout profile with schema v1 structure. |
 | `livesplit_lss_xml` | String (XML) | Cached `.lss` content for offline/instant reload. |
+
+### Layout Profile Schema v1 Specification
+
+Layout profiles are stored and exported as formatted JSON with the following extensible structure:
+
+```json
+{
+  "$schema": "https://lukeroddis.github.io/Livesplit-Progress-Bar/schema/layout-v1.json",
+  "schemaVersion": 1,
+  "name": "Super Mario 64",
+  "exportedAt": "2026-10-13T16:20:00.000Z",
+  "generator": "LiveSplit Minimal Overlay v1.0.0",
+  "components": {
+    "title": { "x": 42, "y": 30, "scale": 1.0, "visible": true },
+    "timers": { "x": 42, "y": 90, "scale": 1.15, "visible": true },
+    "track": { "x": 0, "y": 990, "scale": 1.0, "visible": true, "docked": "bottom" }
+  },
+  "style": {
+    "orientation": "horizontal",
+    "namePos": "top",
+    "deltaPos": "bottom",
+    "bgOpacity": 55,
+    "bgBlur": 8,
+    "bgTargets": { "title": true, "timers": true, "track": true },
+    "nameFontSize": 17,
+    "deltaFontSize": 15,
+    "barHeight": 6,
+    "dotSize": 15,
+    "ghostPinLength": 16,
+    "logoHeight": 60
+  },
+  "preferences": {
+    "timerDisplayMode": "both",
+    "timingMethodFocus": "GameTime",
+    "ghostComparison": "wr,pb",
+    "ghostOpacity": 85,
+    "splitDensity": "auto",
+    "splitAngle": "auto",
+    "discardGoldsOnReset": true,
+    "syncHotkeys": true
+  },
+  "customLogo": "data:image/png;base64,..."
+}
+```
+
+* **Backward Compatibility**: If an older layout missing newer properties (e.g. `logoHeight` or future properties) is loaded, `applyProfileData` deep-merges with `getDefaultLayout()` and `DEFAULT_TRACK_STYLE` so default values are gracefully applied without errors.
+* **Forward Compatibility**: Unknown future properties present in layout files do not throw errors or break loading.
 
 ---
 

@@ -155,6 +155,15 @@ Bring the overlay into a clean vertical sidebar layout tailored for 4:3 pillarbo
 * **Header Drag-and-Drop**: Click and drag the menu header anywhere on screen to prevent overlap with your track or OBS widgets; double-click the header or click `↺` to reset position.
 * **Integrated .lss Dropzone**: Drag and drop any `.lss` splits file directly onto the prominent card dropzone to reload splits instantly.
 
+### 11. Layout Profiles & Human-Readable JSON Import/Export
+Easily configure and switch distinct layout profiles for different games (e.g. 16:9 widescreen bottom bar vs 4:3 retro vertical sidebar):
+* **In-Menu Profile Switching**: Switch profiles instantly from the **LiveSplit Settings** card (`Profile: Default`, `💾 Save`, `➕ New`, `🗑 Delete`).
+* **Auto-Switching Per Game**: When connecting to LiveSplit Server or dropping a `.lss` splits file, the overlay automatically matches the game title against saved layout profiles and loads the matching layout profile seamlessly.
+* **Human-Readable JSON Export/Import**: Export clean, indented JSON configuration files (`livesplit-layout-<name>.json`) via `📥 Export (.json)` and import via `📤 Import (.json)` or simply drag and drop `.json` files directly onto the browser window.
+* **Extensible Schema v1**: Formatted with clear metadata (`$schema`, `schemaVersion: 1`, `components`, `style`, `preferences`, `customLogo`).
+* **Forward & Backward Compatibility**: Older layout files missing newer features automatically use sensible defaults; future layout files with unknown fields load safely without errors.
+* **OBS Browser Source Integration via URL**: Append `?profile=GameName` (or `?layout=GameName`) in OBS Studio to force individual scenes or browser sources to load specific profiles automatically.
+
 ---
 
 ## 🎛️ Standalone OBS URL Parameters
@@ -163,6 +172,7 @@ For multi-monitor or multi-source OBS setups, load specific isolated components 
 
 | URL Parameter | Function | Example |
 | :--- | :--- | :--- |
+| `?profile=Name` | Load a saved named layout profile (or `?layout=Name`) | `index.html?profile=Super+Mario+64` |
 | `?view=track` | Display only the Progress Track | `index.html?view=track` |
 | `?view=timers` | Display only the Dual Timers | `index.html?view=timers` |
 | `?view=title` | Display only the Game Title & Category | `index.html?view=title` |

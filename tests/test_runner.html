@@ -106,6 +106,12 @@
     </div>
     <button id="settings-trigger-pill"></button>
     <input type="file" id="file-input">
+    <select id="select-layout-profile"></select>
+    <button id="btn-save-profile"></button>
+    <button id="btn-save-as-profile"></button>
+    <button id="btn-delete-profile"></button>
+    <button id="btn-export-profile"></button>
+    <input type="file" id="input-import-profile">
   </div>
 
   <div class="header">
@@ -513,6 +519,43 @@
         pill.click();
         assertEqual(wrap.classList.contains("menu-open"), false);
         assertEqual(pill.classList.contains("is-pressed"), false);
+      });
+    });
+
+    describe("Layout Profiles & Extensible Schema v1", () => {
+      it("exports layout profile helper functions on window.hudLayout", () => {
+        assertEqual(typeof window.hudLayout.getProfilesList, "function");
+        assertEqual(typeof window.hudLayout.getActiveProfileName, "function");
+        assertEqual(typeof window.hudLayout.createProfileExport, "function");
+        assertEqual(typeof window.hudLayout.applyProfileData, "function");
+        assertEqual(typeof window.hudLayout.saveProfileToStorage, "function");
+        assertEqual(typeof window.hudLayout.deleteProfileFromStorage, "function");
+      });
+      it("generates schema v1 export object with required properties", () => {
+        const exp = window.hudLayout.createProfileExport("TestProfile");
+        assertEqual(exp.schemaVersion, 1);
+        assertEqual(exp.name, "TestProfile");
+        assertEqual(typeof exp.components, "object");
+        assertEqual(typeof exp.style, "object");
+        assertEqual(typeof exp.preferences, "object");
+      });
+      it("deep merges older layouts gracefully for backward compatibility", () => {
+        const legacy = {
+          schemaVersion: 1,
+          name: "Old Profile",
+          components: {
+            title: { x: 50, y: 50, visible: true }
+          },
+          style: {
+            orientation: "horizontal",
+            bgOpacity: 75
+          }
+        };
+        window.hudLayout.applyProfileData(legacy, "Old Profile");
+        const style = window.hudLayout.getTrackStyle();
+        assertEqual(style.bgOpacity, 75);
+        assertEqual(typeof style.barHeight, "number");
+        assertEqual(typeof style.logoHeight, "number");
       });
     });
 

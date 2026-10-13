@@ -186,6 +186,24 @@
         </div>
       </div>
 
+      <!-- Section: Layout Profiles (Game Layout Switching) -->
+      <div class="settings-section">
+        <div class="settings-section-header">LAYOUT PROFILES</div>
+        <div class="settings-profile-bar">
+          <select id="select-layout-profile" class="settings-profile-select" title="Active Layout Profile"></select>
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-profile" title="Save changes to active profile">💾 Save</button>
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-as-profile" title="Save as a new game layout profile">➕ New</button>
+          <button type="button" class="settings-tile-btn profile-btn danger" id="btn-delete-profile" title="Delete active profile">🗑</button>
+        </div>
+        <div class="settings-actions-row" style="margin-top: 6px;">
+          <button type="button" class="settings-action-btn action-export" id="btn-export-profile" title="Export current layout to a human-readable JSON file">📥 Export (.json)</button>
+          <label for="input-import-profile" class="settings-action-btn action-import" style="cursor: pointer; margin: 0;" title="Import layout from a JSON file">
+            <span>📤 Import (.json)</span>
+          </label>
+          <input type="file" id="input-import-profile" accept=".json,.lshud,application/json" style="display: none;">
+        </div>
+      </div>
+
       <!-- Settings Card Footer: Version & GitHub -->
       <div class="settings-menu-footer">
         <span class="settings-version-label" id="overlay-version" title="LiveSplit Minimal Overlay Version">v1.0.0</span>
