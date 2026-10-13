@@ -94,6 +94,17 @@ def test_syntax_and_brackets():
                 assert pairs[c] == top, f"{fname}: mismatched '{c}' at {line}:{col}, opened '{top}' at {tl}:{tc}"
             i += 1
         assert not stack, f"{fname}: unclosed '{stack[-1][0]}' from line {stack[-1][1]}:{stack[-1][2]}"
+
+    # Ensure all top-level window exports in overlay.js are defined at file-level scope (prevents ReferenceError)
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+    if os.path.exists(overlay_path):
+        with open(overlay_path, "r", encoding="utf-8") as f:
+            code = f.read()
+        exports = re.findall(r'window\.([a-zA-Z0-9_]+)\s*=\s*\1;', code)
+        for fn in exports:
+            assert re.search(r'^(function\s+' + fn + r'\b)', code, re.MULTILINE), \
+                f"overlay.js: exported function '{fn}' is not defined at top-level scope!"
+
     print("✓ Syntax and bracket matching check passed.")
 
 

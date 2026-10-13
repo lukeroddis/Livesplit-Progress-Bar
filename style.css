@@ -1319,11 +1319,11 @@ body:hover .settings-trigger-pill {
 .settings-menu-panel,
 .footer-bar {
   position: absolute;
-  bottom: 0;
+  bottom: calc(100% + 10px);
   right: 0;
   width: 460px;
   max-width: calc(100vw - 28px);
-  max-height: calc(100vh - 28px);
+  max-height: calc(100vh - 80px);
   overflow-y: auto;
   background: rgba(15, 23, 42, 0.96);
   backdrop-filter: blur(20px);

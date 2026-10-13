@@ -2551,17 +2551,6 @@ function initSettingsMenuDraggable() {
   restoreSettingsMenuPosition();
 }
 
-// ============================================================
-// 15. INITIALIZATION & GLOBAL WINDOW INTERFACE
-// ============================================================
-function initOverlay() {
-  document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
-  document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
-  document.getElementById("comparison-badge")?.addEventListener("click", cycleComparison);
-  document.getElementById("ghost-badge")?.addEventListener("click", cycleGhostComparison);
-  document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
-  document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
-
 function toggleSettingsMenu(forceOpen) {
   const quickWrap = document.getElementById("quick-settings-wrap");
   const triggerPill = document.getElementById("settings-trigger-pill");
@@ -2583,6 +2572,17 @@ function toggleSettingsMenu(forceOpen) {
     triggerPill.setAttribute("title", "Click to open LiveSplit Settings & .lss Loader");
   }
 }
+
+// ============================================================
+// 15. INITIALIZATION & GLOBAL WINDOW INTERFACE
+// ============================================================
+function initOverlay() {
+  document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
+  document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
+  document.getElementById("comparison-badge")?.addEventListener("click", cycleComparison);
+  document.getElementById("ghost-badge")?.addEventListener("click", cycleGhostComparison);
+  document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
+  document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
 
   // Latching pressed-down trigger pill and close button setup
   const triggerPill = document.getElementById("settings-trigger-pill");
