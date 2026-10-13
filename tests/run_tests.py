@@ -18,7 +18,7 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 def test_file_integrity():
     """Verify core project files exist and are UTF-8 decodable."""
-    required = ["index.html", "layout.js", "overlay.js", "style.css", "README.md"]
+    required = ["index.html", "layout.js", "overlay.js", "style.css", "README.md", "LICENSE", "package.json"]
     for fname in required:
         path = os.path.join(ROOT_DIR, fname)
         assert os.path.exists(path), f"Missing required file: {fname}"
@@ -101,9 +101,9 @@ def test_syntax_and_brackets():
         with open(overlay_path, "r", encoding="utf-8") as f:
             code = f.read()
         exports = re.findall(r'window\.([a-zA-Z0-9_]+)\s*=\s*\1;', code)
-        for fn in exports:
-            assert re.search(r'^(function\s+' + fn + r'\b)', code, re.MULTILINE), \
-                f"overlay.js: exported function '{fn}' is not defined at top-level scope!"
+        for sym in exports:
+            assert re.search(r'^(?:function\s+|const\s+|let\s+)' + sym + r'\b', code, re.MULTILINE), \
+                f"overlay.js: exported identifier '{sym}' is not defined at top-level scope!"
 
     print("✓ Syntax and bracket matching check passed.")
 
@@ -1097,6 +1097,35 @@ def test_overdue_split_bar_glow():
     print("✓ Overdue split bar chunk prominent red glow & animation tests passed.")
 
 
+def test_version_and_license():
+    """Verify LICENSE file, package.json version, and UI version visibility."""
+    import json
+    license_path = os.path.join(ROOT_DIR, "LICENSE")
+    with open(license_path, "r", encoding="utf-8") as f:
+        lic = f.read()
+    assert "MIT License" in lic, "LICENSE must specify MIT License"
+    assert "Luke Roddis" in lic, "LICENSE must include copyright holder Luke Roddis"
+
+    pkg_path = os.path.join(ROOT_DIR, "package.json")
+    with open(pkg_path, "r", encoding="utf-8") as f:
+        pkg = json.load(f)
+    assert "version" in pkg and re.match(r'^\d+\.\d+\.\d+$', pkg["version"]), \
+        f"package.json must contain semver version: {pkg.get('version')}"
+
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(overlay_path, "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+    assert f'const APP_VERSION = "v{pkg["version"]}";' in overlay_src, \
+        "overlay.js APP_VERSION must match package.json version"
+
+    html_path = os.path.join(ROOT_DIR, "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        html_src = f.read()
+    assert 'id="overlay-version"' in html_src, "index.html must display #overlay-version"
+
+    print("✓ Version metadata, LICENSE file, and UI visibility tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1125,6 +1154,7 @@ def main():
         test_completed_split_dot_coloring()
         test_custom_game_logo_feature()
         test_overdue_split_bar_glow()
+        test_version_and_license()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

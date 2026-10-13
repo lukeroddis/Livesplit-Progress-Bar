@@ -1,6 +1,7 @@
 // ============================================================
 // 1. PROTOCOL CONSTANTS, FALLBACK DATA & GLOBAL RUNTIME STATE
 // ============================================================
+const APP_VERSION = "v1.0.0";
 const WS_URL = "ws://localhost:16834/livesplit";
 
 // Generic fallback splits used if no .lss is loaded
@@ -2649,6 +2650,10 @@ function initOverlay() {
   loadCachedSplits();
   updateTrackDensityAndAngle();
   updateGhostBadge();
+
+  const verEl = document.getElementById("overlay-version");
+  if (verEl) verEl.innerText = APP_VERSION;
+
   connect();
 }
 
@@ -2659,6 +2664,7 @@ if (document.readyState === "loading") {
 }
 
 // Global exports for layout.js and unit tests
+window.APP_VERSION = APP_VERSION;
 window.applyActiveComparison = applyActiveComparison;
 window.getCurrentComparison = () => currentComparison;
 window.getComparisonsList = () => comparisonsList;

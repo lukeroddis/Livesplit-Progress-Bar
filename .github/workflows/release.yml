@@ -1,0 +1,84 @@
+name: Release & Package Overlay
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version increment type (leave as 'none' if running on an existing tag)"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - "patch"
+          - "minor"
+          - "major"
+          - "none"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Test Suite
+        run: |
+          python tests/run_tests.py
+
+      - name: Bump Version (if workflow_dispatch)
+        id: bump
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.bump_type != 'none'
+        run: |
+          python scripts/bump_version.py ${{ github.event.inputs.bump_type }}
+          VERSION=$(python -c "import json; print(json.load(open('package.json'))['version'])")
+          echo "NEW_VERSION=v$VERSION" >> $GITHUB_ENV
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release v$VERSION [skip ci]"
+          git tag "v$VERSION"
+          git push origin main --tags
+
+      - name: Resolve Version Tag
+        id: resolve_tag
+        run: |
+          if [ -n "$NEW_VERSION" ]; then
+            TAG="$NEW_VERSION"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VERSION=$(python -c "import json; print(json.load(open('package.json'))['version'])")
+            TAG="v$VERSION"
+          fi
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
+          echo "Target tag: $TAG"
+
+      - name: Bundle Runtime Package
+        run: |
+          ZIP_NAME="livesplit-minimal-overlay-${RELEASE_TAG}.zip"
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          zip -r "$ZIP_NAME" index.html style.css layout.js overlay.js package.json LICENSE README.md assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "LiveSplit Minimal Overlay ${{ env.RELEASE_TAG }}"
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
