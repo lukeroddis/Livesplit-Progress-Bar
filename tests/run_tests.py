@@ -1143,6 +1143,10 @@ def test_layout_profiles_and_extensible_schema():
         "btn-export-profile",
         "input-import-profile",
         "profile-bar-default",
+        "profile-dropdown-wrap",
+        "btn-profile-dropdown",
+        "profile-dropdown-label",
+        "profile-dropdown-list",
         "profile-bar-new",
         "input-new-profile-name",
         "btn-confirm-new-profile",
@@ -1150,28 +1154,51 @@ def test_layout_profiles_and_extensible_schema():
         "profile-bar-delete",
         "btn-confirm-delete-profile",
         "btn-cancel-delete-profile",
+        "btn-open-import-modal",
         "layout-export-modal",
         "export-json-textarea",
         "btn-copy-export-json",
         "btn-redownload-export-json",
+        "layout-import-modal",
+        "btn-close-import-modal",
+        "import-file-name-label",
+        "import-json-textarea",
+        "import-error-msg",
+        "btn-cancel-import",
+        "btn-apply-import-json",
     ]
     for eid in expected_ids:
         assert f'id="{eid}"' in html, f"index.html missing layout profile element id '{eid}'"
 
-    # 2. CSS styles
+    # 2. Local schema file exists and is valid JSON
+    schema_path = os.path.join(ROOT_DIR, "schema", "layout-v1.json")
+    assert os.path.exists(schema_path), "Local schema file schema/layout-v1.json must exist"
+    with open(schema_path, "r", encoding="utf-8") as f:
+        schema_data = json.load(f)
+    assert schema_data.get("title") == "LiveSplit Minimal Overlay Layout Profile"
+    assert "properties" in schema_data
+
+    # 3. CSS styles
     css_path = os.path.join(ROOT_DIR, "style.css")
     with open(css_path, "r", encoding="utf-8") as f:
         css = f.read()
     assert ".settings-profile-bar" in css, "style.css missing .settings-profile-bar"
+    assert ".settings-profile-dropdown-wrap" in css, "style.css missing .settings-profile-dropdown-wrap"
+    assert ".settings-profile-dropdown-list" in css, "style.css missing .settings-profile-dropdown-list"
+    assert ".profile-dropdown-item" in css, "style.css missing .profile-dropdown-item"
     assert ".settings-profile-select" in css, "style.css missing .settings-profile-select"
     assert ".settings-profile-input" in css, "style.css missing .settings-profile-input"
     assert ".settings-action-btn.action-export" in css, "style.css missing .settings-action-btn.action-export"
     assert ".settings-action-btn.action-import" in css, "style.css missing .settings-action-btn.action-import"
 
-    # 3. layout.js implementation and exports
+    # 4. layout.js implementation and exports
     layout_path = os.path.join(ROOT_DIR, "layout.js")
     with open(layout_path, "r", encoding="utf-8") as f:
         layout_src = f.read()
+
+    # Must NOT contain hardcoded personal dead-link schema URLs
+    assert "https://lukeroddis.github.io" not in layout_src, \
+        "layout.js must not output external dead link schema URLs"
 
     expected_exports = [
         "getProfilesList",
@@ -1189,11 +1216,11 @@ def test_layout_profiles_and_extensible_schema():
     for exp in expected_exports:
         assert exp in layout_src, f"layout.js missing function/export '{exp}'"
 
-    # 4. Check URL parameter integration (?profile= and ?layout=)
+    # 5. Check URL parameter integration (?profile= and ?layout=)
     assert 'params.get("profile") || params.get("layout")' in layout_src, \
         "layout.js parseUrlParameters must check ?profile= and ?layout= URL parameters"
 
-    # 5. Check overlay.js game auto-loading & drag-and-drop integration
+    # 6. Check overlay.js game auto-loading & drag-and-drop integration
     overlay_path = os.path.join(ROOT_DIR, "overlay.js")
     with open(overlay_path, "r", encoding="utf-8") as f:
         overlay_src = f.read()
@@ -1203,7 +1230,7 @@ def test_layout_profiles_and_extensible_schema():
     assert 'file.name.endsWith(".json") || file.name.endsWith(".lshud")' in overlay_src, \
         "overlay.js drop listener must accept .json and .lshud layout profiles"
 
-    # 6. Extensible Schema v1 & Forward/Backward Compatibility Simulation
+    # 7. Extensible Schema v1 & Forward/Backward Compatibility Simulation
     default_track_style = {
         "orientation": "horizontal",
         "namePos": "top",
@@ -1221,8 +1248,7 @@ def test_layout_profiles_and_extensible_schema():
 
     # Simulate Backward Compatibility: Older layout missing logoHeight, ghostPinLength, and preferences
     older_profile = {
-        "$schema": "https://lukeroddis.github.io/Livesplit-Progress-Bar/schema/layout-v1.json",
-        "schemaVersion": 1,
+        "version": 1,
         "name": "Legacy 2025 Layout",
         "components": {
             "title": {"x": 10, "y": 20, "scale": 1.0, "visible": True},

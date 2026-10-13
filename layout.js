@@ -260,8 +260,7 @@
   function createProfileExport(profileName) {
     const name = profileName || getActiveProfileName() || "Default";
     return {
-      $schema: "https://lukeroddis.github.io/Livesplit-Progress-Bar/schema/layout-v1.json",
-      schemaVersion: 1,
+      version: 1,
       name: name,
       exportedAt: new Date().toISOString(),
       generator: "LiveSplit Minimal Overlay " + (window.APP_VERSION || "v1.0.0"),
@@ -462,22 +461,77 @@
     });
   }
 
+  function openImportModal() {
+    const modal = document.getElementById("layout-import-modal");
+    const ta = document.getElementById("import-json-textarea");
+    const err = document.getElementById("import-error-msg");
+    const lbl = document.getElementById("import-file-name-label");
+    if (ta) ta.value = "";
+    if (err) { err.style.display = "none"; err.textContent = ""; }
+    if (lbl) lbl.textContent = "";
+    if (modal) {
+      modal.style.display = "flex";
+      modal.classList.add("is-open");
+    }
+  }
+
+  function closeImportModal() {
+    const modal = document.getElementById("layout-import-modal");
+    if (modal) {
+      modal.style.display = "none";
+      modal.classList.remove("is-open");
+    }
+  }
+
+  function toggleProfileDropdown(forceState) {
+    const list = document.getElementById("profile-dropdown-list");
+    const btn = document.getElementById("btn-profile-dropdown");
+    if (!list) return;
+    const isHidden = (list.style.display === "none");
+    const shouldOpen = (forceState != null) ? forceState : isHidden;
+    list.style.display = shouldOpen ? "flex" : "none";
+    if (btn) btn.classList.toggle("is-active", shouldOpen);
+  }
+
   function syncProfileUI() {
     const select = document.getElementById("select-layout-profile");
+    const dropdownLabel = document.getElementById("profile-dropdown-label");
+    const dropdownList = document.getElementById("profile-dropdown-list");
     const btnDel = document.getElementById("btn-delete-profile");
-    if (!select) return;
 
     const list = getProfilesList();
     const active = getActiveProfileName();
 
-    select.innerHTML = "";
-    list.forEach((p) => {
-      const opt = document.createElement("option");
-      opt.value = p;
-      opt.textContent = `Profile: ${p}`;
-      if (p === active) opt.selected = true;
-      select.appendChild(opt);
-    });
+    if (dropdownLabel) {
+      dropdownLabel.textContent = `Profile: ${active}`;
+    }
+
+    if (dropdownList) {
+      dropdownList.innerHTML = "";
+      list.forEach((p) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "profile-dropdown-item" + (p === active ? " is-selected" : "");
+        item.setAttribute("data-profile", p);
+        item.innerHTML = `<span>Profile: ${p}</span>${p === active ? '<span style="color:#38bdf8;">✓</span>' : ''}`;
+        item.addEventListener("click", () => {
+          loadProfileByName(p);
+          toggleProfileDropdown(false);
+        });
+        dropdownList.appendChild(item);
+      });
+    }
+
+    if (select) {
+      select.innerHTML = "";
+      list.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = `Profile: ${p}`;
+        if (p === active) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
 
     if (btnDel) {
       btnDel.style.display = (active === "Default") ? "none" : "inline-block";
@@ -1819,6 +1873,21 @@
     }
 
     // Layout Profiles & Import/Export Controls
+    const btnProfileDropdown = document.getElementById("btn-profile-dropdown");
+    if (btnProfileDropdown) {
+      btnProfileDropdown.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleProfileDropdown();
+      });
+    }
+
+    document.addEventListener("click", (e) => {
+      const wrap = document.getElementById("profile-dropdown-wrap");
+      if (wrap && !wrap.contains(e.target)) {
+        toggleProfileDropdown(false);
+      }
+    });
+
     const selectProfile = document.getElementById("select-layout-profile");
     if (selectProfile) {
       selectProfile.addEventListener("change", (e) => {
@@ -1978,6 +2047,57 @@
       });
     }
 
+    // Import Modal Controls
+    const btnOpenImportModal = document.getElementById("btn-open-import-modal");
+    if (btnOpenImportModal) {
+      btnOpenImportModal.addEventListener("click", openImportModal);
+    }
+
+    const btnCloseImportModal = document.getElementById("btn-close-import-modal");
+    if (btnCloseImportModal) {
+      btnCloseImportModal.addEventListener("click", closeImportModal);
+    }
+
+    const btnCancelImport = document.getElementById("btn-cancel-import");
+    if (btnCancelImport) {
+      btnCancelImport.addEventListener("click", closeImportModal);
+    }
+
+    document.getElementById("layout-import-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "layout-import-modal") {
+        closeImportModal();
+      }
+    });
+
+    const btnApplyImportJson = document.getElementById("btn-apply-import-json");
+    if (btnApplyImportJson) {
+      btnApplyImportJson.addEventListener("click", () => {
+        const ta = document.getElementById("import-json-textarea");
+        const err = document.getElementById("import-error-msg");
+        if (!ta || !ta.value.trim()) {
+          if (err) {
+            err.textContent = "Please paste layout JSON or select a file";
+            err.style.display = "block";
+          }
+          return;
+        }
+        try {
+          const parsed = JSON.parse(ta.value.trim());
+          if (!parsed || typeof parsed !== "object") {
+            throw new Error("Invalid JSON: expected a layout configuration object");
+          }
+          const profName = parsed.name || "Imported Layout";
+          applyProfileData(parsed, profName);
+          closeImportModal();
+        } catch (e) {
+          if (err) {
+            err.textContent = `Import error: ${e.message}`;
+            err.style.display = "block";
+          }
+        }
+      });
+    }
+
     const inputImportProfile = document.getElementById("input-import-profile");
     if (inputImportProfile) {
       inputImportProfile.addEventListener("change", (e) => {
@@ -1985,8 +2105,14 @@
         if (file) {
           importProfileFromFile(file).then((profName) => {
             console.log(`Successfully imported layout profile: ${profName}`);
+            closeImportModal();
           }).catch((err) => {
             console.error("Failed to import layout profile:", err);
+            const errMsg = document.getElementById("import-error-msg");
+            if (errMsg) {
+              errMsg.textContent = `Import error: ${err.message}`;
+              errMsg.style.display = "block";
+            }
           });
           e.target.value = "";
         }
@@ -2001,6 +2127,12 @@
         e.preventDefault();
         toggleEditMode();
       } else if (e.key === "Escape") {
+        const importModal = document.getElementById("layout-import-modal");
+        if (importModal && importModal.classList.contains("is-open")) {
+          e.preventDefault();
+          closeImportModal();
+          return;
+        }
         const exportModal = document.getElementById("layout-export-modal");
         if (exportModal && exportModal.classList.contains("is-open")) {
           e.preventDefault();

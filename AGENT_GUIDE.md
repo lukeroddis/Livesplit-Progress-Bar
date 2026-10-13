@@ -115,8 +115,7 @@ Layout profiles are stored and exported as formatted JSON with the following ext
 
 ```json
 {
-  "$schema": "https://lukeroddis.github.io/Livesplit-Progress-Bar/schema/layout-v1.json",
-  "schemaVersion": 1,
+  "version": 1,
   "name": "Super Mario 64",
   "exportedAt": "2026-10-13T16:20:00.000Z",
   "generator": "LiveSplit Minimal Overlay v1.0.0",

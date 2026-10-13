@@ -190,7 +190,14 @@
       <div class="settings-section">
         <div class="settings-section-header">LAYOUT PROFILES</div>
         <div class="settings-profile-bar" id="profile-bar-default">
-          <select id="select-layout-profile" class="settings-profile-select" title="Active Layout Profile"></select>
+          <div class="settings-profile-dropdown-wrap" id="profile-dropdown-wrap">
+            <button type="button" class="settings-profile-select" id="btn-profile-dropdown" title="Click to select layout profile">
+              <span id="profile-dropdown-label">Profile: Default</span>
+              <span class="profile-dropdown-arrow">▾</span>
+            </button>
+            <div class="settings-profile-dropdown-list" id="profile-dropdown-list" style="display: none;"></div>
+            <select id="select-layout-profile" style="display: none;" tabindex="-1" aria-hidden="true"></select>
+          </div>
           <button type="button" class="settings-tile-btn profile-btn" id="btn-save-profile" title="Save changes to active profile">💾 Save</button>
           <button type="button" class="settings-tile-btn profile-btn" id="btn-save-as-profile" title="Save as a new game layout profile">➕ New</button>
           <button type="button" class="settings-tile-btn profile-btn danger" id="btn-delete-profile" title="Delete active profile">🗑</button>
@@ -207,9 +214,7 @@
         </div>
         <div class="settings-actions-row" style="margin-top: 6px;">
           <button type="button" class="settings-action-btn action-export" id="btn-export-profile" title="Export current layout to a human-readable JSON file">📥 Export (.json)</button>
-          <label for="input-import-profile" class="settings-action-btn action-import" style="cursor: pointer; margin: 0;" title="Import layout from a JSON file">
-            <span>📤 Import (.json)</span>
-          </label>
+          <button type="button" class="settings-action-btn action-import" id="btn-open-import-modal" title="Import layout from file or paste JSON">📤 Import (.json)</button>
           <input type="file" id="input-import-profile" accept=".json,.lshud,application/json" style="display: none;">
         </div>
       </div>
@@ -458,17 +463,47 @@
         <button class="track-modal-close" id="btn-close-export-modal" title="Close">✕</button>
       </div>
       <div class="track-modal-body">
-        <div id="export-status-banner" style="font-size: 13px; color: #4ade80; margin-bottom: 8px; font-weight: 600;">
+        <div id="export-status-banner" style="font-size: 13px; color: #4ade80; margin-bottom: 6px; font-weight: 600;">
           ✓ Download initiated for <span id="export-filename-label" style="color: #38bdf8;">layout.json</span>
         </div>
-        <div style="font-size: 12px; color: #94a3b8; margin-bottom: 6px;">
-          Layout JSON (stored locally and safe for backup or OBS copy/paste):
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px; line-height: 1.4;">
+          💡 <strong>OBS Studio Note:</strong> OBS Browser Sources disable file downloads to disk. Use <strong>📋 Copy JSON</strong> below to copy your layout backup to your clipboard!
         </div>
-        <textarea id="export-json-textarea" readonly style="width: 100%; height: 190px; background: rgba(15,23,42,0.95); color: #38bdf8; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); resize: vertical; outline: none; box-sizing: border-box;"></textarea>
+        <textarea id="export-json-textarea" readonly style="width: 100%; height: 180px; background: rgba(15,23,42,0.95); color: #38bdf8; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); resize: vertical; outline: none; box-sizing: border-box;"></textarea>
       </div>
       <div class="track-modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
         <button class="toolbar-btn" id="btn-copy-export-json">📋 Copy JSON</button>
         <button class="toolbar-btn btn-primary" id="btn-redownload-export-json">💾 Download .json</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layout Import Modal (File Picker + Paste Support for OBS) -->
+  <div class="track-modal-backdrop" id="layout-import-modal" style="display: none;">
+    <div class="track-modal-dialog" style="max-width: 480px;">
+      <div class="track-modal-header">
+        <h3>📤 Import Layout Profile</h3>
+        <button class="track-modal-close" id="btn-close-import-modal" title="Close">✕</button>
+      </div>
+      <div class="track-modal-body">
+        <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">
+          Choose a <code>.json</code> layout file from your computer or paste the layout JSON directly below:
+        </div>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <label for="input-import-profile" class="toolbar-btn" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            📁 Choose .json File...
+          </label>
+          <span id="import-file-name-label" style="font-size: 12px; color: #94a3b8; align-self: center;"></span>
+        </div>
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">
+          Or paste Layout JSON directly (works seamlessly inside OBS):
+        </div>
+        <textarea id="import-json-textarea" placeholder="Paste layout JSON here..." style="width: 100%; height: 160px; background: rgba(15,23,42,0.95); color: #38bdf8; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); resize: vertical; outline: none; box-sizing: border-box;"></textarea>
+        <div id="import-error-msg" style="display: none; font-size: 12px; color: #f87171; margin-top: 6px; font-weight: 600;"></div>
+      </div>
+      <div class="track-modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="toolbar-btn" id="btn-cancel-import">Cancel</button>
+        <button class="toolbar-btn btn-primary" id="btn-apply-import-json">✓ Apply &amp; Import</button>
       </div>
     </div>
   </div>

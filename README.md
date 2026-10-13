@@ -157,10 +157,10 @@ Bring the overlay into a clean vertical sidebar layout tailored for 4:3 pillarbo
 
 ### 11. Layout Profiles & Human-Readable JSON Import/Export
 Easily configure and switch distinct layout profiles for different games (e.g. 16:9 widescreen bottom bar vs 4:3 retro vertical sidebar):
-* **In-Menu Profile Switching**: Switch profiles instantly from the **LiveSplit Settings** card (`Profile: Default`, `💾 Save`, `➕ New`, `🗑 Delete`).
+* **In-Menu Profile Switching**: Switch profiles instantly from the **LiveSplit Settings** card (`Profile: Default`, `💾 Save`, `➕ New`, `🗑 Delete`) using OBS-compatible DOM menus.
 * **Auto-Switching Per Game**: When connecting to LiveSplit Server or dropping a `.lss` splits file, the overlay automatically matches the game title against saved layout profiles and loads the matching layout profile seamlessly.
-* **Human-Readable JSON Export/Import**: Export clean, indented JSON configuration files (`livesplit-layout-<name>.json`) via `📥 Export (.json)` and import via `📤 Import (.json)` or simply drag and drop `.json` files directly onto the browser window.
-* **Extensible Schema v1**: Formatted with clear metadata (`$schema`, `schemaVersion: 1`, `components`, `style`, `preferences`, `customLogo`).
+* **Human-Readable JSON Export/Import**: Export clean, indented JSON configuration files (`livesplit-layout-<name>.json`) via `📥 Export (.json)` and import via `📤 Import (.json)` (supporting file browsing, window drag-and-drop, or direct JSON clipboard pasting inside OBS).
+* **Extensible Local Schema v1**: Formatted with clean metadata (`version: 1`, `components`, `style`, `preferences`, `customLogo`) backed by offline schema [`schema/layout-v1.json`](schema/layout-v1.json).
 * **Forward & Backward Compatibility**: Older layout files missing newer features automatically use sensible defaults; future layout files with unknown fields load safely without errors.
 * **OBS Browser Source Integration via URL**: Append `?profile=GameName` (or `?layout=GameName`) in OBS Studio to force individual scenes or browser sources to load specific profiles automatically.
 

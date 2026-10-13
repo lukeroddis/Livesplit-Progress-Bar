@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "layout-v1.json",
+  "title": "LiveSplit Minimal Overlay Layout Profile",
+  "description": "Schema definition for extensible LiveSplit Minimal Overlay layout profiles",
+  "type": "object",
+  "required": ["version", "name", "components", "style"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema format version"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Legacy schema version alias"
+    },
+    "name": {
+      "type": "string",
+      "description": "Profile name (e.g. Super Mario 64, Retro 4:3)"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the layout was exported"
+    },
+    "generator": {
+      "type": "string",
+      "description": "Application name and version that generated this file"
+    },
+    "components": {
+      "type": "object",
+      "description": "Screen coordinates, visibility, and scale of HUD components",
+      "properties": {
+        "title": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "scale": { "type": "number" },
+            "visible": { "type": "boolean" }
+          }
+        },
+        "timers": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "scale": { "type": "number" },
+            "visible": { "type": "boolean" }
+          }
+        },
+        "track": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "scale": { "type": "number" },
+            "visible": { "type": "boolean" },
+            "docked": { "type": "string", "enum": ["none", "bottom", "left", "right"] }
+          }
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "description": "Styling, geometry, and layout orientation",
+      "properties": {
+        "orientation": { "type": "string", "enum": ["horizontal", "vertical"] },
+        "namePos": { "type": "string", "enum": ["top", "bottom", "left", "right"] },
+        "deltaPos": { "type": "string", "enum": ["top", "bottom", "left", "right"] },
+        "bgOpacity": { "type": "integer", "minimum": 0, "maximum": 95 },
+        "bgBlur": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "bgTargets": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "boolean" },
+            "timers": { "type": "boolean" },
+            "track": { "type": "boolean" }
+          }
+        },
+        "nameFontSize": { "type": "integer" },
+        "deltaFontSize": { "type": "integer" },
+        "barHeight": { "type": "integer" },
+        "dotSize": { "type": "integer" },
+        "ghostPinLength": { "type": "integer" },
+        "logoHeight": { "type": "integer" }
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "description": "Timer and runner preferences",
+      "properties": {
+        "timerDisplayMode": { "type": "string", "enum": ["gametime", "realtime", "both"] },
+        "timingMethodFocus": { "type": "string", "enum": ["GameTime", "RealTime"] },
+        "ghostComparison": { "type": "string" },
+        "ghostOpacity": { "type": "integer" },
+        "splitDensity": { "type": "string" },
+        "splitAngle": { "type": "string" },
+        "discardGoldsOnReset": { "type": "boolean" },
+        "syncHotkeys": { "type": "boolean" }
+      }
+    },
+    "customLogo": {
+      "type": ["string", "null"],
+      "description": "Base64 data URL for custom game logo, or null"
+    }
+  },
+  "additionalProperties": true
+}

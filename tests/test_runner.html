@@ -113,6 +113,10 @@
     <button id="btn-export-profile"></button>
     <input type="file" id="input-import-profile">
     <div id="profile-bar-default"></div>
+    <div id="profile-dropdown-wrap"></div>
+    <button id="btn-profile-dropdown"></button>
+    <span id="profile-dropdown-label"></span>
+    <div id="profile-dropdown-list"></div>
     <div id="profile-bar-new"></div>
     <input type="text" id="input-new-profile-name">
     <button id="btn-confirm-new-profile"></button>
@@ -120,6 +124,7 @@
     <div id="profile-bar-delete"></div>
     <button id="btn-confirm-delete-profile"></button>
     <button id="btn-cancel-delete-profile"></button>
+    <button id="btn-open-import-modal"></button>
     <div id="layout-export-modal"></div>
     <button id="btn-close-export-modal"></button>
     <div id="export-status-banner"></div>
@@ -127,6 +132,13 @@
     <textarea id="export-json-textarea"></textarea>
     <button id="btn-copy-export-json"></button>
     <button id="btn-redownload-export-json"></button>
+    <div id="layout-import-modal"></div>
+    <button id="btn-close-import-modal"></button>
+    <span id="import-file-name-label"></span>
+    <textarea id="import-json-textarea"></textarea>
+    <div id="import-error-msg"></div>
+    <button id="btn-cancel-import"></button>
+    <button id="btn-apply-import-json"></button>
   </div>
 
   <div class="header">
@@ -548,7 +560,8 @@
       });
       it("generates schema v1 export object with required properties", () => {
         const exp = window.hudLayout.createProfileExport("TestProfile");
-        assertEqual(exp.schemaVersion, 1);
+        assertEqual(exp.version, 1);
+        assertEqual(exp.$schema, undefined);
         assertEqual(exp.name, "TestProfile");
         assertEqual(typeof exp.components, "object");
         assertEqual(typeof exp.style, "object");
