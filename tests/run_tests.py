@@ -1069,6 +1069,34 @@ def test_custom_game_logo_feature():
     print("✓ Custom game logo markup, CSS, storage, and URL handling tests passed.")
 
 
+def test_overdue_split_bar_glow():
+    """Verify overdue/time-exceeded active split bar chunk has prominent glowing styling and unclipped overflow."""
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css_src = f.read()
+
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(overlay_path, "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+
+    # style.css checks
+    assert ".segment-bar-fill.overdue" in css_src, "style.css must style .segment-bar-fill.overdue"
+    assert "overflow: visible !important;" in css_src, \
+        "style.css must unclip .segment-bar-bg when overdue so the glow radiates outside the bar"
+    assert "pulse-overdue" in css_src, "style.css must define pulse-overdue animation"
+    assert "@keyframes pulse-overdue" in css_src, "style.css must define @keyframes pulse-overdue"
+    assert "box-shadow:" in css_src and "rgba(239, 68, 68" in css_src, \
+        "style.css must use vibrant red neon box-shadow on overdue bar"
+
+    # overlay.js checks
+    assert 'fill.classList.add("overdue");' in overlay_src, \
+        "overlay.js must toggle overdue on fill when progressRatio > 1.0"
+    assert 'fill.parentElement.classList.add("overdue");' in overlay_src, \
+        "overlay.js must toggle overdue on fill.parentElement for unclipped container glow"
+
+    print("✓ Overdue split bar chunk prominent red glow & animation tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1096,6 +1124,7 @@ def main():
         test_undo_split_and_reconnection_safety()
         test_completed_split_dot_coloring()
         test_custom_game_logo_feature()
+        test_overdue_split_bar_glow()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1111,4 +1140,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

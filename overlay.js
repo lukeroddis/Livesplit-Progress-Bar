@@ -43,7 +43,7 @@ const ALL_SPLIT_STATE_CLASSES = [
   "completed", "current", "target-time", 
   "ahead-gaining", "ahead-losing", 
   "behind-gaining", "behind-losing", 
-  "gold", 
+  "gold", "overdue",
   ...ALL_DELTA_CLASSES
 ];
 let cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
@@ -1050,6 +1050,7 @@ function updateTrackStatus(idx) {
         } else if (fill) {
           fill.style.width = "100%";
           fill.style.height = "100%";
+          if (fill.parentElement) fill.parentElement.classList.remove("overdue");
         }
       } else if (i === idx) {
         item.classList.add("current");
@@ -1067,6 +1068,7 @@ function updateTrackStatus(idx) {
           fill.style.width = isVertical ? "100%" : "0%";
           fill.style.height = isVertical ? "0%" : "100%";
           fill.className = "segment-bar-fill";
+          if (fill.parentElement) fill.parentElement.classList.remove("overdue");
         }
         const deltaSpan = document.getElementById(`delta-val-${i}`);
         if (deltaSpan) {
@@ -1080,6 +1082,7 @@ function updateTrackStatus(idx) {
         fill.style.width = isVertical ? "100%" : "0%";
         fill.style.height = isVertical ? "0%" : "100%";
         fill.className = "segment-bar-fill";
+        if (fill.parentElement) fill.parentElement.classList.remove("overdue");
       }
       const deltaSpan = document.getElementById(`delta-val-${i}`);
       const timeSpan = document.getElementById(`time-val-${i}`);
@@ -1132,8 +1135,10 @@ function updateLiveSegmentProgress(currentSec) {
 
     if (progressRatio > 1.0) {
       fill.classList.add("overdue");
+      if (fill.parentElement) fill.parentElement.classList.add("overdue");
     } else {
       fill.classList.remove("overdue");
+      if (fill.parentElement) fill.parentElement.classList.remove("overdue");
     }
   }
 
@@ -1765,6 +1770,7 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
     fill.style.width = "100%";
     fill.style.height = "100%";
     fill.className = `segment-bar-fill ${stateClass}`;
+    if (fill.parentElement) fill.parentElement.classList.remove("overdue");
   }
 
   item.classList.add("completed", stateClass);
@@ -1799,6 +1805,7 @@ function handleUndoSplit(newIdx, oldIdx) {
       fill.style.width = isVertical ? "100%" : "0%";
       fill.style.height = isVertical ? "0%" : "100%";
       fill.className = "segment-bar-fill";
+      if (fill.parentElement) fill.parentElement.classList.remove("overdue");
     }
     if (item) {
       item.classList.remove(...ALL_SPLIT_STATE_CLASSES);
@@ -2003,6 +2010,7 @@ async function pollLoop() {
             fill.style.width = isVert ? "100%" : "0%";
             fill.style.height = isVert ? "0%" : "100%";
             fill.className = "segment-bar-fill";
+            if (fill.parentElement) fill.parentElement.classList.remove("overdue");
           }
           if (item) {
             item.className = "split-item";
