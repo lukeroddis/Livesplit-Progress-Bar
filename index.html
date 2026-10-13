@@ -49,6 +49,7 @@
       </div>
     </div>
     <div class="title-group">
+      <img id="game-logo" class="game-logo" alt="Game Logo" style="display: none;">
       <span class="game-name" id="game-name">Speedrun Overlay</span>
       <span class="category-name" id="category-name">Load .lss or connect LiveSplit</span>
     </div>
@@ -195,6 +196,29 @@
         <button class="track-modal-close" id="btn-close-track-modal" title="Close">✕</button>
       </div>
       <div class="track-modal-body">
+
+        <!-- Game Title & Custom Logo -->
+        <div class="modal-section-title">Game Title &amp; Custom Logo</div>
+        <div class="modal-row">
+          <label>Game Title / Custom Logo</label>
+          <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <label for="input-game-logo" class="preset-pill-btn active" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Upload a PNG, JPG, or SVG game logo to replace the text title">
+                <span>📁 Upload Logo PNG/Image</span>
+              </label>
+              <input type="file" id="input-game-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+              <button type="button" class="preset-pill-btn" id="btn-remove-game-logo" style="display:none; color:#f87171;" title="Remove uploaded logo and restore LiveSplit text title">✕ Use Text Title</button>
+            </div>
+            <div id="game-logo-preview-wrap" style="display:none; align-items:center; gap:12px; padding:6px 12px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid rgba(148,163,184,0.2);">
+              <img id="game-logo-preview" src="" alt="Preview" style="max-height:40px; max-width:140px; object-fit:contain;">
+              <span id="game-logo-status" style="font-size:11px; color:#38bdf8; font-weight:600;">Custom Logo Active</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-row" id="row-logo-height" style="display:none;">
+          <label>Logo Max Height <span class="val-badge" id="val-logo-height">60px</span></label>
+          <input type="range" id="slider-logo-height" min="25" max="140" value="60" step="5">
+        </div>
 
         <!-- Background Plate & Readability -->
         <div class="modal-section-title">Background Plate & Readability</div>

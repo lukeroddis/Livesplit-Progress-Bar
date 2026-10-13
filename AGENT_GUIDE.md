@@ -103,6 +103,7 @@ Query these **strictly upon split index transition, start, or reset**:
 | `livesplit_timing_method` | String (`"GameTime"`, `"RealTime"`) | Active primary timing method focus. |
 | `livesplit_timing_method_manual` | Boolean string (`"true"` / `"false"`) | Whether runner manually overrode timing method focus. |
 | `livesplit_discard_gold_on_reset` | Boolean | Whether to discard in-run golds when a reset signal arrives. |
+| `livesplit_custom_logo` | String (Data URL or URI) | Custom uploaded game logo image replacing text title. |
 | `livesplit_lss_xml` | String (XML) | Cached `.lss` content for offline/instant reload. |
 
 ---

@@ -526,6 +526,25 @@ body.edit-mode .layout-toolbar {
   text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 4px #000;
 }
 
+.game-logo {
+  display: none;
+  max-width: 100%;
+  max-height: var(--game-logo-height, 60px);
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.85));
+  user-select: none;
+  -webkit-user-drag: none;
+  margin-bottom: 2px;
+}
+
+#hud-comp-title.has-logo .game-logo {
+  display: block;
+}
+
+#hud-comp-title.has-logo .game-name {
+  display: none;
+}
+
 .category-name {
   color: var(--text-muted);
   font-size: 18px;
@@ -852,34 +871,39 @@ body.edit-mode .layout-toolbar {
 }
 
 /* Completed Dots mapped to states */
-.split-item.completed.ahead-gaining .dot {
-  background: var(--ahead-gaining);
-  box-shadow: 0 0 8px rgba(22, 163, 74, 0.75);
+.split-item.completed.ahead-gaining .dot,
+.split-item.ahead-gaining .dot {
+  background: var(--ahead-gaining) !important;
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.85);
 }
 
-.split-item.completed.ahead-losing .dot {
-  background: var(--ahead-losing);
-  box-shadow: 0 0 8px rgba(134, 239, 172, 0.75);
+.split-item.completed.ahead-losing .dot,
+.split-item.ahead-losing .dot {
+  background: var(--ahead-losing) !important;
+  box-shadow: 0 0 10px rgba(134, 239, 172, 0.85);
 }
 
-.split-item.completed.behind-gaining .dot {
-  background: var(--behind-gaining);
-  box-shadow: 0 0 8px rgba(248, 113, 113, 0.75);
+.split-item.completed.behind-gaining .dot,
+.split-item.behind-gaining .dot {
+  background: var(--behind-gaining) !important;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.85);
 }
 
-.split-item.completed.behind-losing .dot {
-  background: var(--behind-losing);
-  box-shadow: 0 0 8px rgba(220, 38, 38, 0.75);
+.split-item.completed.behind-losing .dot,
+.split-item.behind-losing .dot {
+  background: var(--behind-losing) !important;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.85);
 }
 
-.split-item.completed.gold .dot {
+.split-item.completed.gold .dot,
+.split-item.gold .dot {
   background: var(--gold-color) !important;
-  box-shadow: 0 0 12px rgba(250, 204, 21, 0.95) !important;
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.95) !important;
 }
 
-/* Active Split */
+/* Active Split (cyan highlight overrides completed) */
 .split-item.current .dot {
-  background: var(--node-active);
+  background: var(--node-active) !important;
   transform: scale(1.35);
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.95);
 }

@@ -22,13 +22,81 @@
     bgBlur: 8,             // px (0 to 20)
     bgTitle: true,         // boolean
     bgTimers: true,        // boolean
-    bgTrack: true          // boolean
+    bgTrack: true,         // boolean
+    logoHeight: 60         // px (25 to 140)
   };
+
+  const LOGO_STORAGE_KEY = "livesplit_custom_logo";
 
   let layoutState = null;
   let currentTrackStyle = null;
   let isEditMode = false;
   let activePointerOp = null; // { type: 'drag'|'scale', compId, startX, startY, origX, origY, origScale }
+
+  function applyGameLogo(src, height) {
+    const titleComp = document.getElementById("hud-comp-title");
+    const logoImg = document.getElementById("game-logo");
+    const previewWrap = document.getElementById("game-logo-preview-wrap");
+    const previewImg = document.getElementById("game-logo-preview");
+    const removeBtn = document.getElementById("btn-remove-game-logo");
+    const rowHeight = document.getElementById("row-logo-height");
+    const sLogoHeight = document.getElementById("slider-logo-height");
+    const vLogoHeight = document.getElementById("val-logo-height");
+
+    const effectiveHeight = height || (currentTrackStyle && currentTrackStyle.logoHeight) || 60;
+    document.documentElement.style.setProperty("--game-logo-height", `${effectiveHeight}px`);
+
+    if (src && src.trim()) {
+      if (logoImg) {
+        logoImg.src = src;
+        logoImg.style.display = "block";
+      }
+      if (titleComp) {
+        titleComp.classList.add("has-logo");
+      }
+      if (previewImg) previewImg.src = src;
+      if (previewWrap) previewWrap.style.display = "flex";
+      if (removeBtn) removeBtn.style.display = "inline-flex";
+      if (rowHeight) rowHeight.style.display = "flex";
+    } else {
+      if (logoImg) {
+        logoImg.src = "";
+        logoImg.style.display = "none";
+      }
+      if (titleComp) {
+        titleComp.classList.remove("has-logo");
+      }
+      if (previewImg) previewImg.src = "";
+      if (previewWrap) previewWrap.style.display = "none";
+      if (removeBtn) removeBtn.style.display = "none";
+      if (rowHeight) rowHeight.style.display = "none";
+    }
+
+    if (sLogoHeight) sLogoHeight.value = effectiveHeight;
+    if (vLogoHeight) vLogoHeight.innerText = `${effectiveHeight}px`;
+  }
+
+  function removeGameLogo() {
+    try {
+      localStorage.removeItem(LOGO_STORAGE_KEY);
+    } catch (e) {
+      console.warn("Failed to clear logo from localStorage", e);
+    }
+    applyGameLogo(null);
+  }
+
+  function saveGameLogo(src) {
+    try {
+      if (src) {
+        localStorage.setItem(LOGO_STORAGE_KEY, src);
+      } else {
+        localStorage.removeItem(LOGO_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.warn("Failed to save logo to localStorage", e);
+    }
+    applyGameLogo(src);
+  }
 
   function getDefaultLayout() {
     const w = window.innerWidth || 1920;
@@ -189,6 +257,8 @@
     root.style.setProperty("--dot-size", `${currentTrackStyle.dotSize}px`);
     root.style.setProperty("--name-font-size", `${currentTrackStyle.nameFontSize}px`);
     root.style.setProperty("--delta-font-size", `${currentTrackStyle.deltaFontSize}px`);
+    const logoHeight = (currentTrackStyle.logoHeight != null ? currentTrackStyle.logoHeight : 60);
+    root.style.setProperty("--game-logo-height", `${logoHeight}px`);
     const pinLength = (currentTrackStyle.ghostPinLength != null ? currentTrackStyle.ghostPinLength : 16);
     root.style.setProperty("--ghost-needle-length", `${pinLength}px`);
     track.style.setProperty("--ghost-needle-length", `${pinLength}px`);
@@ -535,6 +605,29 @@
     if (rowTimerFocus) {
       rowTimerFocus.style.display = (curTimerMode === "both") ? "flex" : "none";
     }
+
+    // Custom Game Logo sync
+    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
+    const effLogoH = (currentTrackStyle && currentTrackStyle.logoHeight) || 60;
+    const sLogoH = document.getElementById("slider-logo-height");
+    const vLogoH = document.getElementById("val-logo-height");
+    if (sLogoH) sLogoH.value = effLogoH;
+    if (vLogoH) vLogoH.innerText = `${effLogoH}px`;
+    const previewWrap = document.getElementById("game-logo-preview-wrap");
+    const previewImg = document.getElementById("game-logo-preview");
+    const removeLogoBtn = document.getElementById("btn-remove-game-logo");
+    const rowLogoH = document.getElementById("row-logo-height");
+    if (savedLogo) {
+      if (previewImg) previewImg.src = savedLogo;
+      if (previewWrap) previewWrap.style.display = "flex";
+      if (removeLogoBtn) removeLogoBtn.style.display = "inline-flex";
+      if (rowLogoH) rowLogoH.style.display = "flex";
+    } else {
+      if (previewImg) previewImg.src = "";
+      if (previewWrap) previewWrap.style.display = "none";
+      if (removeLogoBtn) removeLogoBtn.style.display = "none";
+      if (rowLogoH) rowLogoH.style.display = "none";
+    }
   }
 
   function openTrackModal() {
@@ -561,6 +654,7 @@
     currentTrackStyle = Object.assign({}, DEFAULT_TRACK_STYLE);
     saveTrackStyle();
     applyTrackStyle();
+    removeGameLogo();
   }
 
   function applyComponentLayout(compId) {
@@ -805,6 +899,16 @@
       const g = ghostParam.toLowerCase().trim();
       if (window.setGhostComparison) window.setGhostComparison(g);
       else localStorage.setItem("livesplit_ghost_comparison", g);
+    }
+
+    const logoParam = params.get("logo");
+    if (logoParam) {
+      const l = logoParam.trim();
+      if (l.toLowerCase() === "none" || l.toLowerCase() === "off" || l.toLowerCase() === "false" || l.toLowerCase() === "0") {
+        removeGameLogo();
+      } else {
+        applyGameLogo(l);
+      }
     }
 
     if (edit === "1" || edit === "true") {
@@ -1343,6 +1447,40 @@
       sliderDotSize.addEventListener("change", saveTrackStyle);
     }
 
+    // Custom Game Logo Controls
+    const sliderLogoHeight = document.getElementById("slider-logo-height");
+    if (sliderLogoHeight) {
+      sliderLogoHeight.addEventListener("input", () => {
+        currentTrackStyle.logoHeight = parseInt(sliderLogoHeight.value, 10);
+        const v = document.getElementById("val-logo-height");
+        if (v) v.innerText = `${sliderLogoHeight.value}px`;
+        applyTrackStyle();
+      });
+      sliderLogoHeight.addEventListener("change", saveTrackStyle);
+    }
+
+    const inputGameLogo = document.getElementById("input-game-logo");
+    if (inputGameLogo) {
+      inputGameLogo.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (loadEvt) => {
+          saveGameLogo(loadEvt.target.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const btnRemoveGameLogo = document.getElementById("btn-remove-game-logo");
+    if (btnRemoveGameLogo) {
+      btnRemoveGameLogo.addEventListener("click", () => {
+        const fileInput = document.getElementById("input-game-logo");
+        if (fileInput) fileInput.value = "";
+        removeGameLogo();
+      });
+    }
+
     // Keyboard Hotkeys: 'E' / 'F2' toggles edit mode, 'Escape' exits modal or edit mode
     window.addEventListener("keydown", (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
@@ -1388,9 +1526,13 @@
   window.addEventListener("DOMContentLoaded", () => {
     layoutState = loadSavedLayout();
     currentTrackStyle = loadSavedTrackStyle();
-    parseUrlParameters();
     applyAllLayouts();
     applyTrackStyle();
+    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
+    if (savedLogo) {
+      applyGameLogo(savedLogo);
+    }
+    parseUrlParameters();
     setupPointerListeners();
     setupToolbarAndControls();
   });
@@ -1409,6 +1551,9 @@
     setTrackOrientation,
     setEditMode,
     resetLayout,
-    applyAllLayouts
+    applyAllLayouts,
+    applyGameLogo,
+    removeGameLogo,
+    saveGameLogo
   };
 })();

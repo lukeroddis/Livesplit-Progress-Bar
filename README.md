@@ -69,7 +69,14 @@ Edit and customize your layout in real time directly inside the browser or OBS I
   - **Frosted Blur Slider**: Configurable from `0px` to `20px`.
   - **Component Control**: Toggle background plates independently on Game Title, Timers, or Track.
 
-### 6. Multiple Comparison Targets
+### 6. Custom Game Logo Image Option
+Replace the standard LiveSplit text title with a high-resolution PNG, SVG, or WebP game logo:
+* **One-Click Upload**: Upload any PNG, JPG, WebP, or SVG logo directly from the **🎨 Bar Styles** modal (`Upload Logo PNG/Image`).
+* **LocalStorage Persistence**: Saved as a base64 Data URL, surviving OBS scene transitions, profile reloads, and browser restarts.
+* **Responsive Height Control**: Adjust logo height from `25px` to `140px` via the modal slider, with full proportional scaling support in Layout Edit Mode (`E`).
+* **Instant Revert**: Click `✕ Use Text Title` at any time to return to the LiveSplit text title.
+
+### 7. Multiple Comparison Targets
 Seamlessly switch target benchmarks:
 * **Personal Best (PB)**
 * **Best Segments (Sum of Best)**
@@ -78,7 +85,7 @@ Seamlessly switch target benchmarks:
 * **Custom Comparisons** (any comparison tracks declared in your `.lss` file)
 * *Quick Cycle*: Click the **`Comp: PB`** badge in the bottom utility bar to cycle comparisons on the fly.
 
-### 7. Live Ghost Runner Comparison (Live Racing Pace)
+### 8. Live Ghost Runner Comparison (Live Racing Pace)
 Bring the "ghost runner" mechanic from racing games directly to your speedrun HUD:
 * **Interactive Ghost Pin**: A sleek, glowing marker advances along the progress track in real time to show where a comparison run was at that exact second:
   - **World Record (`🏆`)**: Shows World Record position live on the bar.
@@ -130,6 +137,7 @@ For multi-monitor or multi-source OBS setups, load specific isolated components 
 | `?bgblur=8` | Set frosted glass blur in pixels | `index.html?bgblur=8` |
 | `?namepos=top\|bottom\|left\|right` | Set split title position | `index.html?namepos=left` |
 | `?deltapos=top\|bottom\|left\|right` | Set delta and time position | `index.html?deltapos=right` |
+| `?logo=path/to/logo.png` | Load custom game logo image (or `?logo=none` to force text) | `index.html?logo=logo.png` |
 | `?edit=1` | Launch directly into Layout Edit Mode | `index.html?edit=1` |
 | `?hide=title,timers` | Hide specific components via query | `index.html?hide=title,timers` |
 

@@ -997,6 +997,78 @@ def test_undo_split_and_reconnection_safety():
     print("✓ LiveSplit Undo Split synchronization and connection safety unit tests passed.")
 
 
+def test_completed_split_dot_coloring():
+    """Verify completed split nodes color their dots according to split delta/state."""
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(overlay_path, "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css_src = f.read()
+
+    # overlay.js must retain 'completed' alongside stateClass on split items
+    assert 'item.classList.add("completed", stateClass);' in overlay_src, \
+        "overlay.js must add both 'completed' and stateClass to item on split completion"
+
+    # style.css must define color rules with !important for all 4 states + gold
+    states = ["ahead-gaining", "ahead-losing", "behind-gaining", "behind-losing", "gold"]
+    for s in states:
+        assert f".split-item.{s} .dot" in css_src or f".split-item.completed.{s} .dot" in css_src, \
+            f"style.css must style dots for state: {s}"
+
+    # Verify background !important on completed dots to override idle dot styling
+    assert "background: var(--ahead-gaining) !important;" in css_src
+    assert "background: var(--behind-losing) !important;" in css_src
+    assert "background: var(--gold-color) !important;" in css_src
+
+    # Current split dot must override with cyan
+    assert ".split-item.current .dot" in css_src
+    assert "background: var(--node-active) !important;" in css_src
+
+    print("✓ Completed split node dot coloring and state styling tests passed.")
+
+
+def test_custom_game_logo_feature():
+    """Verify custom game logo markup, CSS rules, state management, and layout exports."""
+    html_path = os.path.join(ROOT_DIR, "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        html_src = f.read()
+
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css_src = f.read()
+
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+    with open(layout_path, "r", encoding="utf-8") as f:
+        layout_src = f.read()
+
+    # HTML checks
+    assert 'id="game-logo"' in html_src, "index.html must contain #game-logo"
+    assert 'id="input-game-logo"' in html_src, "index.html must contain #input-game-logo file input"
+    assert 'id="btn-remove-game-logo"' in html_src, "index.html must contain #btn-remove-game-logo button"
+    assert 'id="slider-logo-height"' in html_src, "index.html must contain #slider-logo-height"
+    assert 'id="game-logo-preview-wrap"' in html_src, "index.html must contain #game-logo-preview-wrap"
+
+    # CSS checks
+    assert ".game-logo" in css_src, "style.css must style .game-logo"
+    assert "var(--game-logo-height" in css_src, "style.css must use --game-logo-height"
+    assert "#hud-comp-title.has-logo .game-logo" in css_src, "style.css must display logo when has-logo is set"
+    assert "#hud-comp-title.has-logo .game-name" in css_src, "style.css must hide text title when has-logo is set"
+
+    # layout.js checks
+    assert 'LOGO_STORAGE_KEY = "livesplit_custom_logo"' in layout_src, "layout.js must define LOGO_STORAGE_KEY"
+    assert "function applyGameLogo" in layout_src, "layout.js must define applyGameLogo"
+    assert "function removeGameLogo" in layout_src, "layout.js must define removeGameLogo"
+    assert "function saveGameLogo" in layout_src, "layout.js must define saveGameLogo"
+    assert 'params.get("logo")' in layout_src, "layout.js must parse ?logo= URL parameter"
+    assert "localStorage.getItem(LOGO_STORAGE_KEY)" in layout_src, "layout.js must load saved logo from localStorage"
+    assert "applyGameLogo," in layout_src and "removeGameLogo," in layout_src, \
+        "layout.js window.hudLayout must export applyGameLogo and removeGameLogo"
+
+    print("✓ Custom game logo markup, CSS, storage, and URL handling tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1022,6 +1094,8 @@ def main():
         test_quick_settings_menu_architecture()
         test_draggable_settings_and_timer_display_modes()
         test_undo_split_and_reconnection_safety()
+        test_completed_split_dot_coloring()
+        test_custom_game_logo_feature()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1037,3 +1111,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

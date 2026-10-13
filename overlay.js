@@ -1767,7 +1767,7 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
     fill.className = `segment-bar-fill ${stateClass}`;
   }
 
-  item.classList.add(stateClass);
+  item.classList.add("completed", stateClass);
 }
 
 function handleUndoSplit(newIdx, oldIdx) {
