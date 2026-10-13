@@ -1,4 +1,4 @@
-# LiveSplit Minimal Overlay
+# LiveSplit Progress Bar
 
 <p align="center">
   <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml"><img src="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Test Suite"></a>
@@ -13,9 +13,9 @@
   <img src="assets/MainImage.png" alt="LiveSplit Minimal Overlay Progress Track" width="850">
 </p>
 
-A modern, widescreen-optimized HUD and progress bar overlay for speedrunners, designed for standalone web browsers and OBS Studio Browser Sources (1080p, 1440p, 4K).
+A modern HUD and progress bar overlay for speedrunners, designed for standalone web browsers and OBS Studio Browser Sources (1080p, 1440p, 4K).
 
-Traditional LiveSplit layouts take up substantial vertical screen space over modern 16:9 gameplay. This overlay delivers a minimal, bottom-docked or floating horizontal progress track, dynamic dual timers, and full LiveSplit state parity—freeing up screen real estate for the game.
+Traditional LiveSplit layouts take up substantial vertical screen space over modern 16:9 gameplay. This overlay delivers a minimalist, bottom-docked or floating horizontal progress track, dynamic dual timers, and full LiveSplit state parity—freeing up screen real estate for the game.
 
 ---
 
