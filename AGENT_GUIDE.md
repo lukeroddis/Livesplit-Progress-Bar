@@ -98,6 +98,10 @@ Query these **strictly upon split index transition, start, or reset**:
 | `livesplit_bg_blur` | Integer (`0`–`20`) | Background backdrop-filter blur in pixels. |
 | `livesplit_bg_targets` | JSON Object (`{title: bool, timers: bool, track: bool}`) | Independent background plate toggles. |
 | `livesplit_track_styles` | JSON Object | Font sizes, bar thickness, dot size, name/delta positions. |
+| `livesplit_settings_pos` | JSON Object (`{left, top}`) | Saved screen coordinates for the draggable settings panel. |
+| `livesplit_timer_display_mode` | String (`"gametime"`, `"realtime"`, `"both"`) | Timer display visibility mode. |
+| `livesplit_timing_method` | String (`"GameTime"`, `"RealTime"`) | Active primary timing method focus. |
+| `livesplit_timing_method_manual` | Boolean string (`"true"` / `"false"`) | Whether runner manually overrode timing method focus. |
 | `livesplit_discard_gold_on_reset` | Boolean | Whether to discard in-run golds when a reset signal arrives. |
 | `livesplit_lss_xml` | String (XML) | Cached `.lss` content for offline/instant reload. |
 

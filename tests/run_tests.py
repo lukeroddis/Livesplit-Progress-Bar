@@ -863,6 +863,8 @@ def test_draggable_settings_and_timer_display_modes():
     assert "ctrl-timer-focus" in layout_js, "layout.js missing ctrl-timer-focus handler"
     assert "ctrl-timer-focus" in html, "index.html missing ctrl-timer-focus segmented control"
     assert "getTimerDisplayMode" in layout_js, "layout.js missing getTimerDisplayMode call in syncTrackModalUI"
+    assert "row-timer-focus" in overlay_js and "row-timer-focus" in layout_js, \
+        "overlay.js and layout.js must toggle row-timer-focus visibility conditionally"
 
     # 6. Algorithmic unit test: 4-state timing method cycle simulation
     def cycle_timing_state(mode, focus):

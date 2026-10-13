@@ -39,9 +39,11 @@ Traditional LiveSplit layouts take up substantial vertical screen space over mod
   - Gold Split (Personal Best Segment): Vivid Gold / Yellow
 * **Intelligent Live Delta Reveal**: Hides the active delta while on pace for a Gold split; dynamically reveals the ticking delta the moment time is lost.
 
-### 2. Dynamic Dual Timers
-* **Primary Timer (54px)**: Auto-detects and prioritizes the active timing method (Game Time vs Real Time), swapping primary display dynamically.
+### 2. Dynamic Dual Timers & Focus Control
+* **Flexible Display Modes**: Toggle between **Game Time**, **Real Time**, or **Both** using the footer `Time:` badge, the Bar Styles modal (`🎨 Bar Styles`), or URL query parameter (`?timer=gametime|realtime|both`).
+* **Direct Click-to-Focus**: When both timers are displayed, click directly on either the **Game Time** (`#block-igt`) or **Real Time** (`#block-rta`) timer block to immediately focus that method as the primary timer (large 54px typography) and have split comparisons benchmark against it.
 * **Secondary Timer (24px)**: Keeps the alternate time format visible with low visual intrusion.
+
 
 ### 3. Interactive HUD Layout Editor
 Edit and customize your layout in real time directly inside the browser or OBS Interact window:
@@ -100,6 +102,12 @@ Bring the overlay into a clean vertical sidebar layout tailored for 4:3 pillarbo
 * **Screen Edge Docking**: Drag the vertical sidebar in Edit Mode (**`E`**) to snap to the left or right edges of the screen (`docked-left` / `docked-right`).
 * **Vertical Ghost Runner & Beacons**: Live ghost runner tracks vertically down the timeline with dedicated top (`▲`) and bottom (`▼`) off-screen beacons.
 
+### 9. Draggable Quick Settings & .lss Loader Menu
+* **Discreet Stream-Safe Trigger**: The bottom-right `Settings & .lss` trigger pill remains invisible during live OBS capture and fades in softly when the mouse moves over the window.
+* **Click-to-Latch Activation**: Clicking the trigger pill presses it down into a sunken active state (`.is-pressed`), locking the quick settings card open. Click it again, press `Esc`, or click the `✕` close button to dismiss.
+* **Header Drag-and-Drop**: Click and drag the menu header anywhere on screen to prevent overlap with your track or OBS widgets; double-click the header or click `↺` to reset position.
+* **Integrated .lss Dropzone**: Drag and drop any `.lss` splits file directly onto the prominent card dropzone to reload splits instantly.
+
 ---
 
 ## 🎛️ Standalone OBS URL Parameters
@@ -111,6 +119,7 @@ For multi-monitor or multi-source OBS setups, load specific isolated components 
 | `?view=track` | Display only the Progress Track | `index.html?view=track` |
 | `?view=timers` | Display only the Dual Timers | `index.html?view=timers` |
 | `?view=title` | Display only the Game Title & Category | `index.html?view=title` |
+| `?timer=gametime\|realtime\|both` | Set timer visibility mode | `index.html?timer=gametime` |
 | `?orient=vertical\|horizontal` | Set track orientation to Vertical or Horizontal | `index.html?orient=vertical` |
 | `?splits=all` | Fit all splits on screen without scrolling | `index.html?splits=all` |
 | `?splits=12` | Force exactly 12 splits on screen | `index.html?splits=12` |

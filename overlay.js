@@ -689,6 +689,10 @@ function setTimerDisplayMode(mode, focusMethod) {
   document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
   });
+  const rowTimerFocus = document.getElementById("row-timer-focus");
+  if (rowTimerFocus) {
+    rowTimerFocus.style.display = (mode === "both") ? "flex" : "none";
+  }
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     if (currentTimingMethod === "GameTime") ws.send("switchto gametime");
@@ -1043,6 +1047,9 @@ function updateTrackStatus(idx) {
         if (lockedDeltas[i]) {
           const { deltaInfo, stateClass, splitTimeSec } = lockedDeltas[i];
           setDeltaDisplay(i, deltaInfo, stateClass, splitTimeSec);
+        } else if (fill) {
+          fill.style.width = "100%";
+          fill.style.height = "100%";
         }
       } else if (i === idx) {
         item.classList.add("current");

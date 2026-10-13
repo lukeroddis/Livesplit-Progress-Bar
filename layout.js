@@ -530,6 +530,11 @@
     document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.getAttribute("data-val") === curFocus);
     });
+
+    const rowTimerFocus = document.getElementById("row-timer-focus");
+    if (rowTimerFocus) {
+      rowTimerFocus.style.display = (curTimerMode === "both") ? "flex" : "none";
+    }
   }
 
   function openTrackModal() {
