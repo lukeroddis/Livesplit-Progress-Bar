@@ -662,6 +662,35 @@ def test_ghost_pin_length_zero_track():
     print("✓ Zero-length ghost pin and needle sizing unit tests passed.")
 
 
+def test_start_node_and_bar_fill_geometry():
+    """Verify Start node active cyan styling and progress bar full-height fill geometry."""
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+
+    # 1. Start node active styling in CSS
+    assert "#node-start.active .dot" in css or ".split-item.origin-node.active .dot" in css, \
+        "style.css missing active Start node dot rule"
+    assert "var(--node-active)" in css, "style.css missing var(--node-active) reference"
+
+    # 2. Horizontal progress bar fill must enforce 100% height (full bar thickness)
+    assert ".track:not(.vertical) .segment-bar-fill" in css and "height: 100% !important" in css, \
+        "style.css must enforce 100% height for horizontal progress bar fill"
+
+    # 3. overlay.js must toggle .active on #node-start based on idx >= 0
+    js_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(js_path, "r", encoding="utf-8") as f:
+        js = f.read()
+    assert 'nodeStart.classList.toggle("active", idx >= 0)' in js, \
+        "overlay.js missing nodeStart active toggle"
+
+    # 4. overlay.js updateLiveSegmentProgress must preserve full height in horizontal mode
+    assert 'fill.style.height = "100%"' in js, \
+        "overlay.js must set fill height to 100% in horizontal mode"
+
+    print("✓ Start node cyan lighting and progress bar fill geometry tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -683,6 +712,7 @@ def main():
         test_multi_ghost_selection_logic()
         test_track_orientation_unit()
         test_ghost_pin_length_zero_track()
+        test_start_node_and_bar_fill_geometry()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

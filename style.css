@@ -711,6 +711,23 @@ body.edit-mode .layout-toolbar {
   display: none;
 }
 
+/* Light up Start node cyan when run is active */
+.split-item.origin-node.active .dot,
+#node-start.active .dot {
+  background: var(--node-active) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.95);
+}
+
+.split-item.origin-node.active .split-name,
+#node-start.active .split-name {
+  color: #38bdf8;
+}
+
+.split-item.origin-node.active .split-time-val,
+#node-start.active .split-time-val {
+  color: #ffffff;
+}
+
 .segment-bar-fill {
   width: 0%;
   height: 100%;
@@ -718,6 +735,10 @@ body.edit-mode .layout-toolbar {
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.85);
   transition: width 0.1s linear, background 0.2s ease, box-shadow 0.2s ease;
   border-radius: calc(var(--bar-height, 6px) / 2);
+}
+
+.track:not(.vertical) .segment-bar-fill {
+  height: 100% !important;
 }
 
 /* 4-State Fill Styles */

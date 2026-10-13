@@ -733,6 +733,9 @@ function renderTrack() {
   // 1. Initial Start Node
   const startItem = document.createElement("div");
   startItem.className = "split-item origin-node completed";
+  if (currentIndex >= 0) {
+    startItem.classList.add("active");
+  }
   startItem.id = "node-start";
 
   const startDelta = document.createElement("div");
@@ -828,6 +831,11 @@ function updateTrackStatus(idx) {
     }
   }
 
+  const nodeStart = document.getElementById("node-start");
+  if (nodeStart) {
+    nodeStart.classList.toggle("active", idx >= 0);
+  }
+
   for (let i = 0; i < splitsList.length; i++) {
     const item = document.getElementById(`item-${i}`);
     const fill = document.getElementById(`fill-${i}`);
@@ -853,8 +861,8 @@ function updateTrackStatus(idx) {
         }
       } else {
         if (fill) {
-          fill.style.width = "0%";
-          fill.style.height = "0%";
+          fill.style.width = isVertical ? "100%" : "0%";
+          fill.style.height = isVertical ? "0%" : "100%";
           fill.className = "segment-bar-fill";
         }
         const deltaSpan = document.getElementById(`delta-val-${i}`);
@@ -866,8 +874,8 @@ function updateTrackStatus(idx) {
     } else {
       item.className = "split-item";
       if (fill) {
-        fill.style.width = "0%";
-        fill.style.height = "0%";
+        fill.style.width = isVertical ? "100%" : "0%";
+        fill.style.height = isVertical ? "0%" : "100%";
         fill.className = "segment-bar-fill";
       }
       const deltaSpan = document.getElementById(`delta-val-${i}`);
@@ -905,10 +913,16 @@ function updateLiveSegmentProgress(currentSec) {
 
   // 1. Progress Bar Fill (universal for horizontal and vertical)
   if (fill) {
+    const isVertical = document.getElementById("track")?.classList.contains("vertical");
     const progressRatio = Math.max(0, elapsedInSegment / expectedDuration);
     const pct = Math.min(100, progressRatio * 100);
-    fill.style.width = `${pct.toFixed(1)}%`;
-    fill.style.height = `${pct.toFixed(1)}%`;
+    if (isVertical) {
+      fill.style.width = "100%";
+      fill.style.height = `${pct.toFixed(1)}%`;
+    } else {
+      fill.style.width = `${pct.toFixed(1)}%`;
+      fill.style.height = "100%";
+    }
 
     if (progressRatio > 1.0) {
       fill.classList.add("overdue");
@@ -1707,7 +1721,9 @@ async function pollLoop() {
             timeSpan.className = "split-time-val target-time";
           }
           if (fill) {
-            fill.style.width = "0%";
+            const isVert = document.getElementById("track")?.classList.contains("vertical");
+            fill.style.width = isVert ? "100%" : "0%";
+            fill.style.height = isVert ? "0%" : "100%";
             fill.className = "segment-bar-fill";
           }
           if (item) {
