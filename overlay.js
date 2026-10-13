@@ -1972,8 +1972,8 @@ async function pollLoop() {
     const idx = parseInt(splitIdxStr, 10);
 
     if (!isNaN(idx)) {
-      // Reset
-      if (idx === -1 || (idx === 0 && currentIndex > 0)) {
+      // Reset transition (only when transitioning from an active run to reset, or restarting from a later split)
+      if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0)) {
         lockedDeltas = {};
         completedSplitTimes = {};
         lastSplitRecordedSec = 0;
@@ -2439,6 +2439,87 @@ function cycleSplitAngle() {
   updateTrackDensityAndAngle();
 }
 
+function setupTrackScrollInteractions() {
+  const viewport = document.getElementById("track-viewport");
+  if (!viewport) return;
+
+  // 1. Mouse Wheel Scrolling (consistent with LiveSplit)
+  // When rolling the scroll wheel over the progress track or window background (and not in Edit Mode),
+  // scroll the split track horizontally (or vertically if sidebar).
+  window.addEventListener("wheel", (e) => {
+    // Only scroll track when NOT in Edit Mode
+    const isEdit = document.body.classList.contains("edit-mode") ||
+      (window.hudLayout && typeof window.hudLayout.isEditMode === "function" && window.hudLayout.isEditMode());
+    if (isEdit) return;
+
+    // Ignore wheel if cursor is over interactive cards/modals/inputs/dropdowns
+    if (e.target.closest("#footer-bar, .modal-backdrop, .layout-toolbar, .settings-profile-dropdown-wrap, input, textarea, select")) {
+      return;
+    }
+
+    const track = document.getElementById("track");
+    if (!track) return;
+    const isVertical = track.classList.contains("vertical");
+
+    let delta = 0;
+    if (isVertical) {
+      delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    } else {
+      // In horizontal track, both horizontal scroll (deltaX) and vertical mouse wheel (deltaY) scroll left/right
+      delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    }
+
+    if (e.deltaMode === 1) { // DOM_DELTA_LINE
+      delta *= 32;
+    } else if (e.deltaMode === 2) { // DOM_DELTA_PAGE
+      delta *= (isVertical ? viewport.clientHeight : viewport.clientWidth);
+    }
+
+    if (delta !== 0) {
+      if (isVertical) {
+        viewport.scrollTop += delta;
+      } else {
+        viewport.scrollLeft += delta;
+      }
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  // 2. Keyboard Arrow Key Scrolling (Left/Right in horizontal, Up/Down in vertical)
+  window.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+
+    const isEdit = document.body.classList.contains("edit-mode") ||
+      (window.hudLayout && typeof window.hudLayout.isEditMode === "function" && window.hudLayout.isEditMode());
+    if (isEdit) return;
+
+    const openModal = document.querySelector(".modal-backdrop.is-open");
+    if (openModal) return;
+
+    const track = document.getElementById("track");
+    if (!track) return;
+    const isVertical = track.classList.contains("vertical");
+
+    if (isVertical) {
+      if (e.key === "ArrowDown") {
+        viewport.scrollTop += 80;
+        e.preventDefault();
+      } else if (e.key === "ArrowUp") {
+        viewport.scrollTop -= 80;
+        e.preventDefault();
+      }
+    } else {
+      if (e.key === "ArrowRight") {
+        viewport.scrollLeft += 100;
+        e.preventDefault();
+      } else if (e.key === "ArrowLeft") {
+        viewport.scrollLeft -= 100;
+        e.preventDefault();
+      }
+    }
+  });
+}
+
 // ============================================================
 // 14. DRAGGABLE QUICK SETTINGS CONTROLLER & POSITION CLAMP
 // ============================================================
@@ -2658,6 +2739,7 @@ function initOverlay() {
   });
 
   initSettingsMenuDraggable();
+  setupTrackScrollInteractions();
   loadCachedSplits();
   updateTrackDensityAndAngle();
   updateGhostBadge();
@@ -2706,4 +2788,5 @@ window.toggleTimingMethod = toggleTimingMethod;
 window.resetSettingsMenuPosition = resetSettingsMenuPosition;
 window.toggleSettingsMenu = toggleSettingsMenu;
 window.handleUndoSplit = handleUndoSplit;
+window.setupTrackScrollInteractions = setupTrackScrollInteractions;
 window.initOverlay = initOverlay;

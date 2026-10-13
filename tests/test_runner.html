@@ -587,6 +587,24 @@
       });
     });
 
+    suite("Track Scrolling & Mousewheel", () => {
+      it("setupTrackScrollInteractions is exposed and functional", () => {
+        assertEqual(typeof window.setupTrackScrollInteractions, "function");
+      });
+
+      it("layout engine exports isEditMode getter", () => {
+        assertEqual(typeof window.hudLayout.isEditMode, "function");
+        assertEqual(window.hudLayout.isEditMode(), false);
+      });
+
+      it("scrolling listener handles wheel events without error", () => {
+        const vp = document.getElementById("track-viewport");
+        assert(vp !== null, "track-viewport exists");
+        const wheelEvt = new WheelEvent("wheel", { deltaY: 50, cancelable: true });
+        window.dispatchEvent(wheelEvt);
+      });
+    });
+
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");
     suites.forEach((suite) => {

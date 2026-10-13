@@ -2207,6 +2207,7 @@
     setVisibleSplits,
     setTrackOrientation,
     setEditMode,
+    isEditMode: () => isEditMode,
     resetLayout,
     applyAllLayouts,
     applyGameLogo,

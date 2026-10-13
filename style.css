@@ -616,9 +616,12 @@ body.edit-mode .layout-toolbar {
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-behavior: smooth;
   padding: 0;
   scrollbar-width: none;
+}
+
+.track-viewport:focus {
+  outline: none;
 }
 
 .track-viewport::-webkit-scrollbar {
@@ -1103,7 +1106,6 @@ body.edit-mode .layout-toolbar {
   max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  scroll-behavior: smooth;
   scrollbar-width: none;
 }
 

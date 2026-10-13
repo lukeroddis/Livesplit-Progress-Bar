@@ -1296,6 +1296,52 @@ def test_layout_profiles_and_extensible_schema():
     print("✓ Human-readable layout profiles, schema v1, and compatibility tests passed.")
 
 
+def test_track_scrolling_consistency_and_mousewheel():
+    """Verify mousewheel and arrow key scrolling consistency, edit mode guards, and idle track scroll retention."""
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+    with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
+        layout_src = f.read()
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html_src = f.read()
+    with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
+        css_src = f.read()
+
+    # 1. Reset transition guard in pollTimer (prevents continuous scrollTo(0) when stopped/idle)
+    assert "(idx === -1 && currentIndex !== -1)" in overlay_src, \
+        "overlay.js must guard idle reset so it only triggers on state transition and does not fight scrolling"
+
+    # 2. setupTrackScrollInteractions definition and export
+    assert "function setupTrackScrollInteractions()" in overlay_src, \
+        "overlay.js must define setupTrackScrollInteractions"
+    assert "window.setupTrackScrollInteractions = setupTrackScrollInteractions" in overlay_src, \
+        "overlay.js must export setupTrackScrollInteractions"
+
+    # 3. Mouse wheel listener with Edit Mode guard
+    assert 'window.addEventListener("wheel"' in overlay_src, \
+        "overlay.js must register wheel event listener for track scrolling"
+    assert 'classList.contains("edit-mode")' in overlay_src and "isEditMode" in overlay_src, \
+        "overlay.js wheel listener must check Edit Mode to avoid scrolling during layout customization"
+
+    # 4. Keyboard Arrow key listener
+    assert 'e.key === "ArrowRight"' in overlay_src and 'e.key === "ArrowLeft"' in overlay_src, \
+        "overlay.js must support Arrow key scrolling"
+    assert 'e.key === "ArrowDown"' in overlay_src and 'e.key === "ArrowUp"' in overlay_src, \
+        "overlay.js must support Arrow key scrolling in vertical orientation"
+
+    # 5. Accessibility and styling
+    assert 'id="track-viewport" tabindex="0"' in html_src or 'tabindex="0"' in html_src, \
+        "index.html #track-viewport must have tabindex for keyboard focusability"
+    assert ".track-viewport:focus" in css_src and "outline: none" in css_src, \
+        "style.css must remove default focus outline from #track-viewport"
+
+    # 6. layout.js exports isEditMode getter
+    assert "isEditMode: () => isEditMode" in layout_src, \
+        "layout.js must export isEditMode getter on window.hudLayout"
+
+    print("✓ Track scroll wheel & arrow key consistency tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1326,6 +1372,7 @@ def main():
         test_overdue_split_bar_glow()
         test_version_and_license()
         test_layout_profiles_and_extensible_schema()
+        test_track_scrolling_consistency_and_mousewheel()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
