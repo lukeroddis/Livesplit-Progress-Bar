@@ -95,6 +95,15 @@
     <div id="ctrl-track-orient"></div>
     <div id="ctrl-name-pos"></div>
     <div id="ctrl-delta-pos"></div>
+    <div id="ctrl-timer-display"></div>
+    <div id="quick-settings-wrap">
+      <div id="footer-bar">
+        <div class="settings-menu-header"></div>
+        <button id="btn-reset-settings-pos"></button>
+        <button id="btn-pin-settings"></button>
+      </div>
+    </div>
+    <button id="settings-trigger-pill"></button>
     <input type="file" id="file-input">
   </div>
 
@@ -399,6 +408,16 @@
           // Restore to horizontal
           window.hudLayout.setTrackOrientation("horizontal");
         }
+      });
+    });
+
+    describe("LiveSplit Undo Split & Connection Safety", () => {
+      it("exports handleUndoSplit on window", () => {
+        assertEqual(typeof window.handleUndoSplit, "function");
+      });
+      it("safely executes handleUndoSplit without errors", () => {
+        window.handleUndoSplit(0, 1);
+        assertEqual(true, true);
       });
     });
 

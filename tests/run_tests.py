@@ -841,6 +841,86 @@ def test_draggable_settings_and_timer_display_modes():
     print("✓ Draggable settings menu and timer display modes (Game/Real/Both) passed.")
 
 
+def test_undo_split_and_reconnection_safety():
+    """Verify LiveSplit Undo Split synchronization and socket reconnect race protection."""
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(overlay_path, "r", encoding="utf-8") as f:
+        overlay_js = f.read()
+
+    # 1. Verification of Undo Split handler in pollLoop and exported helper
+    assert "function handleUndoSplit" in overlay_js, "overlay.js missing handleUndoSplit function"
+    assert "window.handleUndoSplit = handleUndoSplit" in overlay_js, "overlay.js missing window.handleUndoSplit export"
+    assert "idx < currentIndex" in overlay_js, "overlay.js pollLoop missing idx < currentIndex check"
+    assert "handleUndoSplit(idx, currentIndex)" in overlay_js, "overlay.js pollLoop missing handleUndoSplit call"
+
+    # 2. Duplicate connection guard in connect()
+    assert "ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING" in overlay_js, \
+        "overlay.js connect() missing duplicate socket state guard"
+
+    # 3. Viewport scroll null-safety
+    assert "viewport && typeof viewport.scrollTo === 'function'" in overlay_js or \
+           'viewport && typeof viewport.scrollTo === "function"' in overlay_js, \
+        "overlay.js updateTrackStatus missing viewport null/scrollTo guard"
+
+    # 4. Algorithmic unit test: Undo Split state rollback simulation
+    class SplitTracker:
+        def __init__(self, targets):
+            self.targets = list(targets)
+            self.completed = {}
+            self.locked_deltas = {}
+            self.last_split_sec = 0.0
+            self.prev_delta_sec = 0.0
+            self.current_idx = 0
+
+        def split(self, time_sec, delta_sec):
+            prev_sec = self.completed.get(self.current_idx - 1, 0.0) if self.current_idx > 0 else 0.0
+            seg_dur = time_sec - prev_sec
+            assert seg_dur > 0, "Segment duration must be strictly positive"
+            self.completed[self.current_idx] = time_sec
+            self.locked_deltas[self.current_idx] = delta_sec
+            self.last_split_sec = time_sec
+            self.prev_delta_sec = delta_sec
+            self.current_idx += 1
+
+        def undo_split(self, new_idx):
+            assert new_idx < self.current_idx, "Undo index must be less than current index"
+            for i in range(new_idx, len(self.targets)):
+                self.completed.pop(i, None)
+                self.locked_deltas.pop(i, None)
+            self.last_split_sec = self.completed.get(new_idx - 1, 0.0) if new_idx > 0 else 0.0
+            self.prev_delta_sec = self.locked_deltas.get(new_idx - 1, 0.0) if new_idx > 0 else 0.0
+            self.current_idx = new_idx
+
+    # Simulate 3 splits
+    tracker = SplitTracker([50.0, 100.0, 150.0])
+    tracker.split(48.0, -2.0)   # Split 0 completed at 48s (-2s delta)
+    tracker.split(95.0, -5.0)   # Split 1 completed at 95s (-5s delta)
+    tracker.split(152.0, +2.0)  # Split 2 completed at 152s (+2s delta)
+
+    assert tracker.current_idx == 3
+    assert len(tracker.completed) == 3
+    assert tracker.last_split_sec == 152.0
+    assert tracker.prev_delta_sec == 2.0
+
+    # Runner hits "Undo Split" back to split 1 (index 1)
+    tracker.undo_split(1)
+    assert tracker.current_idx == 1
+    assert 1 not in tracker.completed
+    assert 2 not in tracker.completed
+    assert tracker.completed[0] == 48.0
+    assert tracker.last_split_sec == 48.0
+    assert tracker.prev_delta_sec == -2.0
+
+    # Runner resumes and splits at split 1 with a new time of 94.0s
+    tracker.split(94.0, -6.0)
+    assert tracker.current_idx == 2
+    assert tracker.completed[1] == 94.0
+    assert tracker.last_split_sec == 94.0
+    assert tracker.prev_delta_sec == -6.0
+
+    print("✓ LiveSplit Undo Split synchronization and connection safety unit tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -865,6 +945,7 @@ def main():
         test_start_node_and_bar_fill_geometry()
         test_quick_settings_menu_architecture()
         test_draggable_settings_and_timer_display_modes()
+        test_undo_split_and_reconnection_safety()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

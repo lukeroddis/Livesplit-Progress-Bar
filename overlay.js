@@ -1,3 +1,6 @@
+// ============================================================
+// 1. PROTOCOL CONSTANTS, FALLBACK DATA & GLOBAL RUNTIME STATE
+// ============================================================
 const WS_URL = "ws://localhost:16834/livesplit";
 
 // Generic fallback splits used if no .lss is loaded
@@ -30,6 +33,27 @@ let lastSplitRecordedSec = 0;
 let previousDeltaSeconds = 0;
 let lastElapsedSec = 0;
 
+// High-frequency render loop optimizations & memory caches
+const ALL_DELTA_CLASSES = [
+  "delta-ahead-gaining", "delta-ahead-losing", 
+  "delta-behind-gaining", "delta-behind-losing", 
+  "delta-gold"
+];
+const ALL_SPLIT_STATE_CLASSES = [
+  "completed", "current", "target-time", 
+  "ahead-gaining", "ahead-losing", 
+  "behind-gaining", "behind-losing", 
+  "gold", 
+  ...ALL_DELTA_CLASSES
+];
+let cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
+const nodeThresholdCache = new Map();
+const knownGhostMarkers = new Set();
+let commandQueue = Promise.resolve();
+
+// ============================================================
+// 2. HUD TITLE LABELS & TIMER DISPLAY HIERARCHY
+// ============================================================
 function setGameName(name) {
   const el = document.getElementById("game-name");
   if (el && name) {
@@ -105,6 +129,9 @@ function updateTimerDisplayHierarchy() {
   }
 }
 
+// ============================================================
+// 3. COMPARISONS NORMALIZATION & ACTIVE CURVES ENGINE
+// ============================================================
 function getShortComparisonName(name) {
   if (name === "Personal Best") return "PB";
   if (name === "Best Segments") return "Best Segs";
@@ -230,6 +257,9 @@ function cycleComparison() {
   applyActiveComparison(nextComp, true);
 }
 
+// ============================================================
+// 4. TIME UTILITIES & LIVE DELTA PARSING
+// ============================================================
 function timeStringToSeconds(tStr) {
   if (!tStr || tStr === "-" || tStr === "") return null;
   const str = tStr.trim();
@@ -365,6 +395,9 @@ function sanitizeComparisonTimes(times, fallbackTimes) {
   return result;
 }
 
+// ============================================================
+// 5. LSS XML SPLITS PARSER & HISTORICAL CURVES COMPUTATION
+// ============================================================
 function parseLSS(xmlText) {
   try {
     const parser = new DOMParser();
@@ -594,18 +627,23 @@ function parseLSS(xmlText) {
   }
 }
 
+// ============================================================
+// 6. STORAGE CACHE LOADER & TIMING METHOD CONTROLLER
+// ============================================================
 function updateGoldBadge() {
   const badge = document.getElementById("gold-toggle-badge");
   if (badge) {
-    const isEnabled = localStorage.getItem("livesplit_enable_golds") !== "false";
+    const isEnabled = cachedEnableGolds;
     badge.innerText = isEnabled ? "Golds: ON" : "Golds: OFF";
     badge.style.color = isEnabled ? "#facc15" : "rgba(148, 163, 184, 0.7)";
   }
 }
 
 function toggleGoldSegments() {
-  const current = localStorage.getItem("livesplit_enable_golds") !== "false";
-  localStorage.setItem("livesplit_enable_golds", (!current) ? "true" : "false");
+  const current = (localStorage.getItem("livesplit_enable_golds") !== "false");
+  const nextVal = (!current) ? "true" : "false";
+  localStorage.setItem("livesplit_enable_golds", nextVal);
+  cachedEnableGolds = (nextVal !== "false");
   updateGoldBadge();
 }
 
@@ -648,6 +686,7 @@ function toggleTimingMethod() {
 }
 
 function loadCachedSplits() {
+  cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
   const savedTimerMode = localStorage.getItem("livesplit_timer_display_mode");
   const params = new URLSearchParams(window.location.search);
   const urlTimer = params.get("timer") || params.get("time");
@@ -768,8 +807,11 @@ function loadCachedSplits() {
   }
 }
 
+// ============================================================
+// 7. LIVESPLIT SERVER CLIENT & SEQUENTIAL COMMAND QUEUE
+// ============================================================
 function sendCommand(cmd, timeoutMs = 80) {
-  return new Promise((resolve) => {
+  const execute = () => new Promise((resolve) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       resolve(null);
       return;
@@ -785,8 +827,17 @@ function sendCommand(cmd, timeoutMs = 80) {
       resolve(res);
     };
 
-    ws.send(cmd.trim());
+    try {
+      ws.send(cmd.trim());
+    } catch (e) {
+      clearTimeout(timer);
+      inflightResolver = null;
+      resolve(null);
+    }
   });
+
+  commandQueue = commandQueue.then(execute, execute);
+  return commandQueue;
 }
 
 async function syncLiveSplitMetadata() {
@@ -802,7 +853,11 @@ async function syncLiveSplitMetadata() {
   }
 }
 
+// ============================================================
+// 8. PROGRESS BAR TRACK RENDERER & STATUS DISPATCHER
+// ============================================================
 function renderTrack() {
+  nodeThresholdCache.clear();
   const track = document.getElementById("track");
   track.innerHTML = "";
 
@@ -888,21 +943,23 @@ function updateTrackStatus(idx) {
   const viewport = document.getElementById("track-viewport");
   const isVertical = document.getElementById("track")?.classList.contains("vertical");
 
-  if (idx < 0) {
-    if (isVertical) {
-      viewport.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      viewport.scrollTo({ left: 0, behavior: 'smooth' });
-    }
-  } else {
-    const activeItem = document.getElementById(`item-${idx}`);
-    if (activeItem) {
+  if (viewport && typeof viewport.scrollTo === "function") {
+    if (idx < 0) {
       if (isVertical) {
-        const scrollTarget = activeItem.offsetTop + (activeItem.offsetHeight / 2) - (viewport.clientHeight / 2);
-        viewport.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+        viewport.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        const scrollTarget = activeItem.offsetLeft + (activeItem.offsetWidth / 2) - (viewport.clientWidth / 2);
-        viewport.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+        viewport.scrollTo({ left: 0, behavior: 'smooth' });
+      }
+    } else {
+      const activeItem = document.getElementById(`item-${idx}`);
+      if (activeItem) {
+        if (isVertical) {
+          const scrollTarget = activeItem.offsetTop + (activeItem.offsetHeight / 2) - (viewport.clientHeight / 2);
+          viewport.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+        } else {
+          const scrollTarget = activeItem.offsetLeft + (activeItem.offsetWidth / 2) - (viewport.clientWidth / 2);
+          viewport.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+        }
       }
     }
   }
@@ -928,6 +985,7 @@ function updateTrackStatus(idx) {
         }
       } else if (i === idx) {
         item.classList.add("current");
+        item.classList.remove("completed");
         if (!lockedDeltas[i]) {
           const deltaSpan = document.getElementById(`delta-val-${i}`);
           if (deltaSpan) {
@@ -936,6 +994,7 @@ function updateTrackStatus(idx) {
           }
         }
       } else {
+        item.classList.remove("completed");
         if (fill) {
           fill.style.width = isVertical ? "100%" : "0%";
           fill.style.height = isVertical ? "0%" : "100%";
@@ -969,6 +1028,9 @@ function updateTrackStatus(idx) {
   }
 }
 
+// ============================================================
+// 9. HIGH-FREQUENCY LIVE PROGRESS & DELTA REVEAL (60 FPS)
+// ============================================================
 function updateLiveSegmentProgress(currentSec) {
   if (currentIndex < 0 || currentIndex >= splitsList.length || currentSec === null) return;
 
@@ -1010,7 +1072,7 @@ function updateLiveSegmentProgress(currentSec) {
   // 2. Live Delta on Current Split:
   // Displays and updates live once the runner begins losing time to the Best Segment
   if (deltaSpan) {
-    const isGoldsEnabled = (localStorage.getItem("livesplit_enable_golds") !== "false");
+    const isGoldsEnabled = cachedEnableGolds;
     const bestSec = (currentIndex < bestSegmentTimes.length && bestSegmentTimes[currentIndex] !== null && bestSegmentTimes[currentIndex] > 0)
       ? bestSegmentTimes[currentIndex]
       : null;
@@ -1028,29 +1090,27 @@ function updateLiveSegmentProgress(currentSec) {
 
     if (isLosingTimeToBest) {
       deltaSpan.innerText = formatDeltaSeconds(liveDeltaSec);
-
-      const allDeltaClasses = [
-        "delta-ahead-gaining", "delta-ahead-losing", 
-        "delta-behind-gaining", "delta-behind-losing", 
-        "delta-gold"
-      ];
-      deltaSpan.classList.remove(...allDeltaClasses);
-
-      if (liveDeltaSec <= 0) {
-        deltaSpan.classList.add(gainedTime ? "delta-ahead-gaining" : "delta-ahead-losing");
-      } else {
-        deltaSpan.classList.add(gainedTime ? "delta-behind-gaining" : "delta-behind-losing");
+      const targetClass = liveDeltaSec <= 0
+        ? (gainedTime ? "delta-ahead-gaining" : "delta-ahead-losing")
+        : (gainedTime ? "delta-behind-gaining" : "delta-behind-losing");
+      const expectedClass = `split-delta-val ${targetClass}`;
+      if (deltaSpan.className !== expectedClass) {
+        deltaSpan.className = expectedClass;
       }
     } else {
       // While still on pace to gold (within best segment time), keep delta hidden
-      deltaSpan.innerText = "";
-      deltaSpan.className = "split-delta-val";
+      if (deltaSpan.innerText !== "") {
+        deltaSpan.innerText = "";
+      }
+      if (deltaSpan.className !== "split-delta-val") {
+        deltaSpan.className = "split-delta-val";
+      }
     }
   }
 }
 
 // ============================================================
-// LIVE GHOST RUNNER COMPARISON ENGINE
+// 10. LIVE GHOST RUNNER ENGINE & MULTI-GHOST MARKERS
 // ============================================================
 let activeGhostComparisons = loadActiveGhostComparisons();
 let ghostComparison = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
@@ -1207,6 +1267,11 @@ function calculateGhostProgress(currentSec, times) {
 
 function getNodeTextThreshold(nodeEl, isNext = false) {
   if (!nodeEl) return 45;
+  const cacheKey = (nodeEl.id || "start") + (isNext ? "_next" : "_prev");
+  if (nodeThresholdCache.has(cacheKey)) {
+    return nodeThresholdCache.get(cacheKey);
+  }
+
   const track = document.getElementById("track");
   const isAngled = track && track.classList.contains("angled-text");
   const nameEl = nodeEl.querySelector(".split-name");
@@ -1214,16 +1279,20 @@ function getNodeTextThreshold(nodeEl, isNext = false) {
   const nameW = nameEl ? nameEl.offsetWidth : 60;
   const deltaW = deltaEl ? deltaEl.offsetWidth : 50;
 
+  let val = 45;
   if (isAngled) {
     if (!isNext) {
-      return Math.max(45, (nameW * 0.76) + 12);
+      val = Math.max(45, (nameW * 0.76) + 12);
     } else {
-      return Math.max(45, (deltaW / 2) + 15);
+      val = Math.max(45, (deltaW / 2) + 15);
     }
+  } else {
+    const maxW = Math.max(nameW, deltaW, 50);
+    val = (maxW / 2) + 14;
   }
 
-  const maxW = Math.max(nameW, deltaW, 50);
-  return (maxW / 2) + 14;
+  nodeThresholdCache.set(cacheKey, val);
+  return val;
 }
 
 function getOrCreateGhostMarker(ghostInfo) {
@@ -1249,15 +1318,15 @@ function getOrCreateGhostMarker(ghostInfo) {
     const iconSpan = marker.querySelector(".ghost-icon");
     if (iconSpan) iconSpan.innerText = ghostInfo.icon;
   }
+  knownGhostMarkers.add(marker);
   return marker;
 }
 
 function hideAllGhostMarkers() {
   const staticMarker = document.getElementById("ghost-marker");
   if (staticMarker) staticMarker.style.display = "none";
-  const dynamicMarkers = document.querySelectorAll(".ghost-marker");
-  dynamicMarkers.forEach(m => {
-    m.style.display = "none";
+  knownGhostMarkers.forEach((m) => {
+    if (m) m.style.display = "none";
   });
 }
 
@@ -1406,8 +1475,8 @@ function updateGhostRunner(currentSec) {
   // Hide static template marker and any marker not in active list
   const staticMarker = document.getElementById("ghost-marker");
   if (staticMarker) staticMarker.style.display = "none";
-  document.querySelectorAll(".ghost-marker").forEach((m) => {
-    if (!renderedMarkerIds.has(m.id)) {
+  knownGhostMarkers.forEach((m) => {
+    if (m && !renderedMarkerIds.has(m.id)) {
       m.style.display = "none";
     }
   });
@@ -1585,6 +1654,9 @@ function setGhostOpacity(pct) {
   }
 }
 
+// ============================================================
+// 11. DELTA DISPLAY ENGINE & UNDO SPLIT ROLLBACK CONTROLLER
+// ============================================================
 function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
   if (index < 0 || index >= splitsList.length) return;
   const el = document.getElementById(`delta-${index}`);
@@ -1596,20 +1668,11 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
   const timeSpan = document.getElementById(`time-val-${index}`) || el.querySelector(".split-time-val");
 
   // Clean up previous state classes
-  const allStates = [
-    "target-time", 
-    "ahead-gaining", "ahead-losing", 
-    "behind-gaining", "behind-losing", 
-    "gold", 
-    "delta-ahead-gaining", "delta-ahead-losing", 
-    "delta-behind-gaining", "delta-behind-losing", 
-    "delta-gold"
-  ];
-  el.classList.remove(...allStates);
-  item.classList.remove(...allStates);
+  el.classList.remove(...ALL_SPLIT_STATE_CLASSES);
+  item.classList.remove(...ALL_SPLIT_STATE_CLASSES);
 
   if (deltaSpan) {
-    deltaSpan.classList.remove(...allStates);
+    deltaSpan.classList.remove(...ALL_SPLIT_STATE_CLASSES);
     if (deltaInfo && deltaInfo.text) {
       deltaSpan.innerText = deltaInfo.text;
       deltaSpan.classList.add(`delta-${stateClass}`);
@@ -1619,7 +1682,7 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
   }
 
   if (timeSpan) {
-    timeSpan.classList.remove(...allStates);
+    timeSpan.classList.remove(...ALL_SPLIT_STATE_CLASSES);
     if (splitTimeSec !== null && splitTimeSec !== undefined && !isNaN(splitTimeSec)) {
       timeSpan.innerText = formatTargetTime(splitTimeSec);
       timeSpan.className = "split-time-val";
@@ -1639,6 +1702,64 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
   item.classList.add(stateClass);
 }
 
+function handleUndoSplit(newIdx, oldIdx) {
+  const isVertical = document.getElementById("track")?.classList.contains("vertical");
+
+  for (let i = newIdx; i < splitsList.length; i++) {
+    delete lockedDeltas[i];
+    delete completedSplitTimes[i];
+
+    const deltaSpan = document.getElementById(`delta-val-${i}`);
+    const timeSpan = document.getElementById(`time-val-${i}`);
+    const fill = document.getElementById(`fill-${i}`);
+    const item = document.getElementById(`item-${i}`);
+    const deltaEl = document.getElementById(`delta-${i}`);
+
+    if (deltaEl) {
+      deltaEl.classList.remove(...ALL_SPLIT_STATE_CLASSES);
+    }
+    if (deltaSpan) {
+      deltaSpan.innerText = "";
+      deltaSpan.className = "split-delta-val";
+    }
+    if (timeSpan) {
+      const targetVal = formatTargetTime(comparisonTimes[i]);
+      timeSpan.innerText = targetVal || "-";
+      timeSpan.className = "split-time-val target-time";
+    }
+    if (fill) {
+      fill.style.width = isVertical ? "100%" : "0%";
+      fill.style.height = isVertical ? "0%" : "100%";
+      fill.className = "segment-bar-fill";
+    }
+    if (item) {
+      item.classList.remove(...ALL_SPLIT_STATE_CLASSES);
+    }
+
+    // Revert temporary in-run gold segment improvements back to baseline
+    if (baselineBestSegmentTimesGT.length > 0 && baselineBestSegmentTimesRT.length > 0) {
+      bestSegmentTimesGT[i] = baselineBestSegmentTimesGT[i];
+      bestSegmentTimesRT[i] = baselineBestSegmentTimesRT[i];
+      const isRT = currentTimingMethod === "RealTime";
+      bestSegmentTimes[i] = isRT
+        ? (bestSegmentTimesRT[i] ?? bestSegmentTimesGT[i] ?? null)
+        : (bestSegmentTimesGT[i] ?? bestSegmentTimesRT[i] ?? null);
+    }
+  }
+
+  // Roll back lastSplitRecordedSec
+  lastSplitRecordedSec = (newIdx > 0 && completedSplitTimes[newIdx - 1] != null)
+    ? completedSplitTimes[newIdx - 1]
+    : 0;
+
+  // Roll back previousDeltaSeconds
+  if (newIdx > 0 && lockedDeltas[newIdx - 1] && lockedDeltas[newIdx - 1].deltaInfo) {
+    previousDeltaSeconds = lockedDeltas[newIdx - 1].deltaInfo.signedSeconds;
+  } else {
+    previousDeltaSeconds = 0;
+  }
+}
+
 function detectTimingMethodFromComp(splitIdx, compSec) {
   if (splitIdx < 0 || compSec === null || compSec <= 0) return null;
   const gtSec = (comparisonTimesGT && splitIdx < comparisonTimesGT.length) ? comparisonTimesGT[splitIdx] : null;
@@ -1656,9 +1777,15 @@ function detectTimingMethodFromComp(splitIdx, compSec) {
   return null;
 }
 
+// ============================================================
+// 12. WEBSOCKET CONNECTION & HIGH-FREQUENCY POLL LOOP
+// ============================================================
 let canQueryComparison = true;
 
 function connect() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
   ws = new WebSocket(WS_URL);
 
   ws.onopen = async () => {
@@ -1882,7 +2009,7 @@ async function pollLoop() {
 
           // 4. Evaluate Gold Split (Personal Best Segment)
           let isGold = false;
-          const isGoldsEnabled = (localStorage.getItem("livesplit_enable_golds") !== "false");
+          const isGoldsEnabled = cachedEnableGolds;
           const bestSec = (prevIdx < bestSegmentTimes.length && bestSegmentTimes[prevIdx] !== null && bestSegmentTimes[prevIdx] > 0)
             ? bestSegmentTimes[prevIdx]
             : null;
@@ -1985,6 +2112,9 @@ async function pollLoop() {
               }
             }
           }
+        } else if (currentIndex >= 0 && idx < currentIndex) {
+          // LiveSplit Undo Split triggered
+          handleUndoSplit(idx, currentIndex);
         }
         updateTrackStatus(idx);
       } else {
@@ -1999,6 +2129,9 @@ async function pollLoop() {
   }
 }
 
+// ============================================================
+// 13. TRACK DENSITY, AUTO-ANGLED TEXT & DRAG-AND-DROP LOADERS
+// ============================================================
 const fileInput = document.getElementById("file-input");
 if (fileInput) {
   fileInput.addEventListener("change", (e) => {
@@ -2038,6 +2171,7 @@ window.addEventListener("drop", (e) => {
 });
 
 function updateTrackDensityAndAngle() {
+  nodeThresholdCache.clear();
   const viewport = document.getElementById("track-viewport");
   const track = document.getElementById("track");
   if (!viewport || !track) return;
@@ -2216,6 +2350,9 @@ function cycleSplitAngle() {
   updateTrackDensityAndAngle();
 }
 
+// ============================================================
+// 14. DRAGGABLE QUICK SETTINGS CONTROLLER & POSITION CLAMP
+// ============================================================
 function resetSettingsMenuPosition() {
   const panel = document.getElementById("footer-bar");
   if (!panel) return;
@@ -2353,7 +2490,10 @@ function initSettingsMenuDraggable() {
   restoreSettingsMenuPosition();
 }
 
-window.onload = () => {
+// ============================================================
+// 15. INITIALIZATION & GLOBAL WINDOW INTERFACE
+// ============================================================
+function initOverlay() {
   document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
   document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
   document.getElementById("comparison-badge")?.addEventListener("click", cycleComparison);
@@ -2375,7 +2515,14 @@ window.onload = () => {
   updateTrackDensityAndAngle();
   updateGhostBadge();
   connect();
-};
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initOverlay);
+} else {
+  initOverlay();
+}
+window.onload = initOverlay;
 
 // Global exports for layout.js and unit tests
 window.applyActiveComparison = applyActiveComparison;
@@ -2405,3 +2552,4 @@ window.setTimerDisplayMode = setTimerDisplayMode;
 window.getTimerDisplayMode = () => timerDisplayMode;
 window.toggleTimingMethod = toggleTimingMethod;
 window.resetSettingsMenuPosition = resetSettingsMenuPosition;
+window.handleUndoSplit = handleUndoSplit;
