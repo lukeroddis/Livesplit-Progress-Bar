@@ -189,11 +189,21 @@
       <!-- Section: Layout Profiles (Game Layout Switching) -->
       <div class="settings-section">
         <div class="settings-section-header">LAYOUT PROFILES</div>
-        <div class="settings-profile-bar">
+        <div class="settings-profile-bar" id="profile-bar-default">
           <select id="select-layout-profile" class="settings-profile-select" title="Active Layout Profile"></select>
           <button type="button" class="settings-tile-btn profile-btn" id="btn-save-profile" title="Save changes to active profile">💾 Save</button>
           <button type="button" class="settings-tile-btn profile-btn" id="btn-save-as-profile" title="Save as a new game layout profile">➕ New</button>
           <button type="button" class="settings-tile-btn profile-btn danger" id="btn-delete-profile" title="Delete active profile">🗑</button>
+        </div>
+        <div class="settings-profile-bar" id="profile-bar-new" style="display: none;">
+          <input type="text" id="input-new-profile-name" class="settings-profile-input" placeholder="Profile name (e.g. Mario 64, Retro 4:3)" maxlength="40">
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-confirm-new-profile" style="color: #4ade80;">✓ Create</button>
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-cancel-new-profile">✕</button>
+        </div>
+        <div class="settings-profile-bar" id="profile-bar-delete" style="display: none;">
+          <span style="font-size: 12px; color: #f87171; flex: 1; font-weight: 600;">Delete this profile?</span>
+          <button type="button" class="settings-tile-btn profile-btn danger" id="btn-confirm-delete-profile">Yes, Delete</button>
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-cancel-delete-profile">Cancel</button>
         </div>
         <div class="settings-actions-row" style="margin-top: 6px;">
           <button type="button" class="settings-action-btn action-export" id="btn-export-profile" title="Export current layout to a human-readable JSON file">📥 Export (.json)</button>
@@ -436,6 +446,29 @@
       <div class="track-modal-footer">
         <button class="toolbar-btn" id="btn-reset-track-style">↺ Reset Styles</button>
         <button class="toolbar-btn btn-primary" id="btn-save-track-style">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layout Export Backup Modal -->
+  <div class="track-modal-backdrop" id="layout-export-modal" style="display: none;">
+    <div class="track-modal-dialog" style="max-width: 480px;">
+      <div class="track-modal-header">
+        <h3>📥 Layout Profile Export</h3>
+        <button class="track-modal-close" id="btn-close-export-modal" title="Close">✕</button>
+      </div>
+      <div class="track-modal-body">
+        <div id="export-status-banner" style="font-size: 13px; color: #4ade80; margin-bottom: 8px; font-weight: 600;">
+          ✓ Download initiated for <span id="export-filename-label" style="color: #38bdf8;">layout.json</span>
+        </div>
+        <div style="font-size: 12px; color: #94a3b8; margin-bottom: 6px;">
+          Layout JSON (stored locally and safe for backup or OBS copy/paste):
+        </div>
+        <textarea id="export-json-textarea" readonly style="width: 100%; height: 190px; background: rgba(15,23,42,0.95); color: #38bdf8; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); resize: vertical; outline: none; box-sizing: border-box;"></textarea>
+      </div>
+      <div class="track-modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="toolbar-btn" id="btn-copy-export-json">📋 Copy JSON</button>
+        <button class="toolbar-btn btn-primary" id="btn-redownload-export-json">💾 Download .json</button>
       </div>
     </div>
   </div>

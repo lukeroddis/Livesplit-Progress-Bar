@@ -1142,6 +1142,18 @@ def test_layout_profiles_and_extensible_schema():
         "btn-delete-profile",
         "btn-export-profile",
         "input-import-profile",
+        "profile-bar-default",
+        "profile-bar-new",
+        "input-new-profile-name",
+        "btn-confirm-new-profile",
+        "btn-cancel-new-profile",
+        "profile-bar-delete",
+        "btn-confirm-delete-profile",
+        "btn-cancel-delete-profile",
+        "layout-export-modal",
+        "export-json-textarea",
+        "btn-copy-export-json",
+        "btn-redownload-export-json",
     ]
     for eid in expected_ids:
         assert f'id="{eid}"' in html, f"index.html missing layout profile element id '{eid}'"
@@ -1152,6 +1164,7 @@ def test_layout_profiles_and_extensible_schema():
         css = f.read()
     assert ".settings-profile-bar" in css, "style.css missing .settings-profile-bar"
     assert ".settings-profile-select" in css, "style.css missing .settings-profile-select"
+    assert ".settings-profile-input" in css, "style.css missing .settings-profile-input"
     assert ".settings-action-btn.action-export" in css, "style.css missing .settings-action-btn.action-export"
     assert ".settings-action-btn.action-import" in css, "style.css missing .settings-action-btn.action-import"
 

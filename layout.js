@@ -373,20 +373,71 @@
     return false;
   }
 
+  function openExportModal(filename, jsonStr) {
+    const modal = document.getElementById("layout-export-modal");
+    const ta = document.getElementById("export-json-textarea");
+    const label = document.getElementById("export-filename-label");
+    const banner = document.getElementById("export-status-banner");
+    const btnCopy = document.getElementById("btn-copy-export-json");
+    if (!modal) return;
+    if (ta) ta.value = jsonStr;
+    if (label) label.textContent = filename;
+    if (banner) banner.textContent = `✓ Export ready for ${filename}`;
+    if (btnCopy) btnCopy.textContent = "📋 Copy JSON";
+    modal.style.display = "flex";
+    modal.classList.add("is-open");
+  }
+
+  function closeExportModal() {
+    const modal = document.getElementById("layout-export-modal");
+    if (modal) {
+      modal.style.display = "none";
+      modal.classList.remove("is-open");
+    }
+  }
+
+  function triggerFileDownload(filename, jsonStr) {
+    let downloadAttempted = false;
+    try {
+      const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      downloadAttempted = true;
+      setTimeout(() => {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+    } catch (_) {
+      try {
+        const a = document.createElement("a");
+        a.href = "data:application/json;charset=utf-8," + encodeURIComponent(jsonStr);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        downloadAttempted = true;
+        setTimeout(() => {
+          if (a.parentNode) a.parentNode.removeChild(a);
+        }, 60000);
+      } catch (err) {
+        console.warn("Direct file download unsupported in this environment:", err);
+      }
+    }
+    return downloadAttempted;
+  }
+
   function exportProfileToFile(profileName) {
     const name = profileName || getActiveProfileName() || "Default";
     const data = createProfileExport(name);
     const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
     const safeName = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
-    a.href = url;
-    a.download = `livesplit-layout-${safeName}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const filename = `livesplit-layout-${safeName}.json`;
+
+    triggerFileDownload(filename, jsonStr);
+    openExportModal(filename, jsonStr);
   }
 
   function importProfileFromFile(file) {
@@ -431,6 +482,13 @@
     if (btnDel) {
       btnDel.style.display = (active === "Default") ? "none" : "inline-block";
     }
+
+    const barDef = document.getElementById("profile-bar-default");
+    const barNew = document.getElementById("profile-bar-new");
+    const barDelRow = document.getElementById("profile-bar-delete");
+    if (barDef) barDef.style.display = "flex";
+    if (barNew) barNew.style.display = "none";
+    if (barDelRow) barDelRow.style.display = "none";
   }
 
   function autoLoadProfileForGame(gameName) {
@@ -1782,16 +1840,60 @@
       });
     }
 
+    const barDefault = document.getElementById("profile-bar-default");
+    const barNew = document.getElementById("profile-bar-new");
+    const barDelete = document.getElementById("profile-bar-delete");
+    const inputNew = document.getElementById("input-new-profile-name");
+
+    const showProfileBar = (mode) => {
+      if (barDefault) barDefault.style.display = (mode === "default") ? "flex" : "none";
+      if (barNew) barNew.style.display = (mode === "new") ? "flex" : "none";
+      if (barDelete) barDelete.style.display = (mode === "delete") ? "flex" : "none";
+    };
+
     const btnSaveAsProfile = document.getElementById("btn-save-as-profile");
     if (btnSaveAsProfile) {
       btnSaveAsProfile.addEventListener("click", () => {
-        const name = window.prompt("Enter a name for this layout profile (e.g. Mario 64, Retro 4:3, Bottom Bar):");
-        if (name && name.trim()) {
-          const trimmed = name.trim();
-          const exportData = createProfileExport(trimmed);
-          saveProfileToStorage(trimmed, exportData);
-          setActiveProfileName(trimmed);
-          syncProfileUI();
+        showProfileBar("new");
+        if (inputNew) {
+          inputNew.value = "";
+          setTimeout(() => inputNew.focus(), 50);
+        }
+      });
+    }
+
+    const handleCreateProfile = () => {
+      if (!inputNew) return;
+      const name = inputNew.value.trim();
+      if (name) {
+        const exportData = createProfileExport(name);
+        saveProfileToStorage(name, exportData);
+        setActiveProfileName(name);
+        syncProfileUI();
+        showProfileBar("default");
+      }
+    };
+
+    const btnConfirmNew = document.getElementById("btn-confirm-new-profile");
+    if (btnConfirmNew) {
+      btnConfirmNew.addEventListener("click", handleCreateProfile);
+    }
+
+    const btnCancelNew = document.getElementById("btn-cancel-new-profile");
+    if (btnCancelNew) {
+      btnCancelNew.addEventListener("click", () => {
+        showProfileBar("default");
+      });
+    }
+
+    if (inputNew) {
+      inputNew.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleCreateProfile();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          showProfileBar("default");
         }
       });
     }
@@ -1801,10 +1903,26 @@
       btnDeleteProfile.addEventListener("click", () => {
         const active = getActiveProfileName();
         if (active && active !== "Default") {
-          if (window.confirm(`Delete layout profile "${active}"?`)) {
-            deleteProfileFromStorage(active);
-          }
+          showProfileBar("delete");
         }
+      });
+    }
+
+    const btnConfirmDelete = document.getElementById("btn-confirm-delete-profile");
+    if (btnConfirmDelete) {
+      btnConfirmDelete.addEventListener("click", () => {
+        const active = getActiveProfileName();
+        if (active && active !== "Default") {
+          deleteProfileFromStorage(active);
+        }
+        showProfileBar("default");
+      });
+    }
+
+    const btnCancelDelete = document.getElementById("btn-cancel-delete-profile");
+    if (btnCancelDelete) {
+      btnCancelDelete.addEventListener("click", () => {
+        showProfileBar("default");
       });
     }
 
@@ -1812,6 +1930,51 @@
     if (btnExportProfile) {
       btnExportProfile.addEventListener("click", () => {
         exportProfileToFile();
+      });
+    }
+
+    const btnCloseExportModal = document.getElementById("btn-close-export-modal");
+    if (btnCloseExportModal) {
+      btnCloseExportModal.addEventListener("click", closeExportModal);
+    }
+
+    document.getElementById("layout-export-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "layout-export-modal") {
+        closeExportModal();
+      }
+    });
+
+    const btnCopyExportJson = document.getElementById("btn-copy-export-json");
+    if (btnCopyExportJson) {
+      btnCopyExportJson.addEventListener("click", () => {
+        const ta = document.getElementById("export-json-textarea");
+        if (ta) {
+          ta.select();
+          const copySuccess = () => {
+            btnCopyExportJson.innerText = "✓ Copied!";
+            setTimeout(() => { btnCopyExportJson.innerText = "📋 Copy JSON"; }, 1500);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(ta.value).then(copySuccess).catch(() => {
+              try { document.execCommand("copy"); copySuccess(); } catch (_) {}
+            });
+          } else {
+            try { document.execCommand("copy"); copySuccess(); } catch (_) {}
+          }
+        }
+      });
+    }
+
+    const btnRedownloadExportJson = document.getElementById("btn-redownload-export-json");
+    if (btnRedownloadExportJson) {
+      btnRedownloadExportJson.addEventListener("click", () => {
+        const ta = document.getElementById("export-json-textarea");
+        const active = getActiveProfileName() || "Default";
+        const safeName = active.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+        const filename = `livesplit-layout-${safeName}.json`;
+        if (ta && ta.value) {
+          triggerFileDownload(filename, ta.value);
+        }
       });
     }
 
@@ -1823,7 +1986,7 @@
           importProfileFromFile(file).then((profName) => {
             console.log(`Successfully imported layout profile: ${profName}`);
           }).catch((err) => {
-            window.alert(`Failed to import layout profile: ${err.message}`);
+            console.error("Failed to import layout profile:", err);
           });
           e.target.value = "";
         }
@@ -1838,6 +2001,12 @@
         e.preventDefault();
         toggleEditMode();
       } else if (e.key === "Escape") {
+        const exportModal = document.getElementById("layout-export-modal");
+        if (exportModal && exportModal.classList.contains("is-open")) {
+          e.preventDefault();
+          closeExportModal();
+          return;
+        }
         const modal = document.getElementById("track-modal");
         if (modal && modal.classList.contains("is-open")) {
           e.preventDefault();

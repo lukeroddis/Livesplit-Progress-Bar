@@ -1823,6 +1823,27 @@ body.edit-mode .settings-menu-panel {
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
 }
 
+.settings-profile-input {
+  flex: 1;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid #38bdf8;
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  outline: none;
+  min-height: 38px;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+  box-sizing: border-box;
+}
+
+.settings-profile-input::placeholder {
+  color: #64748b;
+  font-weight: normal;
+}
+
 .settings-tile-btn.profile-btn {
   padding: 8px 10px;
   min-height: 38px;
