@@ -20,6 +20,7 @@ let comparisonsDataGT = {};
 let comparisonsDataRT = {};
 let completedSplitTimes = {};
 let currentTimingMethod = "GameTime";
+let timerDisplayMode = "both"; // 'gametime' | 'realtime' | 'both'
 let lockedDeltas = {}; 
 let ws = null;
 let currentIndex = -1;
@@ -55,26 +56,52 @@ function updatePageTitle() {
   }
 }
 
+function updateTimingMethodBadge() {
+  const badge = document.getElementById("timing-method-badge");
+  if (!badge) return;
+  if (timerDisplayMode === "gametime") {
+    badge.innerText = "Time: Game";
+    badge.style.color = "#38bdf8";
+  } else if (timerDisplayMode === "realtime") {
+    badge.innerText = "Time: Real";
+    badge.style.color = "#a78bfa";
+  } else {
+    badge.innerText = "Time: Both";
+    badge.style.color = "#facc15";
+  }
+}
+
 function updateTimerDisplayHierarchy() {
   const rtaEl = document.getElementById("timer-rta");
   const igtEl = document.getElementById("timer-igt");
+  const rtaBlock = document.getElementById("block-rta");
   const igtBlock = document.getElementById("block-igt");
-  if (!rtaEl || !igtEl) return;
+  if (!rtaEl || !igtEl || !rtaBlock || !igtBlock) return;
 
-  const isRT = currentTimingMethod === "RealTime";
-  if (isRT) {
+  const mode = timerDisplayMode || "both";
+
+  if (mode === "gametime") {
+    igtBlock.style.display = "flex";
+    rtaBlock.style.display = "none";
+    igtEl.className = "timer-primary";
+    rtaEl.className = "timer-secondary";
+  } else if (mode === "realtime") {
+    rtaBlock.style.display = "flex";
+    igtBlock.style.display = "none";
     rtaEl.className = "timer-primary";
     igtEl.className = "timer-secondary";
   } else {
-    igtEl.className = "timer-primary";
-    rtaEl.className = "timer-secondary";
-  }
-
-  // If splits have no GameTime at all (e.g. console speedrun), hide the GameTime timer block
-  const hasGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
-                      bestSegmentTimesGT.some(t => t !== null && t > 0);
-  if (igtBlock) {
-    igtBlock.style.display = hasGameTime ? "flex" : "none";
+    // Both timers visible
+    rtaBlock.style.display = "flex";
+    igtBlock.style.display = "flex";
+    const isRT = currentTimingMethod === "RealTime";
+    if (isRT) {
+      rtaEl.className = "timer-primary";
+      igtEl.className = "timer-secondary";
+    } else {
+      igtEl.className = "timer-primary";
+      rtaEl.className = "timer-secondary";
+    }
   }
 }
 
@@ -121,11 +148,7 @@ function applyActiveTimingMethod(method) {
   if (method && (method === "GameTime" || method === "RealTime")) {
     currentTimingMethod = method;
   }
-  const badge = document.getElementById("timing-method-badge");
-  if (badge) {
-    badge.innerText = currentTimingMethod === "RealTime" ? "Real Time" : "Game Time";
-  }
-
+  updateTimingMethodBadge();
   updateTimerDisplayHierarchy();
 
   const isRT = currentTimingMethod === "RealTime";
@@ -586,21 +609,62 @@ function toggleGoldSegments() {
   updateGoldBadge();
 }
 
-function toggleTimingMethod() {
-  const next = currentTimingMethod === "RealTime" ? "GameTime" : "RealTime";
-  localStorage.setItem("livesplit_timing_method", next);
+function setTimerDisplayMode(mode) {
+  if (mode !== "gametime" && mode !== "realtime" && mode !== "both") {
+    mode = "both";
+  }
+  timerDisplayMode = mode;
+  localStorage.setItem("livesplit_timer_display_mode", mode);
   localStorage.setItem("livesplit_timing_method_manual", "true");
-  applyActiveTimingMethod(next);
+
+  if (mode === "gametime") {
+    currentTimingMethod = "GameTime";
+    localStorage.setItem("livesplit_timing_method", "GameTime");
+  } else if (mode === "realtime") {
+    currentTimingMethod = "RealTime";
+    localStorage.setItem("livesplit_timing_method", "RealTime");
+  }
+
+  applyActiveTimingMethod(currentTimingMethod);
+  updateTimerDisplayHierarchy();
+  updateTimingMethodBadge();
+
+  // Sync modal segmented control if open
+  document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-val") === mode);
+  });
+
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(next === "RealTime" ? "switchto realtime" : "switchto gametime");
+    if (mode === "gametime") ws.send("switchto gametime");
+    else if (mode === "realtime") ws.send("switchto realtime");
   }
 }
 
+function toggleTimingMethod() {
+  const sequence = ["gametime", "realtime", "both"];
+  const curIdx = sequence.indexOf(timerDisplayMode);
+  const nextIdx = (curIdx >= 0 ? curIdx + 1 : 0) % sequence.length;
+  setTimerDisplayMode(sequence[nextIdx]);
+}
+
 function loadCachedSplits() {
+  const savedTimerMode = localStorage.getItem("livesplit_timer_display_mode");
+  const params = new URLSearchParams(window.location.search);
+  const urlTimer = params.get("timer") || params.get("time");
+  if (urlTimer && ["gametime", "realtime", "both"].includes(urlTimer.toLowerCase())) {
+    timerDisplayMode = urlTimer.toLowerCase();
+  } else if (savedTimerMode && ["gametime", "realtime", "both"].includes(savedTimerMode)) {
+    timerDisplayMode = savedTimerMode;
+  }
+
   const isManualMethod = (localStorage.getItem("livesplit_timing_method_manual") === "true");
   const savedMethod = localStorage.getItem("livesplit_timing_method");
   if (isManualMethod && (savedMethod === "RealTime" || savedMethod === "GameTime")) {
     currentTimingMethod = savedMethod;
+  } else if (timerDisplayMode === "gametime") {
+    currentTimingMethod = "GameTime";
+  } else if (timerDisplayMode === "realtime") {
+    currentTimingMethod = "RealTime";
   }
 
   const savedComp = localStorage.getItem("livesplit_current_comparison");
@@ -2152,6 +2216,143 @@ function cycleSplitAngle() {
   updateTrackDensityAndAngle();
 }
 
+function resetSettingsMenuPosition() {
+  const panel = document.getElementById("footer-bar");
+  if (!panel) return;
+  panel.style.left = "";
+  panel.style.top = "";
+  panel.style.right = "";
+  panel.style.bottom = "";
+  panel.classList.remove("is-custom-pos");
+  localStorage.removeItem("livesplit_settings_pos");
+}
+
+function restoreSettingsMenuPosition() {
+  const panel = document.getElementById("footer-bar");
+  const quickWrap = document.getElementById("quick-settings-wrap");
+  const saved = localStorage.getItem("livesplit_settings_pos");
+  if (saved && panel) {
+    try {
+      const pos = JSON.parse(saved);
+      if (typeof pos.left === "number" && typeof pos.top === "number") {
+        const maxLeft = Math.max(10, window.innerWidth - 480);
+        const maxTop = Math.max(10, window.innerHeight - 300);
+        const left = Math.max(10, Math.min(maxLeft, pos.left));
+        const top = Math.max(10, Math.min(maxTop, pos.top));
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+        panel.style.right = "auto";
+        panel.style.bottom = "auto";
+        panel.classList.add("is-custom-pos");
+        quickWrap?.classList.add("pinned");
+      }
+    } catch (e) {
+      console.warn("Failed to parse saved settings position", e);
+    }
+  }
+}
+
+function initSettingsMenuDraggable() {
+  const panel = document.getElementById("footer-bar");
+  const header = document.querySelector(".settings-menu-header");
+  const quickWrap = document.getElementById("quick-settings-wrap");
+  const resetBtn = document.getElementById("btn-reset-settings-pos");
+  if (!panel || !header) return;
+
+  if (resetBtn) {
+    resetBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      resetSettingsMenuPosition();
+    });
+  }
+
+  header.addEventListener("dblclick", (e) => {
+    if (e.target.closest("button") || e.target.closest(".connection-status-pill")) return;
+    resetSettingsMenuPosition();
+  });
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let origLeft = 0;
+  let origTop = 0;
+
+  header.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button") || e.target.closest(".connection-status-pill")) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    isDragging = true;
+    header.setPointerCapture(e.pointerId);
+    header.classList.add("is-dragging");
+    quickWrap?.classList.add("pinned");
+
+    const rect = panel.getBoundingClientRect();
+    origLeft = rect.left;
+    origTop = rect.top;
+    startX = e.clientX;
+    startY = e.clientY;
+
+    panel.style.left = `${origLeft}px`;
+    panel.style.top = `${origTop}px`;
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.classList.add("is-custom-pos");
+  });
+
+  header.addEventListener("pointermove", (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    const panelRect = panel.getBoundingClientRect();
+    const maxLeft = Math.max(10, window.innerWidth - panelRect.width - 10);
+    const maxTop = Math.max(10, window.innerHeight - panelRect.height - 10);
+
+    const newLeft = Math.round(Math.max(10, Math.min(maxLeft, origLeft + dx)));
+    const newTop = Math.round(Math.max(10, Math.min(maxTop, origTop + dy)));
+
+    panel.style.left = `${newLeft}px`;
+    panel.style.top = `${newTop}px`;
+  });
+
+  const onPointerUp = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    header.releasePointerCapture(e.pointerId);
+    header.classList.remove("is-dragging");
+
+    const rect = panel.getBoundingClientRect();
+    localStorage.setItem("livesplit_settings_pos", JSON.stringify({
+      left: Math.round(rect.left),
+      top: Math.round(rect.top)
+    }));
+  };
+
+  header.addEventListener("pointerup", onPointerUp);
+  header.addEventListener("pointercancel", onPointerUp);
+
+  window.addEventListener("resize", () => {
+    if (panel.classList.contains("is-custom-pos")) {
+      const rect = panel.getBoundingClientRect();
+      const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
+      const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+      const clampedL = Math.max(10, Math.min(maxLeft, rect.left));
+      const clampedT = Math.max(10, Math.min(maxTop, rect.top));
+      panel.style.left = `${clampedL}px`;
+      panel.style.top = `${clampedT}px`;
+    }
+  });
+
+  restoreSettingsMenuPosition();
+}
+
 window.onload = () => {
   document.getElementById("gold-toggle-badge")?.addEventListener("click", toggleGoldSegments);
   document.getElementById("timing-method-badge")?.addEventListener("click", toggleTimingMethod);
@@ -2169,6 +2370,7 @@ window.onload = () => {
     quickWrap?.classList.toggle("pinned");
   });
 
+  initSettingsMenuDraggable();
   loadCachedSplits();
   updateTrackDensityAndAngle();
   updateGhostBadge();
@@ -2199,3 +2401,7 @@ window.sanitizeComparisonTimes = sanitizeComparisonTimes;
 window.detectTimingMethodFromComp = detectTimingMethodFromComp;
 window.applyActiveTimingMethod = applyActiveTimingMethod;
 window.getCurrentTimingMethod = () => currentTimingMethod;
+window.setTimerDisplayMode = setTimerDisplayMode;
+window.getTimerDisplayMode = () => timerDisplayMode;
+window.toggleTimingMethod = toggleTimingMethod;
+window.resetSettingsMenuPosition = resetSettingsMenuPosition;

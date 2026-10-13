@@ -1356,6 +1356,30 @@ body.edit-mode .settings-menu-panel {
   align-items: center;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.settings-menu-header.is-dragging {
+  cursor: grabbing;
+}
+
+.settings-drag-grip {
+  font-size: 14px;
+  color: #64748b;
+  letter-spacing: -2px;
+  margin-right: 4px;
+  transition: color 0.15s ease;
+}
+
+.settings-menu-header:hover .settings-drag-grip {
+  color: #38bdf8;
+}
+
+.settings-menu-panel.is-custom-pos {
+  position: fixed !important;
+  transform-origin: center center;
 }
 
 .settings-header-left {
@@ -1423,6 +1447,28 @@ body.edit-mode .settings-menu-panel {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-family: inherit;
+}
+
+.settings-reset-pos-btn {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.settings-reset-pos-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
 .settings-pin-btn {

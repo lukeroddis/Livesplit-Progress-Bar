@@ -518,6 +518,12 @@
       sGhostOp.value = ghostOpVal;
       vGhostOp.innerText = `${ghostOpVal}%`;
     }
+
+    // Visible Timers segmented control sync
+    const curTimerMode = window.getTimerDisplayMode ? window.getTimerDisplayMode() : (localStorage.getItem("livesplit_timer_display_mode") || "both");
+    document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === curTimerMode);
+    });
   }
 
   function openTrackModal() {
@@ -1224,6 +1230,16 @@
     // Auto-sync with LiveSplit hotkeys listener
     document.getElementById("cb-sync-livesplit-hotkeys")?.addEventListener("change", (e) => {
       localStorage.setItem("livesplit_sync_hotkeys", e.target.checked ? "true" : "false");
+    });
+
+    // Visible Timers segmented control listener
+    document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-val");
+        if (window.setTimerDisplayMode) {
+          window.setTimerDisplayMode(val);
+        }
+      });
     });
 
     // Ghost Runner dropdown listener

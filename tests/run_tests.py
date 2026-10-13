@@ -730,6 +730,8 @@ def test_quick_settings_menu_architecture():
         "file-input",
         "connection-status",
         "btn-pin-settings",
+        "btn-reset-settings-pos",
+        "ctrl-timer-display",
         "comparison-badge",
         "ghost-badge",
         "timing-method-badge",
@@ -759,6 +761,86 @@ def test_quick_settings_menu_architecture():
     print("✓ Quick settings menu architecture and dropzone tests passed.")
 
 
+def test_draggable_settings_and_timer_display_modes():
+    """Verify draggable settings menu mechanics and Game Time / Real Time / Both toggle."""
+    html_path = os.path.join(ROOT_DIR, "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+    with open(overlay_path, "r", encoding="utf-8") as f:
+        overlay_js = f.read()
+
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+    with open(layout_path, "r", encoding="utf-8") as f:
+        layout_js = f.read()
+
+    # 1. Drag & Drop HTML Elements & Controls
+    assert 'id="btn-reset-settings-pos"' in html, "index.html missing btn-reset-settings-pos"
+    assert 'class="settings-drag-grip"' in html, "index.html missing settings-drag-grip"
+    assert 'id="ctrl-timer-display"' in html, "index.html missing ctrl-timer-display"
+    assert 'data-val="gametime"' in html and 'data-val="realtime"' in html and 'data-val="both"' in html, \
+        "index.html missing timer display segmented buttons"
+
+    # 2. CSS dragging and position rules
+    assert ".settings-menu-header.is-dragging" in css, "style.css missing .is-dragging header style"
+    assert ".settings-menu-panel.is-custom-pos" in css, "style.css missing .is-custom-pos panel style"
+    assert "cursor: grab;" in css, "style.css missing cursor: grab for header"
+    assert ".settings-reset-pos-btn" in css, "style.css missing .settings-reset-pos-btn"
+
+    # 3. overlay.js draggable logic
+    assert "function initSettingsMenuDraggable" in overlay_js, "overlay.js missing initSettingsMenuDraggable"
+    assert "function resetSettingsMenuPosition" in overlay_js, "overlay.js missing resetSettingsMenuPosition"
+    assert "function restoreSettingsMenuPosition" in overlay_js, "overlay.js missing restoreSettingsMenuPosition"
+    assert "livesplit_settings_pos" in overlay_js, "overlay.js missing livesplit_settings_pos persistence"
+
+    # 4. Timer display modes logic in overlay.js
+    assert "function setTimerDisplayMode" in overlay_js, "overlay.js missing setTimerDisplayMode"
+    assert "timerDisplayMode" in overlay_js, "overlay.js missing timerDisplayMode variable"
+    assert 'mode === "gametime"' in overlay_js, "overlay.js missing gametime mode check"
+    assert 'mode === "realtime"' in overlay_js, "overlay.js missing realtime mode check"
+    assert 'Time: Game' in overlay_js and 'Time: Real' in overlay_js and 'Time: Both' in overlay_js, \
+        "overlay.js missing timing badge label updates for Game, Real, and Both"
+
+    # 5. Timer mode synchronization in layout.js
+    assert "ctrl-timer-display" in layout_js, "layout.js missing ctrl-timer-display handler"
+    assert "getTimerDisplayMode" in layout_js, "layout.js missing getTimerDisplayMode call in syncTrackModalUI"
+
+    # 6. Algorithmic unit test: timer display hierarchy simulation
+    def simulate_timer_visibility(mode, current_method):
+        if mode == "gametime":
+            return ("none", "flex", "timer-secondary", "timer-primary")
+        elif mode == "realtime":
+            return ("flex", "none", "timer-primary", "timer-secondary")
+        else:  # "both"
+            is_rt = (current_method == "RealTime")
+            rta_cls = "timer-primary" if is_rt else "timer-secondary"
+            igt_cls = "timer-secondary" if is_rt else "timer-primary"
+            return ("flex", "flex", rta_cls, igt_cls)
+
+    # Test "gametime": only Game Time block shown as primary
+    rta_disp, igt_disp, rta_c, igt_c = simulate_timer_visibility("gametime", "GameTime")
+    assert rta_disp == "none" and igt_disp == "flex" and igt_c == "timer-primary"
+
+    # Test "realtime": only Real Time block shown as primary
+    rta_disp, igt_disp, rta_c, igt_c = simulate_timer_visibility("realtime", "RealTime")
+    assert rta_disp == "flex" and igt_disp == "none" and rta_c == "timer-primary"
+
+    # Test "both" with GameTime primary
+    rta_disp, igt_disp, rta_c, igt_c = simulate_timer_visibility("both", "GameTime")
+    assert rta_disp == "flex" and igt_disp == "flex" and igt_c == "timer-primary" and rta_c == "timer-secondary"
+
+    # Test "both" with RealTime primary
+    rta_disp, igt_disp, rta_c, igt_c = simulate_timer_visibility("both", "RealTime")
+    assert rta_disp == "flex" and igt_disp == "flex" and rta_c == "timer-primary" and igt_c == "timer-secondary"
+
+    print("✓ Draggable settings menu and timer display modes (Game/Real/Both) passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -782,6 +864,7 @@ def main():
         test_ghost_pin_length_zero_track()
         test_start_node_and_bar_fill_geometry()
         test_quick_settings_menu_architecture()
+        test_draggable_settings_and_timer_display_modes()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

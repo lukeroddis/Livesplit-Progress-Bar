@@ -116,19 +116,21 @@
     <!-- Large Quick Settings Card Panel (Reveals smoothly on hover) -->
     <div class="settings-menu-panel footer-bar" id="footer-bar">
       <!-- Card Header -->
-      <div class="settings-menu-header">
+      <div class="settings-menu-header" title="Drag header to move settings card (Double-click to reset position)">
         <div class="settings-header-left">
           <div class="settings-menu-title">
+            <span class="settings-drag-grip" title="Drag to move">⠿</span>
             <span class="settings-title-icon">⚙️</span>
             <span>LiveSplit Settings</span>
           </div>
-          <div class="settings-menu-subtitle">Auto-hides when mouse moves away</div>
+          <div class="settings-menu-subtitle">Drag header to reposition • Auto-hides on hover-off</div>
         </div>
         <div class="settings-header-right">
           <div class="connection-status-pill" title="LiveSplit Server WebSocket Connection">
             <span class="status-dot"></span>
             <span id="connection-status">Connecting...</span>
           </div>
+          <button type="button" class="settings-reset-pos-btn" id="btn-reset-settings-pos" title="Reset Menu Position to Bottom-Right">↺</button>
           <button type="button" class="settings-pin-btn" id="btn-pin-settings" title="Pin / Keep Settings Open">📌</button>
         </div>
       </div>
@@ -158,7 +160,7 @@
         <div class="settings-grid">
           <button type="button" class="settings-tile-btn" id="comparison-badge" style="color: #38bdf8;" title="Click to cycle active comparison (or use LiveSplit hotkeys)">Comp: PB</button>
           <button type="button" class="settings-tile-btn" id="ghost-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle Live Ghost Runner (Off / 🏆 WR / 🥈 PB / ⭐ Best / 📊 Avg)">Ghost: Off</button>
-          <button type="button" class="settings-tile-btn" id="timing-method-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to toggle Game / Real Time">Game Time</button>
+          <button type="button" class="settings-tile-btn" id="timing-method-badge" style="color: #facc15;" title="Click to cycle timer display: Game Time / Real Time / Both">Time: Both</button>
           <button type="button" class="settings-tile-btn" id="gold-toggle-badge" style="color: #facc15;" title="Click to toggle Gold Splits">Golds: ON</button>
         </div>
       </div>
@@ -319,6 +321,14 @@
             <input type="checkbox" id="cb-sync-livesplit-hotkeys" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
           </label>
           <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Tracks LiveSplit comparison and timing method switches in real time without replicating hotkeys.</span>
+        </div>
+        <div class="modal-row">
+          <label>Visible Timers</label>
+          <div class="seg-btn-group" id="ctrl-timer-display">
+            <button type="button" class="seg-btn" data-val="gametime">Game Time</button>
+            <button type="button" class="seg-btn" data-val="realtime">Real Time</button>
+            <button type="button" class="seg-btn active" data-val="both">Both</button>
+          </div>
         </div>
 
         <!-- Live Ghost Runner -->
