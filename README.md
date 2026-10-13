@@ -15,7 +15,7 @@
 
 A modern HUD and progress bar overlay for speedrunners, designed for standalone web browsers and OBS Studio Browser Sources (1080p, 1440p, 4K).
 
-Traditional LiveSplit layouts take up substantial vertical screen space over modern 16:9 gameplay. This overlay delivers a minimalist, bottom-docked or floating horizontal progress track, dynamic dual timers, and full LiveSplit state parity—freeing up screen real estate for the game.
+Traditional LiveSplit layouts can take up substantial vertical screen space over modern 16:9 gameplay. This LiveSplit Progress Bar delivers a minimalist approach, where the track, timers and game information can be split and move around freely, allowing speedrunners to customise their layout and maximise the real estate for the game.
 
 ---
 
