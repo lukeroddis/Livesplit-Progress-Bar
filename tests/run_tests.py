@@ -792,25 +792,53 @@ def test_draggable_settings_and_timer_display_modes():
     assert "cursor: grab;" in css, "style.css missing cursor: grab for header"
     assert ".settings-reset-pos-btn" in css, "style.css missing .settings-reset-pos-btn"
 
-    # 3. overlay.js draggable logic
+    # 3. overlay.js draggable logic and unpinned auto-hide guarantees
     assert "function initSettingsMenuDraggable" in overlay_js, "overlay.js missing initSettingsMenuDraggable"
     assert "function resetSettingsMenuPosition" in overlay_js, "overlay.js missing resetSettingsMenuPosition"
     assert "function restoreSettingsMenuPosition" in overlay_js, "overlay.js missing restoreSettingsMenuPosition"
     assert "livesplit_settings_pos" in overlay_js, "overlay.js missing livesplit_settings_pos persistence"
+    assert 'quickWrap?.classList.add("pinned")' not in overlay_js[overlay_js.find("function restoreSettingsMenuPosition"):overlay_js.find("function restoreSettingsMenuPosition")+600], \
+        "restoreSettingsMenuPosition must not forcibly add .pinned class (breaks auto-hide)"
+    assert 'quickWrap?.classList.remove("pinned")' in overlay_js, "resetSettingsMenuPosition must unpin panel"
 
-    # 4. Timer display modes logic in overlay.js
+    # 4. Timer display modes and primary focus logic in overlay.js
     assert "function setTimerDisplayMode" in overlay_js, "overlay.js missing setTimerDisplayMode"
+    assert "function setTimingMethodFocus" in overlay_js, "overlay.js missing setTimingMethodFocus"
     assert "timerDisplayMode" in overlay_js, "overlay.js missing timerDisplayMode variable"
     assert 'mode === "gametime"' in overlay_js, "overlay.js missing gametime mode check"
     assert 'mode === "realtime"' in overlay_js, "overlay.js missing realtime mode check"
     assert 'Time: Game' in overlay_js and 'Time: Real' in overlay_js and 'Time: Both' in overlay_js, \
         "overlay.js missing timing badge label updates for Game, Real, and Both"
+    assert 'Time: Both (Game)' in overlay_js and 'Time: Both (Real)' in overlay_js, \
+        "overlay.js missing Time: Both (Game) and Time: Both (Real) badge labels"
 
-    # 5. Timer mode synchronization in layout.js
+    # 5. Timer mode synchronization in layout.js and index.html
     assert "ctrl-timer-display" in layout_js, "layout.js missing ctrl-timer-display handler"
+    assert "ctrl-timer-focus" in layout_js, "layout.js missing ctrl-timer-focus handler"
+    assert "ctrl-timer-focus" in html, "index.html missing ctrl-timer-focus segmented control"
     assert "getTimerDisplayMode" in layout_js, "layout.js missing getTimerDisplayMode call in syncTrackModalUI"
 
-    # 6. Algorithmic unit test: timer display hierarchy simulation
+    # 6. Algorithmic unit test: 4-state timing method cycle simulation
+    def cycle_timing_state(mode, focus):
+        if mode == "gametime":
+            return ("realtime", "RealTime")
+        elif mode == "realtime":
+            return ("both", "GameTime")
+        elif mode == "both" and focus == "GameTime":
+            return ("both", "RealTime")
+        else:
+            return ("gametime", "GameTime")
+
+    s1 = cycle_timing_state("gametime", "GameTime")
+    assert s1 == ("realtime", "RealTime"), f"Expected realtime, got {s1}"
+    s2 = cycle_timing_state(s1[0], s1[1])
+    assert s2 == ("both", "GameTime"), f"Expected both (GameTime), got {s2}"
+    s3 = cycle_timing_state(s2[0], s2[1])
+    assert s3 == ("both", "RealTime"), f"Expected both (RealTime), got {s3}"
+    s4 = cycle_timing_state(s3[0], s3[1])
+    assert s4 == ("gametime", "GameTime"), f"Expected gametime, got {s4}"
+
+    # 7. Algorithmic unit test: timer display hierarchy simulation
     def simulate_timer_visibility(mode, current_method):
         if mode == "gametime":
             return ("none", "flex", "timer-secondary", "timer-primary")
@@ -830,7 +858,7 @@ def test_draggable_settings_and_timer_display_modes():
     rta_disp, igt_disp, rta_c, igt_c = simulate_timer_visibility("realtime", "RealTime")
     assert rta_disp == "flex" and igt_disp == "none" and rta_c == "timer-primary"
 
-    # Test "both" with GameTime primary
+    # Test "both" with GameTime primary (User request: Game Time as large focus timer)
     rta_disp, igt_disp, rta_c, igt_c = simulate_timer_visibility("both", "GameTime")
     assert rta_disp == "flex" and igt_disp == "flex" and igt_c == "timer-primary" and rta_c == "timer-secondary"
 

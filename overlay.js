@@ -90,8 +90,14 @@ function updateTimingMethodBadge() {
     badge.innerText = "Time: Real";
     badge.style.color = "#a78bfa";
   } else {
-    badge.innerText = "Time: Both";
-    badge.style.color = "#facc15";
+    // Both timers visible
+    if (currentTimingMethod === "GameTime") {
+      badge.innerText = "Time: Both (Game)";
+      badge.style.color = "#38bdf8";
+    } else {
+      badge.innerText = "Time: Both (Real)";
+      badge.style.color = "#a78bfa";
+    }
   }
 }
 
@@ -647,7 +653,7 @@ function toggleGoldSegments() {
   updateGoldBadge();
 }
 
-function setTimerDisplayMode(mode) {
+function setTimerDisplayMode(mode, focusMethod) {
   if (mode !== "gametime" && mode !== "realtime" && mode !== "both") {
     mode = "both";
   }
@@ -655,34 +661,89 @@ function setTimerDisplayMode(mode) {
   localStorage.setItem("livesplit_timer_display_mode", mode);
   localStorage.setItem("livesplit_timing_method_manual", "true");
 
-  if (mode === "gametime") {
+  if (focusMethod === "GameTime" || focusMethod === "RealTime") {
+    currentTimingMethod = focusMethod;
+    localStorage.setItem("livesplit_timing_method", focusMethod);
+  } else if (mode === "gametime") {
     currentTimingMethod = "GameTime";
     localStorage.setItem("livesplit_timing_method", "GameTime");
   } else if (mode === "realtime") {
     currentTimingMethod = "RealTime";
     localStorage.setItem("livesplit_timing_method", "RealTime");
+  } else {
+    // mode === "both" without explicit focus: preserve active or saved method
+    const savedMethod = localStorage.getItem("livesplit_timing_method");
+    if (savedMethod === "GameTime" || savedMethod === "RealTime") {
+      currentTimingMethod = savedMethod;
+    }
   }
 
   applyActiveTimingMethod(currentTimingMethod);
   updateTimerDisplayHierarchy();
   updateTimingMethodBadge();
 
-  // Sync modal segmented control if open
+  // Sync modal segmented controls if open
   document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-val") === mode);
   });
+  document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
+  });
 
   if (ws && ws.readyState === WebSocket.OPEN) {
-    if (mode === "gametime") ws.send("switchto gametime");
-    else if (mode === "realtime") ws.send("switchto realtime");
+    if (currentTimingMethod === "GameTime") ws.send("switchto gametime");
+    else if (currentTimingMethod === "RealTime") ws.send("switchto realtime");
+  }
+}
+
+function setTimingMethodFocus(method) {
+  if (method !== "GameTime" && method !== "RealTime") return;
+  localStorage.setItem("livesplit_timing_method_manual", "true");
+  localStorage.setItem("livesplit_timing_method", method);
+  currentTimingMethod = method;
+
+  // If a single timer is active and user chooses opposite method, expand to both
+  if (timerDisplayMode === "gametime" && method === "RealTime") {
+    timerDisplayMode = "both";
+    localStorage.setItem("livesplit_timer_display_mode", "both");
+  } else if (timerDisplayMode === "realtime" && method === "GameTime") {
+    timerDisplayMode = "both";
+    localStorage.setItem("livesplit_timer_display_mode", "both");
+  }
+
+  applyActiveTimingMethod(currentTimingMethod);
+  updateTimerDisplayHierarchy();
+  updateTimingMethodBadge();
+
+  // Sync modal controls
+  document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-val") === timerDisplayMode);
+  });
+  document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
+  });
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    if (method === "GameTime") ws.send("switchto gametime");
+    else if (method === "RealTime") ws.send("switchto realtime");
   }
 }
 
 function toggleTimingMethod() {
-  const sequence = ["gametime", "realtime", "both"];
-  const curIdx = sequence.indexOf(timerDisplayMode);
-  const nextIdx = (curIdx >= 0 ? curIdx + 1 : 0) % sequence.length;
-  setTimerDisplayMode(sequence[nextIdx]);
+  // Cycle across all 4 logical states:
+  // 1. Time: Game (IGT only)
+  // 2. Time: Real (RTA only)
+  // 3. Time: Both (Game primary)
+  // 4. Time: Both (Real primary)
+  if (timerDisplayMode === "gametime") {
+    setTimerDisplayMode("realtime", "RealTime");
+  } else if (timerDisplayMode === "realtime") {
+    setTimerDisplayMode("both", "GameTime");
+  } else if (timerDisplayMode === "both" && currentTimingMethod === "GameTime") {
+    setTimerDisplayMode("both", "RealTime");
+  } else {
+    setTimerDisplayMode("gametime", "GameTime");
+  }
 }
 
 function loadCachedSplits() {
@@ -1768,7 +1829,8 @@ function detectTimingMethodFromComp(splitIdx, compSec) {
     const diffGT = Math.abs(compSec - gtSec);
     const diffRT = Math.abs(compSec - rtSec);
     const detected = (diffGT <= diffRT) ? "GameTime" : "RealTime";
-    if (detected !== currentTimingMethod) {
+    const isManual = (localStorage.getItem("livesplit_timing_method_manual") === "true");
+    if (!isManual && detected !== currentTimingMethod) {
       applyActiveTimingMethod(detected);
       localStorage.setItem("livesplit_timing_method", detected);
     }
@@ -2355,18 +2417,20 @@ function cycleSplitAngle() {
 // ============================================================
 function resetSettingsMenuPosition() {
   const panel = document.getElementById("footer-bar");
+  const quickWrap = document.getElementById("quick-settings-wrap");
   if (!panel) return;
   panel.style.left = "";
   panel.style.top = "";
   panel.style.right = "";
   panel.style.bottom = "";
   panel.classList.remove("is-custom-pos");
+  panel.classList.remove("is-dragging");
+  quickWrap?.classList.remove("pinned");
   localStorage.removeItem("livesplit_settings_pos");
 }
 
 function restoreSettingsMenuPosition() {
   const panel = document.getElementById("footer-bar");
-  const quickWrap = document.getElementById("quick-settings-wrap");
   const saved = localStorage.getItem("livesplit_settings_pos");
   if (saved && panel) {
     try {
@@ -2381,7 +2445,6 @@ function restoreSettingsMenuPosition() {
         panel.style.right = "auto";
         panel.style.bottom = "auto";
         panel.classList.add("is-custom-pos");
-        quickWrap?.classList.add("pinned");
       }
     } catch (e) {
       console.warn("Failed to parse saved settings position", e);
@@ -2392,7 +2455,6 @@ function restoreSettingsMenuPosition() {
 function initSettingsMenuDraggable() {
   const panel = document.getElementById("footer-bar");
   const header = document.querySelector(".settings-menu-header");
-  const quickWrap = document.getElementById("quick-settings-wrap");
   const resetBtn = document.getElementById("btn-reset-settings-pos");
   if (!panel || !header) return;
 
@@ -2425,7 +2487,7 @@ function initSettingsMenuDraggable() {
     isDragging = true;
     header.setPointerCapture(e.pointerId);
     header.classList.add("is-dragging");
-    quickWrap?.classList.add("pinned");
+    panel.classList.add("is-dragging");
 
     const rect = panel.getBoundingClientRect();
     origLeft = rect.left;
@@ -2464,6 +2526,7 @@ function initSettingsMenuDraggable() {
     isDragging = false;
     header.releasePointerCapture(e.pointerId);
     header.classList.remove("is-dragging");
+    panel.classList.remove("is-dragging");
 
     const rect = panel.getBoundingClientRect();
     localStorage.setItem("livesplit_settings_pos", JSON.stringify({
@@ -2510,6 +2573,14 @@ function initOverlay() {
     quickWrap?.classList.toggle("pinned");
   });
 
+  // Direct click on timer blocks to focus timing method
+  document.getElementById("block-igt")?.addEventListener("click", () => {
+    setTimingMethodFocus("GameTime");
+  });
+  document.getElementById("block-rta")?.addEventListener("click", () => {
+    setTimingMethodFocus("RealTime");
+  });
+
   initSettingsMenuDraggable();
   loadCachedSplits();
   updateTrackDensityAndAngle();
@@ -2549,6 +2620,7 @@ window.detectTimingMethodFromComp = detectTimingMethodFromComp;
 window.applyActiveTimingMethod = applyActiveTimingMethod;
 window.getCurrentTimingMethod = () => currentTimingMethod;
 window.setTimerDisplayMode = setTimerDisplayMode;
+window.setTimingMethodFocus = setTimingMethodFocus;
 window.getTimerDisplayMode = () => timerDisplayMode;
 window.toggleTimingMethod = toggleTimingMethod;
 window.resetSettingsMenuPosition = resetSettingsMenuPosition;

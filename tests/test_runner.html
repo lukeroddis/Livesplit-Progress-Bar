@@ -96,6 +96,7 @@
     <div id="ctrl-name-pos"></div>
     <div id="ctrl-delta-pos"></div>
     <div id="ctrl-timer-display"></div>
+    <div id="ctrl-timer-focus"></div>
     <div id="quick-settings-wrap">
       <div id="footer-bar">
         <div class="settings-menu-header"></div>
@@ -418,6 +419,58 @@
       it("safely executes handleUndoSplit without errors", () => {
         window.handleUndoSplit(0, 1);
         assertEqual(true, true);
+      });
+    });
+
+    describe("Timer Display Modes & Primary Focus", () => {
+      it("exports setTimerDisplayMode, setTimingMethodFocus, and getTimerDisplayMode", () => {
+        assertEqual(typeof window.setTimerDisplayMode, "function");
+        assertEqual(typeof window.setTimingMethodFocus, "function");
+        assertEqual(typeof window.getTimerDisplayMode, "function");
+        assertEqual(typeof window.getCurrentTimingMethod, "function");
+      });
+      it("switches to Game Time as primary focus in both mode", () => {
+        window.setTimerDisplayMode("both", "GameTime");
+        assertEqual(window.getTimerDisplayMode(), "both");
+        assertEqual(window.getCurrentTimingMethod(), "GameTime");
+        const igt = document.getElementById("timer-igt");
+        const rta = document.getElementById("timer-rta");
+        assertEqual(igt.className, "timer-primary");
+        assertEqual(rta.className, "timer-secondary");
+      });
+      it("switches to Real Time as primary focus in both mode", () => {
+        window.setTimingMethodFocus("RealTime");
+        assertEqual(window.getCurrentTimingMethod(), "RealTime");
+        const igt = document.getElementById("timer-igt");
+        const rta = document.getElementById("timer-rta");
+        assertEqual(rta.className, "timer-primary");
+        assertEqual(igt.className, "timer-secondary");
+      });
+      it("cycles 4 timing states via toggleTimingMethod", () => {
+        window.setTimerDisplayMode("gametime", "GameTime");
+        assertEqual(window.getTimerDisplayMode(), "gametime");
+
+        window.toggleTimingMethod();
+        assertEqual(window.getTimerDisplayMode(), "realtime");
+        assertEqual(window.getCurrentTimingMethod(), "RealTime");
+
+        window.toggleTimingMethod();
+        assertEqual(window.getTimerDisplayMode(), "both");
+        assertEqual(window.getCurrentTimingMethod(), "GameTime");
+
+        window.toggleTimingMethod();
+        assertEqual(window.getTimerDisplayMode(), "both");
+        assertEqual(window.getCurrentTimingMethod(), "RealTime");
+
+        window.toggleTimingMethod();
+        assertEqual(window.getTimerDisplayMode(), "gametime");
+        assertEqual(window.getCurrentTimingMethod(), "GameTime");
+      });
+      it("unpins quick settings wrap on resetSettingsMenuPosition", () => {
+        const wrap = document.getElementById("quick-settings-wrap");
+        wrap.classList.add("pinned");
+        window.resetSettingsMenuPosition();
+        assertEqual(wrap.classList.contains("pinned"), false);
       });
     });
 

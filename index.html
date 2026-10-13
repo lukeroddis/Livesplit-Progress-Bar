@@ -65,11 +65,11 @@
       </div>
     </div>
     <div class="timer-group">
-      <div class="timer-block" id="block-rta">
+      <div class="timer-block" id="block-rta" title="Click to focus Real Time (RTA) as primary timer and splits comparison target">
         <div class="timer-secondary" id="timer-rta">0:00.00</div>
         <span class="timer-label">Real Time</span>
       </div>
-      <div class="timer-block" id="block-igt">
+      <div class="timer-block" id="block-igt" title="Click to focus Game Time (IGT) as primary timer and splits comparison target">
         <div class="timer-primary" id="timer-igt">0:00.00</div>
         <span class="timer-label">Game Time</span>
       </div>
@@ -328,6 +328,13 @@
             <button type="button" class="seg-btn" data-val="gametime">Game Time</button>
             <button type="button" class="seg-btn" data-val="realtime">Real Time</button>
             <button type="button" class="seg-btn active" data-val="both">Both</button>
+          </div>
+        </div>
+        <div class="modal-row" id="row-timer-focus">
+          <label>Primary Timer &amp; Splits Target</label>
+          <div class="seg-btn-group" id="ctrl-timer-focus">
+            <button type="button" class="seg-btn active" data-val="GameTime">Game Time</button>
+            <button type="button" class="seg-btn" data-val="RealTime">Real Time</button>
           </div>
         </div>
 

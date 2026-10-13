@@ -545,6 +545,17 @@ body.edit-mode .layout-toolbar {
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.timer-block:hover {
+  transform: scale(1.02);
+}
+
+.timer-block:active {
+  transform: scale(0.98);
 }
 
 .timer-secondary {
@@ -1342,6 +1353,7 @@ body:hover .settings-trigger-pill {
 /* Reveal when hovering over the bottom-right wrap, or when pinned, or in edit-mode */
 .quick-settings-wrap:hover .settings-menu-panel,
 .settings-menu-panel:hover,
+.settings-menu-panel.is-dragging,
 .quick-settings-wrap.pinned .settings-menu-panel,
 body.edit-mode .settings-menu-panel {
   opacity: 1;

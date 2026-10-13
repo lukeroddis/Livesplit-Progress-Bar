@@ -524,6 +524,12 @@
     document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.getAttribute("data-val") === curTimerMode);
     });
+
+    // Primary Timer & Splits Target segmented control sync
+    const curFocus = window.getCurrentTimingMethod ? window.getCurrentTimingMethod() : (localStorage.getItem("livesplit_timing_method") || "GameTime");
+    document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === curFocus);
+    });
   }
 
   function openTrackModal() {
@@ -1238,6 +1244,18 @@
         const val = btn.getAttribute("data-val");
         if (window.setTimerDisplayMode) {
           window.setTimerDisplayMode(val);
+        }
+      });
+    });
+
+    // Primary Timer & Splits Target segmented control listener
+    document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-val");
+        if (window.setTimingMethodFocus) {
+          window.setTimingMethodFocus(val);
+        } else if (window.applyActiveTimingMethod) {
+          window.applyActiveTimingMethod(val);
         }
       });
     });
