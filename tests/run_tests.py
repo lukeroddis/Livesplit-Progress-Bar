@@ -668,10 +668,12 @@ def test_start_node_and_bar_fill_geometry():
     with open(css_path, "r", encoding="utf-8") as f:
         css = f.read()
 
-    # 1. Start node active styling in CSS
+    # 1. Start node active styling in CSS: cyan dot and white text
     assert "#node-start.active .dot" in css or ".split-item.origin-node.active .dot" in css, \
         "style.css missing active Start node dot rule"
     assert "var(--node-active)" in css, "style.css missing var(--node-active) reference"
+    assert "#node-start .split-name" in css and "color: #ffffff" in css, \
+        "style.css must keep Start title text color white #ffffff"
 
     # 2. Horizontal progress bar fill must enforce 100% height (full bar thickness)
     assert ".track:not(.vertical) .segment-bar-fill" in css and "height: 100% !important" in css, \

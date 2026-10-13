@@ -718,13 +718,13 @@ body.edit-mode .layout-toolbar {
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.95);
 }
 
-.split-item.origin-node.active .split-name,
-#node-start.active .split-name {
-  color: #38bdf8;
+.split-item.origin-node .split-name,
+#node-start .split-name {
+  color: #ffffff;
 }
 
-.split-item.origin-node.active .split-time-val,
-#node-start.active .split-time-val {
+.split-item.origin-node .split-time-val,
+#node-start .split-time-val {
   color: #ffffff;
 }
 
