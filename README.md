@@ -1,5 +1,18 @@
 # LiveSplit Minimal Overlay
 
+<p align="center">
+  <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml"><img src="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Test Suite"></a>
+  <a href="tests/run_tests.py"><img src="https://img.shields.io/badge/tests-23%20passed-brightgreen.svg" alt="Tests"></a>
+  <a href="https://obsproject.com/"><img src="https://img.shields.io/badge/OBS%20Studio-Compatible-purple.svg" alt="OBS Studio Compatible"></a>
+  <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/releases"><img src="https://img.shields.io/github/v/release/lukeroddis/Livesplit-Progress-Bar?color=blue&logo=github" alt="Release"></a>
+  <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/issues"><img src="https://img.shields.io/github/issues/lukeroddis/Livesplit-Progress-Bar?color=orange" alt="Issues"></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
+</p>
+
+<p align="center">
+  <img src="assets/MainImage.png" alt="LiveSplit Minimal Overlay Progress Track" width="850">
+</p>
+
 A modern, widescreen-optimized HUD and progress bar overlay for speedrunners, designed for standalone web browsers and OBS Studio Browser Sources (1080p, 1440p, 4K).
 
 Traditional LiveSplit layouts take up substantial vertical screen space over modern 16:9 gameplay. This overlay delivers a minimal, bottom-docked or floating horizontal progress track, dynamic dual timers, and full LiveSplit state parity—freeing up screen real estate for the game.
@@ -28,6 +41,11 @@ Traditional LiveSplit layouts take up substantial vertical screen space over mod
 ## 🎮 Key Features & Capabilities
 
 ### 1. Minimal Horizontal Split Track
+
+<p align="center">
+  <img src="assets/SplitTransition.gif" alt="Split Transition Animation" width="850">
+</p>
+
 * **Visual Progress Nodes**: Interactive node dots and connecting lines indicate completed, current, and upcoming splits.
 * **Auto-Centering Track**: Smoothly scrolls the active split to keep it centered on screen regardless of how many splits your run has.
 * **Side-by-Side Typography**: Displays both the locked split delta and the final cumulative time side by side.
@@ -40,12 +58,21 @@ Traditional LiveSplit layouts take up substantial vertical screen space over mod
 * **Intelligent Live Delta Reveal**: Hides the active delta while on pace for a Gold split; dynamically reveals the ticking delta the moment time is lost.
 
 ### 2. Dynamic Dual Timers & Focus Control
+
+<p align="center">
+  <img src="assets/GameTimer.gif" alt="Dynamic Game & Real Timers" width="620">
+</p>
+
 * **Flexible Display Modes**: Toggle between **Game Time**, **Real Time**, or **Both** using the footer `Time:` badge, the Bar Styles modal (`🎨 Bar Styles`), or URL query parameter (`?timer=gametime|realtime|both`).
 * **Direct Click-to-Focus**: When both timers are displayed, click directly on either the **Game Time** (`#block-igt`) or **Real Time** (`#block-rta`) timer block to immediately focus that method as the primary timer (large 54px typography) and have split comparisons benchmark against it.
 * **Secondary Timer (24px)**: Keeps the alternate time format visible with low visual intrusion.
 
-
 ### 3. Interactive HUD Layout Editor
+
+<p align="center">
+  <img src="assets/LayoutMode.png" alt="Interactive Layout Edit Mode" width="850">
+</p>
+
 Edit and customize your layout in real time directly inside the browser or OBS Interact window:
 * **Toggle Edit Mode**: Press **`E`** or **`F2`**, or click **`⚙ Edit Layout`** in the bottom utility bar.
 * **Freeform Drag & Drop**: Click and drag any component header (`:::`) or container to move it anywhere on screen.
@@ -53,6 +80,7 @@ Edit and customize your layout in real time directly inside the browser or OBS I
 * **Component Toggles**: Hide or show the **Game Title**, **Dual Timers**, or **Progress Track** independently.
 * **Bottom Dock Snapping**: Drag the Progress Track near the bottom to snap to a full-width dock, or click **`⚓ Dock / ⛵ Float`**.
 * **Lock & Save**: Press **`Esc`** or click **`🔒 Lock Layout`**. Layout settings are remembered across browser sessions and OBS reboots.
+* **Demo Video**: See [assets/InteractiveHUD.mp4](assets/InteractiveHUD.mp4) for a live demonstration of interactive HUD manipulation.
 
 ### 4. High-Density Split Controls & 40° Angle Tilt
 * **Spin Box Split Density**: Control exactly how many splits fit on screen with an integer spin box (`2` to `60` splits), or choose one-click **`All`** (fit all without scrolling) or **`Auto`** (standard 220px spacing).
@@ -61,7 +89,12 @@ Edit and customize your layout in real time directly inside the browser or OBS I
   - **Opposing-Side Rule**: Deltas and times remain strictly flat (0°) and are forced to the opposite side of the connector bar (e.g. Titles on Top $\implies$ Timers on Bottom), eliminating text overlap.
   - Generous bounding box clearance prevents text clipping or truncation.
 
-### 5. High-Contrast Glassmorphic Background Plates
+### 5. High-Contrast Glassmorphic Background Plates & HUD Customizer
+
+<p align="center">
+  <img src="assets/HUDCustomiser.png" alt="HUD & Progress Bar Customizer Modal" width="380">
+</p>
+
 * Solves washed-out text and illegibility on bright game scenes (skyboxes, bright pavement, snow):
   - Dark semi-transparent plate (`rgba(15, 23, 42, opacity)`) with frosted glass backdrop blur.
   - **Live Opacity Slider**: Adjustable from `0%` (fully transparent) to `95%` (dark contrast).
@@ -99,7 +132,7 @@ Bring the "ghost runner" mechanic from racing games directly to your speedrun HU
   - Configurable ghost pin opacity slider (`30%` to `100%`) in **`🎨 Bar Styles`**.
   - Quick cycling via the **`Ghost: Off`** footer utility badge.
 
-### 8. Vertical Sidebar Track (Classical LiveSplit & 4:3 Displays)
+### 9. Vertical Sidebar Track (Classical LiveSplit & 4:3 Displays)
 Bring the overlay into a clean vertical sidebar layout tailored for 4:3 pillarboxed displays and classic LiveSplit aesthetics:
 * **Toggle Track Orientation**: Switch between **Horizontal** (widescreen default) and **Vertical** (sidebar) with a single click via the **`Orient: Horiz / Vert`** footer badge or the **`🎨 Bar Styles`** customizer modal.
 * **Flexible Left / Right Text Positioning**:
@@ -109,7 +142,12 @@ Bring the overlay into a clean vertical sidebar layout tailored for 4:3 pillarbo
 * **Screen Edge Docking**: Drag the vertical sidebar in Edit Mode (**`E`**) to snap to the left or right edges of the screen (`docked-left` / `docked-right`).
 * **Vertical Ghost Runner & Beacons**: Live ghost runner tracks vertically down the timeline with dedicated top (`▲`) and bottom (`▼`) off-screen beacons.
 
-### 9. Draggable Quick Settings & .lss Loader Menu
+### 10. Draggable Quick Settings & .lss Loader Menu
+
+<p align="center">
+  <img src="assets/LiveSplitSettings.png" alt="Draggable Quick Settings and .lss Loader" width="400">
+</p>
+
 * **Discreet Stream-Safe Trigger**: The bottom-right `Settings & .lss` trigger pill remains invisible during live OBS capture and fades in softly when the mouse moves over the window.
 * **Click-to-Latch Activation**: Clicking the trigger pill presses it down into a sunken active state (`.is-pressed`), locking the quick settings card open. Click it again, press `Esc`, or click the `✕` close button to dismiss.
 * **Header Drag-and-Drop**: Click and drag the menu header anywhere on screen to prevent overlap with your track or OBS widgets; double-click the header or click `↺` to reset position.
