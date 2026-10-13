@@ -18,7 +18,7 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 def test_file_integrity():
     """Verify core project files exist and are UTF-8 decodable."""
-    required = ["index.html", "layout.js", "overlay.js", "style.css", "README.md", "LICENSE", "package.json"]
+    required = ["index.html", "layout.js", "overlay.js", "style.css", "README.md", "LICENSE", "package.json", "schema/layout-v1.json"]
     for fname in required:
         path = os.path.join(ROOT_DIR, fname)
         assert os.path.exists(path), f"Missing required file: {fname}"
