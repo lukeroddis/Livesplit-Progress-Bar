@@ -117,6 +117,7 @@
       <span id="bg-opacity-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle background plate opacity (55% / 80% / Off / 35%)">BG: 55%</span>
       <span id="split-density-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</span>
       <span id="split-angle-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</span>
+      <span id="track-orient-badge" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Click to toggle Horizontal / Vertical layout">Orient: Horiz</span>
       <span id="track-style-badge" style="cursor:pointer; color: rgba(148, 163, 184, 0.9); text-decoration: underline;" title="Customize progress bar positions, fonts, and sizes">🎨 Bar Styles</span>
       <span id="layout-edit-btn" style="cursor:pointer; color: #38bdf8; text-decoration: underline;" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout</span>
       <div id="connection-status">Connecting...</div>
@@ -162,21 +163,35 @@
             </label>
           </div>
         </div>
+
+        <!-- Track Orientation -->
+        <div class="modal-section-title">Track Orientation</div>
+        <div class="modal-row">
+          <label>Orientation</label>
+          <div class="segmented-control" id="ctrl-track-orient">
+            <button class="seg-btn active" data-val="horizontal">Horizontal</button>
+            <button class="seg-btn" data-val="vertical">Vertical</button>
+          </div>
+        </div>
         
         <!-- Positions -->
         <div class="modal-section-title">Layout Positions</div>
         <div class="modal-row">
           <label>Split Name Position</label>
           <div class="segmented-control" id="ctrl-name-pos">
-            <button class="seg-btn active" data-val="top">Top</button>
-            <button class="seg-btn" data-val="bottom">Bottom</button>
+            <button class="seg-btn seg-btn-horiz active" data-val="top">Top</button>
+            <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
           </div>
         </div>
         <div class="modal-row">
           <label>Delta / Time Position</label>
           <div class="segmented-control" id="ctrl-delta-pos">
-            <button class="seg-btn active" data-val="top">Top</button>
-            <button class="seg-btn" data-val="bottom">Bottom</button>
+            <button class="seg-btn seg-btn-horiz active" data-val="top">Top</button>
+            <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
           </div>
         </div>
         <div class="modal-hint" id="opposing-hint">💡 When 40° angle is active, timers stay horizontal on the opposite side to eliminate overlap.</div>

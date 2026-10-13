@@ -89,6 +89,16 @@ Bring the "ghost runner" mechanic from racing games directly to your speedrun HU
   - Configurable ghost pin opacity slider (`30%` to `100%`) in **`🎨 Bar Styles`**.
   - Quick cycling via the **`Ghost: Off`** footer utility badge.
 
+### 8. Vertical Sidebar Track (Classical LiveSplit & 4:3 Displays)
+Bring the overlay into a clean vertical sidebar layout tailored for 4:3 pillarboxed displays and classic LiveSplit aesthetics:
+* **Toggle Track Orientation**: Switch between **Horizontal** (widescreen default) and **Vertical** (sidebar) with a single click via the **`Orient: Horiz / Vert`** footer badge or the **`🎨 Bar Styles`** customizer modal.
+* **Flexible Left / Right Text Positioning**:
+  - **Symmetrical (Default Vertical)**: Split Names on the Left (right-aligned), Deltas on the Right (left-aligned), with the timeline dot centered.
+  - **Classic LiveSplit**: Timeline dots on the left, Split Names left-aligned, and Deltas right-aligned.
+  - **Customizable**: Choose any combination of **Left** or **Right** for Split Names and Deltas.
+* **Screen Edge Docking**: Drag the vertical sidebar in Edit Mode (**`E`**) to snap to the left or right edges of the screen (`docked-left` / `docked-right`).
+* **Vertical Ghost Runner & Beacons**: Live ghost runner tracks vertically down the timeline with dedicated top (`▲`) and bottom (`▼`) off-screen beacons.
+
 ---
 
 ## 🎛️ Standalone OBS URL Parameters
@@ -100,14 +110,15 @@ For multi-monitor or multi-source OBS setups, load specific isolated components 
 | `?view=track` | Display only the Progress Track | `index.html?view=track` |
 | `?view=timers` | Display only the Dual Timers | `index.html?view=timers` |
 | `?view=title` | Display only the Game Title & Category | `index.html?view=title` |
+| `?orient=vertical\|horizontal` | Set track orientation to Vertical or Horizontal | `index.html?orient=vertical` |
 | `?splits=all` | Fit all splits on screen without scrolling | `index.html?splits=all` |
 | `?splits=12` | Force exactly 12 splits on screen | `index.html?splits=12` |
 | `?angle=40` | Force 40° angled split titles | `index.html?angle=40` |
 | `?ghost=wr` | Enable Live Ghost Runner against World Record (`wr`, `pb`, `best`, `average`, `off`) | `index.html?ghost=wr` |
 | `?bg=55` | Set background plate opacity to 55% | `index.html?bg=55` |
 | `?bgblur=8` | Set frosted glass blur in pixels | `index.html?bgblur=8` |
-| `?namepos=top\|bottom` | Set split title position | `index.html?namepos=top` |
-| `?deltapos=top\|bottom` | Set delta and time position | `index.html?deltapos=bottom` |
+| `?namepos=top\|bottom\|left\|right` | Set split title position | `index.html?namepos=left` |
+| `?deltapos=top\|bottom\|left\|right` | Set delta and time position | `index.html?deltapos=right` |
 | `?edit=1` | Launch directly into Layout Edit Mode | `index.html?edit=1` |
 | `?hide=title,timers` | Hide specific components via query | `index.html?hide=title,timers` |
 

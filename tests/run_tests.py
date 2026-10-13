@@ -547,6 +547,64 @@ def test_multi_ghost_selection_logic():
     print("✓ Multi-Ghost selection & toggle logic passed.")
 
 
+def map_track_orientation_switch(old_orient, new_orient, current_name_pos, current_delta_pos):
+    """Mirror the position mapping logic when toggling between horizontal and vertical."""
+    norm_new = "vertical" if new_orient == "vertical" else "horizontal"
+    if norm_new == old_orient:
+        return old_orient, current_name_pos, current_delta_pos
+
+    name_pos = current_name_pos
+    delta_pos = current_delta_pos
+
+    if norm_new == "vertical":
+        if name_pos in ["top", "bottom"]:
+            name_pos = "right" if name_pos == "bottom" else "left"
+        if delta_pos in ["top", "bottom"]:
+            delta_pos = "right"
+    else:
+        if name_pos in ["left", "right"]:
+            name_pos = "bottom" if name_pos == "right" else "top"
+        if delta_pos in ["left", "right"]:
+            delta_pos = "top"
+
+    return norm_new, name_pos, delta_pos
+
+
+def test_track_orientation_unit():
+    """Verify orientation toggle and position mapping logic."""
+    # 1. Switch from horizontal (top/top) to vertical -> (left/right)
+    o, np, dp = map_track_orientation_switch("horizontal", "vertical", "top", "top")
+    assert o == "vertical"
+    assert np == "left"
+    assert dp == "right"
+
+    # 2. Switch from horizontal (bottom/top) to vertical -> (right/right)
+    o, np, dp = map_track_orientation_switch("horizontal", "vertical", "bottom", "top")
+    assert o == "vertical"
+    assert np == "right"
+    assert dp == "right"
+
+    # 3. Switch from vertical (left/right) to horizontal -> (top/top)
+    o, np, dp = map_track_orientation_switch("vertical", "horizontal", "left", "right")
+    assert o == "horizontal"
+    assert np == "top"
+    assert dp == "top"
+
+    # 4. Switch from vertical (right/right) to horizontal -> (bottom/top)
+    o, np, dp = map_track_orientation_switch("vertical", "horizontal", "right", "right")
+    assert o == "horizontal"
+    assert np == "bottom"
+    assert dp == "top"
+
+    # 5. Idempotent check
+    o, np, dp = map_track_orientation_switch("vertical", "vertical", "left", "right")
+    assert o == "vertical"
+    assert np == "left"
+    assert dp == "right"
+
+    print("✓ Track orientation and positional mapping unit tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -566,6 +624,7 @@ def main():
         test_ghost_timescale_mismatch_defense()
         test_dynamic_pin_sizing_proximity()
         test_multi_ghost_selection_logic()
+        test_track_orientation_unit()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

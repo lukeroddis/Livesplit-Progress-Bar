@@ -91,6 +91,10 @@
     <span id="bg-opacity-badge"></span>
     <span id="split-density-badge"></span>
     <span id="split-angle-badge"></span>
+    <span id="track-orient-badge"></span>
+    <div id="ctrl-track-orient"></div>
+    <div id="ctrl-name-pos"></div>
+    <div id="ctrl-delta-pos"></div>
     <input type="file" id="file-input">
   </div>
 
@@ -347,6 +351,53 @@
           const style = window.hudLayout.getTrackStyle();
           assertEqual(typeof style.ghostPinLength, "number");
           assertEqual(style.ghostPinLength, 16);
+        }
+      });
+    });
+
+    describe("Track Orientation: Horizontal and Vertical Modes", () => {
+      it("supports horizontal and vertical track orientation toggle", () => {
+        if (window.hudLayout && window.hudLayout.setTrackOrientation) {
+          window.hudLayout.setTrackOrientation("vertical");
+          const style = window.hudLayout.getTrackStyle();
+          assertEqual(style.orientation, "vertical");
+          const track = document.getElementById("track");
+          assertEqual(track.classList.contains("vertical"), true);
+
+          // Switching to vertical should map positions to left/right
+          assertEqual(["left", "right"].includes(style.namePos), true);
+          assertEqual(["left", "right"].includes(style.deltaPos), true);
+
+          // Switch back to horizontal
+          window.hudLayout.setTrackOrientation("horizontal");
+          assertEqual(style.orientation, "horizontal");
+          assertEqual(track.classList.contains("vertical"), false);
+          assertEqual(["top", "bottom"].includes(style.namePos), true);
+          assertEqual(["top", "bottom"].includes(style.deltaPos), true);
+        }
+      });
+      it("supports left/right positioning combinations in vertical mode", () => {
+        if (window.hudLayout && window.hudLayout.setTrackOrientation) {
+          window.hudLayout.setTrackOrientation("vertical");
+          const style = window.hudLayout.getTrackStyle();
+
+          // Test Name Left, Delta Right (Default Symmetrical)
+          style.namePos = "left";
+          style.deltaPos = "right";
+          window.hudLayout.applyTrackStyle();
+          const track = document.getElementById("track");
+          assertEqual(track.classList.contains("pos-name-left"), true);
+          assertEqual(track.classList.contains("pos-delta-right"), true);
+
+          // Test Both on Right (Classic LiveSplit)
+          style.namePos = "right";
+          style.deltaPos = "right";
+          window.hudLayout.applyTrackStyle();
+          assertEqual(track.classList.contains("pos-name-right"), true);
+          assertEqual(track.classList.contains("pos-delta-right"), true);
+
+          // Restore to horizontal
+          window.hudLayout.setTrackOrientation("horizontal");
         }
       });
     });

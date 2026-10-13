@@ -807,14 +807,24 @@ function renderTrack() {
 function updateTrackStatus(idx) {
   currentIndex = idx;
   const viewport = document.getElementById("track-viewport");
+  const isVertical = document.getElementById("track")?.classList.contains("vertical");
 
   if (idx < 0) {
-    viewport.scrollTo({ left: 0, behavior: 'smooth' });
+    if (isVertical) {
+      viewport.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      viewport.scrollTo({ left: 0, behavior: 'smooth' });
+    }
   } else {
     const activeItem = document.getElementById(`item-${idx}`);
     if (activeItem) {
-      const scrollTarget = activeItem.offsetLeft + (activeItem.offsetWidth / 2) - (viewport.clientWidth / 2);
-      viewport.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+      if (isVertical) {
+        const scrollTarget = activeItem.offsetTop + (activeItem.offsetHeight / 2) - (viewport.clientHeight / 2);
+        viewport.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+      } else {
+        const scrollTarget = activeItem.offsetLeft + (activeItem.offsetWidth / 2) - (viewport.clientWidth / 2);
+        viewport.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+      }
     }
   }
 
@@ -844,6 +854,7 @@ function updateTrackStatus(idx) {
       } else {
         if (fill) {
           fill.style.width = "0%";
+          fill.style.height = "0%";
           fill.className = "segment-bar-fill";
         }
         const deltaSpan = document.getElementById(`delta-val-${i}`);
@@ -856,6 +867,7 @@ function updateTrackStatus(idx) {
       item.className = "split-item";
       if (fill) {
         fill.style.width = "0%";
+        fill.style.height = "0%";
         fill.className = "segment-bar-fill";
       }
       const deltaSpan = document.getElementById(`delta-val-${i}`);
@@ -891,11 +903,12 @@ function updateLiveSegmentProgress(currentSec) {
 
   if (expectedDuration <= 0) return;
 
-  // 1. Progress Bar Fill
+  // 1. Progress Bar Fill (universal for horizontal and vertical)
   if (fill) {
     const progressRatio = Math.max(0, elapsedInSegment / expectedDuration);
     const pct = Math.min(100, progressRatio * 100);
     fill.style.width = `${pct.toFixed(1)}%`;
+    fill.style.height = `${pct.toFixed(1)}%`;
 
     if (progressRatio > 1.0) {
       fill.classList.add("overdue");
@@ -1162,8 +1175,11 @@ function updateGhostRunner(currentSec) {
   const edgeLeft = document.getElementById("ghost-edge-left");
   const edgeRight = document.getElementById("ghost-edge-right");
   const viewport = document.getElementById("track-viewport");
+  const track = document.getElementById("track");
 
-  if (!viewport) return;
+  if (!viewport || !track) return;
+
+  const isVertical = track.classList.contains("vertical");
 
   const activeList = activeGhostComparisons.filter(g => g && g !== "off");
   if (activeList.length === 0 || currentSec === null || currentSec <= 0 || splitsList.length === 0) {
@@ -1183,10 +1199,10 @@ function updateGhostRunner(currentSec) {
     runnerSegProgress = (dur > 0) ? Math.min(1.0, elapsedInSeg / dur) : 0;
   }
 
-  const scrollLeft = viewport.scrollLeft;
-  const clientWidth = viewport.clientWidth;
-  const visibleMin = scrollLeft + 25;
-  const visibleMax = scrollLeft + clientWidth - 25;
+  const scrollOffset = isVertical ? viewport.scrollTop : viewport.scrollLeft;
+  const clientSpan = isVertical ? viewport.clientHeight : viewport.clientWidth;
+  const visibleMin = scrollOffset + 25;
+  const visibleMax = scrollOffset + clientSpan - 25;
 
   const nodeStart = document.getElementById("node-start");
   if (!nodeStart) return;
@@ -1205,33 +1221,55 @@ function updateGhostRunner(currentSec) {
 
     const { segIdx, ratio } = calculateGhostProgress(currentSec, ghostInfo.times);
 
-    // Calculate physical track X coordinates
-    let startX = 0;
-    let endX = 0;
+    // Calculate physical track coordinates (Y in vertical mode, X in horizontal mode)
+    let startCoord = 0;
+    let endCoord = 0;
     let prevNode = null;
     let nextNode = null;
 
-    if (segIdx === 0) {
-      prevNode = nodeStart;
-      startX = nodeStart.offsetLeft + (nodeStart.offsetWidth / 2);
-      const item0 = document.getElementById("item-0");
-      nextNode = item0;
-      endX = item0 ? (item0.offsetLeft + (item0.offsetWidth / 2)) : startX + 220;
-    } else {
-      const prevItem = document.getElementById(`item-${segIdx - 1}`);
-      const currentItem = document.getElementById(`item-${segIdx}`);
-      if (prevItem && currentItem) {
-        prevNode = prevItem;
-        nextNode = currentItem;
-        startX = prevItem.offsetLeft + (prevItem.offsetWidth / 2);
-        endX = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
+    if (isVertical) {
+      if (segIdx === 0) {
+        prevNode = nodeStart;
+        startCoord = nodeStart.offsetTop + (nodeStart.offsetHeight / 2);
+        const item0 = document.getElementById("item-0");
+        nextNode = item0;
+        endCoord = item0 ? (item0.offsetTop + (item0.offsetHeight / 2)) : startCoord + 64;
       } else {
-        marker.style.display = "none";
-        return;
+        const prevItem = document.getElementById(`item-${segIdx - 1}`);
+        const currentItem = document.getElementById(`item-${segIdx}`);
+        if (prevItem && currentItem) {
+          prevNode = prevItem;
+          nextNode = currentItem;
+          startCoord = prevItem.offsetTop + (prevItem.offsetHeight / 2);
+          endCoord = currentItem.offsetTop + (currentItem.offsetHeight / 2);
+        } else {
+          marker.style.display = "none";
+          return;
+        }
+      }
+    } else {
+      if (segIdx === 0) {
+        prevNode = nodeStart;
+        startCoord = nodeStart.offsetLeft + (nodeStart.offsetWidth / 2);
+        const item0 = document.getElementById("item-0");
+        nextNode = item0;
+        endCoord = item0 ? (item0.offsetLeft + (item0.offsetWidth / 2)) : startCoord + 220;
+      } else {
+        const prevItem = document.getElementById(`item-${segIdx - 1}`);
+        const currentItem = document.getElementById(`item-${segIdx}`);
+        if (prevItem && currentItem) {
+          prevNode = prevItem;
+          nextNode = currentItem;
+          startCoord = prevItem.offsetLeft + (prevItem.offsetWidth / 2);
+          endCoord = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
+        } else {
+          marker.style.display = "none";
+          return;
+        }
       }
     }
 
-    const ghostX = startX + ratio * (endX - startX);
+    const ghostCoord = startCoord + ratio * (endCoord - startCoord);
 
     // Compute live delta vs this ghost
     const ghostTimes = ghostInfo.times;
@@ -1248,26 +1286,30 @@ function updateGhostRunner(currentSec) {
     const isAhead = (liveDeltaGhost <= 0);
     const deltaStr = formatDeltaSeconds(liveDeltaGhost);
 
-    if (ghostX < visibleMin) {
-      // Off-screen to the left
+    if (ghostCoord < visibleMin) {
+      // Off-screen to the left (or top in vertical mode)
       marker.style.display = "none";
       leftOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
-    } else if (ghostX > visibleMax) {
-      // Off-screen to the right
+    } else if (ghostCoord > visibleMax) {
+      // Off-screen to the right (or bottom in vertical mode)
       marker.style.display = "none";
       rightOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
     } else {
       // On-screen!
       marker.style.display = "flex";
-      marker.style.transform = `translateX(${ghostX}px) translateX(-50%)`;
+      if (isVertical) {
+        marker.style.transform = `translateY(${ghostCoord}px) translateY(-50%) translateX(-50%)`;
+      } else {
+        marker.style.transform = `translateX(${ghostCoord}px) translateX(-50%)`;
 
-      // Dynamically shrink pin when hovering over split text, extend longer in open track
-      const distPrev = Math.abs(ghostX - startX);
-      const distNext = Math.abs(endX - ghostX);
-      const prevThreshold = getNodeTextThreshold(prevNode, false);
-      const nextThreshold = getNodeTextThreshold(nextNode, true);
-      const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
-      marker.classList.toggle("compact", isHoveringText);
+        // Dynamically shrink pin when hovering over split text, extend longer in open track
+        const distPrev = Math.abs(ghostCoord - startCoord);
+        const distNext = Math.abs(endCoord - ghostCoord);
+        const prevThreshold = getNodeTextThreshold(prevNode, false);
+        const nextThreshold = getNodeTextThreshold(nextNode, true);
+        const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
+        marker.classList.toggle("compact", isHoveringText);
+      }
     }
   });
 
@@ -1280,14 +1322,17 @@ function updateGhostRunner(currentSec) {
     }
   });
 
-  // Render left off-screen pills
+  const prevArrow = isVertical ? "▲" : "❮";
+  const nextArrow = isVertical ? "▼" : "❯";
+
+  // Render left / top off-screen pills
   if (leftOffscreenGhosts.length > 0 && edgeLeft) {
     edgeLeft.style.display = "flex";
     if (leftOffscreenGhosts.length === 1) {
       const g = leftOffscreenGhosts[0];
-      edgeLeft.innerHTML = `<span>❮</span> <span id="ghost-edge-left-icon">${g.ghostInfo.icon}</span> <span id="ghost-edge-left-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span>`;
+      edgeLeft.innerHTML = `<span>${prevArrow}</span> <span id="ghost-edge-left-icon">${g.ghostInfo.icon}</span> <span id="ghost-edge-left-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span>`;
     } else {
-      let html = `<span style="opacity:0.7;">❮</span> `;
+      let html = `<span style="opacity:0.7;">${prevArrow}</span> `;
       html += leftOffscreenGhosts.map(g => {
         const col = g.isAhead ? "#22c55e" : "#ef4444";
         return `<span>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
@@ -1298,18 +1343,18 @@ function updateGhostRunner(currentSec) {
     edgeLeft.style.display = "none";
   }
 
-  // Render right off-screen pills
+  // Render right / bottom off-screen pills
   if (rightOffscreenGhosts.length > 0 && edgeRight) {
     edgeRight.style.display = "flex";
     if (rightOffscreenGhosts.length === 1) {
       const g = rightOffscreenGhosts[0];
-      edgeRight.innerHTML = `<span id="ghost-edge-right-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span> <span id="ghost-edge-right-icon">${g.ghostInfo.icon}</span> <span>❯</span>`;
+      edgeRight.innerHTML = `<span id="ghost-edge-right-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span> <span id="ghost-edge-right-icon">${g.ghostInfo.icon}</span> <span>${nextArrow}</span>`;
     } else {
       let html = rightOffscreenGhosts.map(g => {
         const col = g.isAhead ? "#22c55e" : "#ef4444";
         return `<span>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
       }).join(" &nbsp;");
-      html += ` <span style="opacity:0.7;">❯</span>`;
+      html += ` <span style="opacity:0.7;">${nextArrow}</span>`;
       edgeRight.innerHTML = html;
     }
   } else if (edgeRight) {
@@ -1497,6 +1542,7 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
 
   if (fill) {
     fill.style.width = "100%";
+    fill.style.height = "100%";
     fill.className = `segment-bar-fill ${stateClass}`;
   }
 
@@ -1881,24 +1927,40 @@ function updateTrackDensityAndAngle() {
   const track = document.getElementById("track");
   if (!viewport || !track) return;
 
+  const isVertical = track.classList.contains("vertical");
   const viewportWidth = viewport.clientWidth || window.innerWidth || 1920;
+  const viewportHeight = viewport.clientHeight || window.innerHeight || 800;
   const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
   const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
 
-  let spacing = 220;
+  let spacing = isVertical ? 64 : 220;
 
-  if (splitPref === "all") {
-    // Fit all splits on screen without scrolling
-    const totalCount = Math.max(1, splitsList.length + 1); // +1 for the Start node
-    spacing = Math.max(45, Math.floor((viewportWidth - 50) / totalCount));
-  } else if (splitPref !== "auto") {
-    const num = parseInt(splitPref, 10);
-    if (!isNaN(num) && num > 0) {
-      spacing = Math.max(45, Math.floor(viewportWidth / num));
+  if (isVertical) {
+    if (splitPref === "all") {
+      const totalCount = Math.max(1, splitsList.length + 1);
+      spacing = Math.max(38, Math.floor((viewportHeight - 40) / totalCount));
+    } else if (splitPref !== "auto") {
+      const num = parseInt(splitPref, 10);
+      if (!isNaN(num) && num > 0) {
+        spacing = Math.max(38, Math.floor(viewportHeight / num));
+      }
+    } else {
+      spacing = 64;
     }
   } else {
-    // Default auto spacing
-    spacing = 220;
+    if (splitPref === "all") {
+      // Fit all splits on screen without scrolling
+      const totalCount = Math.max(1, splitsList.length + 1); // +1 for the Start node
+      spacing = Math.max(45, Math.floor((viewportWidth - 50) / totalCount));
+    } else if (splitPref !== "auto") {
+      const num = parseInt(splitPref, 10);
+      if (!isNaN(num) && num > 0) {
+        spacing = Math.max(45, Math.floor(viewportWidth / num));
+      }
+    } else {
+      // Default auto spacing
+      spacing = 220;
+    }
   }
 
   // Set the CSS variable dynamically
@@ -1940,28 +2002,30 @@ function updateTrackDensityAndAngle() {
     if (modalNumInput) modalNumInput.value = total;
     if (valBadge) valBadge.innerText = `Fit All (${total})`;
   } else {
-    if (numInput) numInput.value = 8;
-    if (modalNumInput) modalNumInput.value = 8;
+    if (numInput) numInput.value = isVertical ? 10 : 8;
+    if (modalNumInput) modalNumInput.value = isVertical ? 10 : 8;
     if (valBadge) valBadge.innerText = "Auto";
   }
 
-  // Determine whether to apply 40° angle strictly to split names
+  // Determine whether to apply 40° angle strictly to split names (horizontal mode only)
   let shouldAngle = false;
-  if (anglePref === "angled" || anglePref === "40") {
-    shouldAngle = true;
-  } else if (anglePref === "horizontal" || anglePref === "flat") {
-    shouldAngle = false;
-  } else {
-    // Intelligent collision detection:
-    // If node spacing is under 175px, text is very prone to collision
-    if (spacing < 175) {
+  if (!isVertical) {
+    if (anglePref === "angled" || anglePref === "40") {
       shouldAngle = true;
+    } else if (anglePref === "horizontal" || anglePref === "flat") {
+      shouldAngle = false;
     } else {
-      const nameElements = track.querySelectorAll(".split-name");
-      for (const el of nameElements) {
-        if (el.scrollWidth > (spacing - 24)) {
-          shouldAngle = true;
-          break;
+      // Intelligent collision detection:
+      // If node spacing is under 175px, text is very prone to collision
+      if (spacing < 175) {
+        shouldAngle = true;
+      } else {
+        const nameElements = track.querySelectorAll(".split-name");
+        for (const el of nameElements) {
+          if (el.scrollWidth > (spacing - 24)) {
+            shouldAngle = true;
+            break;
+          }
         }
       }
     }
@@ -1984,13 +2048,17 @@ function updateTrackDensityAndAngle() {
 
   const angleBadge = document.getElementById("split-angle-badge");
   if (angleBadge) {
-    angleBadge.innerText = (anglePref === "auto")
-      ? (shouldAngle ? "Angle: Auto (40°)" : "Angle: Auto (Flat)")
-      : (anglePref === "angled" ? "Angle: 40°" : "Angle: Flat");
+    if (isVertical) {
+      angleBadge.innerText = "Angle: Flat";
+    } else {
+      angleBadge.innerText = (anglePref === "auto")
+        ? (shouldAngle ? "Angle: Auto (40°)" : "Angle: Auto (Flat)")
+        : (anglePref === "angled" ? "Angle: 40°" : "Angle: Flat");
+    }
   }
   const angleSelect = document.getElementById("select-split-angle");
   if (angleSelect) {
-    angleSelect.value = anglePref;
+    angleSelect.value = isVertical ? "horizontal" : anglePref;
   }
 
   if (currentIndex >= 0) {

@@ -225,6 +225,64 @@ body.edit-mode .hud-resize-handle {
   box-shadow: 0 -8px 28px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65)) !important;
 }
 
+/* Docked Left & Right states for Vertical Track */
+#hud-comp-track.vertical {
+  width: 340px;
+  max-width: 90vw;
+}
+
+#hud-comp-track.docked-left {
+  position: absolute;
+  left: 0 !important;
+  right: auto !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 340px !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+}
+
+#hud-comp-track.docked-left.has-bg {
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: 1px solid rgba(148, 163, 184, calc(var(--bg-opacity, 0.55) * 0.35)) !important;
+  background: linear-gradient(
+    to right,
+    rgba(10, 15, 30, calc(var(--bg-opacity, 0.55) * 1.15)) 0%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.95)) 70%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.82)) 100%
+  ) !important;
+  box-shadow: 8px 0 28px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65)) !important;
+}
+
+#hud-comp-track.docked-right {
+  position: absolute;
+  right: 0 !important;
+  left: auto !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 340px !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+}
+
+#hud-comp-track.docked-right.has-bg {
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-right: none !important;
+  border-left: 1px solid rgba(148, 163, 184, calc(var(--bg-opacity, 0.55) * 0.35)) !important;
+  background: linear-gradient(
+    to left,
+    rgba(10, 15, 30, calc(var(--bg-opacity, 0.55) * 1.15)) 0%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.95)) 70%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.82)) 100%
+  ) !important;
+  box-shadow: -8px 0 28px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65)) !important;
+}
+
 /* Floating Layout Toolbar */
 .layout-toolbar {
   position: fixed;
@@ -933,6 +991,227 @@ body.edit-mode .layout-toolbar {
 
 .track.angled-text.pos-name-bottom .split-item.current .split-name {
   transform: rotate(40deg) scale(1.08);
+}
+
+/* ============================================================
+   VERTICAL TRACK ORIENTATION (Sidebar / 4:3 Classical Layout)
+   ============================================================ */
+.track-viewport.vertical {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.track-viewport.vertical::-webkit-scrollbar {
+  display: none;
+}
+
+.track.vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: max-content;
+  min-width: 100%;
+  width: 100%;
+  padding: calc(var(--node-spacing, 64px) / 2) 16px;
+  overflow: visible;
+}
+
+.track.vertical .split-item {
+  width: 100%;
+  height: var(--node-spacing, 64px);
+  min-height: var(--node-spacing, 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-direction: row;
+}
+
+/* Vertical Node Dot */
+.track.vertical .dot {
+  position: absolute;
+  left: var(--dot-left, 50%);
+  top: 50%;
+  bottom: auto;
+  right: auto;
+  transform: translateY(-50%) translateX(-50%);
+  margin: 0;
+  z-index: 5;
+}
+
+.track.vertical .split-item.current .dot {
+  transform: translateY(-50%) translateX(-50%) scale(1.35);
+}
+
+/* Vertical Connector Bar: connects upward to previous node */
+.track.vertical .segment-bar-bg {
+  position: absolute;
+  left: var(--dot-left, 50%);
+  bottom: 50%;
+  top: auto;
+  right: auto;
+  transform: translateX(-50%);
+  width: var(--bar-height, 6px);
+  height: var(--node-spacing, 64px);
+  z-index: 2;
+  border-radius: calc(var(--bar-height, 6px) / 2);
+}
+
+.track.vertical .split-item.origin-node .segment-bar-bg {
+  display: none;
+}
+
+.track.vertical .segment-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 0%;
+  transition: height 0.1s linear, background 0.2s ease, box-shadow 0.2s ease;
+  border-radius: calc(var(--bar-height, 6px) / 2);
+}
+
+/* Base text properties in Vertical Track */
+.track.vertical .split-name {
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  font-size: var(--name-font-size, 17px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.track.vertical .split-delta {
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+/* Layout 1: Name on Left, Delta on Right (Default Vertical - Symmetrical) */
+.track.vertical.pos-name-left.pos-delta-right,
+.track.vertical:not(.pos-name-right):not(.pos-delta-left) {
+  --dot-left: 50%;
+}
+.track.vertical.pos-name-left.pos-delta-right .split-name,
+.track.vertical:not(.pos-name-right):not(.pos-delta-left) .split-name {
+  left: 14px;
+  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.track.vertical.pos-name-left.pos-delta-right .split-delta,
+.track.vertical:not(.pos-name-right):not(.pos-delta-left) .split-delta {
+  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  right: 14px;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+/* Layout 2: Delta on Left, Name on Right (Inverted Symmetrical) */
+.track.vertical.pos-name-right.pos-delta-left {
+  --dot-left: 50%;
+}
+.track.vertical.pos-name-right.pos-delta-left .split-delta {
+  left: 14px;
+  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  text-align: right;
+  justify-content: flex-end;
+}
+.track.vertical.pos-name-right.pos-delta-left .split-name {
+  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  right: 14px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Layout 3: Both on Right (Classic LiveSplit Layout) */
+.track.vertical.pos-name-right.pos-delta-right {
+  --dot-left: 28px;
+}
+.track.vertical.pos-name-right.pos-delta-right .split-name {
+  left: calc(28px + (var(--dot-size, 15px) / 2) + 14px);
+  right: auto;
+  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.track.vertical.pos-name-right.pos-delta-right .split-delta {
+  left: auto;
+  right: 16px;
+  text-align: right;
+  justify-content: flex-end;
+}
+
+/* Layout 4: Both on Left (Inverted Classic LiveSplit) */
+.track.vertical.pos-name-left.pos-delta-left {
+  --dot-left: calc(100% - 28px);
+}
+.track.vertical.pos-name-left.pos-delta-left .split-name {
+  left: 16px;
+  right: auto;
+  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.track.vertical.pos-name-left.pos-delta-left .split-delta {
+  left: auto;
+  right: calc(28px + (var(--dot-size, 15px) / 2) + 14px);
+  text-align: right;
+  justify-content: flex-end;
+}
+
+/* Vertical Active Split highlight */
+.track.vertical .split-item.current .split-name {
+  color: #38bdf8;
+  font-weight: 800;
+  transform: translateY(-50%) scale(1.04);
+}
+
+/* Vertical Ghost Marker */
+.track.vertical .ghost-marker {
+  position: absolute;
+  top: 0;
+  bottom: auto;
+  left: var(--dot-left, 50%);
+  transform: translateY(-50%) translateX(-50%);
+  z-index: 20;
+  transition: opacity 0.2s ease;
+}
+
+.track.vertical .ghost-marker .ghost-needle {
+  display: none;
+}
+
+/* Vertical Off-Screen Edge Beacons */
+#hud-comp-track.vertical .ghost-edge-left {
+  position: absolute;
+  top: 10px;
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+#hud-comp-track.vertical .ghost-edge-right {
+  position: absolute;
+  bottom: 10px;
+  top: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 
 /* Footer Status Bar */

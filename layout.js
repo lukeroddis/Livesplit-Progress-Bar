@@ -10,8 +10,9 @@
   const COMPONENTS = ["title", "timers", "track"];
 
   const DEFAULT_TRACK_STYLE = {
-    namePos: "top",        // 'top' | 'bottom'
-    deltaPos: "top",       // 'top' | 'bottom'
+    orientation: "horizontal", // 'horizontal' | 'vertical'
+    namePos: "top",        // 'top' | 'bottom' | 'left' | 'right'
+    deltaPos: "top",       // 'top' | 'bottom' | 'left' | 'right'
     nameFontSize: 17,      // px
     deltaFontSize: 15,     // px
     barHeight: 6,          // px
@@ -106,6 +107,7 @@
 
   function enforceOpposingTrackPositions() {
     if (!currentTrackStyle) return;
+    if (currentTrackStyle.orientation === "vertical") return;
     const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
     const track = document.getElementById("track");
     const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
@@ -118,13 +120,69 @@
     }
   }
 
+  function setTrackOrientation(orient) {
+    if (!currentTrackStyle) return;
+    const newOrient = (orient === "vertical") ? "vertical" : "horizontal";
+    currentTrackStyle.orientation = newOrient;
+
+    if (newOrient === "vertical") {
+      if (currentTrackStyle.namePos === "top" || currentTrackStyle.namePos === "bottom") {
+        currentTrackStyle.namePos = (currentTrackStyle.namePos === "bottom") ? "right" : "left";
+      }
+      if (currentTrackStyle.deltaPos === "top" || currentTrackStyle.deltaPos === "bottom") {
+        currentTrackStyle.deltaPos = "right";
+      }
+      if (layoutState && layoutState.track && layoutState.track.docked === "bottom") {
+        layoutState.track.docked = "left";
+        layoutState.track.x = 0;
+        layoutState.track.y = 0;
+        saveLayout();
+      }
+    } else {
+      if (currentTrackStyle.namePos === "left" || currentTrackStyle.namePos === "right") {
+        currentTrackStyle.namePos = (currentTrackStyle.namePos === "right") ? "bottom" : "top";
+      }
+      if (currentTrackStyle.deltaPos === "left" || currentTrackStyle.deltaPos === "right") {
+        currentTrackStyle.deltaPos = "top";
+      }
+      if (layoutState && layoutState.track && (layoutState.track.docked === "left" || layoutState.track.docked === "right")) {
+        layoutState.track.docked = "bottom";
+        layoutState.track.x = 0;
+        layoutState.track.y = Math.max(0, (window.innerHeight || 1080) - 90);
+        saveLayout();
+      }
+    }
+
+    applyTrackStyle();
+    applyComponentLayout("track");
+    saveTrackStyle();
+    syncTrackModalUI();
+  }
+  window.setTrackOrientation = setTrackOrientation;
+
   function applyTrackStyle() {
     if (!currentTrackStyle) return;
     const root = document.documentElement;
     const track = document.getElementById("track");
+    const elTrackComp = document.getElementById("hud-comp-track");
+    const elViewport = document.getElementById("track-viewport");
     if (!root || !track) return;
 
-    enforceOpposingTrackPositions();
+    const isVert = (currentTrackStyle.orientation === "vertical");
+
+    if (isVert) {
+      track.classList.add("vertical");
+      if (elTrackComp) elTrackComp.classList.add("vertical");
+      if (elViewport) elViewport.classList.add("vertical");
+    } else {
+      track.classList.remove("vertical");
+      if (elTrackComp) elTrackComp.classList.remove("vertical");
+      if (elViewport) elViewport.classList.remove("vertical");
+    }
+
+    if (!isVert) {
+      enforceOpposingTrackPositions();
+    }
 
     // Set CSS custom variables
     root.style.setProperty("--bar-height", `${currentTrackStyle.barHeight}px`);
@@ -143,14 +201,16 @@
     const isBgActive = opacityVal > 0;
     const elTitle = document.getElementById("hud-comp-title");
     const elTimers = document.getElementById("hud-comp-timers");
-    const elTrack = document.getElementById("hud-comp-track");
 
     if (elTitle) elTitle.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTitle !== false);
     if (elTimers) elTimers.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTimers !== false);
-    if (elTrack) elTrack.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTrack !== false);
+    if (elTrackComp) elTrackComp.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTrack !== false);
 
     // Remove existing positional classes and set active ones
-    track.classList.remove("pos-name-top", "pos-name-bottom", "pos-delta-top", "pos-delta-bottom");
+    track.classList.remove(
+      "pos-name-top", "pos-name-bottom", "pos-name-left", "pos-name-right",
+      "pos-delta-top", "pos-delta-bottom", "pos-delta-left", "pos-delta-right"
+    );
     track.classList.add(`pos-name-${currentTrackStyle.namePos}`, `pos-delta-${currentTrackStyle.deltaPos}`);
 
     syncTrackModalUI();
@@ -179,14 +239,33 @@
   function syncTrackModalUI() {
     if (!currentTrackStyle) return;
 
+    const isVert = (currentTrackStyle.orientation === "vertical");
     const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
     const track = document.getElementById("track");
     const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
 
+    // Track Orientation segmented control sync
+    document.querySelectorAll("#ctrl-track-orient .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === (isVert ? "vertical" : "horizontal"));
+    });
+
+    // Track Orient footer badge sync
+    const orientBadge = document.getElementById("track-orient-badge");
+    if (orientBadge) {
+      orientBadge.innerText = isVert ? "Orient: Vert" : "Orient: Horiz";
+      orientBadge.style.color = isVert ? "#a78bfa" : "#38bdf8";
+    }
+
     // Opposing hint visibility
     const hint = document.getElementById("opposing-hint");
     if (hint) {
-      hint.style.display = isAngled ? "block" : "none";
+      if (isVert) {
+        hint.style.display = "block";
+        hint.innerText = "💡 Position split names and deltas on either side of the vertical timeline node.";
+      } else {
+        hint.innerText = "💡 When 40° angle is active, timers stay horizontal on the opposite side to eliminate overlap.";
+        hint.style.display = isAngled ? "block" : "none";
+      }
     }
 
     // Background Opacity & Blur sync
@@ -226,6 +305,14 @@
       bgBadge.innerText = (opacityVal === 0) ? "BG: Off" : `BG: ${opacityVal}%`;
       bgBadge.style.color = (opacityVal > 0) ? "#38bdf8" : "rgba(148, 163, 184, 0.7)";
     }
+
+    // Toggle button visibility between horizontal (Top/Bottom) and vertical (Left/Right)
+    document.querySelectorAll(".seg-btn-horiz").forEach((btn) => {
+      btn.style.display = isVert ? "none" : "";
+    });
+    document.querySelectorAll(".seg-btn-vert").forEach((btn) => {
+      btn.style.display = isVert ? "" : "none";
+    });
 
     // Segmented buttons for Name and Delta
     document.querySelectorAll("#ctrl-name-pos .seg-btn").forEach((btn) => {
@@ -489,24 +576,68 @@
       cb.checked = state.visible !== false;
     }
 
-    // Bottom dock logic for track
+    // Dock logic for track
     if (compId === "track") {
+      const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
       const dockBtn = document.getElementById("btn-dock-track");
-      if (state.docked === "bottom") {
+
+      el.classList.remove("docked-bottom", "docked-left", "docked-right");
+
+      if (isVert) {
+        if (state.docked === "left" || state.docked === "bottom") {
+          el.classList.add("docked-left");
+          el.style.left = "0px";
+          el.style.right = "auto";
+          el.style.top = "0px";
+          el.style.bottom = "0px";
+          el.style.width = "340px";
+          el.style.height = "100%";
+          el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
+          el.style.transformOrigin = "top left";
+          if (dockBtn) dockBtn.innerText = "⚓ Docked";
+        } else if (state.docked === "right") {
+          el.classList.add("docked-right");
+          el.style.right = "0px";
+          el.style.left = "auto";
+          el.style.top = "0px";
+          el.style.bottom = "0px";
+          el.style.width = "340px";
+          el.style.height = "100%";
+          el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
+          el.style.transformOrigin = "top right";
+          if (dockBtn) dockBtn.innerText = "⚓ Docked";
+        } else {
+          el.style.left = `${state.x}px`;
+          el.style.top = `${state.y}px`;
+          el.style.bottom = "";
+          el.style.right = "";
+          el.style.width = "340px";
+          el.style.height = `${Math.min((window.innerHeight || 1080) - state.y, 800)}px`;
+          el.style.transform = `scale(${state.scale})`;
+          el.style.transformOrigin = "top left";
+          if (dockBtn) dockBtn.innerText = "⛵ Float";
+        }
+        return;
+      }
+
+      if (state.docked === "bottom" || state.docked === "left" || state.docked === "right") {
         el.classList.add("docked-bottom");
         el.style.left = "0px";
+        el.style.right = "auto";
         el.style.top = "";
         el.style.bottom = "0px";
         el.style.width = "100%";
+        el.style.height = "";
         el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
         el.style.transformOrigin = "bottom center";
         if (dockBtn) dockBtn.innerText = "⚓ Docked";
       } else {
-        el.classList.remove("docked-bottom");
         el.style.left = `${state.x}px`;
         el.style.top = `${state.y}px`;
         el.style.bottom = "";
+        el.style.right = "";
         el.style.width = `calc(100vw - ${Math.max(0, state.x)}px)`;
+        el.style.height = "";
         el.style.transform = `scale(${state.scale})`;
         el.style.transformOrigin = "top left";
         if (dockBtn) dockBtn.innerText = "⛵ Float";
@@ -593,6 +724,7 @@
     }
 
     // Track style URL parameters
+    const orientParam = params.get("orient") || params.get("orientation");
     const namePosParam = params.get("namepos");
     const deltaPosParam = params.get("deltapos");
     const barSizeParam = params.get("barsize");
@@ -601,8 +733,24 @@
     const deltaFontParam = params.get("deltafont");
 
     if (currentTrackStyle) {
-      if (namePosParam) currentTrackStyle.namePos = namePosParam.toLowerCase() === "bottom" ? "bottom" : "top";
-      if (deltaPosParam) currentTrackStyle.deltaPos = deltaPosParam.toLowerCase() === "bottom" ? "bottom" : "top";
+      if (orientParam) {
+        const o = orientParam.toLowerCase().trim();
+        if (o === "vertical" || o === "vert" || o === "v") {
+          currentTrackStyle.orientation = "vertical";
+          if (currentTrackStyle.namePos === "top" || currentTrackStyle.namePos === "bottom") currentTrackStyle.namePos = "left";
+          if (currentTrackStyle.deltaPos === "top" || currentTrackStyle.deltaPos === "bottom") currentTrackStyle.deltaPos = "right";
+        } else if (o === "horizontal" || o === "horiz" || o === "h") {
+          currentTrackStyle.orientation = "horizontal";
+        }
+      }
+      if (namePosParam) {
+        const np = namePosParam.toLowerCase().trim();
+        if (["top", "bottom", "left", "right"].includes(np)) currentTrackStyle.namePos = np;
+      }
+      if (deltaPosParam) {
+        const dp = deltaPosParam.toLowerCase().trim();
+        if (["top", "bottom", "left", "right"].includes(dp)) currentTrackStyle.deltaPos = dp;
+      }
       if (barSizeParam) currentTrackStyle.barHeight = parseInt(barSizeParam, 10) || currentTrackStyle.barHeight;
       if (dotSizeParam) currentTrackStyle.dotSize = parseInt(dotSizeParam, 10) || currentTrackStyle.dotSize;
       if (nameFontParam) currentTrackStyle.nameFontSize = parseInt(nameFontParam, 10) || currentTrackStyle.nameFontSize;
@@ -718,14 +866,27 @@
       trackDockBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         const state = layoutState.track;
-        if (state.docked === "bottom") {
-          state.docked = "none";
-          state.x = 42;
-          state.y = Math.max(0, window.innerHeight - 150);
+        const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
+        if (isVert) {
+          if (state.docked === "left" || state.docked === "right" || state.docked === "bottom") {
+            state.docked = "none";
+            state.x = 42;
+            state.y = 80;
+          } else {
+            state.docked = "left";
+            state.x = 0;
+            state.y = 0;
+          }
         } else {
-          state.docked = "bottom";
-          state.x = 0;
-          state.y = Math.max(0, window.innerHeight - 90);
+          if (state.docked === "bottom" || state.docked === "left" || state.docked === "right") {
+            state.docked = "none";
+            state.x = 42;
+            state.y = Math.max(0, window.innerHeight - 150);
+          } else {
+            state.docked = "bottom";
+            state.x = 0;
+            state.y = Math.max(0, window.innerHeight - 90);
+          }
         }
         applyComponentLayout("track");
         saveLayout();
@@ -747,14 +908,29 @@
         let newX = Math.max(0, Math.min(w - 80, activePointerOp.origX + dx));
         let newY = Math.max(0, Math.min(h - 50, activePointerOp.origY + dy));
 
-        // Snapping for track component to bottom dock
+        // Snapping for track component to bottom dock or left/right dock
         if (activePointerOp.compId === "track") {
-          if (newY >= h - 140) {
-            state.docked = "bottom";
-            newX = 0;
-            newY = h - 90;
+          const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
+          if (isVert) {
+            if (newX <= 100) {
+              state.docked = "left";
+              newX = 0;
+              newY = 0;
+            } else if (newX >= w - 380) {
+              state.docked = "right";
+              newX = w - 340;
+              newY = 0;
+            } else {
+              state.docked = "none";
+            }
           } else {
-            state.docked = "none";
+            if (newY >= h - 140) {
+              state.docked = "bottom";
+              newX = 0;
+              newY = h - 90;
+            } else {
+              state.docked = "none";
+            }
           }
         }
 
@@ -897,6 +1073,17 @@
         applyTrackStyle();
         if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
       });
+    });
+
+    // Track Orientation controls
+    document.querySelectorAll("#ctrl-track-orient .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setTrackOrientation(btn.getAttribute("data-val"));
+      });
+    });
+    document.getElementById("track-orient-badge")?.addEventListener("click", () => {
+      const cur = currentTrackStyle.orientation || "horizontal";
+      setTrackOrientation(cur === "vertical" ? "horizontal" : "vertical");
     });
 
     // Track Styler modal triggers
@@ -1177,6 +1364,7 @@
     saveTrackStyle,
     syncTrackModalUI,
     setVisibleSplits,
+    setTrackOrientation,
     setEditMode,
     resetLayout,
     applyAllLayouts
