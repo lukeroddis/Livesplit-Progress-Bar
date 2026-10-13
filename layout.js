@@ -17,7 +17,7 @@
     deltaFontSize: 15,     // px
     barHeight: 6,          // px
     dotSize: 15,           // px
-    ghostPinLength: 16,    // px (6 to 36)
+    ghostPinLength: 16,    // px (0 to 36)
     bgOpacity: 55,         // % (0 to 95)
     bgBlur: 8,             // px (0 to 20)
     bgTitle: true,         // boolean
@@ -191,6 +191,7 @@
     root.style.setProperty("--delta-font-size", `${currentTrackStyle.deltaFontSize}px`);
     const pinLength = (currentTrackStyle.ghostPinLength != null ? currentTrackStyle.ghostPinLength : 16);
     root.style.setProperty("--ghost-needle-length", `${pinLength}px`);
+    track.classList.toggle("ghost-on-track", pinLength === 0);
 
     const opacityVal = (currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55);
     const blurPx = (currentTrackStyle.bgBlur != null ? currentTrackStyle.bgBlur : 8);
@@ -505,7 +506,7 @@
     const pinLenVal = currentTrackStyle.ghostPinLength != null ? currentTrackStyle.ghostPinLength : 16;
     if (sGhostLen && vGhostLen) {
       sGhostLen.value = pinLenVal;
-      vGhostLen.innerText = `${pinLenVal}px`;
+      vGhostLen.innerText = (pinLenVal === 0 ? "0px (On Track)" : `${pinLenVal}px`);
     }
 
     // Ghost Runner opacity slider
@@ -759,7 +760,7 @@
       const ghostLenParam = params.get("ghostlen") || params.get("ghostlength") || params.get("pinlen");
       if (ghostLenParam) {
         const num = parseInt(ghostLenParam, 10);
-        if (!isNaN(num)) currentTrackStyle.ghostPinLength = Math.max(4, Math.min(60, num));
+        if (!isNaN(num)) currentTrackStyle.ghostPinLength = Math.max(0, Math.min(60, num));
       }
 
       const bgParam = params.get("bg");
@@ -1237,9 +1238,10 @@
     const sliderGhostLen = document.getElementById("slider-ghost-pin-length");
     if (sliderGhostLen) {
       sliderGhostLen.addEventListener("input", () => {
-        currentTrackStyle.ghostPinLength = parseInt(sliderGhostLen.value, 10);
+        const val = parseInt(sliderGhostLen.value, 10);
+        currentTrackStyle.ghostPinLength = val;
         const valBadge = document.getElementById("val-ghost-pin-length");
-        if (valBadge) valBadge.innerText = `${sliderGhostLen.value}px`;
+        if (valBadge) valBadge.innerText = (val === 0 ? "0px (On Track)" : `${val}px`);
         applyTrackStyle();
       });
       sliderGhostLen.addEventListener("change", saveTrackStyle);

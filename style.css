@@ -1543,6 +1543,15 @@ body.edit-mode .footer-bar,
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
 }
 
+/* Zero-length Ghost Pin: Ghost runs directly along track */
+.track.ghost-on-track:not(.vertical) .ghost-marker {
+  bottom: calc(var(--dot-bottom, 5px) + (var(--dot-size, 15px) / 2) - 13px) !important;
+}
+
+.track.ghost-on-track .ghost-needle {
+  display: none !important;
+}
+
 /* Theme-Specific Glow & Needle Colors */
 .ghost-theme-wr {
   z-index: 25;

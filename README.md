@@ -86,6 +86,7 @@ Bring the "ghost runner" mechanic from racing games directly to your speedrun HU
 * **Smart Off-Screen Edge Beacons**: If the ghost is outside your visible split window in scrolling mode, subtle pulsing pills appear at the track edges (`❮ 🏆 -14.2s` or `+18.5s 🏆 ❯`), showing real-time gap and direction without clutter.
 * **Zero-Clutter & Configurable**:
   - Completely optional (`Off` by default).
+  - Configurable ghost pin length slider (`0px` to `36px`) in **`🎨 Bar Styles`**; set to `0px (On Track)` to hide the needle and let ghosts glide directly along the progress track.
   - Configurable ghost pin opacity slider (`30%` to `100%`) in **`🎨 Bar Styles`**.
   - Quick cycling via the **`Ghost: Off`** footer utility badge.
 
@@ -115,6 +116,7 @@ For multi-monitor or multi-source OBS setups, load specific isolated components 
 | `?splits=12` | Force exactly 12 splits on screen | `index.html?splits=12` |
 | `?angle=40` | Force 40° angled split titles | `index.html?angle=40` |
 | `?ghost=wr` | Enable Live Ghost Runner against World Record (`wr`, `pb`, `best`, `average`, `off`) | `index.html?ghost=wr` |
+| `?pinlen=0` | Set Ghost Pin Length in pixels (`0` for On Track, up to `36`) | `index.html?pinlen=0` |
 | `?bg=55` | Set background plate opacity to 55% | `index.html?bg=55` |
 | `?bgblur=8` | Set frosted glass blur in pixels | `index.html?bgblur=8` |
 | `?namepos=top\|bottom\|left\|right` | Set split title position | `index.html?namepos=left` |

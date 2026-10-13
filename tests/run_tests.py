@@ -605,6 +605,59 @@ def test_track_orientation_unit():
     print("✓ Track orientation and positional mapping unit tests passed.")
 
 
+def format_ghost_pin_badge(val):
+    return "0px (On Track)" if val == 0 else f"{val}px"
+
+
+def parse_and_clamp_ghost_pin_len(val_str):
+    try:
+        num = int(val_str)
+        return max(0, min(60, num))
+    except (ValueError, TypeError):
+        return None
+
+
+def test_ghost_pin_length_zero_track():
+    """Verify zero-length ghost pin (running directly along track) logic and assets."""
+    # 1. Badge formatting
+    assert format_ghost_pin_badge(0) == "0px (On Track)"
+    assert format_ghost_pin_badge(16) == "16px"
+    assert format_ghost_pin_badge(36) == "36px"
+
+    # 2. URL parameter parsing and clamping (supports 0)
+    assert parse_and_clamp_ghost_pin_len("0") == 0
+    assert parse_and_clamp_ghost_pin_len("-5") == 0
+    assert parse_and_clamp_ghost_pin_len("16") == 16
+    assert parse_and_clamp_ghost_pin_len("70") == 60
+    assert parse_and_clamp_ghost_pin_len("invalid") is None
+
+    # 3. Static verification of index.html
+    html_path = os.path.join(ROOT_DIR, "index.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    assert re.search(r'id=["\']slider-ghost-pin-length["\'][^>]*min=["\']0["\']', html) or \
+           re.search(r'min=["\']0["\'][^>]*id=["\']slider-ghost-pin-length["\']', html), \
+           "index.html: slider-ghost-pin-length must allow min='0'"
+
+    # 4. Static verification of style.css
+    css_path = os.path.join(ROOT_DIR, "style.css")
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+    assert ".track.ghost-on-track" in css, "style.css missing .track.ghost-on-track rule"
+    assert ".track.ghost-on-track .ghost-needle" in css and "display: none" in css, \
+        "style.css: ghost needle must be hidden when on track"
+
+    # 5. Static verification of layout.js
+    js_path = os.path.join(ROOT_DIR, "layout.js")
+    with open(js_path, "r", encoding="utf-8") as f:
+        js = f.read()
+    assert 'track.classList.toggle("ghost-on-track", pinLength === 0)' in js, \
+        "layout.js missing track ghost-on-track toggle"
+    assert "0px (On Track)" in js, "layout.js missing '0px (On Track)' badge label"
+
+    print("✓ Zero-length ghost pin (running along track) unit tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -625,6 +678,7 @@ def main():
         test_dynamic_pin_sizing_proximity()
         test_multi_ghost_selection_logic()
         test_track_orientation_unit()
+        test_ghost_pin_length_zero_track()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
