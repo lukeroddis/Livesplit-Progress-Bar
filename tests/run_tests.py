@@ -729,7 +729,6 @@ def test_quick_settings_menu_architecture():
         "file-trigger",
         "file-input",
         "connection-status",
-        "btn-pin-settings",
         "btn-reset-settings-pos",
         "btn-close-settings",
         "ctrl-timer-display",
@@ -747,22 +746,21 @@ def test_quick_settings_menu_architecture():
     for elem_id in required_ids:
         assert f'id="{elem_id}"' in html, f"index.html missing ID '{elem_id}'"
 
-    # 2. CSS styles: invisible/hidden default state + hover reveal + grace period selectors
+    # 2. CSS styles: invisible/hidden default state + pressed-down latching reveal
     assert ".quick-settings-wrap" in css, "style.css missing .quick-settings-wrap"
     assert ".settings-trigger-pill" in css, "style.css missing .settings-trigger-pill"
+    assert ".settings-trigger-pill.is-pressed" in css, "style.css missing .settings-trigger-pill.is-pressed style"
     assert ".settings-menu-panel" in css, "style.css missing .settings-menu-panel"
     assert ".settings-file-dropzone" in css, "style.css missing .settings-file-dropzone"
-    assert ".quick-settings-wrap:hover .settings-menu-panel" in css, "style.css missing hover reveal rule"
-    assert ".quick-settings-wrap.hover-active .settings-menu-panel" in css, "style.css missing hover-active rule"
+    assert ".quick-settings-wrap.menu-open .settings-menu-panel" in css, "style.css missing menu-open reveal rule"
     assert ".settings-close-btn" in css, "style.css missing .settings-close-btn"
     assert "transform-origin: bottom right;" in css, "style.css missing transform-origin for menu panel"
 
-    # 3. overlay.js drag and drop feedback, hover grace period, and pin/close listeners
+    # 3. overlay.js drag and drop feedback, latching toggleSettingsMenu, and close listener
     assert 'fileDropzone.classList.add("drag-over")' in js, "overlay.js missing drag-over class toggle"
-    assert 'btn-pin-settings' in js, "overlay.js missing btn-pin-settings listener"
+    assert 'function toggleSettingsMenu' in js, "overlay.js missing toggleSettingsMenu"
     assert 'btn-close-settings' in js, "overlay.js missing btn-close-settings listener"
     assert 'settings-trigger-pill' in js, "overlay.js missing settings-trigger-pill listener"
-    assert 'setMenuHoverActive' in js, "overlay.js missing hover grace period bridging"
 
     print("✓ Quick settings menu architecture and dropzone tests passed.")
 
@@ -803,9 +801,8 @@ def test_draggable_settings_and_timer_display_modes():
     assert "function resetSettingsMenuPosition" in overlay_js, "overlay.js missing resetSettingsMenuPosition"
     assert "function restoreSettingsMenuPosition" in overlay_js, "overlay.js missing restoreSettingsMenuPosition"
     assert "livesplit_settings_pos" in overlay_js, "overlay.js missing livesplit_settings_pos persistence"
-    assert 'quickWrap?.classList.add("pinned")' not in overlay_js[overlay_js.find("function restoreSettingsMenuPosition"):overlay_js.find("function restoreSettingsMenuPosition")+600], \
-        "restoreSettingsMenuPosition must not forcibly add .pinned class (breaks auto-hide)"
-    assert 'quickWrap?.classList.remove("pinned")' in overlay_js, "resetSettingsMenuPosition must unpin panel"
+    assert 'menu-open' not in overlay_js[overlay_js.find("function restoreSettingsMenuPosition"):overlay_js.find("function restoreSettingsMenuPosition")+600], \
+        "restoreSettingsMenuPosition must not forcibly open menu"
 
     # 4. Timer display modes and primary focus logic in overlay.js
     assert "function setTimerDisplayMode" in overlay_js, "overlay.js missing setTimerDisplayMode"

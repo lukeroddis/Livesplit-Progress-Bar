@@ -2417,8 +2417,6 @@ function cycleSplitAngle() {
 // ============================================================
 function resetSettingsMenuPosition() {
   const panel = document.getElementById("footer-bar");
-  const quickWrap = document.getElementById("quick-settings-wrap");
-  const triggerPill = document.getElementById("settings-trigger-pill");
   if (!panel) return;
   panel.style.left = "";
   panel.style.top = "";
@@ -2426,10 +2424,6 @@ function resetSettingsMenuPosition() {
   panel.style.bottom = "";
   panel.classList.remove("is-custom-pos");
   panel.classList.remove("is-dragging");
-  panel.classList.remove("is-hovered");
-  quickWrap?.classList.remove("pinned");
-  quickWrap?.classList.remove("hover-active");
-  triggerPill?.classList.remove("active");
   localStorage.removeItem("livesplit_settings_pos");
 }
 
@@ -2568,87 +2562,48 @@ function initOverlay() {
   document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
 
-  // Quick settings panel pin, close, and hover grace period setup
+function toggleSettingsMenu(forceOpen) {
   const quickWrap = document.getElementById("quick-settings-wrap");
-  const panel = document.getElementById("footer-bar");
   const triggerPill = document.getElementById("settings-trigger-pill");
-  const pinBtn = document.getElementById("btn-pin-settings");
+  if (!quickWrap || !triggerPill) return;
+
+  const isOpen = (typeof forceOpen === "boolean")
+    ? forceOpen
+    : !quickWrap.classList.contains("menu-open");
+
+  if (isOpen) {
+    quickWrap.classList.add("menu-open");
+    triggerPill.classList.add("is-pressed");
+    triggerPill.setAttribute("aria-pressed", "true");
+    triggerPill.setAttribute("title", "Click to close LiveSplit Settings");
+  } else {
+    quickWrap.classList.remove("menu-open");
+    triggerPill.classList.remove("is-pressed");
+    triggerPill.setAttribute("aria-pressed", "false");
+    triggerPill.setAttribute("title", "Click to open LiveSplit Settings & .lss Loader");
+  }
+}
+
+  // Latching pressed-down trigger pill and close button setup
+  const triggerPill = document.getElementById("settings-trigger-pill");
   const closeBtn = document.getElementById("btn-close-settings");
 
-  let hoverCloseTimeout = null;
-
-  function setMenuHoverActive(active, delay = 0) {
-    if (hoverCloseTimeout) {
-      clearTimeout(hoverCloseTimeout);
-      hoverCloseTimeout = null;
-    }
-    if (active) {
-      panel?.classList.add("is-hovered");
-      quickWrap?.classList.add("hover-active");
-    } else {
-      if (delay > 0) {
-        hoverCloseTimeout = setTimeout(() => {
-          panel?.classList.remove("is-hovered");
-          quickWrap?.classList.remove("hover-active");
-          hoverCloseTimeout = null;
-        }, delay);
-      } else {
-        panel?.classList.remove("is-hovered");
-        quickWrap?.classList.remove("hover-active");
-      }
-    }
-  }
-
-  // Hover grace period listeners to bridge any spatial gap between pill and floating panel
-  triggerPill?.addEventListener("mouseenter", () => {
-    setMenuHoverActive(true);
-  });
-  triggerPill?.addEventListener("mouseleave", () => {
-    setMenuHoverActive(false, 650);
-  });
-  panel?.addEventListener("mouseenter", () => {
-    setMenuHoverActive(true);
-  });
-  panel?.addEventListener("mouseleave", () => {
-    setMenuHoverActive(false, 400);
-  });
-
-  // Toggle pinning/unpinning when clicking trigger pill
+  // Toggle open / pressed-down state when clicking trigger pill
   triggerPill?.addEventListener("click", (e) => {
     e.stopPropagation();
-    const isPinned = quickWrap?.classList.toggle("pinned");
-    triggerPill.classList.toggle("active", isPinned);
-    if (!isPinned) {
-      setMenuHoverActive(false, 0);
-    }
+    toggleSettingsMenu();
   });
 
-  // Pin button listener
-  pinBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isPinned = quickWrap?.classList.toggle("pinned");
-    triggerPill?.classList.toggle("active", isPinned);
-    if (!isPinned) {
-      setMenuHoverActive(false, 0);
-    }
-  });
-
-  // Explicit close button listener
+  // Explicit close button in header
   closeBtn?.addEventListener("click", (e) => {
     e.stopPropagation();
-    quickWrap?.classList.remove("pinned");
-    triggerPill?.classList.remove("active");
-    setMenuHoverActive(false, 0);
+    toggleSettingsMenu(false);
   });
 
   // Escape key to dismiss
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      if (quickWrap?.classList.contains("pinned") || quickWrap?.classList.contains("hover-active")) {
-        quickWrap?.classList.remove("pinned");
-        triggerPill?.classList.remove("active");
-        setMenuHoverActive(false, 0);
-      }
+      toggleSettingsMenu(false);
     }
   });
 
@@ -2703,4 +2658,5 @@ window.setTimingMethodFocus = setTimingMethodFocus;
 window.getTimerDisplayMode = () => timerDisplayMode;
 window.toggleTimingMethod = toggleTimingMethod;
 window.resetSettingsMenuPosition = resetSettingsMenuPosition;
+window.toggleSettingsMenu = toggleSettingsMenu;
 window.handleUndoSplit = handleUndoSplit;

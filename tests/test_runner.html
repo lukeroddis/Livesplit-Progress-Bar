@@ -101,7 +101,6 @@
       <div id="footer-bar">
         <div class="settings-menu-header"></div>
         <button id="btn-reset-settings-pos"></button>
-        <button id="btn-pin-settings"></button>
         <button id="btn-close-settings"></button>
       </div>
     </div>
@@ -467,26 +466,30 @@
         assertEqual(window.getTimerDisplayMode(), "gametime");
         assertEqual(window.getCurrentTimingMethod(), "GameTime");
       });
-      it("unpins quick settings wrap on resetSettingsMenuPosition", () => {
-        const wrap = document.getElementById("quick-settings-wrap");
-        wrap.classList.add("pinned");
-        window.resetSettingsMenuPosition();
-        assertEqual(wrap.classList.contains("pinned"), false);
-      });
-      it("supports clicking trigger pill to toggle pin and close button to dismiss", () => {
+      it("supports clicking trigger pill to latch menu open (pressed down) and clicking again or close button to dismiss", () => {
         const wrap = document.getElementById("quick-settings-wrap");
         const pill = document.getElementById("settings-trigger-pill");
         const closeBtn = document.getElementById("btn-close-settings");
 
-        wrap.classList.remove("pinned");
-        pill.classList.remove("active");
-        pill.click();
-        assertEqual(wrap.classList.contains("pinned"), true);
-        assertEqual(pill.classList.contains("active"), true);
+        wrap.classList.remove("menu-open");
+        pill.classList.remove("is-pressed");
 
+        // Click 1: Press down and latch open
+        pill.click();
+        assertEqual(wrap.classList.contains("menu-open"), true);
+        assertEqual(pill.classList.contains("is-pressed"), true);
+
+        // Click 2: Unpress and close
+        pill.click();
+        assertEqual(wrap.classList.contains("menu-open"), false);
+        assertEqual(pill.classList.contains("is-pressed"), false);
+
+        // Re-open then close via ✕ button
+        pill.click();
+        assertEqual(wrap.classList.contains("menu-open"), true);
         closeBtn.click();
-        assertEqual(wrap.classList.contains("pinned"), false);
-        assertEqual(pill.classList.contains("active"), false);
+        assertEqual(wrap.classList.contains("menu-open"), false);
+        assertEqual(pill.classList.contains("is-pressed"), false);
       });
     });
 
