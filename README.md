@@ -25,7 +25,7 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
    * In LiveSplit, right-click → **Edit Layout** → add **Control → LiveSplit Server**.
    * Right-click → **Control → Start Server** (default: `ws://localhost:16834`).
 2. **Open the Overlay**:
-   * **In OBS Studio**: Add a **Browser Source** pointing to `index.html` (or your local web server), set resolution to `1920×1080`, and check *"Shutdown source when not visible"*.
+   * **In OBS Studio**: Add a **Browser Source** pointing to `index.html` (or your local web server), set resolution to `1920×1080` (or match your game resolution), and check *"Shutdown source when not visible"*.
    * **In Desktop Browser**: Open [index.html](index.html) in Chrome, Edge, or Firefox.
 3. **Load Your Splits**:
    * Drag and drop your `.lss` splits file directly onto the window. Splits, targets, and history are cached locally.
