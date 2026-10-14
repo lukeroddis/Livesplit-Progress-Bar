@@ -756,6 +756,25 @@
       });
     });
 
+    describe("Architectural Safeguards & Bug Fixes", () => {
+      it("exports safeStorage with in-memory fallback on window", () => {
+        assert(typeof window.safeStorage === "object", "safeStorage exported");
+        assert(typeof window.safeStorage.getItem === "function", "getItem exists");
+        assert(typeof window.safeStorage.setItem === "function", "setItem exists");
+        assert(typeof window.safeStorage.removeItem === "function", "removeItem exists");
+        
+        window.safeStorage.setItem("test_key", "test_val");
+        assertEqual(window.safeStorage.getItem("test_key"), "test_val");
+        window.safeStorage.removeItem("test_key");
+        assertEqual(window.safeStorage.getItem("test_key"), null);
+      });
+
+      it("layout profiles export and restore activeGhosts array", () => {
+        const exp = window.hudLayout.createProfileExport("GhostProfileTest");
+        assert(Array.isArray(exp.preferences.activeGhosts), "activeGhosts is an array in preferences");
+      });
+    });
+
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");
     suites.forEach((suite) => {

@@ -1,6 +1,35 @@
-// ============================================================
-// 1. PROTOCOL CONSTANTS, FALLBACK DATA & GLOBAL RUNTIME STATE
-// ============================================================
+// Safe storage wrapper providing in-memory fallback if localStorage is disabled or restricted
+// (e.g. sandboxed OBS Studio CEF Browser Sources, private browsing, or QuotaExceededError)
+const memoryStorage = {};
+const safeStorage = {
+  getItem(key) {
+    try {
+      const val = localStorage.getItem(key);
+      return val !== null ? val : (memoryStorage[key] !== undefined ? memoryStorage[key] : null);
+    } catch (e) {
+      return memoryStorage[key] !== undefined ? memoryStorage[key] : null;
+    }
+  },
+  setItem(key, value) {
+    const str = String(value);
+    memoryStorage[key] = str;
+    try {
+      localStorage.setItem(key, str);
+    } catch (e) {
+      console.warn(`[safeStorage] localStorage unavailable, using in-memory fallback for "${key}"`, e);
+    }
+  },
+  removeItem(key) {
+    delete memoryStorage[key];
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      // ignore
+    }
+  }
+};
+window.safeStorage = safeStorage;
+
 const APP_VERSION = "v1.0.0";
 const WS_URL = "ws://localhost:16834/livesplit";
 
@@ -1144,7 +1173,7 @@ function loadCachedSplits() {
 // ============================================================
 // 7. LIVESPLIT SERVER CLIENT & SEQUENTIAL COMMAND QUEUE
 // ============================================================
-function sendCommand(cmd, timeoutMs = 80) {
+function sendCommand(cmd, timeoutMs = 400, isProbe = false) {
   const execute = () => new Promise((resolve) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       resolve(null);
@@ -1153,6 +1182,12 @@ function sendCommand(cmd, timeoutMs = 80) {
 
     let timer = setTimeout(() => {
       inflightResolver = null;
+      if (!isProbe) {
+        console.warn(`LiveSplit command "${cmd}" timed out after ${timeoutMs}ms. Resetting WebSocket to prevent stream desynchronization.`);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      }
       resolve(null);
     }, timeoutMs);
 
@@ -2418,7 +2453,7 @@ async function pollLoop() {
       if (isSyncEnabled) {
         // Query active comparison (with fallback if unsupported)
         if (canQueryComparison) {
-          const lsComp = await sendCommand("getcomparisonname", 40);
+          const lsComp = await sendCommand("getcomparisonname", 120, true);
           if (lsComp && lsComp !== "-" && lsComp.trim()) {
             const norm = normalizeComparisonName(lsComp.trim());
             if (norm && norm !== currentComparison) {
@@ -2457,11 +2492,12 @@ async function pollLoop() {
       lastElapsedSec = currentTotalSec;
     }
 
-    // 3. Split Index
+    // 3. Split Index (strict integer check to avoid corrupting run if non-integer text is received)
     const splitIdxStr = await sendCommand("getsplitindex");
-    const idx = parseInt(splitIdxStr, 10);
+    const isStrictInt = typeof splitIdxStr === "string" && /^-?\d+$/.test(splitIdxStr.trim());
 
-    if (!isNaN(idx)) {
+    if (isStrictInt) {
+      const idx = parseInt(splitIdxStr.trim(), 10);
       // Reset transition (only when transitioning from an active run to reset, or restarting from a later split)
       if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0)) {
         clearInRunState();

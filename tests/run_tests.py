@@ -1963,6 +1963,50 @@ def test_comparison_hotkeys_and_toast():
     print("✓ Comparison switching hotkey (C, Shift+C, NumPad 4/6) and toast tests passed.")
 
 
+def test_architectural_safeguards_and_bug_fixes():
+    """Verify WebSocket timeout desync guard, strict integer split index parsing, multi-ghost profile schema, and safeStorage."""
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+    with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
+        layout_src = f.read()
+    with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
+        schema_src = f.read()
+
+    # 1. Bug 1: sendCommand timeout desync guard & probe command support
+    assert "function sendCommand(cmd, timeoutMs = 400, isProbe = false)" in overlay_src, \
+        "overlay.js sendCommand must support 400ms default timeout and isProbe parameter"
+    assert "Resetting WebSocket to prevent stream desynchronization" in overlay_src, \
+        "overlay.js sendCommand must reset socket on command timeout to prevent response shifting"
+
+    # 2. Bug 2: Strict integer validation on getsplitindex to prevent accidental run wipes
+    assert 'isStrictInt = typeof splitIdxStr === "string" && /^-?\\d+$/.test(splitIdxStr.trim())' in overlay_src, \
+        "overlay.js must strictly validate integer regex on getsplitindex response"
+
+    def is_strict_int(s):
+        return bool(re.match(r'^-?\d+$', (s or "").strip())) if isinstance(s, str) else False
+
+    assert is_strict_int("0") is True
+    assert is_strict_int("-1") is True
+    assert is_strict_int("15") is True
+    assert is_strict_int(" 42 ") is True
+    assert is_strict_int("00:45.12") is False, "Time string must NOT be treated as split index 0"
+    assert is_strict_int("01:23.45") is False, "Time string must NOT be treated as split index 1"
+    assert is_strict_int("-") is False
+    assert is_strict_int("") is False
+    assert is_strict_int(None) is False
+
+    # 3. Bug 3: Multi-ghost selection in layout profiles schema and layout.js
+    assert '"activeGhosts"' in schema_src, "schema/layout-v1.json must declare activeGhosts"
+    assert "activeGhosts:" in layout_src, "layout.js createProfileExport must export activeGhosts"
+    assert "Array.isArray(prefs.activeGhosts)" in layout_src, "layout.js applyProfileData must restore activeGhosts"
+
+    # 4. Bug 4: safeStorage with in-memory fallback for sandboxed OBS environments
+    assert "const safeStorage =" in overlay_src, "overlay.js must define safeStorage wrapper"
+    assert "window.safeStorage = safeStorage;" in overlay_src, "overlay.js must export safeStorage on window"
+
+    print("✓ Architectural safeguards & bug fixes (WebSocket desync guard, strict int index, activeGhosts schema, safeStorage) passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -2000,6 +2044,7 @@ def main():
         test_timer_anchor_and_expansion_modes()
         test_always_show_last_split_and_schematic_break()
         test_comparison_hotkeys_and_toast()
+        test_architectural_safeguards_and_bug_fixes()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

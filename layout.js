@@ -276,6 +276,7 @@
         timingMethodFocus: (window.getCurrentTimingMethod ? window.getCurrentTimingMethod() : localStorage.getItem("livesplit_timing_method")) || "GameTime",
         timerAnchor: getTimerAnchor(),
         ghostComparison: localStorage.getItem("livesplit_ghost_comparison") || "off",
+        activeGhosts: (window.getActiveGhostComparisons ? window.getActiveGhostComparisons() : (localStorage.getItem("livesplit_active_ghosts") ? JSON.parse(localStorage.getItem("livesplit_active_ghosts")) : [(localStorage.getItem("livesplit_ghost_comparison") || "off")])),
         ghostOpacity: parseInt(localStorage.getItem("livesplit_ghost_opacity"), 10) || 85,
         splitDensity: localStorage.getItem("livesplit_visible_splits") || "auto",
         splitAngle: localStorage.getItem("livesplit_split_angle") || "auto",
@@ -321,7 +322,13 @@
     if (prefs.timerAnchor != null) {
       setTimerAnchor(prefs.timerAnchor);
     }
-    if (prefs.ghostComparison != null && window.setGhostComparison) {
+    if (Array.isArray(prefs.activeGhosts)) {
+      localStorage.setItem("livesplit_active_ghosts", JSON.stringify(prefs.activeGhosts));
+      if (prefs.activeGhosts.length > 0) {
+        localStorage.setItem("livesplit_ghost_comparison", prefs.activeGhosts[0]);
+      }
+      if (window.updateGhostBadge) window.updateGhostBadge();
+    } else if (prefs.ghostComparison != null && window.setGhostComparison) {
       window.setGhostComparison(prefs.ghostComparison);
     }
     if (prefs.ghostOpacity != null && window.setGhostOpacity) {

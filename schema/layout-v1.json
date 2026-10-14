@@ -98,6 +98,11 @@
         "timingMethodFocus": { "type": "string", "enum": ["GameTime", "RealTime"] },
         "timerAnchor": { "type": "string", "enum": ["auto", "right", "left"] },
         "ghostComparison": { "type": "string" },
+        "activeGhosts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Active ghost comparison IDs (e.g. ['pb', 'best', 'wr'])"
+        },
         "ghostOpacity": { "type": "integer" },
         "splitDensity": { "type": "string" },
         "splitAngle": { "type": "string" },
