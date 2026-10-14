@@ -137,6 +137,11 @@ For WebSocket architecture details, LiveSplit protocol constraints, algorithm sp
 For post-v1.0.0 feature specifications and technical explorations, see:
 
 * 🏁 **[Live Race Ghost Pins & F1-Style Dynamic Leaderboard](docs/proposals/live-race-ghosts-and-leaderboard.md)**: Feasibility study and technical specification for connecting online races from therun.gg with real-time multi-racer track pins and an animated broadcast timing tower.
+* 🎨 **Custom Color Palette Overrides & Extended Theme Customization**:
+  * **User-Defined Delta Palette**: Ability to customize hex colors for all 4 LiveSplit delta states (Ahead/Gaining, Ahead/Losing, Behind/Gaining, Behind/Losing), Gold splits, and the overdue red warning pulse.
+  * **Accessibility Colorblind Presets**: One-click accessible presets optimized for Deuteranopia, Protanopia, and Tritanopia contrast guidelines.
+  * **Custom Font & Typography Controls**: Selectable font families (retro monospace, modern geometric sans, digital 7-segment clock) and weight adjustments.
+  * **Profile-Linked Themes**: Theme palettes saved directly inside game layout profiles (`schema/layout-v1.json`) to automatically match each game's visual aesthetic.
 
 ---
 
