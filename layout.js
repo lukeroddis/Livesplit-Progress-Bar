@@ -706,6 +706,9 @@
     if (window.updateTrackDensityAndAngle) {
       window.updateTrackDensityAndAngle();
     }
+    if (window.updateTrackStatus) {
+      window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
+    }
     syncTrackModalUI();
   }
   window.setVisibleSplits = setVisibleSplits;

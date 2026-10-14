@@ -1731,12 +1731,14 @@ def test_always_show_last_split_and_schematic_break():
     assert "function updateTrackWindow(" in overlay_src, "overlay.js must define updateTrackWindow(idx)"
     assert "updateTrackWindow(idx)" in overlay_src, "overlay.js updateTrackStatus must call updateTrackWindow"
     assert "window.updateTrackWindow = updateTrackWindow;" in overlay_src, "overlay.js must export updateTrackWindow on window"
+    assert "item.classList.remove(...ALL_SPLIT_STATE_CLASSES);" in overlay_src, "overlay.js must not wipe out windowing classes"
 
     # 4. layout.js wiring & profiles
     assert "cb-always-show-last-split" in layout_src, "layout.js must sync cb-always-show-last-split"
     assert "showLastSplit:" in layout_src, "createProfileExport must export showLastSplit"
     assert "prefs.showLastSplit" in layout_src, "applyProfileData must restore showLastSplit"
     assert 'params.get("lastsplit")' in layout_src or 'params.get("showlastsplit")' in layout_src, "parseUrlParameters must parse lastsplit"
+    assert "window.updateTrackStatus(window.getCurrentIndex" in layout_src, "setVisibleSplits must update track status"
 
     # 5. Schema v1 check
     schema_json = json.loads(schema_src)

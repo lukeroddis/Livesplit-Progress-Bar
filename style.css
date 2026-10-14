@@ -769,21 +769,22 @@ body.edit-mode .layout-toolbar {
 }
 
 .split-item.has-discontinuity .discontinuity-break {
-  display: flex;
+  display: flex !important;
 }
 
 .disc-slash {
   width: 2.5px;
-  height: 16px;
-  background: #94a3b8;
+  height: 18px;
+  background: #38bdf8;
   transform: skewX(-28deg);
   border-radius: 1px;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.95), 0 0 3px rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.95), 0 0 4px rgba(56, 189, 248, 0.85);
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Cutout gap in the horizontal connector bar */
 .split-item.has-discontinuity .segment-bar-bg {
+  overflow: visible !important;
   background: linear-gradient(
     to right,
     var(--line-idle) 0%,
@@ -1249,12 +1250,13 @@ body.edit-mode .layout-toolbar {
 }
 
 .track.vertical .disc-slash {
-  width: 16px;
+  width: 18px;
   height: 2.5px;
   transform: skewY(-28deg);
 }
 
 .track.vertical .split-item.has-discontinuity .segment-bar-bg {
+  overflow: visible !important;
   background: linear-gradient(
     to bottom,
     var(--line-idle) 0%,

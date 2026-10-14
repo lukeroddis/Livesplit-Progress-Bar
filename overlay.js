@@ -5,9 +5,12 @@ const APP_VERSION = "v1.0.0";
 const WS_URL = "ws://localhost:16834/livesplit";
 
 // Generic fallback splits used if no .lss is loaded
-const DEFAULT_SPLITS = ["Split 1", "Split 2", "Split 3", "Split 4", "Finish"];
-const DEFAULT_TARGETS = [60, 120, 180, 240, 300];
-const DEFAULT_BESTS = [60, 60, 60, 60, 60];
+const DEFAULT_SPLITS = [
+  "Split 1", "Split 2", "Split 3", "Split 4", "Split 5",
+  "Split 6", "Split 7", "Split 8", "Split 9", "Finish"
+];
+const DEFAULT_TARGETS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300];
+const DEFAULT_BESTS = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30];
 
 let splitsList = [];
 let comparisonTimes = [];
@@ -1302,37 +1305,12 @@ function updateTrackWindow(idx) {
 
 function updateTrackStatus(idx) {
   currentIndex = idx;
-  const isWindowed = updateTrackWindow(idx);
-  const viewport = document.getElementById("track-viewport");
-  const isVertical = document.getElementById("track")?.classList.contains("vertical");
-
-  if (viewport && typeof viewport.scrollTo === "function") {
-    if (isWindowed) {
-      viewport.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-    } else if (idx < 0) {
-      if (isVertical) {
-        viewport.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        viewport.scrollTo({ left: 0, behavior: 'smooth' });
-      }
-    } else {
-      const activeItem = document.getElementById(`item-${idx}`);
-      if (activeItem) {
-        if (isVertical) {
-          const scrollTarget = activeItem.offsetTop + (activeItem.offsetHeight / 2) - (viewport.clientHeight / 2);
-          viewport.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-        } else {
-          const scrollTarget = activeItem.offsetLeft + (activeItem.offsetWidth / 2) - (viewport.clientWidth / 2);
-          viewport.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
-        }
-      }
-    }
-  }
-
   const nodeStart = document.getElementById("node-start");
   if (nodeStart) {
     nodeStart.classList.toggle("active", idx >= 0);
   }
+
+  const isVertical = document.getElementById("track")?.classList.contains("vertical");
 
   for (let i = 0; i < splitsList.length; i++) {
     const item = document.getElementById(`item-${i}`);
@@ -1379,7 +1357,7 @@ function updateTrackStatus(idx) {
         }
       }
     } else {
-      item.className = "split-item";
+      item.classList.remove(...ALL_SPLIT_STATE_CLASSES);
       if (fill) {
         fill.style.width = isVertical ? "100%" : "0%";
         fill.style.height = isVertical ? "0%" : "100%";
@@ -1396,6 +1374,33 @@ function updateTrackStatus(idx) {
         const targetVal = formatTargetTime(comparisonTimes[i]);
         timeSpan.innerText = targetVal || "-";
         timeSpan.className = "split-time-val target-time";
+      }
+    }
+  }
+
+  // Update sliding window & discontinuity after status classes are updated
+  const isWindowed = updateTrackWindow(idx);
+
+  const viewport = document.getElementById("track-viewport");
+  if (viewport && typeof viewport.scrollTo === "function") {
+    if (isWindowed) {
+      viewport.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+    } else if (idx < 0) {
+      if (isVertical) {
+        viewport.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        viewport.scrollTo({ left: 0, behavior: 'smooth' });
+      }
+    } else {
+      const activeItem = document.getElementById(`item-${idx}`);
+      if (activeItem) {
+        if (isVertical) {
+          const scrollTarget = activeItem.offsetTop + (activeItem.offsetHeight / 2) - (viewport.clientHeight / 2);
+          viewport.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
+        } else {
+          const scrollTarget = activeItem.offsetLeft + (activeItem.offsetWidth / 2) - (viewport.clientWidth / 2);
+          viewport.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
+        }
       }
     }
   }
@@ -2346,7 +2351,7 @@ async function pollLoop() {
             if (fill.parentElement) fill.parentElement.classList.remove("overdue");
           }
           if (item) {
-            item.className = "split-item";
+            item.classList.remove(...ALL_SPLIT_STATE_CLASSES);
           }
         }
         updateTrackStatus(idx);
