@@ -183,6 +183,90 @@ def format_target_time(sec):
     return f"{m}:{s_pad}"
 
 
+def format_timer_display(raw_time):
+    if raw_time is None or raw_time == "":
+        return "0.00"
+    if raw_time == "-":
+        return "-"
+
+    is_negative = False
+    days = 0
+    h = 0
+    m = 0
+    s = 0
+    hundredths = "00"
+
+    if isinstance(raw_time, (int, float)):
+        if math.isnan(raw_time):
+            return "0.00"
+        if raw_time < 0:
+            is_negative = True
+            raw_time = abs(raw_time)
+        total_hundredths = round(raw_time * 100)
+        total_sec = total_hundredths // 100
+        frac = total_hundredths % 100
+        h = total_sec // 3600
+        m = (total_sec % 3600) // 60
+        s = total_sec % 60
+        hundredths = f"{frac:02d}"
+    else:
+        s_val = str(raw_time).strip()
+        if s_val.startswith(("-", "−", "\u2212")):
+            is_negative = True
+            s_val = re.sub(r"^[-−\u2212]", "", s_val).strip()
+
+        if "." in s_val:
+            first_dot = s_val.find(".")
+            first_colon = s_val.find(":")
+            if first_colon != -1 and first_dot < first_colon:
+                try:
+                    days = int(s_val[:first_dot])
+                except ValueError:
+                    days = 0
+                s_val = s_val[first_dot + 1:]
+
+        time_main = s_val
+        frac_part = ""
+        if "." in s_val:
+            dot_idx = s_val.find(".")
+            time_main = s_val[:dot_idx]
+            frac_part = s_val[dot_idx + 1:]
+
+        if len(frac_part) >= 2:
+            hundredths = frac_part[:2]
+        else:
+            hundredths = frac_part.ljust(2, "0")
+
+        parts = time_main.split(":")
+        if len(parts) == 3:
+            h = (int(parts[0]) if parts[0].isdigit() else 0) + (days * 24)
+            m = int(parts[1]) if parts[1].isdigit() else 0
+            s = int(parts[2]) if parts[2].isdigit() else 0
+        elif len(parts) == 2:
+            h = days * 24
+            m = int(parts[0]) if parts[0].isdigit() else 0
+            s = int(parts[1]) if parts[1].isdigit() else 0
+        elif len(parts) == 1:
+            h = days * 24
+            m = 0
+            s = int(parts[0]) if parts[0].isdigit() else 0
+
+    if is_negative and h == 0 and m == 0 and s == 0 and hundredths in ("00", "0"):
+        is_negative = False
+
+    s_pad = f"{s:02d}" if (h > 0 or m > 0) else f"{s}"
+
+    if h > 0:
+        m_pad = f"{m:02d}"
+        res = f"{h}:{m_pad}:{s_pad}.{hundredths}"
+    elif m > 0:
+        res = f"{m}:{s_pad}.{hundredths}"
+    else:
+        res = f"{s_pad}.{hundredths}"
+
+    return f"-{res}" if is_negative else res
+
+
 def format_delta_seconds(signed_sec):
     if signed_sec is None or math.isnan(signed_sec):
         return ""
@@ -240,6 +324,70 @@ def test_format_target_time_unit():
     assert format_target_time(3665) == "1:01:05"
     assert format_target_time(None) == ""
     print("✓ format_target_time unit tests passed.")
+
+
+def test_format_timer_display_unit():
+    # 1. Initial idle state formats
+    assert format_timer_display("00:00:00") == "0.00"
+    assert format_timer_display("00:00:00.00") == "0.00"
+    assert format_timer_display("00:00:00.0000000") == "0.00"
+    assert format_timer_display("") == "0.00"
+    assert format_timer_display(None) == "0.00"
+    assert format_timer_display(0) == "0.00"
+    assert format_timer_display(0.0) == "0.00"
+    assert format_timer_display("-") == "-"
+
+    # 2. Sub-minute milestone (0s to 59.99s) - dynamic expansion with no leading minutes/hours
+    assert format_timer_display("00:00:09.2134567") == "9.21"
+    assert format_timer_display("00:00:10.05") == "10.05"
+    assert format_timer_display("00:00:59.99") == "59.99"
+    assert format_timer_display(9.21) == "9.21"
+    assert format_timer_display(59.99) == "59.99"
+
+    # 3. Minute milestone (1m to 59m 59.99s) - fills M:SS.dd with no leading hours
+    assert format_timer_display("00:01:00.00") == "1:00.00"
+    assert format_timer_display("00:01:05.2134567") == "1:05.21"
+    assert format_timer_display("00:09:59.99") == "9:59.99"
+    assert format_timer_display("00:10:00.00") == "10:00.00"
+    assert format_timer_display("00:59:59.99") == "59:59.99"
+    assert format_timer_display(65.21) == "1:05.21"
+    assert format_timer_display(600.0) == "10:00.00"
+
+    # 4. Hour milestone (1h+) - fills H:MM:SS.dd
+    assert format_timer_display("01:00:00.00") == "1:00:00.00"
+    assert format_timer_display("01:05:09.2134567") == "1:05:09.21"
+    assert format_timer_display("10:15:30.45") == "10:15:30.45"
+    assert format_timer_display(3665.21) == "1:01:05.21"
+
+    # 5. Over 24 hours (day format)
+    assert format_timer_display("1.02:03:04.56") == "26:03:04.56"
+
+    # 6. Negative countdown times
+    assert format_timer_display("-00:00:03.50") == "-3.50"
+    assert format_timer_display("-00:00:00") == "0.00"
+    assert format_timer_display(-3.5) == "-3.50"
+
+    # 7. Static codebase verification
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html_src = f.read()
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+
+    assert '<div class="timer-secondary" id="timer-rta">0.00</div>' in html_src, \
+        "index.html must initialize timer-rta with '0.00'"
+    assert '<div class="timer-primary" id="timer-igt">0.00</div>' in html_src, \
+        "index.html must initialize timer-igt with '0.00'"
+
+    assert "function formatTimerDisplay(rawTime)" in overlay_src, \
+        "overlay.js must implement formatTimerDisplay"
+    assert "window.formatTimerDisplay = formatTimerDisplay;" in overlay_src, \
+        "overlay.js must export formatTimerDisplay"
+    assert "formatTimerDisplay(igt)" in overlay_src, \
+        "overlay.js must use formatTimerDisplay for Game Time"
+    assert "formatTimerDisplay(rta)" in overlay_src, \
+        "overlay.js must use formatTimerDisplay for Real Time"
+
+    print("✓ formatTimerDisplay LiveSplit milestone formatting unit tests passed.")
 
 
 def test_format_delta_unit():
@@ -1465,6 +1613,7 @@ def main():
         test_dom_id_consistency()
         test_time_conversion_unit()
         test_format_target_time_unit()
+        test_format_timer_display_unit()
         test_format_delta_unit()
         test_comparison_normalization_unit()
         test_comparison_curves_math()

@@ -58,6 +58,10 @@ function saveInRunState() {
 function clearInRunState() {
   try {
     localStorage.removeItem(IN_RUN_STATE_KEY);
+    const rtaEl = document.getElementById("timer-rta");
+    const igtEl = document.getElementById("timer-igt");
+    if (rtaEl) rtaEl.innerText = "0.00";
+    if (igtEl) igtEl.innerText = "0.00";
   } catch (e) {
     console.warn("Failed to clear in-run state from localStorage:", e);
   }
@@ -89,6 +93,13 @@ function loadInRunState() {
       previousDeltaSeconds = Number(parsed.previousDeltaSeconds) || 0;
       if (typeof parsed.lastElapsedSec === "number") {
         lastElapsedSec = parsed.lastElapsedSec;
+        if (lastElapsedSec > 0) {
+          const rtaEl = document.getElementById("timer-rta");
+          const igtEl = document.getElementById("timer-igt");
+          const disp = formatTimerDisplay(lastElapsedSec);
+          if (rtaEl) rtaEl.innerText = disp;
+          if (igtEl) igtEl.innerText = disp;
+        }
       }
       if (typeof parsed.currentIndex === "number") {
         currentIndex = parsed.currentIndex;
@@ -362,6 +373,95 @@ function timeStringToSeconds(tStr) {
     return null;
   }
   return isNaN(sec) ? null : days * 86400 + sec;
+}
+
+function formatTimerDisplay(rawTime) {
+  if (rawTime === null || rawTime === undefined || rawTime === "") return "0.00";
+  if (rawTime === "-") return "-";
+
+  let isNegative = false;
+  let days = 0;
+  let h = 0;
+  let m = 0;
+  let s = 0;
+  let hundredths = "00";
+
+  if (typeof rawTime === "number") {
+    if (isNaN(rawTime)) return "0.00";
+    if (rawTime < 0) {
+      isNegative = true;
+      rawTime = Math.abs(rawTime);
+    }
+    const totalHundredths = Math.round(rawTime * 100);
+    const totalSec = Math.floor(totalHundredths / 100);
+    const frac = totalHundredths % 100;
+    h = Math.floor(totalSec / 3600);
+    m = Math.floor((totalSec % 3600) / 60);
+    s = totalSec % 60;
+    hundredths = frac.toString().padStart(2, "0");
+  } else {
+    let str = String(rawTime).trim();
+    if (str.startsWith("-") || str.startsWith("−") || str.charCodeAt(0) === 8722) {
+      isNegative = true;
+      str = str.replace(/^[-−\u2212]/, "").trim();
+    }
+
+    if (str.includes(".")) {
+      const firstDot = str.indexOf(".");
+      const firstColon = str.indexOf(":");
+      // Days part before dot, e.g. "1.02:03:04.56"
+      if (firstColon !== -1 && firstDot < firstColon) {
+        days = parseInt(str.slice(0, firstDot), 10) || 0;
+        str = str.slice(firstDot + 1);
+      }
+    }
+
+    let timeMain = str;
+    let fracPart = "";
+    if (str.includes(".")) {
+      const dotIdx = str.indexOf(".");
+      timeMain = str.slice(0, dotIdx);
+      fracPart = str.slice(dotIdx + 1);
+    }
+
+    hundredths = fracPart.length >= 2 
+      ? fracPart.slice(0, 2) 
+      : fracPart.padEnd(2, "0");
+
+    const parts = timeMain.split(":");
+    if (parts.length === 3) {
+      h = (parseInt(parts[0], 10) || 0) + (days * 24);
+      m = parseInt(parts[1], 10) || 0;
+      s = parseInt(parts[2], 10) || 0;
+    } else if (parts.length === 2) {
+      h = days * 24;
+      m = parseInt(parts[0], 10) || 0;
+      s = parseInt(parts[1], 10) || 0;
+    } else if (parts.length === 1) {
+      h = days * 24;
+      m = 0;
+      s = parseInt(parts[0], 10) || 0;
+    }
+  }
+
+  // Avoid "-0.00"
+  if (isNegative && h === 0 && m === 0 && s === 0 && (hundredths === "00" || hundredths === "0")) {
+    isNegative = false;
+  }
+
+  const sPad = (h > 0 || m > 0) ? s.toString().padStart(2, "0") : s.toString();
+  let result = "";
+
+  if (h > 0) {
+    const mPad = m.toString().padStart(2, "0");
+    result = `${h}:${mPad}:${sPad}.${hundredths}`;
+  } else if (m > 0) {
+    result = `${m}:${sPad}.${hundredths}`;
+  } else {
+    result = `${sPad}.${hundredths}`;
+  }
+
+  return isNegative ? `-${result}` : result;
 }
 
 function formatTargetTime(sec) {
@@ -2035,10 +2135,8 @@ async function pollLoop() {
     const igt = await sendCommand("getcurrentgametime");
     let igtSec = null;
     if (igt && igt !== "-") {
-      const parts = igt.split(".");
-      document.getElementById("timer-igt").innerText = parts.length > 1 
-        ? `${parts[0]}.${parts[1].slice(0, 2)}` 
-        : parts[0];
+      const igtEl = document.getElementById("timer-igt");
+      if (igtEl) igtEl.innerText = formatTimerDisplay(igt);
       igtSec = timeStringToSeconds(igt);
     }
 
@@ -2046,10 +2144,8 @@ async function pollLoop() {
     const rta = await sendCommand("getcurrentrealtime");
     let rtaSec = null;
     if (rta && rta !== "-") {
-      const parts = rta.split(".");
-      document.getElementById("timer-rta").innerText = parts.length > 1 
-        ? `${parts[0]}.${parts[1].slice(0, 2)}` 
-        : parts[0];
+      const rtaEl = document.getElementById("timer-rta");
+      if (rtaEl) rtaEl.innerText = formatTimerDisplay(rta);
       rtaSec = timeStringToSeconds(rta);
     }
 
@@ -2930,6 +3026,7 @@ window.toggleSettingsMenu = toggleSettingsMenu;
 window.handleUndoSplit = handleUndoSplit;
 window.setDeltaDisplay = setDeltaDisplay;
 window.setupTrackScrollInteractions = setupTrackScrollInteractions;
+window.formatTimerDisplay = formatTimerDisplay;
 window.saveInRunState = saveInRunState;
 window.clearInRunState = clearInRunState;
 window.loadInRunState = loadInRunState;
