@@ -338,12 +338,34 @@ function applyActiveComparison(compName, updateLiveSplit = false) {
   if (updateLiveSplit && ws && ws.readyState === WebSocket.OPEN) {
     ws.send(`setcomparison ${currentComparison}`);
   }
+
+  showComparisonToast(currentComparison);
 }
 
-function cycleComparison() {
+let comparisonToastTimer = null;
+function showComparisonToast(compName) {
+  if (!isOverlayInitialized || !compName) return;
+  let toast = document.getElementById("hud-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "hud-toast";
+    toast.className = "hud-toast";
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<span style="color: #38bdf8;">⚖️ Comparison:</span> <span>${compName}</span>`;
+  toast.classList.add("show");
+  if (comparisonToastTimer) clearTimeout(comparisonToastTimer);
+  comparisonToastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 1800);
+}
+
+function cycleComparison(reverse = false) {
   if (comparisonsList.length === 0) return;
   const currentIdx = comparisonsList.indexOf(currentComparison);
-  const nextIdx = (currentIdx + 1) % comparisonsList.length;
+  const nextIdx = reverse
+    ? (currentIdx - 1 + comparisonsList.length) % comparisonsList.length
+    : (currentIdx + 1) % comparisonsList.length;
   const nextComp = comparisonsList[nextIdx];
   applyActiveComparison(nextComp, true);
 }
@@ -3153,6 +3175,27 @@ function initOverlay() {
     }
   });
 
+  // Comparison switching hotkeys: 'C' / 'Shift+C', NumPad 4 / 6, [ / ]
+  window.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+    const isEdit = document.body.classList.contains("edit-mode") ||
+      (window.hudLayout && typeof window.hudLayout.isEditMode === "function" && window.hudLayout.isEditMode());
+    if (isEdit) return;
+
+    if (e.key === "c" || e.key === "C") {
+      e.preventDefault();
+      cycleComparison(e.shiftKey);
+    } else if (e.code === "Numpad6" || e.key === "]") {
+      e.preventDefault();
+      cycleComparison(false);
+    } else if (e.code === "Numpad4" || e.key === "[") {
+      e.preventDefault();
+      cycleComparison(true);
+    }
+  });
+
   // Direct click on timer blocks to focus timing method
   document.getElementById("block-igt")?.addEventListener("click", () => {
     setTimingMethodFocus("GameTime");
@@ -3229,4 +3272,5 @@ window.getCurrentIndex = () => currentIndex;
 window.updateTrackStatus = updateTrackStatus;
 window.updateGhostBadge = updateGhostBadge;
 window.updateTrackWindow = updateTrackWindow;
+window.showComparisonToast = showComparisonToast;
 window.initOverlay = initOverlay;

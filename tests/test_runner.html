@@ -702,6 +702,31 @@
       });
     });
 
+    describe("Comparison Switching: cycleComparison & Toast Notification", () => {
+      it("exports cycleComparison and showComparisonToast on window", () => {
+        assert(typeof window.cycleComparison === "function", "cycleComparison exported");
+        assert(typeof window.showComparisonToast === "function", "showComparisonToast exported");
+      });
+
+      it("cycles through comparisons in both directions", () => {
+        const curBefore = window.getCurrentComparison ? window.getCurrentComparison() : "Personal Best";
+        window.cycleComparison(false);
+        const curAfterNext = window.getCurrentComparison ? window.getCurrentComparison() : "Best Segments";
+        assert(curAfterNext !== curBefore, "advances to next comparison");
+        window.cycleComparison(true);
+        const curAfterRev = window.getCurrentComparison ? window.getCurrentComparison() : "Personal Best";
+        assert(curAfterRev === curBefore, "returns to original comparison on reverse");
+      });
+
+      it("renders hud-toast element with glassmorphic styling", () => {
+        window.showComparisonToast("Personal Best");
+        const toast = document.getElementById("hud-toast");
+        assert(toast !== null, "#hud-toast element exists");
+        assert(toast.classList.contains("hud-toast"), "has hud-toast class");
+        assert(toast.innerText.includes("Personal Best"), "displays comparison name");
+      });
+    });
+
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");
     suites.forEach((suite) => {

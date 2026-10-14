@@ -116,6 +116,17 @@ Query these **strictly upon split index transition, start, or reset**:
   - The delta is displayed as `"-"` (`.delta-uncoloured`).
   - For completed splits on fresh splits, `timeSpan` displays the recorded split time, whereas for skipped splits `timeSpan` displays `"-"`.
 
+### 7. Comparison Switching & Keyboard Hotkeys
+* **Hotkeys**:
+  - `C` or `NumPad 6` or `]`: Cycle forward to the next comparison.
+  - `Shift + C` or `NumPad 4` or `[`: Cycle backward to the previous comparison.
+* **Safety Guards**:
+  - Hotkeys are suppressed when typing in form inputs (`INPUT`, `TEXTAREA`, `SELECT`).
+  - Hotkeys are suppressed when Edit Layout Mode is active.
+* **Transient HUD Toast Notification**:
+  - When switching comparisons via hotkey, badge click, or LiveSplit hotkey auto-sync, a glassmorphic `#hud-toast` notification pill is rendered for 1.8 seconds.
+  - Changes are synchronized to LiveSplit Server via WebSocket command `setcomparison <name>`.
+
 ---
 
 ## 4. LocalStorage Keys & State Schema

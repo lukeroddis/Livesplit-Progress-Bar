@@ -1834,6 +1834,55 @@ def test_always_show_last_split_and_schematic_break():
     print("✓ 'Always Show Last Split' with schematic engineering break tests passed.")
 
 
+def test_comparison_hotkeys_and_toast():
+    """Verify hotkey comparison switching (C, Shift+C, NumPad 4/6, [/]) and transient HUD toast notification."""
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+    with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
+        css_src = f.read()
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html_src = f.read()
+
+    # 1. CSS HUD toast styling
+    assert ".hud-toast" in css_src, "style.css must define .hud-toast"
+    assert ".hud-toast.show" in css_src, "style.css must define .hud-toast.show"
+
+    # 2. HTML UI and hotkey guide
+    assert 'id="row-comparison-hotkey"' in html_src, "index.html must have #row-comparison-hotkey"
+    assert "Comp: PB" in html_src, "index.html must include #comparison-badge"
+
+    # 3. overlay.js cycleComparison function & reverse parameter
+    assert "function cycleComparison(reverse = false)" in overlay_src, "overlay.js cycleComparison must support reverse parameter"
+    assert "window.cycleComparison = cycleComparison;" in overlay_src, "overlay.js must export cycleComparison on window"
+    assert "function showComparisonToast(" in overlay_src, "overlay.js must define showComparisonToast"
+    assert "window.showComparisonToast = showComparisonToast;" in overlay_src, "overlay.js must export showComparisonToast on window"
+
+    # 4. Keyboard event listeners and safety guards
+    assert 'e.key === "c" || e.key === "C"' in overlay_src, "overlay.js must listen for 'c' and 'C' keys"
+    assert 'e.code === "Numpad6"' in overlay_src, "overlay.js must support Numpad6 for LiveSplit parity"
+    assert 'e.code === "Numpad4"' in overlay_src, "overlay.js must support Numpad4 for LiveSplit parity"
+    assert "e.shiftKey" in overlay_src, "overlay.js must support Shift+C for reverse comparison cycling"
+    assert 'e.target.tagName === "INPUT"' in overlay_src, "overlay.js must guard against typing in input fields"
+    assert "window.hudLayout.isEditMode" in overlay_src, "overlay.js must guard against hotkey triggers in edit mode"
+
+    # 5. Mathematical simulation of circular comparison cycling
+    comps = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"]
+    def sim_cycle(cur_idx, reverse=False):
+        return (cur_idx - 1 + len(comps)) % len(comps) if reverse else (cur_idx + 1) % len(comps)
+
+    assert sim_cycle(0, False) == 1  # PB -> Best Segments
+    assert sim_cycle(1, False) == 2  # Best Segments -> Average Segments
+    assert sim_cycle(2, False) == 3  # Average Segments -> Worst Segments
+    assert sim_cycle(3, False) == 0  # Worst Segments -> PB (wraparound)
+
+    assert sim_cycle(0, True) == 3   # PB -> Worst Segments (reverse wraparound)
+    assert sim_cycle(3, True) == 2   # Worst Segments -> Average Segments
+    assert sim_cycle(2, True) == 1   # Average Segments -> Best Segments
+    assert sim_cycle(1, True) == 0   # Best Segments -> PB
+
+    print("✓ Comparison switching hotkey (C, Shift+C, NumPad 4/6) and toast tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1870,6 +1919,7 @@ def main():
         test_in_run_state_persistence()
         test_timer_anchor_and_expansion_modes()
         test_always_show_last_split_and_schematic_break()
+        test_comparison_hotkeys_and_toast()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

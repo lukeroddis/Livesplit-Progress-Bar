@@ -107,6 +107,9 @@
     <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
   </div>
 
+  <!-- Transient HUD Toast Notification (Pace / Comparison hotkey switches) -->
+  <div id="hud-toast" class="hud-toast" style="display: none;"></div>
+
   <!-- Floating Settings Menu (Bottom Right Corner) -->
   <div class="quick-settings-wrap" id="quick-settings-wrap">
     <!-- Unobtrusive Trigger Pill in Bottom-Right Corner (Click to latch open / close) -->
@@ -160,7 +163,7 @@
       <div class="settings-section">
         <div class="settings-section-header">PACE &amp; COMPARISONS</div>
         <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="comparison-badge" style="color: #38bdf8;" title="Click to cycle active comparison (or use LiveSplit hotkeys)">Comp: PB</button>
+          <button type="button" class="settings-tile-btn" id="comparison-badge" style="color: #38bdf8;" title="Click or press 'C' to cycle active comparison (Shift+C for previous, NumPad 4/6)">Comp: PB</button>
           <button type="button" class="settings-tile-btn" id="ghost-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle Live Ghost Runner (Off / 🏆 WR / 🥈 PB / ⭐ Best / 📊 Avg)">Ghost: Off</button>
           <button type="button" class="settings-tile-btn" id="timing-method-badge" style="color: #facc15;" title="Click to cycle timer display: Game Time / Real Time / Both">Time: Both</button>
           <button type="button" class="settings-tile-btn" id="gold-toggle-badge" style="color: #facc15;" title="Click to toggle Gold Splits">Golds: ON</button>
@@ -385,6 +388,14 @@
             <option value="Average Segments">Average Segments</option>
             <option value="Worst Segments">Worst Segments</option>
           </select>
+        </div>
+        <div class="modal-row" id="row-comparison-hotkey">
+          <label>Comparison Switch Hotkey</label>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size: 13px; color: #38bdf8; font-weight: 600;">⌨️ C / Shift+C &bull; NumPad 4 / 6</span>
+            <span class="val-badge">Active</span>
+          </div>
+          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Press <strong>C</strong> (or <strong>NumPad 6</strong> / <strong>&#93;</strong>) to cycle to the next comparison, or <strong>Shift+C</strong> (or <strong>NumPad 4</strong> / <strong>&#91;</strong>) for previous.</span>
         </div>
         <div class="modal-row">
           <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
