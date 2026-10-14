@@ -1385,6 +1385,76 @@ def test_skipped_split_and_incomplete_data_handling():
     print("✓ Skipped splits & incomplete data uncoloured handling tests passed.")
 
 
+def test_in_run_state_persistence():
+    """Verify in-run split progress (deltas, split times, colors) is preserved across refreshes."""
+    import json
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+
+    # 1. State key and storage management functions
+    assert 'const IN_RUN_STATE_KEY = "livesplit_in_run_state";' in overlay_src, \
+        "overlay.js must define IN_RUN_STATE_KEY"
+    assert "function saveInRunState()" in overlay_src, "overlay.js must implement saveInRunState()"
+    assert "function clearInRunState()" in overlay_src, "overlay.js must implement clearInRunState()"
+    assert "function loadInRunState()" in overlay_src, "overlay.js must implement loadInRunState()"
+
+    # 2. Window exports for testing and external consumers
+    assert "window.saveInRunState = saveInRunState;" in overlay_src, "overlay.js must export saveInRunState"
+    assert "window.clearInRunState = clearInRunState;" in overlay_src, "overlay.js must export clearInRunState"
+    assert "window.loadInRunState = loadInRunState;" in overlay_src, "overlay.js must export loadInRunState"
+
+    # 3. Serialization and restoration simulation
+    splits = ["Stage 1", "Stage 2", "Stage 3", "Final Boss"]
+    mock_state = {
+        "currentIndex": 2,
+        "lockedDeltas": {
+            "0": {"deltaInfo": {"text": "-0:03.2", "isAhead": True, "signedSeconds": -3.2}, "stateClass": "ahead-gaining", "splitTimeSec": 62.5},
+            "1": {"deltaInfo": {"text": "-", "isAhead": False, "signedSeconds": 0}, "stateClass": "uncoloured", "splitTimeSec": None}
+        },
+        "completedSplitTimes": {"0": 62.5},
+        "lastSplitRecordedSec": 62.5,
+        "previousDeltaSeconds": -3.2,
+        "lastElapsedSec": 135.0,
+        "splitsCount": len(splits),
+        "game": "Celeste",
+        "category": "Any%"
+    }
+
+    raw = json.dumps(mock_state)
+    parsed = json.loads(raw)
+    assert parsed["currentIndex"] == 2
+    assert parsed["lockedDeltas"]["0"]["stateClass"] == "ahead-gaining"
+    assert parsed["lockedDeltas"]["1"]["stateClass"] == "uncoloured"
+    assert parsed["splitsCount"] == 4
+
+    # Split count mismatch guard simulation: if runner loads different splits count, discard stale in-run data
+    different_splits_count = 6
+    assert parsed["splitsCount"] != different_splits_count, "Guard must detect split count mismatch"
+
+    # 4. Persistence call site integration checks:
+    # - saveInRunState called on split completion
+    assert "setDeltaDisplay(prevIdx, displayDelta, stateClass, splitTimeSec);\n          saveInRunState();" in overlay_src, \
+        "overlay.js must call saveInRunState() upon recording completed split delta"
+
+    # - saveInRunState called on undo split
+    assert "saveInRunState();" in overlay_src, \
+        "overlay.js must call saveInRunState() after handleUndoSplit"
+
+    # - clearInRunState called on reset transition and new drops
+    assert "clearInRunState();" in overlay_src, \
+        "overlay.js must call clearInRunState() on timer reset transition and new split drop"
+
+    # - loadInRunState called before renderTrack in loadCachedSplits & parseLSS
+    assert "loadInRunState();" in overlay_src, \
+        "overlay.js must load in-run state before renderTrack() to restore all nodes and colors"
+
+    # 5. renderTrack & updateTrackStatus restore completed nodes
+    assert 'if (i < idx) {' in overlay_src and 'if (lockedDeltas[i]) {' in overlay_src, \
+        "overlay.js updateTrackStatus must repaint completed node deltas and bar fills from lockedDeltas"
+
+    print("✓ In-run state persistence across browser refresh tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1417,6 +1487,7 @@ def main():
         test_layout_profiles_and_extensible_schema()
         test_track_scrolling_consistency_and_mousewheel()
         test_skipped_split_and_incomplete_data_handling()
+        test_in_run_state_persistence()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

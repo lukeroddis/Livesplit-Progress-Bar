@@ -34,6 +34,73 @@ let lastSplitRecordedSec = 0;
 let previousDeltaSeconds = 0;
 let lastElapsedSec = 0;
 
+const IN_RUN_STATE_KEY = "livesplit_in_run_state";
+
+function saveInRunState() {
+  try {
+    const state = {
+      currentIndex,
+      lockedDeltas,
+      completedSplitTimes,
+      lastSplitRecordedSec,
+      previousDeltaSeconds,
+      lastElapsedSec,
+      splitsCount: splitsList.length,
+      game: localStorage.getItem("livesplit_game") || "",
+      category: localStorage.getItem("livesplit_category") || ""
+    };
+    localStorage.setItem(IN_RUN_STATE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("Failed to persist in-run state to localStorage:", e);
+  }
+}
+
+function clearInRunState() {
+  try {
+    localStorage.removeItem(IN_RUN_STATE_KEY);
+  } catch (e) {
+    console.warn("Failed to clear in-run state from localStorage:", e);
+  }
+}
+
+function loadInRunState() {
+  try {
+    const raw = localStorage.getItem(IN_RUN_STATE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      if (typeof parsed.splitsCount === "number" && splitsList.length > 0 && parsed.splitsCount !== splitsList.length) {
+        clearInRunState();
+        return false;
+      }
+      const curGame = localStorage.getItem("livesplit_game") || "";
+      const curCat = localStorage.getItem("livesplit_category") || "";
+      if (parsed.game && curGame && parsed.game !== curGame) {
+        clearInRunState();
+        return false;
+      }
+      if (parsed.category && curCat && parsed.category !== curCat) {
+        clearInRunState();
+        return false;
+      }
+      lockedDeltas = parsed.lockedDeltas || {};
+      completedSplitTimes = parsed.completedSplitTimes || {};
+      lastSplitRecordedSec = Number(parsed.lastSplitRecordedSec) || 0;
+      previousDeltaSeconds = Number(parsed.previousDeltaSeconds) || 0;
+      if (typeof parsed.lastElapsedSec === "number") {
+        lastElapsedSec = parsed.lastElapsedSec;
+      }
+      if (typeof parsed.currentIndex === "number") {
+        currentIndex = parsed.currentIndex;
+      }
+      return true;
+    }
+  } catch (e) {
+    console.warn("Failed to load in-run state from localStorage:", e);
+  }
+  return false;
+}
+
 // High-frequency render loop optimizations & memory caches
 const ALL_DELTA_CLASSES = [
   "delta-ahead-gaining", "delta-ahead-losing", 
@@ -408,8 +475,18 @@ function sanitizeComparisonTimes(times, fallbackTimes) {
 // ============================================================
 // 5. LSS XML SPLITS PARSER & HISTORICAL CURVES COMPUTATION
 // ============================================================
-function parseLSS(xmlText) {
+function parseLSS(xmlText, isNewDrop = false) {
   try {
+    if (isNewDrop) {
+      clearInRunState();
+      currentIndex = -1;
+      lockedDeltas = {};
+      completedSplitTimes = {};
+      lastSplitRecordedSec = 0;
+      previousDeltaSeconds = 0;
+      lastElapsedSec = 0;
+    }
+
     const parser = new DOMParser();
     const xml = parser.parseFromString(xmlText, "text/xml");
 
@@ -621,6 +698,9 @@ function parseLSS(xmlText) {
 
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
+      if (!isNewDrop) {
+        loadInRunState();
+      }
       renderTrack();
       const dropDesc = document.getElementById("dropzone-desc");
       if (dropDesc) {
@@ -842,6 +922,7 @@ function loadCachedSplits() {
 
       updateGoldBadge();
       applyActiveComparison(currentComparison, false);
+      loadInRunState();
       renderTrack();
       const dropDesc = document.getElementById("dropzone-desc");
       if (dropDesc && splitsList.length > 0) {
@@ -870,6 +951,7 @@ function loadCachedSplits() {
 
   updateGoldBadge();
   applyActiveComparison(currentComparison, false);
+  loadInRunState();
   renderTrack();
   if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
     window.hudLayout.syncTrackModalUI();
@@ -1847,6 +1929,8 @@ function handleUndoSplit(newIdx, oldIdx) {
       break;
     }
   }
+
+  saveInRunState();
 }
 
 function detectTimingMethodFromComp(splitIdx, compSec) {
@@ -1984,6 +2068,7 @@ async function pollLoop() {
     if (!isNaN(idx)) {
       // Reset transition (only when transitioning from an active run to reset, or restarting from a later split)
       if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0)) {
+        clearInRunState();
         lockedDeltas = {};
         completedSplitTimes = {};
         lastSplitRecordedSec = 0;
@@ -2052,6 +2137,7 @@ async function pollLoop() {
       else if (idx !== currentIndex) {
         if (currentIndex === -1 && idx === 0) {
           // Timer just started
+          clearInRunState();
           lockedDeltas = {};
           completedSplitTimes = {};
           lastSplitRecordedSec = 0;
@@ -2227,6 +2313,7 @@ async function pollLoop() {
 
           lockedDeltas[prevIdx] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
           setDeltaDisplay(prevIdx, displayDelta, stateClass, splitTimeSec);
+          saveInRunState();
 
           // Query target comparison time once for the next newly active split
           if (idx < splitsList.length) {
@@ -2248,6 +2335,9 @@ async function pollLoop() {
           handleUndoSplit(idx, currentIndex);
         }
         updateTrackStatus(idx);
+        if (idx >= 0) {
+          saveInRunState();
+        }
       } else {
         if (currentTotalSec !== null) {
           updateLiveSegmentProgress(currentTotalSec);
@@ -2269,7 +2359,7 @@ if (fileInput) {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (evt) => parseLSS(evt.target.result);
+      reader.onload = (evt) => parseLSS(evt.target.result, true);
       reader.readAsText(file);
     }
   });
@@ -2296,7 +2386,7 @@ window.addEventListener("drop", (e) => {
   const file = e.dataTransfer.files[0];
   if (file && (file.name.endsWith(".lss") || file.name.endsWith(".xml"))) {
     const reader = new FileReader();
-    reader.onload = (evt) => parseLSS(evt.target.result);
+    reader.onload = (evt) => parseLSS(evt.target.result, true);
     reader.readAsText(file);
   } else if (file && (file.name.endsWith(".json") || file.name.endsWith(".lshud"))) {
     if (window.hudLayout && typeof window.hudLayout.importProfileFromFile === "function") {
@@ -2840,4 +2930,9 @@ window.toggleSettingsMenu = toggleSettingsMenu;
 window.handleUndoSplit = handleUndoSplit;
 window.setDeltaDisplay = setDeltaDisplay;
 window.setupTrackScrollInteractions = setupTrackScrollInteractions;
+window.saveInRunState = saveInRunState;
+window.clearInRunState = clearInRunState;
+window.loadInRunState = loadInRunState;
+window.getLockedDeltas = () => lockedDeltas;
+window.getCurrentIndex = () => currentIndex;
 window.initOverlay = initOverlay;
