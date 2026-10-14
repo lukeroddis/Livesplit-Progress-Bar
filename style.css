@@ -635,11 +635,17 @@ body.edit-mode .layout-toolbar {
   display: flex;
   align-items: flex-end;
   min-width: max-content;
-  padding: 42px calc(var(--node-spacing) / 2) var(--track-padding-bottom, 10px);
+  padding: 42px var(--track-padding-right, 24px) var(--track-padding-bottom, 10px) var(--track-padding-left, 24px);
   transition: padding 0.25s ease;
   --dot-bottom: 5px;
   --track-padding-bottom: 10px;
+  --track-padding-left: 24px;
+  --track-padding-right: 24px;
   --ghost-pin-bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom) + (var(--dot-size) + var(--bar-height)) / 2 + var(--ghost-needle-length, 16px));
+}
+
+#hud-comp-track.docked-bottom .track {
+  --track-padding-right: 140px;
 }
 
 .split-item {
