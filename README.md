@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml"><img src="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Test Suite"></a>
-  <a href="tests/run_tests.py"><img src="https://img.shields.io/badge/tests-27%20passed-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/run_tests.py"><img src="https://img.shields.io/badge/tests-32%20passed-brightgreen.svg" alt="Tests"></a>
   <a href="https://obsproject.com/"><img src="https://img.shields.io/badge/OBS%20Studio-Compatible-purple.svg" alt="OBS Studio Compatible"></a>
   <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/releases"><img src="https://img.shields.io/github/v/release/lukeroddis/Livesplit-Progress-Bar?color=blue&logo=github" alt="Release"></a>
   <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/issues"><img src="https://img.shields.io/github/issues/lukeroddis/Livesplit-Progress-Bar?color=orange" alt="Issues"></a>
@@ -87,6 +87,8 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
 
 | Control / Hotkey | Action |
 | :--- | :--- |
+| **`C`** (or **`NumPad 6`** / **`]`**) | Cycle forward to next comparison time (with HUD toast) |
+| **`Shift + C`** (or **`NumPad 4`** / **`[`**) | Cycle backward to previous comparison time (with HUD toast) |
 | **`Scroll Wheel`** | Scroll splits left/right (or up/down if sidebar) like LiveSplit |
 | **`←` / `→`** (or **`↑` / `↓`**) | Pan splits with keyboard arrow keys |
 | **`E`** or **`F2`** | Toggle Interactive Layout Edit Mode (Drag & Scale) |
