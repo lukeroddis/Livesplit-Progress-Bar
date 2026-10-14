@@ -741,8 +741,79 @@ body.edit-mode .layout-toolbar {
   transition: height 0.2s ease, bottom 0.2s ease;
 }
 
-.split-item.origin-node .segment-bar-bg {
+.split-item.origin-node .segment-bar-bg,
+.split-item.first-visible-node .segment-bar-bg {
+  display: none !important;
+}
+
+.split-item.is-omitted {
+  display: none !important;
+}
+
+/* ============================================================
+   SCHEMATIC ENGINEERING DISCONTINUITY BREAK (//)
+   ============================================================ */
+.discontinuity-break {
   display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  gap: 3.5px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.split-item.has-discontinuity .discontinuity-break {
+  display: flex;
+}
+
+.disc-slash {
+  width: 2.5px;
+  height: 16px;
+  background: #94a3b8;
+  transform: skewX(-28deg);
+  border-radius: 1px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.95), 0 0 3px rgba(56, 189, 248, 0.4);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Cutout gap in the horizontal connector bar */
+.split-item.has-discontinuity .segment-bar-bg {
+  background: linear-gradient(
+    to right,
+    var(--line-idle) 0%,
+    var(--line-idle) calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    var(--line-idle) calc(50% + 13px),
+    var(--line-idle) 100%
+  ) !important;
+}
+
+.split-item.has-discontinuity .segment-bar-fill {
+  mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
 }
 
 /* Light up Start node cyan when run is active */
@@ -1165,8 +1236,55 @@ body.edit-mode .layout-toolbar {
   border-radius: calc(var(--bar-height, 6px) / 2);
 }
 
-.track.vertical .split-item.origin-node .segment-bar-bg {
-  display: none;
+.track.vertical .split-item.origin-node .segment-bar-bg,
+.track.vertical .split-item.first-visible-node .segment-bar-bg {
+  display: none !important;
+}
+
+.track.vertical .discontinuity-break {
+  width: 20px;
+  height: 26px;
+  flex-direction: column;
+  gap: 3.5px;
+}
+
+.track.vertical .disc-slash {
+  width: 16px;
+  height: 2.5px;
+  transform: skewY(-28deg);
+}
+
+.track.vertical .split-item.has-discontinuity .segment-bar-bg {
+  background: linear-gradient(
+    to bottom,
+    var(--line-idle) 0%,
+    var(--line-idle) calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    var(--line-idle) calc(50% + 13px),
+    var(--line-idle) 100%
+  ) !important;
+}
+
+.track.vertical .split-item.has-discontinuity .segment-bar-fill {
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
 }
 
 .track.vertical .segment-bar-fill {

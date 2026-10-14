@@ -279,6 +279,7 @@
         ghostOpacity: parseInt(localStorage.getItem("livesplit_ghost_opacity"), 10) || 85,
         splitDensity: localStorage.getItem("livesplit_visible_splits") || "auto",
         splitAngle: localStorage.getItem("livesplit_split_angle") || "auto",
+        showLastSplit: (localStorage.getItem("livesplit_always_show_last_split") !== "false"),
         discardGoldsOnReset: (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false"),
         syncHotkeys: (localStorage.getItem("livesplit_sync_hotkeys") !== "false")
       },
@@ -332,6 +333,13 @@
     if (prefs.splitAngle != null) {
       localStorage.setItem("livesplit_split_angle", prefs.splitAngle);
       if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+    }
+    if (prefs.showLastSplit != null) {
+      localStorage.setItem("livesplit_always_show_last_split", prefs.showLastSplit ? "true" : "false");
+      const cbLast = document.getElementById("cb-always-show-last-split");
+      if (cbLast) cbLast.checked = !!prefs.showLastSplit;
+      if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+      if (window.updateTrackStatus) window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
     }
     if (prefs.discardGoldsOnReset != null) {
       localStorage.setItem("livesplit_discard_golds_on_reset", prefs.discardGoldsOnReset ? "true" : "false");
@@ -860,6 +868,12 @@
       cbDiscard.checked = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
     }
 
+    // Always Show Last Split checkbox
+    const cbLast = document.getElementById("cb-always-show-last-split");
+    if (cbLast) {
+      cbLast.checked = (localStorage.getItem("livesplit_always_show_last_split") !== "false");
+    }
+
     // Active Comparison dropdown sync
     const selComp = document.getElementById("select-active-comparison");
     if (selComp && window.getComparisonsList) {
@@ -1337,6 +1351,14 @@
       if (a === "auto" || a === "right" || a === "left") {
         setTimerAnchor(a);
       }
+    }
+
+    const lastSplitParam = params.get("lastsplit") || params.get("showlastsplit");
+    if (lastSplitParam) {
+      const val = (lastSplitParam.toLowerCase().trim() !== "false" && lastSplitParam.trim() !== "0");
+      localStorage.setItem("livesplit_always_show_last_split", val ? "true" : "false");
+      const cbLast = document.getElementById("cb-always-show-last-split");
+      if (cbLast) cbLast.checked = val;
     }
 
     // Track style URL parameters
@@ -1855,6 +1877,13 @@
     // Auto-sync with LiveSplit hotkeys listener
     document.getElementById("cb-sync-livesplit-hotkeys")?.addEventListener("change", (e) => {
       localStorage.setItem("livesplit_sync_hotkeys", e.target.checked ? "true" : "false");
+    });
+
+    // Always Show Last Split checkbox listener
+    document.getElementById("cb-always-show-last-split")?.addEventListener("change", (e) => {
+      localStorage.setItem("livesplit_always_show_last_split", e.target.checked ? "true" : "false");
+      if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+      if (window.updateTrackStatus) window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
     });
 
     // Visible Timers segmented control listener

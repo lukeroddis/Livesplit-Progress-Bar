@@ -101,6 +101,7 @@
         "ghostOpacity": { "type": "integer" },
         "splitDensity": { "type": "string" },
         "splitAngle": { "type": "string" },
+        "showLastSplit": { "type": "boolean" },
         "discardGoldsOnReset": { "type": "boolean" },
         "syncHotkeys": { "type": "boolean" }
       }

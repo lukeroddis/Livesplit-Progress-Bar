@@ -1697,6 +1697,115 @@ def test_timer_anchor_and_expansion_modes():
     print("✓ Timer anchor, smart auto-detection, and expansion modes passed.")
 
 
+def test_always_show_last_split_and_schematic_break():
+    """Verify 'Always Show Last Split' with engineering schematic double-slash (//) break:
+    Settings checkbox, DOM elements, CSS gradient masks and slashes, schema declaration,
+    and mathematical sliding-window simulation."""
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html_src = f.read()
+    with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
+        css_src = f.read()
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+    with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
+        layout_src = f.read()
+    with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
+        schema_src = f.read()
+
+    # 1. HTML markup checks
+    assert 'id="cb-always-show-last-split"' in html_src, "index.html must have #cb-always-show-last-split checkbox"
+    assert 'id="row-always-show-last-split"' in html_src, "index.html must have #row-always-show-last-split row"
+
+    # 2. CSS engineering schematic break rules
+    assert ".discontinuity-break" in css_src, "style.css must define .discontinuity-break"
+    assert ".disc-slash" in css_src, "style.css must define .disc-slash"
+    assert ".split-item.has-discontinuity .segment-bar-bg" in css_src, "style.css must style has-discontinuity connector"
+    assert ".split-item.is-omitted" in css_src, "style.css must style .split-item.is-omitted"
+    assert ".split-item.first-visible-node" in css_src, "style.css must hide connector on first-visible-node"
+    assert ".track.vertical .discontinuity-break" in css_src, "style.css must support vertical discontinuity break"
+    assert ".track.vertical .disc-slash" in css_src, "style.css must support vertical disc-slash"
+
+    # 3. overlay.js DOM generation & functions
+    assert 'discEl.className = "discontinuity-break";' in overlay_src, "renderTrack must append discontinuity-break to segBg"
+    assert '<span class="disc-slash"></span><span class="disc-slash"></span>' in overlay_src, "discontinuity-break must render double slashes"
+    assert "function updateTrackWindow(" in overlay_src, "overlay.js must define updateTrackWindow(idx)"
+    assert "updateTrackWindow(idx)" in overlay_src, "overlay.js updateTrackStatus must call updateTrackWindow"
+    assert "window.updateTrackWindow = updateTrackWindow;" in overlay_src, "overlay.js must export updateTrackWindow on window"
+
+    # 4. layout.js wiring & profiles
+    assert "cb-always-show-last-split" in layout_src, "layout.js must sync cb-always-show-last-split"
+    assert "showLastSplit:" in layout_src, "createProfileExport must export showLastSplit"
+    assert "prefs.showLastSplit" in layout_src, "applyProfileData must restore showLastSplit"
+    assert 'params.get("lastsplit")' in layout_src or 'params.get("showlastsplit")' in layout_src, "parseUrlParameters must parse lastsplit"
+
+    # 5. Schema v1 check
+    schema_json = json.loads(schema_src)
+    assert "showLastSplit" in schema_json.get("properties", {}).get("preferences", {}).get("properties", {}), \
+        "schema/layout-v1.json preferences must declare showLastSplit"
+
+    # 6. Mathematical Sliding Window & Discontinuity Simulation
+    def simulate_track_window(total_splits, visible_capacity, current_idx, always_show_last=True):
+        N = total_splits
+        V = visible_capacity
+        if not always_show_last or N <= V:
+            return {"omitted": [], "has_discontinuity": False, "visible_count": N}
+
+        S = max(2, V - 1)
+        cur = max(0, current_idx)
+        past_count = min(cur, 1)
+        window_start = max(0, cur - past_count)
+        window_end = window_start + (S - 1)
+
+        has_discontinuity = True
+        if window_end >= N - 1:
+            window_end = N - 1
+            window_start = max(0, N - V)
+            has_discontinuity = False
+
+        omitted = []
+        visible = []
+        for i in range(N):
+            if (i >= window_start and i <= window_end) or i == N - 1:
+                visible.append(i)
+            else:
+                omitted.append(i)
+        return {"omitted": omitted, "has_discontinuity": has_discontinuity, "visible_count": len(visible), "visible": visible}
+
+    # Scenario A: 33 splits (Final Fantasy X), visible capacity 8, start of run (idx = 0)
+    sim_start = simulate_track_window(33, 8, 0)
+    assert sim_start["has_discontinuity"] is True, "Discontinuity must be active when intermediate splits are omitted"
+    assert sim_start["visible"] == [0, 1, 2, 3, 4, 5, 6, 32], "Visible splits must be active window + final split"
+    assert len(sim_start["omitted"]) == 25, "Intermediate splits 7..31 must be omitted"
+    assert 32 in sim_start["visible"], "Final split 32 must always be visible at the end"
+
+    # Scenario B: Runner is mid-run at Split 15
+    sim_mid = simulate_track_window(33, 8, 15)
+    assert sim_mid["has_discontinuity"] is True
+    assert sim_mid["visible"] == [14, 15, 16, 17, 18, 19, 20, 32]
+    assert 15 in sim_mid["visible"], "Current split 15 must be in active window"
+    assert 14 in sim_mid["visible"], "Completed split 14 must be visible"
+    assert 32 in sim_mid["visible"], "Final split 32 must be pinned at the end"
+
+    # Scenario C: Runner approaches the finale (Split 29)
+    sim_end = simulate_track_window(33, 8, 29)
+    assert sim_end["has_discontinuity"] is False, "Discontinuity must vanish when active window reaches final split"
+    assert sim_end["visible"] == [25, 26, 27, 28, 29, 30, 31, 32], "All trailing splits must be contiguous"
+    assert sim_end["omitted"] == list(range(25)), "Only past completed splits outside window are omitted"
+
+    # Scenario D: Small split count <= V (e.g. 5 splits, V = 8)
+    sim_small = simulate_track_window(5, 8, 2)
+    assert sim_small["has_discontinuity"] is False
+    assert len(sim_small["omitted"]) == 0
+    assert sim_small["visible_count"] == 5
+
+    # Scenario E: User disabled option
+    sim_disabled = simulate_track_window(33, 8, 0, always_show_last=False)
+    assert sim_disabled["has_discontinuity"] is False
+    assert len(sim_disabled["omitted"]) == 0
+
+    print("✓ 'Always Show Last Split' with schematic engineering break tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1732,6 +1841,7 @@ def main():
         test_skipped_split_and_incomplete_data_handling()
         test_in_run_state_persistence()
         test_timer_anchor_and_expansion_modes()
+        test_always_show_last_split_and_schematic_break()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

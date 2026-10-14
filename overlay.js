@@ -1150,6 +1150,12 @@ function renderTrack() {
     segFill.id = `fill-${i}`;
     segBg.appendChild(segFill);
 
+    const discEl = document.createElement("div");
+    discEl.className = "discontinuity-break";
+    discEl.title = "Hidden intermediate splits";
+    discEl.innerHTML = `<span class="disc-slash"></span><span class="disc-slash"></span>`;
+    segBg.appendChild(discEl);
+
     const deltaEl = document.createElement("div");
     deltaEl.className = "split-delta";
     deltaEl.id = `delta-${i}`;
@@ -1189,13 +1195,121 @@ function renderTrack() {
   updateTrackStatus(currentIndex);
 }
 
+function updateTrackWindow(idx) {
+  const N = splitsList.length;
+  const nodeStart = document.getElementById("node-start");
+  if (N <= 1) {
+    if (nodeStart) {
+      nodeStart.classList.remove("is-omitted", "first-visible-node");
+    }
+    const item0 = document.getElementById("item-0");
+    if (item0) {
+      item0.classList.remove("is-omitted", "has-discontinuity", "first-visible-node");
+    }
+    return false;
+  }
+
+  const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
+  const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+
+  if (!alwaysShowLast || splitPref === "all") {
+    // Show all splits (continuous linear track)
+    if (nodeStart) {
+      nodeStart.classList.remove("is-omitted", "first-visible-node");
+    }
+    for (let i = 0; i < N; i++) {
+      const el = document.getElementById(`item-${i}`);
+      if (el) el.classList.remove("is-omitted", "has-discontinuity", "first-visible-node");
+    }
+    return false;
+  }
+
+  const viewport = document.getElementById("track-viewport");
+  const track = document.getElementById("track");
+  const isVertical = track?.classList.contains("vertical");
+  const viewportW = viewport?.clientWidth || window.innerWidth || 1920;
+  const viewportH = viewport?.clientHeight || window.innerHeight || 800;
+
+  let V = 8;
+  if (splitPref !== "auto") {
+    const num = parseInt(splitPref, 10);
+    if (!isNaN(num) && num > 0) V = num;
+  } else {
+    V = isVertical ? Math.max(4, Math.floor(viewportH / 64)) : Math.max(4, Math.floor(viewportW / 200));
+  }
+
+  if (N <= V) {
+    // All splits fit without omission
+    if (nodeStart) {
+      nodeStart.classList.remove("is-omitted", "first-visible-node");
+    }
+    for (let i = 0; i < N; i++) {
+      const el = document.getElementById(`item-${i}`);
+      if (el) el.classList.remove("is-omitted", "has-discontinuity", "first-visible-node");
+    }
+    return false;
+  }
+
+  // N > V: window active splits and pin the final split N-1
+  const S = Math.max(2, V - 1);
+  const cur = Math.max(0, idx);
+
+  const pastCount = Math.min(cur, 1);
+  let windowStart = Math.max(0, cur - pastCount);
+  let windowEnd = windowStart + (S - 1);
+
+  let hasDiscontinuity = true;
+  if (windowEnd >= N - 1) {
+    windowEnd = N - 1;
+    windowStart = Math.max(0, N - V);
+    hasDiscontinuity = false;
+  }
+
+  // Update node-start visibility
+  if (nodeStart) {
+    if (windowStart === 0) {
+      nodeStart.classList.remove("is-omitted");
+    } else {
+      nodeStart.classList.add("is-omitted");
+    }
+  }
+
+  // Update splits visibility
+  for (let i = 0; i < N; i++) {
+    const el = document.getElementById(`item-${i}`);
+    if (!el) continue;
+
+    if (i >= windowStart && i <= windowEnd) {
+      el.classList.remove("is-omitted");
+      el.classList.remove("has-discontinuity");
+      el.classList.toggle("first-visible-node", i === windowStart && windowStart > 0);
+    } else if (i === N - 1) {
+      el.classList.remove("is-omitted");
+      el.classList.remove("first-visible-node");
+      if (hasDiscontinuity) {
+        el.classList.add("has-discontinuity");
+      } else {
+        el.classList.remove("has-discontinuity");
+      }
+    } else {
+      el.classList.add("is-omitted");
+      el.classList.remove("has-discontinuity", "first-visible-node");
+    }
+  }
+
+  return true;
+}
+
 function updateTrackStatus(idx) {
   currentIndex = idx;
+  const isWindowed = updateTrackWindow(idx);
   const viewport = document.getElementById("track-viewport");
   const isVertical = document.getElementById("track")?.classList.contains("vertical");
 
   if (viewport && typeof viewport.scrollTo === "function") {
-    if (idx < 0) {
+    if (isWindowed) {
+      viewport.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+    } else if (idx < 0) {
       if (isVertical) {
         viewport.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -1658,10 +1772,22 @@ function updateGhostRunner(currentSec) {
         const prevItem = document.getElementById(`item-${segIdx - 1}`);
         const currentItem = document.getElementById(`item-${segIdx}`);
         if (prevItem && currentItem) {
-          prevNode = prevItem;
-          nextNode = currentItem;
-          startCoord = prevItem.offsetTop + (prevItem.offsetHeight / 2);
-          endCoord = currentItem.offsetTop + (currentItem.offsetHeight / 2);
+          if (currentItem.classList.contains("is-omitted")) {
+            const finalItem = document.getElementById(`item-${splitsList.length - 1}`);
+            if (finalItem && finalItem.classList.contains("has-discontinuity")) {
+              const discY = finalItem.offsetTop - 32;
+              startCoord = discY;
+              endCoord = discY;
+            } else {
+              marker.style.display = "none";
+              return;
+            }
+          } else {
+            prevNode = prevItem;
+            nextNode = currentItem;
+            startCoord = (prevItem.classList.contains("is-omitted") ? currentItem.offsetTop - 64 : prevItem.offsetTop) + (prevItem.offsetHeight / 2);
+            endCoord = currentItem.offsetTop + (currentItem.offsetHeight / 2);
+          }
         } else {
           marker.style.display = "none";
           return;
@@ -1678,10 +1804,22 @@ function updateGhostRunner(currentSec) {
         const prevItem = document.getElementById(`item-${segIdx - 1}`);
         const currentItem = document.getElementById(`item-${segIdx}`);
         if (prevItem && currentItem) {
-          prevNode = prevItem;
-          nextNode = currentItem;
-          startCoord = prevItem.offsetLeft + (prevItem.offsetWidth / 2);
-          endCoord = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
+          if (currentItem.classList.contains("is-omitted")) {
+            const finalItem = document.getElementById(`item-${splitsList.length - 1}`);
+            if (finalItem && finalItem.classList.contains("has-discontinuity")) {
+              const discX = finalItem.offsetLeft - (finalItem.offsetWidth / 2);
+              startCoord = discX;
+              endCoord = discX;
+            } else {
+              marker.style.display = "none";
+              return;
+            }
+          } else {
+            prevNode = prevItem;
+            nextNode = currentItem;
+            startCoord = (prevItem.classList.contains("is-omitted") ? currentItem.offsetLeft - 120 : prevItem.offsetLeft) + (prevItem.offsetWidth / 2);
+            endCoord = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
+          }
         } else {
           marker.style.display = "none";
           return;
@@ -2508,6 +2646,7 @@ function updateTrackDensityAndAngle() {
   const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
 
   let spacing = isVertical ? 64 : 220;
+  const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
 
   if (isVertical) {
     if (splitPref === "all") {
@@ -2517,6 +2656,13 @@ function updateTrackDensityAndAngle() {
       const num = parseInt(splitPref, 10);
       if (!isNaN(num) && num > 0) {
         spacing = Math.max(38, Math.floor(viewportHeight / num));
+      }
+    } else if (alwaysShowLast && splitsList.length > 4) {
+      const V = Math.max(4, Math.floor(viewportHeight / 64));
+      if (splitsList.length > V) {
+        spacing = Math.max(38, Math.floor((viewportHeight - 40) / V));
+      } else {
+        spacing = 64;
       }
     } else {
       spacing = 64;
@@ -2530,6 +2676,13 @@ function updateTrackDensityAndAngle() {
       const num = parseInt(splitPref, 10);
       if (!isNaN(num) && num > 0) {
         spacing = Math.max(45, Math.floor(viewportWidth / num));
+      }
+    } else if (alwaysShowLast && splitsList.length > 4) {
+      const V = Math.max(4, Math.floor(viewportWidth / 200));
+      if (splitsList.length > V) {
+        spacing = Math.max(45, Math.floor((viewportWidth - 50) / V));
+      } else {
+        spacing = 220;
       }
     } else {
       // Default auto spacing
@@ -2974,6 +3127,13 @@ function initOverlay() {
     setTimingMethodFocus("RealTime");
   });
 
+  // Always Show Last Split checkbox listener
+  document.getElementById("cb-always-show-last-split")?.addEventListener("change", (e) => {
+    localStorage.setItem("livesplit_always_show_last_split", e.target.checked ? "true" : "false");
+    updateTrackDensityAndAngle();
+    updateTrackStatus(currentIndex);
+  });
+
   initSettingsMenuDraggable();
   setupTrackScrollInteractions();
   loadCachedSplits();
@@ -3032,4 +3192,5 @@ window.clearInRunState = clearInRunState;
 window.loadInRunState = loadInRunState;
 window.getLockedDeltas = () => lockedDeltas;
 window.getCurrentIndex = () => currentIndex;
+window.updateTrackWindow = updateTrackWindow;
 window.initOverlay = initOverlay;
