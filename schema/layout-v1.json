@@ -47,6 +47,8 @@
           "properties": {
             "x": { "type": "number" },
             "y": { "type": "number" },
+            "right": { "type": "number" },
+            "anchor": { "type": "string", "enum": ["auto", "right", "left"] },
             "scale": { "type": "number" },
             "visible": { "type": "boolean" }
           }
@@ -94,6 +96,7 @@
       "properties": {
         "timerDisplayMode": { "type": "string", "enum": ["gametime", "realtime", "both"] },
         "timingMethodFocus": { "type": "string", "enum": ["GameTime", "RealTime"] },
+        "timerAnchor": { "type": "string", "enum": ["auto", "right", "left"] },
         "ghostComparison": { "type": "string" },
         "ghostOpacity": { "type": "integer" },
         "splitDensity": { "type": "string" },

@@ -115,7 +115,8 @@
         y: 20,
         scale: 1.0,
         visible: true,
-        docked: "none"
+        docked: "none",
+        anchor: "auto"
       },
       track: {
         x: 0,
@@ -136,6 +137,10 @@
         const merged = {};
         for (const id of COMPONENTS) {
           merged[id] = Object.assign({}, defaults[id], parsed[id] || {});
+        }
+        const savedAnchor = localStorage.getItem("livesplit_timer_anchor");
+        if (savedAnchor && merged.timers) {
+          merged.timers.anchor = savedAnchor;
         }
         return merged;
       }
@@ -269,6 +274,7 @@
       preferences: {
         timerDisplayMode: (window.getTimerDisplayMode ? window.getTimerDisplayMode() : localStorage.getItem("livesplit_timer_display_mode")) || "both",
         timingMethodFocus: (window.getCurrentTimingMethod ? window.getCurrentTimingMethod() : localStorage.getItem("livesplit_timing_method")) || "GameTime",
+        timerAnchor: getTimerAnchor(),
         ghostComparison: localStorage.getItem("livesplit_ghost_comparison") || "off",
         ghostOpacity: parseInt(localStorage.getItem("livesplit_ghost_opacity"), 10) || 85,
         splitDensity: localStorage.getItem("livesplit_visible_splits") || "auto",
@@ -310,6 +316,9 @@
     }
     if (prefs.timingMethodFocus && window.setTimingMethodFocus) {
       window.setTimingMethodFocus(prefs.timingMethodFocus);
+    }
+    if (prefs.timerAnchor != null) {
+      setTimerAnchor(prefs.timerAnchor);
     }
     if (prefs.ghostComparison != null && window.setGhostComparison) {
       window.setGhostComparison(prefs.ghostComparison);
@@ -1013,6 +1022,62 @@
       if (removeLogoBtn) removeLogoBtn.style.display = "none";
       if (rowLogoH) rowLogoH.style.display = "none";
     }
+
+    // Timer Expansion segmented control sync
+    syncTimerAnchorUI();
+  }
+
+  function getTimerAnchor() {
+    return (layoutState && layoutState.timers && layoutState.timers.anchor) || localStorage.getItem("livesplit_timer_anchor") || "auto";
+  }
+
+  function setTimerAnchor(anchor) {
+    if (anchor !== "auto" && anchor !== "right" && anchor !== "left") return;
+    if (!layoutState.timers) layoutState.timers = getDefaultLayout().timers;
+    layoutState.timers.anchor = anchor;
+    const w = window.innerWidth || 1920;
+    const el = document.getElementById("hud-comp-timers");
+    const compWidth = el ? el.offsetWidth : 300;
+    if (anchor === "right") {
+      layoutState.timers.right = Math.max(0, w - (layoutState.timers.x + compWidth));
+    } else if (anchor === "left") {
+      delete layoutState.timers.right;
+    }
+    localStorage.setItem("livesplit_timer_anchor", anchor);
+    applyComponentLayout("timers");
+    saveLayout();
+    syncTimerAnchorUI();
+  }
+
+  function cycleTimerAnchor() {
+    const cur = getTimerAnchor();
+    const next = (cur === "auto") ? "right" : (cur === "right" ? "left" : "auto");
+    setTimerAnchor(next);
+  }
+
+  function syncTimerAnchorUI() {
+    const cur = getTimerAnchor();
+    document.querySelectorAll("#ctrl-timer-expansion .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === cur);
+    });
+    const badge = document.getElementById("badge-anchor-timers");
+    if (badge) {
+      if (cur === "right") {
+        badge.innerText = "⇤ Exp Left";
+        badge.title = "Timer Expansion: Forced Expand Left (anchored to right edge). Click to toggle.";
+      } else if (cur === "left") {
+        badge.innerText = "⇥ Exp Right";
+        badge.title = "Timer Expansion: Forced Expand Right (anchored to left edge). Click to toggle.";
+      } else {
+        const w = window.innerWidth || 1920;
+        const x = (layoutState && layoutState.timers && layoutState.timers.x) || 0;
+        const el = document.getElementById("hud-comp-timers");
+        const compWidth = el ? el.offsetWidth : 300;
+        const isRight = (x + compWidth / 2) > (w / 2);
+        badge.innerText = isRight ? "⇤ Auto (L)" : "⇥ Auto (R)";
+        badge.title = `Timer Expansion: Auto (${isRight ? "expanding left" : "expanding right"}). Click to toggle.`;
+      }
+    }
   }
 
   function openTrackModal() {
@@ -1144,7 +1209,43 @@
     }
 
     // Standard floating component (title, timers)
+    if (id === "timers") {
+      const anchorPref = getTimerAnchor();
+      const compWidth = el.offsetWidth || 300;
+      let isRight = false;
+      if (anchorPref === "right") {
+        isRight = true;
+      } else if (anchorPref === "left") {
+        isRight = false;
+      } else {
+        // "auto": intelligently anchor to right if widget center is on right half of screen
+        const midPoint = state.x + (compWidth / 2);
+        isRight = (midPoint > w / 2);
+      }
+
+      if (isRight) {
+        const rightPx = (typeof state.right === "number")
+          ? state.right
+          : Math.max(0, w - (state.x + compWidth));
+        el.style.left = "auto";
+        el.style.right = `${rightPx}px`;
+        el.style.top = `${state.y}px`;
+        el.style.bottom = "";
+        el.style.transform = `scale(${state.scale})`;
+        el.style.transformOrigin = "top right";
+      } else {
+        el.style.left = `${state.x}px`;
+        el.style.right = "auto";
+        el.style.top = `${state.y}px`;
+        el.style.bottom = "";
+        el.style.transform = `scale(${state.scale})`;
+        el.style.transformOrigin = "top left";
+      }
+      return;
+    }
+
     el.style.left = `${state.x}px`;
+    el.style.right = "auto";
     el.style.top = `${state.y}px`;
     el.style.bottom = "";
     el.style.transform = `scale(${state.scale})`;
@@ -1225,6 +1326,14 @@
     if (angleParam) {
       const a = angleParam.toLowerCase().trim();
       localStorage.setItem("livesplit_split_angle", (a === "40" || a === "angled") ? "angled" : ((a === "flat" || a === "horizontal") ? "horizontal" : "auto"));
+    }
+
+    const timerAnchorParam = params.get("timeranchor") || params.get("anchor");
+    if (timerAnchorParam) {
+      const a = timerAnchorParam.toLowerCase().trim();
+      if (a === "auto" || a === "right" || a === "left") {
+        setTimerAnchor(a);
+      }
     }
 
     // Track style URL parameters
@@ -1332,8 +1441,8 @@
           element: el,
           startX: e.clientX,
           startY: e.clientY,
-          origX: state.x,
-          origY: state.y,
+          origX: el.offsetLeft,
+          origY: el.offsetTop,
           wasDocked: state.docked
         };
       });
@@ -1450,6 +1559,10 @@
 
         state.x = Math.round(newX);
         state.y = Math.round(newY);
+        if (activePointerOp.compId === "timers") {
+          const compWidth = activePointerOp.element.offsetWidth || 300;
+          state.right = Math.max(0, w - (state.x + compWidth));
+        }
         applyComponentLayout(activePointerOp.compId);
       } else if (activePointerOp.type === "scale") {
         const dx = e.clientX - activePointerOp.startX;
@@ -1481,6 +1594,9 @@
         } catch (_) {}
       }
 
+      if (activePointerOp.compId === "timers") {
+        syncTimerAnchorUI();
+      }
       activePointerOp = null;
       saveLayout();
     });
@@ -1758,6 +1874,20 @@
           window.applyActiveTimingMethod(val);
         }
       });
+    });
+
+    // Timer Expansion & Alignment segmented control listener
+    document.querySelectorAll("#ctrl-timer-expansion .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-val");
+        if (val) setTimerAnchor(val);
+      });
+    });
+
+    // Header badge click in edit mode to cycle anchor
+    document.getElementById("badge-anchor-timers")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cycleTimerAnchor();
     });
 
     // Ghost Runner dropdown listener
@@ -2159,12 +2289,39 @@
         const state = layoutState[id];
         if (state.docked === "bottom" && id === "track") {
           state.y = Math.max(0, h - 90);
+        } else if (id === "timers") {
+          const compWidth = document.getElementById("hud-comp-timers")?.offsetWidth || 300;
+          const anchorPref = getTimerAnchor();
+          let isRight = false;
+          if (anchorPref === "right") {
+            isRight = true;
+          } else if (anchorPref === "left") {
+            isRight = false;
+          } else {
+            const midPoint = state.x + (compWidth / 2);
+            isRight = (midPoint > w / 2);
+          }
+          if (isRight) {
+            if (typeof state.right === "number") {
+              state.right = Math.max(0, Math.min(w - 80, state.right));
+              state.x = Math.max(0, w - (state.right + compWidth));
+            } else {
+              state.x = Math.max(0, Math.min(w - 80, state.x));
+              state.right = Math.max(0, w - (state.x + compWidth));
+            }
+          } else {
+            state.x = Math.max(0, Math.min(w - 80, state.x));
+            state.right = Math.max(0, w - (state.x + compWidth));
+          }
+          state.y = Math.max(0, Math.min(h - 50, state.y));
         } else {
           state.x = Math.max(0, Math.min(w - 80, state.x));
           state.y = Math.max(0, Math.min(h - 50, state.y));
         }
         applyComponentLayout(id);
       }
+
+      syncTimerAnchorUI();
 
       if (window.updateTrackDensityAndAngle) {
         window.updateTrackDensityAndAngle();
@@ -2223,6 +2380,14 @@
     exportProfileToFile,
     importProfileFromFile,
     autoLoadProfileForGame,
-    syncProfileUI
+    syncProfileUI,
+    getTimerAnchor,
+    setTimerAnchor,
+    cycleTimerAnchor,
+    syncTimerAnchorUI
   };
+
+  window.setTimerAnchor = setTimerAnchor;
+  window.getTimerAnchor = getTimerAnchor;
+  window.cycleTimerAnchor = cycleTimerAnchor;
 })();

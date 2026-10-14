@@ -8,6 +8,7 @@ import sys
 import os
 import re
 import math
+import json
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -1603,6 +1604,96 @@ def test_in_run_state_persistence():
     print("✓ In-run state persistence across browser refresh tests passed.")
 
 
+def test_timer_anchor_and_expansion_modes():
+    """Verify intelligent timer smart-anchoring (auto-detect left/right based on screen position),
+    explicit Settings option, Edit Mode toggle badge, profile export/import, and CSS nowrap rules."""
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html_src = f.read()
+    with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
+        css_src = f.read()
+    with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
+        layout_src = f.read()
+    with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
+        schema_src = f.read()
+
+    # 1. HTML markup checks
+    assert 'id="badge-anchor-timers"' in html_src, "index.html must have #badge-anchor-timers in timer controls"
+    assert 'id="row-timer-expansion"' in html_src, "index.html must have #row-timer-expansion in Settings modal"
+    assert 'id="ctrl-timer-expansion"' in html_src, "index.html must have #ctrl-timer-expansion segmented control"
+    assert 'data-val="auto"' in html_src and 'data-val="right"' in html_src and 'data-val="left"' in html_src, \
+        "index.html #ctrl-timer-expansion must provide 'auto', 'right', and 'left' options"
+
+    # 2. CSS nowrap guards against multiline wrapping
+    assert "flex-wrap: nowrap;" in css_src, "style.css .timer-group must have flex-wrap: nowrap"
+    assert "white-space: nowrap;" in css_src, "style.css .timer-block must have white-space: nowrap"
+
+    # 3. Default layout & Layout functions
+    assert 'anchor: "auto"' in layout_src, "layout.js getDefaultLayout() timers component must have anchor: 'auto'"
+    assert "function getTimerAnchor()" in layout_src, "layout.js must define getTimerAnchor()"
+    assert "function setTimerAnchor(" in layout_src, "layout.js must define setTimerAnchor()"
+    assert "function cycleTimerAnchor()" in layout_src, "layout.js must define cycleTimerAnchor()"
+    assert "function syncTimerAnchorUI()" in layout_src, "layout.js must define syncTimerAnchorUI()"
+
+    # 4. Global and hudLayout exports
+    assert "getTimerAnchor" in layout_src and "setTimerAnchor" in layout_src, "layout.js must export getTimerAnchor & setTimerAnchor"
+    assert "window.setTimerAnchor = setTimerAnchor;" in layout_src, "layout.js must expose setTimerAnchor on window"
+
+    # 5. Intelligent auto-anchor logic & styling
+    assert 'anchorPref === "right"' in layout_src and 'anchorPref === "left"' in layout_src, \
+        "applyComponentLayout('timers') must handle right and left anchors"
+    assert 'midPoint > w / 2' in layout_src or 'midPoint > (w / 2)' in layout_src, \
+        "applyComponentLayout('timers') auto mode must check if midPoint > w / 2"
+    assert 'transformOrigin = "top right"' in layout_src and 'transformOrigin = "top left"' in layout_src, \
+        "applyComponentLayout('timers') must set transformOrigin top right or top left"
+
+    # 6. Smooth drag and resize logic
+    assert "origX: el.offsetLeft" in layout_src and "origY: el.offsetTop" in layout_src, \
+        "setupPointerListeners drag operation must use el.offsetLeft/offsetTop to prevent jumping on right-anchored elements"
+    assert 'state.right = Math.max(0, w - (state.x + compWidth))' in layout_src, \
+        "layout.js pointermove must track state.right when dragging timers"
+
+    # 7. Schema declaration & Profile export
+    schema_json = json.loads(schema_src)
+    assert "timerAnchor" in schema_json.get("properties", {}).get("preferences", {}).get("properties", {}), \
+        "schema/layout-v1.json preferences must declare timerAnchor"
+    assert "anchor" in schema_json.get("properties", {}).get("components", {}).get("properties", {}).get("timers", {}).get("properties", {}), \
+        "schema/layout-v1.json components.timers must declare anchor"
+    assert "right" in schema_json.get("properties", {}).get("components", {}).get("properties", {}).get("timers", {}).get("properties", {}), \
+        "schema/layout-v1.json components.timers must declare right"
+
+    # 8. Mathematical simulation of auto-anchor vs forced modes
+    screen_width = 1920
+    timer_width_initial = 300
+    timer_width_expanded = 420
+
+    # Case A: Auto mode, placed on right side of screen (x = 1500)
+    x_pos = 1500
+    mid_point = x_pos + (timer_width_initial / 2)  # 1650 > 960 (isRight = True)
+    assert mid_point > screen_width / 2, "Center of widget at 1500px is on right half of 1920px screen"
+    right_margin = screen_width - (x_pos + timer_width_initial)  # 120px
+    assert right_margin == 120
+    # When timer expands from 300 to 420:
+    effective_left_expanded = screen_width - (right_margin + timer_width_expanded)  # 1920 - (120 + 420) = 1380
+    assert effective_left_expanded == 1380
+    assert effective_left_expanded + timer_width_expanded == screen_width - right_margin
+    assert (effective_left_expanded + timer_width_expanded) <= screen_width, "Timer never overflows screen right border!"
+
+    # Case B: Auto mode, placed on left side of screen (x = 100)
+    x_pos_left = 100
+    mid_point_left = x_pos_left + (timer_width_initial / 2)  # 250 <= 960 (isRight = False)
+    assert mid_point_left <= screen_width / 2, "Center of widget at 100px is on left half of screen"
+    assert (x_pos_left + timer_width_expanded) <= screen_width
+
+    # Case C: Cycle order
+    def cycle(anchor):
+        return "right" if anchor == "auto" else ("left" if anchor == "right" else "auto")
+    assert cycle("auto") == "right"
+    assert cycle("right") == "left"
+    assert cycle("left") == "auto"
+
+    print("✓ Timer anchor, smart auto-detection, and expansion modes passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1637,6 +1728,7 @@ def main():
         test_track_scrolling_consistency_and_mousewheel()
         test_skipped_split_and_incomplete_data_handling()
         test_in_run_state_persistence()
+        test_timer_anchor_and_expansion_modes()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

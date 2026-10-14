@@ -61,6 +61,7 @@
     <div class="hud-component-header">
       <span class="hud-drag-handle">::: Timers</span>
       <div class="hud-comp-controls">
+        <span class="hud-scale-badge" id="badge-anchor-timers" title="Click to cycle Timer Expansion: Auto / Expand Left / Expand Right" style="cursor:pointer;">⇥ Auto</span>
         <span class="hud-scale-badge" id="badge-scale-timers">100%</span>
         <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
       </div>
@@ -398,6 +399,14 @@
           <div class="seg-btn-group" id="ctrl-timer-focus">
             <button type="button" class="seg-btn active" data-val="GameTime">Game Time</button>
             <button type="button" class="seg-btn" data-val="RealTime">Real Time</button>
+          </div>
+        </div>
+        <div class="modal-row" id="row-timer-expansion">
+          <label>Timer Expansion &amp; Alignment</label>
+          <div class="seg-btn-group" id="ctrl-timer-expansion">
+            <button type="button" class="seg-btn active" data-val="auto" title="Intelligently anchors to right/left based on screen placement">Auto</button>
+            <button type="button" class="seg-btn" data-val="right" title="Anchors to the right edge and expands towards the left">Expand Left</button>
+            <button type="button" class="seg-btn" data-val="left" title="Anchors to the left edge and expands towards the right">Expand Right</button>
           </div>
         </div>
 
