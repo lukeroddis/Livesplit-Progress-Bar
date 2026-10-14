@@ -808,7 +808,7 @@ body.edit-mode .layout-toolbar {
 .segment-bar-bg:has(.segment-bar-fill.overdue),
 .segment-bar-bg.overdue {
   overflow: visible !important;
-  z-index: 3;
+  z-index: 1;
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.35) !important;
 }
 
@@ -846,7 +846,7 @@ body.edit-mode .layout-toolbar {
 /* Node Dots */
 .dot {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   width: var(--dot-size, 15px);
   height: var(--dot-size, 15px);
   border-radius: 50%;
@@ -948,6 +948,7 @@ body.edit-mode .layout-toolbar {
   background: var(--node-active) !important;
   transform: scale(1.35);
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.95);
+  z-index: 5;
 }
 
 .split-item.current .split-name {
