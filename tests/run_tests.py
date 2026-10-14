@@ -1231,10 +1231,12 @@ def test_layout_profiles_and_extensible_schema():
         "overlay.js drop listener must accept .json and .lshud layout profiles"
 
     # 7. Extensible Schema v1 & Forward/Backward Compatibility Simulation
+    assert 'deltaPos: "bottom"' in layout_src, "DEFAULT_TRACK_STYLE in layout.js must default deltaPos to bottom"
+
     default_track_style = {
         "orientation": "horizontal",
         "namePos": "top",
-        "deltaPos": "top",
+        "deltaPos": "bottom",
         "bgOpacity": 55,
         "bgBlur": 8,
         "bgTargets": {"title": True, "timers": True, "track": True},
@@ -1258,7 +1260,7 @@ def test_layout_profiles_and_extensible_schema():
         "style": {
             "orientation": "horizontal",
             "namePos": "top",
-            "deltaPos": "bottom",
+            "deltaPos": "top",
             "bgOpacity": 80
         }
     }
@@ -1269,7 +1271,12 @@ def test_layout_profiles_and_extensible_schema():
     assert merged_style["logoHeight"] == 60, "Backward compatibility: missing logoHeight should default to 60"
     assert merged_style["ghostPinLength"] == 16, "Backward compatibility: missing ghostPinLength should default to 16"
     assert merged_style["bgOpacity"] == 80, "Older profile bgOpacity 80 should be preserved"
-    assert merged_style["deltaPos"] == "bottom", "Older profile deltaPos bottom should be preserved"
+    assert merged_style["deltaPos"] == "top", "Older profile deltaPos top should be preserved"
+
+    # Verify fallback to default 'bottom' when deltaPos is omitted in profile
+    omitted_delta_style = dict(default_track_style)
+    omitted_delta_style.update({"orientation": "horizontal", "namePos": "top"})
+    assert omitted_delta_style["deltaPos"] == "bottom", "Missing deltaPos must fall back to default 'bottom'"
 
     # Simulate Forward Compatibility: Newer layout with unknown future properties
     future_profile = {

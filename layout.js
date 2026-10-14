@@ -12,7 +12,7 @@
   const DEFAULT_TRACK_STYLE = {
     orientation: "horizontal", // 'horizontal' | 'vertical'
     namePos: "top",        // 'top' | 'bottom' | 'left' | 'right'
-    deltaPos: "top",       // 'top' | 'bottom' | 'left' | 'right'
+    deltaPos: "bottom",    // 'top' | 'bottom' | 'left' | 'right'
     nameFontSize: 17,      // px
     deltaFontSize: 15,     // px
     barHeight: 6,          // px
