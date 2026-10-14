@@ -1234,15 +1234,17 @@ function updateTrackWindow(idx) {
   const viewportH = viewport?.clientHeight || window.innerHeight || 800;
 
   let V = 8;
-  if (splitPref !== "auto") {
+  if (splitPref !== "auto" && splitPref !== "all") {
     const num = parseInt(splitPref, 10);
     if (!isNaN(num) && num > 0) V = num;
   } else {
-    V = isVertical ? Math.max(4, Math.floor(viewportH / 64)) : Math.max(4, Math.floor(viewportW / 200));
+    V = isVertical 
+      ? Math.max(4, Math.floor((viewportH - 60) / 64)) 
+      : Math.max(4, Math.floor((viewportW - 140) / 190));
   }
 
-  if (N <= V) {
-    // All splits fit without omission
+  // If total nodes (Start node + all N splits = N + 1) fit within V capacity:
+  if (N + 1 <= V) {
     if (nodeStart) {
       nodeStart.classList.remove("is-omitted", "first-visible-node");
     }
@@ -1253,24 +1255,44 @@ function updateTrackWindow(idx) {
     return false;
   }
 
-  // N > V: window active splits and pin the final split N-1
-  const S = Math.max(2, V - 1);
-  const cur = Math.max(0, idx);
-
-  const pastCount = Math.min(cur, 1);
-  let windowStart = Math.max(0, cur - pastCount);
-  let windowEnd = windowStart + (S - 1);
+  // N + 1 > V: Pin the final split (N - 1) in the last visible slot.
+  // Sliding portion has W = V - 1 slots.
+  const W = Math.max(2, V - 1);
+  const cur = Math.max(-1, Math.min(N - 1, idx));
+  const half = Math.floor((W - 1) / 2);
+  const idealStart = cur - half;
 
   let hasDiscontinuity = true;
-  if (windowEnd >= N - 1) {
-    windowEnd = N - 1;
-    windowStart = Math.max(0, N - V);
+  let startNodeVisible = false;
+  let windowStart = 0;
+  let windowEnd = 0;
+
+  if (idealStart + (W - 1) >= N - 1) {
+    // Reached finale: active window encompasses the final split.
+    // Display the last V splits continuously with no discontinuity break!
     hasDiscontinuity = false;
+    startNodeVisible = false;
+    windowStart = Math.max(0, N - V);
+    windowEnd = N - 1;
+  } else if (idealStart <= -1) {
+    // Near start of run: Start node is visible in slot 0.
+    // Takes 1 slot, so W - 1 splits are visible in slots 1..(W - 1).
+    startNodeVisible = true;
+    windowStart = 0;
+    windowEnd = Math.max(0, W - 2);
+    hasDiscontinuity = (windowEnd < N - 1);
+  } else {
+    // Mid-run: Start node is omitted.
+    // cur is centered with 'half' past splits to the left and upcoming splits to the right.
+    startNodeVisible = false;
+    windowStart = idealStart;
+    windowEnd = windowStart + (W - 1);
+    hasDiscontinuity = (windowEnd < N - 1);
   }
 
   // Update node-start visibility
   if (nodeStart) {
-    if (windowStart === 0) {
+    if (startNodeVisible) {
       nodeStart.classList.remove("is-omitted");
     } else {
       nodeStart.classList.add("is-omitted");
@@ -1285,7 +1307,7 @@ function updateTrackWindow(idx) {
     if (i >= windowStart && i <= windowEnd) {
       el.classList.remove("is-omitted");
       el.classList.remove("has-discontinuity");
-      el.classList.toggle("first-visible-node", i === windowStart && windowStart > 0);
+      el.classList.toggle("first-visible-node", !startNodeVisible && i === windowStart);
     } else if (i === N - 1) {
       el.classList.remove("is-omitted");
       el.classList.remove("first-visible-node");
@@ -2654,41 +2676,43 @@ function updateTrackDensityAndAngle() {
   const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
 
   if (isVertical) {
+    const availH = Math.max(200, viewportHeight - 60);
     if (splitPref === "all") {
       const totalCount = Math.max(1, splitsList.length + 1);
-      spacing = Math.max(38, Math.floor((viewportHeight - 40) / totalCount));
+      spacing = Math.max(38, Math.floor(availH / (totalCount + 1)));
     } else if (splitPref !== "auto") {
       const num = parseInt(splitPref, 10);
       if (!isNaN(num) && num > 0) {
-        spacing = Math.max(38, Math.floor(viewportHeight / num));
+        const K = Math.min(num, splitsList.length + 1);
+        spacing = Math.max(38, Math.floor(availH / (K + 1)));
       }
-    } else if (alwaysShowLast && splitsList.length > 4) {
-      const V = Math.max(4, Math.floor(viewportHeight / 64));
-      if (splitsList.length > V) {
-        spacing = Math.max(38, Math.floor((viewportHeight - 40) / V));
-      } else {
-        spacing = 64;
-      }
+    } else if (alwaysShowLast && splitsList.length > 2) {
+      const V = Math.max(4, Math.floor(availH / 64));
+      const K = Math.min(V, splitsList.length + 1);
+      spacing = Math.max(38, Math.floor(availH / (K + 1)));
     } else {
       spacing = 64;
     }
   } else {
+    // When docked at bottom, leave breathing room on the right so the track doesn't overlap the floating Settings trigger pill
+    const isDocked = track.parentElement?.classList.contains("docked-bottom") || document.getElementById("hud-comp-track")?.classList.contains("docked-bottom");
+    const rightMargin = isDocked ? 140 : 40;
+    const availW = Math.max(300, viewportWidth - rightMargin);
+
     if (splitPref === "all") {
       // Fit all splits on screen without scrolling
       const totalCount = Math.max(1, splitsList.length + 1); // +1 for the Start node
-      spacing = Math.max(45, Math.floor((viewportWidth - 50) / totalCount));
+      spacing = Math.max(45, Math.floor(availW / (totalCount + 1)));
     } else if (splitPref !== "auto") {
       const num = parseInt(splitPref, 10);
       if (!isNaN(num) && num > 0) {
-        spacing = Math.max(45, Math.floor(viewportWidth / num));
+        const K = Math.min(num, splitsList.length + 1);
+        spacing = Math.max(45, Math.floor(availW / (K + 1)));
       }
-    } else if (alwaysShowLast && splitsList.length > 4) {
-      const V = Math.max(4, Math.floor(viewportWidth / 200));
-      if (splitsList.length > V) {
-        spacing = Math.max(45, Math.floor((viewportWidth - 50) / V));
-      } else {
-        spacing = 220;
-      }
+    } else if (alwaysShowLast && splitsList.length > 2) {
+      const V = Math.max(4, Math.floor(availW / 190));
+      const K = Math.min(V, splitsList.length + 1);
+      spacing = Math.max(45, Math.floor(availW / (K + 1)));
     } else {
       // Default auto spacing
       spacing = 220;

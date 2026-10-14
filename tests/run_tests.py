@@ -1749,59 +1749,83 @@ def test_always_show_last_split_and_schematic_break():
     def simulate_track_window(total_splits, visible_capacity, current_idx, always_show_last=True):
         N = total_splits
         V = visible_capacity
-        if not always_show_last or N <= V:
-            return {"omitted": [], "has_discontinuity": False, "visible_count": N}
+        if not always_show_last or (N + 1) <= V:
+            return {"omitted": [], "has_discontinuity": False, "visible_count": N + 1, "start_visible": True, "visible_splits": list(range(N))}
 
-        S = max(2, V - 1)
-        cur = max(0, current_idx)
-        past_count = min(cur, 1)
-        window_start = max(0, cur - past_count)
-        window_end = window_start + (S - 1)
+        W = max(2, V - 1)
+        cur = max(-1, min(N - 1, current_idx))
+        half = (W - 1) // 2
+        ideal_start = cur - half
 
         has_discontinuity = True
-        if window_end >= N - 1:
-            window_end = N - 1
-            window_start = max(0, N - V)
+        start_node_visible = False
+        window_start = 0
+        window_end = 0
+
+        if ideal_start + (W - 1) >= N - 1:
             has_discontinuity = False
+            start_node_visible = False
+            window_start = max(0, N - V)
+            window_end = N - 1
+        elif ideal_start <= -1:
+            start_node_visible = True
+            window_start = 0
+            window_end = max(0, W - 2)
+            has_discontinuity = (window_end < N - 1)
+        else:
+            start_node_visible = False
+            window_start = ideal_start
+            window_end = window_start + (W - 1)
+            has_discontinuity = (window_end < N - 1)
 
         omitted = []
-        visible = []
+        visible_splits = []
         for i in range(N):
             if (i >= window_start and i <= window_end) or i == N - 1:
-                visible.append(i)
+                visible_splits.append(i)
             else:
                 omitted.append(i)
-        return {"omitted": omitted, "has_discontinuity": has_discontinuity, "visible_count": len(visible), "visible": visible}
 
-    # Scenario A: 33 splits (Final Fantasy X), visible capacity 8, start of run (idx = 0)
-    sim_start = simulate_track_window(33, 8, 0)
+        total_visible_nodes = (1 if start_node_visible else 0) + len(visible_splits)
+        return {
+            "omitted": omitted,
+            "has_discontinuity": has_discontinuity,
+            "visible_count": total_visible_nodes,
+            "visible_splits": visible_splits,
+            "start_visible": start_node_visible
+        }
+
+    # Scenario A: 33 splits (Final Fantasy X), visible capacity 10, on Start node (idx = -1)
+    sim_start = simulate_track_window(33, 10, -1)
     assert sim_start["has_discontinuity"] is True, "Discontinuity must be active when intermediate splits are omitted"
-    assert sim_start["visible"] == [0, 1, 2, 3, 4, 5, 6, 32], "Visible splits must be active window + final split"
-    assert len(sim_start["omitted"]) == 25, "Intermediate splits 7..31 must be omitted"
-    assert 32 in sim_start["visible"], "Final split 32 must always be visible at the end"
+    assert sim_start["start_visible"] is True, "Start node must be visible when on start"
+    assert sim_start["visible_splits"] == [0, 1, 2, 3, 4, 5, 6, 7, 32], "Visible splits must be leading splits + final split"
+    assert sim_start["visible_count"] == 10, "Total visible nodes on screen must equal capacity V=10 exactly"
+    assert 32 in sim_start["visible_splits"], "Final split 32 must always be visible at the end on Start node"
 
-    # Scenario B: Runner is mid-run at Split 15
-    sim_mid = simulate_track_window(33, 8, 15)
+    # Scenario B: Runner is mid-run at Split 15 (centered window)
+    sim_mid = simulate_track_window(33, 10, 15)
     assert sim_mid["has_discontinuity"] is True
-    assert sim_mid["visible"] == [14, 15, 16, 17, 18, 19, 20, 32]
-    assert 15 in sim_mid["visible"], "Current split 15 must be in active window"
-    assert 14 in sim_mid["visible"], "Completed split 14 must be visible"
-    assert 32 in sim_mid["visible"], "Final split 32 must be pinned at the end"
+    assert sim_mid["start_visible"] is False, "Start node slides off to the left in mid-run"
+    assert sim_mid["visible_splits"] == [11, 12, 13, 14, 15, 16, 17, 18, 19, 32]
+    assert 15 == sim_mid["visible_splits"][4], "Current split 15 must be dead-center in the 9 sliding slots"
+    assert sim_mid["visible_count"] == 10, "Total visible nodes on screen must be exactly 10"
+    assert 32 in sim_mid["visible_splits"], "Final split 32 must be pinned at the end"
 
     # Scenario C: Runner approaches the finale (Split 29)
-    sim_end = simulate_track_window(33, 8, 29)
+    sim_end = simulate_track_window(33, 10, 29)
     assert sim_end["has_discontinuity"] is False, "Discontinuity must vanish when active window reaches final split"
-    assert sim_end["visible"] == [25, 26, 27, 28, 29, 30, 31, 32], "All trailing splits must be contiguous"
-    assert sim_end["omitted"] == list(range(25)), "Only past completed splits outside window are omitted"
+    assert sim_end["visible_splits"] == [23, 24, 25, 26, 27, 28, 29, 30, 31, 32], "All trailing splits must be contiguous"
+    assert sim_end["visible_count"] == 10, "Total visible nodes must remain 10 without overflow"
 
     # Scenario D: Small split count <= V (e.g. 5 splits, V = 8)
     sim_small = simulate_track_window(5, 8, 2)
     assert sim_small["has_discontinuity"] is False
     assert len(sim_small["omitted"]) == 0
-    assert sim_small["visible_count"] == 5
+    assert sim_small["visible_count"] == 6
 
     # Scenario E: User disabled option
-    sim_disabled = simulate_track_window(33, 8, 0, always_show_last=False)
+    sim_disabled = simulate_track_window(33, 10, 0, always_show_last=False)
     assert sim_disabled["has_discontinuity"] is False
     assert len(sim_disabled["omitted"]) == 0
 
