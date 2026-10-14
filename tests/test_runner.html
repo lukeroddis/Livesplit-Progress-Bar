@@ -644,6 +644,64 @@
       });
     });
 
+    describe("Timer Milestone Formatting: formatTimerDisplay", () => {
+      it("formats zero seconds as 0.00", () => {
+        assert(window.formatTimerDisplay(0) === "0.00", "0 must format as 0.00");
+        assert(window.formatTimerDisplay("0") === "0.00", "'0' must format as 0.00");
+      });
+
+      it("formats sub-minute times as S.hh without leading zero", () => {
+        assert(window.formatTimerDisplay(5.2) === "5.20", "5.2 must format as 5.20");
+        assert(window.formatTimerDisplay(42.85) === "42.85", "42.85 must format as 42.85");
+      });
+
+      it("formats times under 1 hour as M:SS.hh without leading zero on minutes", () => {
+        assert(window.formatTimerDisplay(75.5) === "1:15.50", "75.5 must format as 1:15.50");
+        assert(window.formatTimerDisplay(599.99) === "9:59.99", "599.99 must format as 9:59.99");
+      });
+
+      it("formats times over 1 hour as H:MM:SS.hh without leading zero on hours", () => {
+        assert(window.formatTimerDisplay(3665.12) === "1:01:05.12", "3665.12 must format as 1:01:05.12");
+      });
+
+      it("handles negative times and avoids -0.00", () => {
+        assert(window.formatTimerDisplay(-0.001) === "0.00", "Near zero negative must avoid -0.00");
+        assert(window.formatTimerDisplay(-15.4) === "-15.40", "-15.4 must format as -15.40");
+      });
+    });
+
+    describe("In-Run State Persistence: saveInRunState, loadInRunState, clearInRunState", () => {
+      it("exports in-run state helper functions on window", () => {
+        assert(typeof window.saveInRunState === "function", "saveInRunState exported");
+        assert(typeof window.loadInRunState === "function", "loadInRunState exported");
+        assert(typeof window.clearInRunState === "function", "clearInRunState exported");
+      });
+
+      it("persists and restores locked deltas across storage cycles", () => {
+        window.clearInRunState();
+        assert(localStorage.getItem("livesplit_in_run_state") === null, "storage cleared");
+        window.saveInRunState();
+        const raw = localStorage.getItem("livesplit_in_run_state");
+        assert(raw !== null, "storage created on save");
+        const loaded = window.loadInRunState();
+        assert(typeof loaded === "boolean", "loadInRunState returns boolean");
+        window.clearInRunState();
+      });
+    });
+
+    describe("Always Show Last Split: updateTrackWindow", () => {
+      it("exports updateTrackWindow on window", () => {
+        assert(typeof window.updateTrackWindow === "function", "updateTrackWindow exported");
+      });
+
+      it("returns false and preserves continuous track when alwaysShowLast is disabled", () => {
+        localStorage.setItem("livesplit_always_show_last_split", "false");
+        const res = window.updateTrackWindow(0);
+        assert(res === false, "returns false when disabled");
+        localStorage.setItem("livesplit_always_show_last_split", "true");
+      });
+    });
+
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");
     suites.forEach((suite) => {

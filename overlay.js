@@ -3226,5 +3226,7 @@ window.clearInRunState = clearInRunState;
 window.loadInRunState = loadInRunState;
 window.getLockedDeltas = () => lockedDeltas;
 window.getCurrentIndex = () => currentIndex;
+window.updateTrackStatus = updateTrackStatus;
+window.updateGhostBadge = updateGhostBadge;
 window.updateTrackWindow = updateTrackWindow;
 window.initOverlay = initOverlay;

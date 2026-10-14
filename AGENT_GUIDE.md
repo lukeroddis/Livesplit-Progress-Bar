@@ -140,6 +140,11 @@ Query these **strictly upon split index transition, start, or reset**:
 | `livesplit_profiles_index` | JSON Array (`string[]`) | Registered profile names list (`["Default", "Mario 64", ...]`). |
 | `livesplit_active_profile` | String | Name of the currently active layout profile. |
 | `livesplit_profile_<name>` | JSON Object | Saved layout profile with schema v1 structure. |
+| `livesplit_always_show_last_split` | Boolean string (`"true"` / `"false"`) | Whether to pin the final split at the track end with schematic `//` break. |
+| `livesplit_in_run_state` | JSON Object | In-run deltas, segment progress, and completed split times for refresh persistence. |
+| `livesplit_timer_anchor` | String (`"auto"`, `"right"`, `"left"`) | Timer expansion direction and anchoring mode. |
+| `livesplit_sync_hotkeys` | Boolean string (`"true"` / `"false"`) | Whether comparison and timing method auto-sync with LiveSplit hotkeys. |
+| `livesplit_active_ghosts` | JSON Array (`string[]`) | Active multi-ghost comparison runner identifiers (`["wr", "pb", ...]`). |
 | `livesplit_lss_xml` | String (XML) | Cached `.lss` content for offline/instant reload. |
 
 ### Layout Profile Schema v1 Specification

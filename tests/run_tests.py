@@ -1731,6 +1731,8 @@ def test_always_show_last_split_and_schematic_break():
     assert "function updateTrackWindow(" in overlay_src, "overlay.js must define updateTrackWindow(idx)"
     assert "updateTrackWindow(idx)" in overlay_src, "overlay.js updateTrackStatus must call updateTrackWindow"
     assert "window.updateTrackWindow = updateTrackWindow;" in overlay_src, "overlay.js must export updateTrackWindow on window"
+    assert "window.updateTrackStatus = updateTrackStatus;" in overlay_src, "overlay.js must export updateTrackStatus on window"
+    assert "window.updateGhostBadge = updateGhostBadge;" in overlay_src, "overlay.js must export updateGhostBadge on window"
     assert "item.classList.remove(...ALL_SPLIT_STATE_CLASSES);" in overlay_src, "overlay.js must not wipe out windowing classes"
 
     # 4. layout.js wiring & profiles
