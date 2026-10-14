@@ -1322,9 +1322,19 @@ function getVisibleSplitsCapacity() {
   }
   const viewport = document.getElementById("track-viewport");
   const track = document.getElementById("track");
+  const trackComp = document.getElementById("hud-comp-track");
   const isVertical = track?.classList.contains("vertical");
-  const viewportW = viewport?.clientWidth || window.innerWidth || 1920;
-  const viewportH = viewport?.clientHeight || window.innerHeight || 800;
+  const isDockedVertical = isVertical && (trackComp?.classList.contains("docked-left") || trackComp?.classList.contains("docked-right"));
+  const isDockedHorizontal = !isVertical && trackComp?.classList.contains("docked-bottom");
+
+  const viewportW = (isDockedHorizontal && (!viewport || viewport.clientWidth < 500))
+    ? (window.innerWidth || 1920)
+    : (viewport?.clientWidth || window.innerWidth || 1920);
+
+  const viewportH = (isDockedVertical && (!viewport || viewport.clientHeight < 300))
+    ? (window.innerHeight || 1080)
+    : (viewport?.clientHeight || window.innerHeight || 800);
+
   const pLeft = 24;
   const pRight = 24;
   const availW = Math.max(300, viewportW - (pLeft + pRight));
@@ -2845,6 +2855,8 @@ window.addEventListener("drop", (e) => {
   }
 });
 
+let lastKnownOrientation = null;
+
 function updateTrackDensityAndAngle() {
   nodeThresholdCache.clear();
   const viewport = document.getElementById("track-viewport");
@@ -2852,8 +2864,26 @@ function updateTrackDensityAndAngle() {
   if (!viewport || !track) return;
 
   const isVertical = track.classList.contains("vertical");
-  const viewportWidth = viewport.clientWidth || window.innerWidth || 1920;
-  const viewportHeight = viewport.clientHeight || window.innerHeight || 800;
+  const trackComp = document.getElementById("hud-comp-track");
+  const isDockedVertical = isVertical && (trackComp?.classList.contains("docked-left") || trackComp?.classList.contains("docked-right"));
+  const isDockedHorizontal = !isVertical && trackComp?.classList.contains("docked-bottom");
+
+  const currentOrient = isVertical ? "vertical" : "horizontal";
+  if (lastKnownOrientation !== null && lastKnownOrientation !== currentOrient) {
+    trackManualScrollOffset = 0;
+    viewport.scrollLeft = 0;
+    viewport.scrollTop = 0;
+  }
+  lastKnownOrientation = currentOrient;
+
+  const viewportWidth = (isDockedHorizontal && (viewport.clientWidth < 500))
+    ? (window.innerWidth || 1920)
+    : (viewport.clientWidth || window.innerWidth || 1920);
+
+  const viewportHeight = (isDockedVertical && (viewport.clientHeight < 300))
+    ? (window.innerHeight || 1080)
+    : (viewport.clientHeight || window.innerHeight || 800);
+
   const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
   const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
 
@@ -3004,9 +3034,7 @@ function updateTrackDensityAndAngle() {
     angleSelect.value = isVertical ? "horizontal" : anglePref;
   }
 
-  if (currentIndex >= 0) {
-    updateTrackStatus(currentIndex);
-  }
+  updateTrackStatus(currentIndex);
 }
 
 window.updateTrackDensityAndAngle = updateTrackDensityAndAngle;

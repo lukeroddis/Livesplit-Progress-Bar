@@ -630,10 +630,32 @@
       }
     }
 
-    applyTrackStyle();
     applyComponentLayout("track");
+    applyTrackStyle();
     saveTrackStyle();
     syncTrackModalUI();
+
+    const viewport = document.getElementById("track-viewport");
+    if (viewport) {
+      viewport.scrollLeft = 0;
+      viewport.scrollTop = 0;
+    }
+
+    if (window.updateTrackDensityAndAngle) {
+      window.updateTrackDensityAndAngle();
+    }
+    if (window.updateTrackStatus) {
+      window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
+    }
+
+    requestAnimationFrame(() => {
+      if (window.updateTrackDensityAndAngle) {
+        window.updateTrackDensityAndAngle();
+      }
+      if (window.updateTrackStatus) {
+        window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
+      }
+    });
   }
   window.setTrackOrientation = setTrackOrientation;
 
@@ -698,6 +720,9 @@
 
     if (window.updateTrackDensityAndAngle) {
       window.updateTrackDensityAndAngle();
+    }
+    if (window.updateTrackStatus) {
+      window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
     }
   }
 
@@ -1548,6 +1573,12 @@
         }
         applyComponentLayout("track");
         saveLayout();
+        if (window.updateTrackDensityAndAngle) {
+          window.updateTrackDensityAndAngle();
+        }
+        if (window.updateTrackStatus) {
+          window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
+        }
       });
     }
 
@@ -2367,6 +2398,9 @@
 
       if (window.updateTrackDensityAndAngle) {
         window.updateTrackDensityAndAngle();
+      }
+      if (window.updateTrackStatus) {
+        window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
       }
     });
   }

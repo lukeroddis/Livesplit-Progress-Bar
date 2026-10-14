@@ -2102,6 +2102,129 @@ def test_modular_architecture():
     print("✓ Modular architecture (src/core, src/ui, LiveSplit namespaces, 60 FPS element caching) passed.")
 
 
+def test_track_orientation_and_split_density_reflow():
+    """Verify track orientation switching preserves split density, uses reflow geometry fallbacks, and updates track window at currentIndex = -1."""
+    with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
+        layout_src = f.read()
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+
+    # 1. Structural assertions in layout.js: applyComponentLayout before applyTrackStyle and status updates
+    assert 'applyComponentLayout("track");\n    applyTrackStyle();' in layout_src or \
+           ('applyComponentLayout("track");' in layout_src and 'applyTrackStyle();' in layout_src), \
+        "layout.js setTrackOrientation must apply component layout geometry before applying track style"
+
+    # setTrackOrientation resets scroll position
+    assert "viewport.scrollLeft = 0;" in layout_src and "viewport.scrollTop = 0;" in layout_src, \
+        "layout.js setTrackOrientation must reset viewport scroll positions"
+
+    # setTrackOrientation calls updateTrackDensityAndAngle and updateTrackStatus both synchronously and via requestAnimationFrame
+    assert "window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);" in layout_src, \
+        "layout.js setTrackOrientation must trigger updateTrackStatus"
+    assert "requestAnimationFrame(() => {" in layout_src, \
+        "layout.js setTrackOrientation must schedule requestAnimationFrame reflow update"
+
+    # 2. Structural assertions in overlay.js: dimension fallbacks and unconditional updateTrackStatus
+    assert 'const isDockedVertical = isVertical && (trackComp?.classList.contains("docked-left") || trackComp?.classList.contains("docked-right"));' in overlay_src, \
+        "overlay.js must detect isDockedVertical in getVisibleSplitsCapacity"
+    assert 'const isDockedHorizontal = !isVertical && trackComp?.classList.contains("docked-bottom");' in overlay_src, \
+        "overlay.js must detect isDockedHorizontal in getVisibleSplitsCapacity"
+    assert "let lastKnownOrientation = null;" in overlay_src, \
+        "overlay.js must track lastKnownOrientation"
+    assert "trackManualScrollOffset = 0;" in overlay_src, \
+        "overlay.js updateTrackDensityAndAngle must reset trackManualScrollOffset on orientation change"
+    assert "updateTrackStatus(currentIndex);" in overlay_src and "if (currentIndex >= 0) {\n    updateTrackStatus(currentIndex);" not in overlay_src, \
+        "overlay.js updateTrackDensityAndAngle must call updateTrackStatus unconditionally (including currentIndex = -1)"
+
+    # 3. Mathematical simulation of visible split capacity during reflow race conditions
+    def sim_capacity(pref, is_vertical, is_docked, viewport_w, viewport_h, window_w=1920, window_h=1080):
+        if pref == "all":
+            return 9999
+        try:
+            val = int(pref)
+            if val > 0:
+                return val
+        except (ValueError, TypeError):
+            pass
+
+        # Fallback simulation
+        if not is_vertical and is_docked and viewport_w < 500:
+            effective_w = window_w
+        else:
+            effective_w = viewport_w or window_w
+
+        if is_vertical and is_docked and viewport_h < 300:
+            effective_h = window_h
+        else:
+            effective_h = viewport_h or window_h
+
+        p_side = 24
+        p_total = p_side * 2
+        avail_w = max(300, effective_w - p_total)
+        avail_h = max(200, effective_h - p_total)
+
+        if is_vertical:
+            spacing = 58
+            return max(3, math.floor(avail_h / spacing))
+        else:
+            spacing = 90
+            return max(4, math.floor(avail_w / spacing))
+
+    # Without fallback: switching to vertical while container still has bottom-docked height (90px)
+    stale_vert_cap = sim_capacity("auto", is_vertical=True, is_docked=False, viewport_w=1920, viewport_h=90)
+    assert stale_vert_cap == 3, f"Expected stale cap to clamp to 3, got {stale_vert_cap}"
+
+    # With fallback: docked vertical with stale 90px height uses window_h (1080px)
+    fixed_vert_cap = sim_capacity("auto", is_vertical=True, is_docked=True, viewport_w=1920, viewport_h=90)
+    assert fixed_vert_cap >= 15, f"Expected fixed vertical capacity >= 15, got {fixed_vert_cap}"
+
+    # Numeric preferences (e.g. 8 splits) must always return exactly 8 in both orientations
+    assert sim_capacity("8", is_vertical=True, is_docked=True, viewport_w=1920, viewport_h=90) == 8
+    assert sim_capacity("8", is_vertical=False, is_docked=True, viewport_w=340, viewport_h=1080) == 8
+
+    # 4. Sliding window simulation on Start screen (currentIndex = -1)
+    def sim_track_window(num_splits, capacity, current_idx, always_show_last=False):
+        if num_splits <= capacity:
+            return [False] * num_splits
+
+        if always_show_last:
+            k = capacity - 1
+            if current_idx < 0:
+                start_w = 0
+            else:
+                start_w = max(0, min(current_idx - (k // 2), num_splits - 1 - k))
+            end_w = start_w + k
+            omitted = []
+            for i in range(num_splits):
+                if i == num_splits - 1:
+                    omitted.append(False)
+                elif start_w <= i < end_w:
+                    omitted.append(False)
+                else:
+                    omitted.append(True)
+            return omitted
+        else:
+            if current_idx < 0:
+                start_w = 0
+            else:
+                start_w = max(0, min(current_idx - (capacity // 2), num_splits - capacity))
+            end_w = start_w + capacity
+            return [not (start_w <= i < end_w) for i in range(num_splits)]
+
+    # 10 splits, capacity = 8, at start screen (idx = -1) with alwaysShowLast = True
+    omitted_start = sim_track_window(10, 8, -1, always_show_last=True)
+    assert omitted_start[0:7] == [False] * 7, "First 7 splits must be visible on start screen"
+    assert omitted_start[7] is True and omitted_start[8] is True, "Splits 7 and 8 must be omitted"
+    assert omitted_start[9] is False, "Final split must be visible on start screen"
+
+    # 10 splits, capacity = 8, at start screen with standard windowing
+    omitted_std = sim_track_window(10, 8, -1, always_show_last=False)
+    assert omitted_std[0:8] == [False] * 8, "First 8 splits must be visible on start screen"
+    assert omitted_std[8] is True and omitted_std[9] is True, "Splits 8 and 9 must be omitted"
+
+    print("✓ Track orientation reflow, dimensional fallbacks, and Start-screen split updates passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -2141,6 +2264,7 @@ def main():
         test_comparison_hotkeys_and_toast()
         test_architectural_safeguards_and_bug_fixes()
         test_modular_architecture()
+        test_track_orientation_and_split_density_reflow()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

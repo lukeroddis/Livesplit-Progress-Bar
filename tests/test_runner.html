@@ -200,6 +200,12 @@
       }
     }
 
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(message || "Assertion failed");
+      }
+    }
+
     // --- TEST DEFINITIONS ---
 
     describe("Time Conversion: timeStringToSeconds", () => {
@@ -810,6 +816,57 @@
         const res = cache.getElements(0);
         assert("fill" in res, "result contains fill");
         assert("deltaSpan" in res, "result contains deltaSpan");
+      });
+    });
+
+    describe("Track Orientation & Split Density Reflow", () => {
+      it("exports setTrackOrientation, updateTrackDensityAndAngle, and getVisibleSplitsCapacity", () => {
+        assert(typeof window.setTrackOrientation === "function", "setTrackOrientation exported");
+        assert(typeof window.updateTrackDensityAndAngle === "function", "updateTrackDensityAndAngle exported");
+        assert(typeof window.getVisibleSplitsCapacity === "function", "getVisibleSplitsCapacity exported");
+      });
+
+      it("setTrackOrientation updates track class and resets viewport scroll positions", () => {
+        const viewport = document.getElementById("track-viewport");
+        if (viewport) {
+          viewport.scrollLeft = 50;
+          viewport.scrollTop = 50;
+        }
+        window.setTrackOrientation("vertical");
+        const track = document.getElementById("track");
+        assert(track.classList.contains("vertical"), "track contains vertical class");
+        if (viewport) {
+          assert(viewport.scrollLeft === 0, "scrollLeft reset to 0");
+          assert(viewport.scrollTop === 0, "scrollTop reset to 0");
+        }
+
+        // Switch back to horizontal
+        window.setTrackOrientation("horizontal");
+        assert(!track.classList.contains("vertical"), "track vertical class removed");
+        if (viewport) {
+          assert(viewport.scrollLeft === 0, "scrollLeft reset to 0");
+          assert(viewport.scrollTop === 0, "scrollTop reset to 0");
+        }
+      });
+
+      it("getVisibleSplitsCapacity computes positive capacity without crashing in both orientations", () => {
+        window.setTrackOrientation("vertical");
+        const vertCap = window.getVisibleSplitsCapacity();
+        assert(typeof vertCap === "number" && vertCap > 0, "vertical capacity is a positive number");
+
+        window.setTrackOrientation("horizontal");
+        const horizCap = window.getVisibleSplitsCapacity();
+        assert(typeof horizCap === "number" && horizCap > 0, "horizontal capacity is a positive number");
+      });
+
+      it("updateTrackDensityAndAngle executes cleanly on Start screen (currentIndex = -1)", () => {
+        let threw = false;
+        try {
+          window.updateTrackDensityAndAngle();
+        } catch (e) {
+          threw = true;
+        }
+        assert(!threw, "updateTrackDensityAndAngle runs without error at currentIndex = -1");
       });
     });
 
