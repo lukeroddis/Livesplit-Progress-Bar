@@ -13,11 +13,21 @@
 2. **Zero-Allocation 60 FPS Render Loop**:
    - Never allocate new DOM nodes or perform expensive querySelectors inside the 33ms animation tick (`requestAnimationFrame`).
    - Only modify `textContent` and `style` transforms on cached element references during live timing.
-3. **Modular File Structure**:
-   - [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html): Clean semantic structure and SVG icons.
+3. **Modular Zero-Build Architecture**:
+   - [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html): Clean semantic structure, HUD components, and SVG icons.
    - [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css): Glassmorphic HUD styles, typography, layout editor UI, and animations.
-   - [layout.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/layout.js): Interactive drag & drop, proportional scaling, visibility toggles, modal customizers, and localStorage state persistence.
-   - [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js): WebSocket connection to LiveSplit Server, `.lss` XML parsing, 4-state delta engine, timer formatting, and comparisons.
+   - **`src/core/` Core Speedrun & Persistence Modules**:
+     - [`storage.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/storage.js): `safeStorage` wrapper with in-memory fallback for sandboxed OBS CEF sources, state persistence, and centralized keys.
+     - [`time-utils.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/time-utils.js): `timeStringToSeconds`, `formatTimerDisplay`, `formatTargetTime`, and `formatDeltaSeconds`.
+     - [`split-engine.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/split-engine.js): `.lss` XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
+     - [`ghost-math.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
+     - [`livesplit-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
+   - **`src/ui/` Interface & Layout Modules**:
+     - [`layout-engine.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
+     - [`track-renderer.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/track-renderer.js): Sliding window math, schematic breaks, and zero-allocation 60 FPS element caching.
+     - [`interactions.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
+   - [layout.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
+   - [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js): Application bootstrap, high-frequency render ticks, and LiveSplit Server WebSocket bridge.
 
 ---
 

@@ -19,7 +19,17 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 def test_file_integrity():
     """Verify core project files exist and are UTF-8 decodable."""
-    required = ["index.html", "layout.js", "overlay.js", "style.css", "README.md", "LICENSE", "package.json", "schema/layout-v1.json"]
+    required = [
+        "index.html", "layout.js", "overlay.js", "style.css", "README.md", "LICENSE", "package.json", "schema/layout-v1.json",
+        os.path.join("src", "core", "storage.js"),
+        os.path.join("src", "core", "time-utils.js"),
+        os.path.join("src", "core", "split-engine.js"),
+        os.path.join("src", "core", "ghost-math.js"),
+        os.path.join("src", "core", "livesplit-client.js"),
+        os.path.join("src", "ui", "layout-engine.js"),
+        os.path.join("src", "ui", "track-renderer.js"),
+        os.path.join("src", "ui", "interactions.js")
+    ]
     for fname in required:
         path = os.path.join(ROOT_DIR, fname)
         assert os.path.exists(path), f"Missing required file: {fname}"
@@ -32,7 +42,17 @@ def test_file_integrity():
 def test_syntax_and_brackets():
     """Verify bracket balance, parentheses, and quote termination."""
     pairs = {')': '(', ']': '[', '}': '{'}
-    files_to_check = ["index.html", "layout.js", "overlay.js", "style.css"]
+    files_to_check = [
+        "index.html", "layout.js", "overlay.js", "style.css",
+        os.path.join("src", "core", "storage.js"),
+        os.path.join("src", "core", "time-utils.js"),
+        os.path.join("src", "core", "split-engine.js"),
+        os.path.join("src", "core", "ghost-math.js"),
+        os.path.join("src", "core", "livesplit-client.js"),
+        os.path.join("src", "ui", "layout-engine.js"),
+        os.path.join("src", "ui", "track-renderer.js"),
+        os.path.join("src", "ui", "interactions.js")
+    ]
     
     for fname in files_to_check:
         path = os.path.join(ROOT_DIR, fname)
@@ -121,7 +141,17 @@ def test_dom_id_consistency():
     # Dynamic IDs generated at runtime in JS
     dynamic_prefixes = ("item-", "fill-", "delta-", "delta-val-", "time-val-", "node-", "ghost-marker-")
 
-    for js_file in ["layout.js", "overlay.js"]:
+    for js_file in [
+        "layout.js", "overlay.js",
+        os.path.join("src", "core", "storage.js"),
+        os.path.join("src", "core", "time-utils.js"),
+        os.path.join("src", "core", "split-engine.js"),
+        os.path.join("src", "core", "ghost-math.js"),
+        os.path.join("src", "core", "livesplit-client.js"),
+        os.path.join("src", "ui", "layout-engine.js"),
+        os.path.join("src", "ui", "track-renderer.js"),
+        os.path.join("src", "ui", "interactions.js")
+    ]:
         path = os.path.join(ROOT_DIR, js_file)
         with open(path, "r", encoding="utf-8") as f:
             code = f.read()
@@ -2007,6 +2037,71 @@ def test_architectural_safeguards_and_bug_fixes():
     print("✓ Architectural safeguards & bug fixes (WebSocket desync guard, strict int index, activeGhosts schema, safeStorage) passed.")
 
 
+def test_modular_architecture():
+    """Verify clean modularization across src/core and src/ui, namespace registration, and 60 FPS element caching."""
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html_src = f.read()
+    with open(os.path.join(ROOT_DIR, "tests", "test_runner.html"), "r", encoding="utf-8") as f:
+        runner_src = f.read()
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+
+    expected_modules = [
+        "src/core/storage.js",
+        "src/core/time-utils.js",
+        "src/core/split-engine.js",
+        "src/core/ghost-math.js",
+        "src/core/livesplit-client.js",
+        "src/ui/layout-engine.js",
+        "src/ui/track-renderer.js",
+        "src/ui/interactions.js"
+    ]
+
+    # 1. Script inclusion in index.html and test_runner.html
+    for mod in expected_modules:
+        assert f'src="{mod}"' in html_src, f"index.html must include script tag for {mod}"
+        assert f'src="../{mod}"' in runner_src, f"test_runner.html must include script tag for ../{mod}"
+
+    # 2. Verify module namespace exports
+    storage_path = os.path.join(ROOT_DIR, "src", "core", "storage.js")
+    with open(storage_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.Storage" in f.read(), "src/core/storage.js must export LiveSplit.Storage"
+
+    time_path = os.path.join(ROOT_DIR, "src", "core", "time-utils.js")
+    with open(time_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.Time" in f.read(), "src/core/time-utils.js must export LiveSplit.Time"
+
+    split_path = os.path.join(ROOT_DIR, "src", "core", "split-engine.js")
+    with open(split_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.SplitEngine" in f.read(), "src/core/split-engine.js must export LiveSplit.SplitEngine"
+
+    ghost_path = os.path.join(ROOT_DIR, "src", "core", "ghost-math.js")
+    with open(ghost_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.GhostMath" in f.read(), "src/core/ghost-math.js must export LiveSplit.GhostMath"
+
+    client_path = os.path.join(ROOT_DIR, "src", "core", "livesplit-client.js")
+    with open(client_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.Client" in f.read(), "src/core/livesplit-client.js must export LiveSplit.Client"
+
+    track_path = os.path.join(ROOT_DIR, "src", "ui", "track-renderer.js")
+    with open(track_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.TrackRenderer" in f.read(), "src/ui/track-renderer.js must export LiveSplit.TrackRenderer"
+
+    layout_path = os.path.join(ROOT_DIR, "src", "ui", "layout-engine.js")
+    with open(layout_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.LayoutEngine" in f.read(), "src/ui/layout-engine.js must export LiveSplit.LayoutEngine"
+
+    inter_path = os.path.join(ROOT_DIR, "src", "ui", "interactions.js")
+    with open(inter_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.Interactions" in f.read(), "src/ui/interactions.js must export LiveSplit.Interactions"
+
+    # 3. Verify zero-allocation 60 FPS element caching in overlay.js
+    assert "getLiveElements(currentIndex)" in overlay_src, "overlay.js must use getLiveElements for 60 FPS tick"
+    assert "createLiveElementCache" in overlay_src, "overlay.js must hook into createLiveElementCache"
+
+    print("✓ Modular architecture (src/core, src/ui, LiveSplit namespaces, 60 FPS element caching) passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -2045,6 +2140,7 @@ def main():
         test_always_show_last_split_and_schematic_break()
         test_comparison_hotkeys_and_toast()
         test_architectural_safeguards_and_bug_fixes()
+        test_modular_architecture()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

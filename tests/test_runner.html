@@ -158,6 +158,14 @@
   <div id="results"></div>
 
   <!-- Load application scripts -->
+  <script src="../src/core/storage.js"></script>
+  <script src="../src/core/time-utils.js"></script>
+  <script src="../src/core/split-engine.js"></script>
+  <script src="../src/core/ghost-math.js"></script>
+  <script src="../src/core/livesplit-client.js"></script>
+  <script src="../src/ui/layout-engine.js"></script>
+  <script src="../src/ui/track-renderer.js"></script>
+  <script src="../src/ui/interactions.js"></script>
   <script src="../layout.js"></script>
   <script src="../overlay.js"></script>
 
@@ -772,6 +780,36 @@
       it("layout profiles export and restore activeGhosts array", () => {
         const exp = window.hudLayout.createProfileExport("GhostProfileTest");
         assert(Array.isArray(exp.preferences.activeGhosts), "activeGhosts is an array in preferences");
+      });
+    });
+
+    describe("Modular Architecture: LiveSplit Namespaces", () => {
+      it("exposes LiveSplit namespace and core submodules", () => {
+        assert(typeof window.LiveSplit === "object", "window.LiveSplit exists");
+        assert(typeof window.LiveSplit.Storage === "object", "LiveSplit.Storage exists");
+        assert(typeof window.LiveSplit.Time === "object", "LiveSplit.Time exists");
+        assert(typeof window.LiveSplit.SplitEngine === "object", "LiveSplit.SplitEngine exists");
+        assert(typeof window.LiveSplit.GhostMath === "object", "LiveSplit.GhostMath exists");
+        assert(typeof window.LiveSplit.Client === "object", "LiveSplit.Client exists");
+        assert(typeof window.LiveSplit.TrackRenderer === "object", "LiveSplit.TrackRenderer exists");
+        assert(typeof window.LiveSplit.LayoutEngine === "object", "LiveSplit.LayoutEngine exists");
+        assert(typeof window.LiveSplit.Interactions === "object", "LiveSplit.Interactions exists");
+      });
+
+      it("LiveSplit.Time parses and formats times correctly", () => {
+        assertEqual(window.LiveSplit.Time.timeStringToSeconds("01:23.45"), 83.45);
+        assertEqual(window.LiveSplit.Time.formatTargetTime(83.45), "1:23");
+        assertEqual(window.LiveSplit.Time.formatTimerDisplay(83.45), "1:23.45");
+        assertEqual(window.LiveSplit.Time.formatDeltaSeconds(-1.25), "-1.2");
+      });
+
+      it("LiveSplit.TrackRenderer provides zero-allocation element cache", () => {
+        const cache = window.LiveSplit.TrackRenderer.createLiveElementCache();
+        assert(typeof cache.getElements === "function", "cache.getElements exists");
+        assert(typeof cache.invalidate === "function", "cache.invalidate exists");
+        const res = cache.getElements(0);
+        assert("fill" in res, "result contains fill");
+        assert("deltaSpan" in res, "result contains deltaSpan");
       });
     });
 

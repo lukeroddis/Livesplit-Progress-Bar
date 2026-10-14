@@ -1226,6 +1226,7 @@ async function syncLiveSplitMetadata() {
 // 8. PROGRESS BAR TRACK RENDERER & STATUS DISPATCHER
 // ============================================================
 function renderTrack() {
+  if (liveElementCache) liveElementCache.invalidate();
   nodeThresholdCache.clear();
   const track = document.getElementById("track");
   track.innerHTML = "";
@@ -1601,11 +1602,25 @@ function updateTrackStatus(idx) {
 // ============================================================
 // 9. HIGH-FREQUENCY LIVE PROGRESS & DELTA REVEAL (60 FPS)
 // ============================================================
+let liveElementCache = null;
+function getLiveElements(idx) {
+  if (!liveElementCache && window.LiveSplit?.TrackRenderer?.createLiveElementCache) {
+    liveElementCache = window.LiveSplit.TrackRenderer.createLiveElementCache();
+  }
+  if (liveElementCache) {
+    return liveElementCache.getElements(idx);
+  }
+  return {
+    fill: document.getElementById(`fill-${idx}`),
+    deltaSpan: document.getElementById(`delta-val-${idx}`),
+    isVertical: document.getElementById("track")?.classList.contains("vertical")
+  };
+}
+
 function updateLiveSegmentProgress(currentSec) {
   if (currentIndex < 0 || currentIndex >= splitsList.length || currentSec === null) return;
 
-  const fill = document.getElementById(`fill-${currentIndex}`);
-  const deltaSpan = document.getElementById(`delta-val-${currentIndex}`);
+  const { fill, deltaSpan, isVertical } = getLiveElements(currentIndex);
 
   const prevTargetSec = (currentIndex > 0 && comparisonTimes[currentIndex - 1] !== null)
     ? comparisonTimes[currentIndex - 1]
@@ -1621,7 +1636,6 @@ function updateLiveSegmentProgress(currentSec) {
 
   // 1. Progress Bar Fill (universal for horizontal and vertical)
   if (fill) {
-    const isVertical = document.getElementById("track")?.classList.contains("vertical");
     const progressRatio = Math.max(0, elapsedInSegment / expectedDuration);
     const pct = Math.min(100, progressRatio * 100);
     if (isVertical) {
