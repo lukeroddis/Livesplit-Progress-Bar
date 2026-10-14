@@ -1639,6 +1639,9 @@ def test_timer_anchor_and_expansion_modes():
     assert "window.setTimerAnchor = setTimerAnchor;" in layout_src, "layout.js must expose setTimerAnchor on window"
 
     # 5. Intelligent auto-anchor logic & styling
+    assert 'function applyComponentLayout(compId)' in layout_src, "applyComponentLayout must take compId"
+    assert 'compId === "timers"' in layout_src, "applyComponentLayout must check compId === 'timers', not undefined id"
+    assert 'const w = window.innerWidth' in layout_src, "applyComponentLayout must declare w"
     assert 'anchorPref === "right"' in layout_src and 'anchorPref === "left"' in layout_src, \
         "applyComponentLayout('timers') must handle right and left anchors"
     assert 'midPoint > w / 2' in layout_src or 'midPoint > (w / 2)' in layout_src, \

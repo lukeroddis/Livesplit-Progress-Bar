@@ -1113,6 +1113,9 @@
     const state = layoutState[compId];
     if (!state) return;
 
+    const w = window.innerWidth || 1920;
+    const h = window.innerHeight || 1080;
+
     // Visibility
     if (state.visible === false) {
       if (isEditMode) {
@@ -1128,7 +1131,7 @@
     }
 
     // Scale display badge
-    const badge = el.querySelector(".hud-scale-badge");
+    const badge = document.getElementById(`badge-scale-${compId}`) || el.querySelector(".hud-scale-badge:not(#badge-anchor-timers)");
     if (badge) {
       badge.innerText = `${Math.round(state.scale * 100)}%`;
     }
@@ -1175,7 +1178,7 @@
           el.style.bottom = "";
           el.style.right = "";
           el.style.width = "340px";
-          el.style.height = `${Math.min((window.innerHeight || 1080) - state.y, 800)}px`;
+          el.style.height = `${Math.min(h - state.y, 800)}px`;
           el.style.transform = `scale(${state.scale})`;
           el.style.transformOrigin = "top left";
           if (dockBtn) dockBtn.innerText = "⛵ Float";
@@ -1209,7 +1212,7 @@
     }
 
     // Standard floating component (title, timers)
-    if (id === "timers") {
+    if (compId === "timers") {
       const anchorPref = getTimerAnchor();
       const compWidth = el.offsetWidth || 300;
       let isRight = false;
