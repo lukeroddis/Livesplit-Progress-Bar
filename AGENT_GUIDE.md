@@ -54,34 +54,55 @@ Query these **strictly upon split index transition, start, or reset**:
 ### 1. `.lss` XML Parsing & Segment History
 * `<BestSegmentTime>` can become stale or unpopulated in exported `.lss` files.
 * Parse all history attempts from `<SegmentHistory><Time>`:
-  $$\text{BestSegment}_{\text{effective}} = \min\left(\text{BestSegmentTime}, \min(\text{SegmentHistory})\right)$$
+
+  $$
+  \text{BestSegment}_{\text{effective}} = \min\left(\text{BestSegmentTime}, \min(\text{SegmentHistory})\right)
+  $$
+
 * Apply a 50ms buffer when detecting in-run gold splits to prevent false positives from sub-frame jitter:
-  $$\text{isGold} \iff \text{segmentDuration} < (\text{bestSec} - 0.05)$$
+
+  $$
+  \text{isGold} \iff \text{segmentDuration} < (\text{bestSec} - 0.05)
+  $$
 
 ### 2. Statistical Curves Monotonicity
-* When calculating **Average Segments** and **Worst Segments** from `<SegmentHistory>`, ensure every computed segment duration is strictly positive ($> 0$).
+* When calculating **Average Segments** and **Worst Segments** from `<SegmentHistory>`, ensure every computed segment duration is strictly positive (> 0 seconds).
 * If historical duration is missing or non-positive, fallback to PB segment duration or `bestSegmentTimes`.
 * Cumulative sums must always maintain mathematical ordering:
-  $$\text{Best Segments} \le \text{Average Segments} \le \text{Worst Segments}$$
+
+  $$
+  \text{Best Segments} \le \text{Average Segments} \le \text{Worst Segments}
+  $$
 
 ### 3. Dynamic Live Delta Reveal
-* While the runner is on pace for a Gold split ($t_{\text{elapsed}} \le t_{\text{best}}$), the active split delta is kept hidden (`#delta-val-${idx}` is empty).
+* While the runner is on pace for a Gold split ($t_{\text{elapsed}} \le t_{\text{best}}$), the active split delta is kept hidden (`#delta-val-{idx}` is empty).
 * Once $t_{\text{elapsed}} > t_{\text{best}}$, reveal the delta immediately and tick in memory ($t_{\text{current}} - t_{\text{target}}$) without extra WebSocket roundtrips.
 
 ### 4. 40° Angle Mode (Anti-Collision Guarantee)
 * When angled text is enabled or auto-triggered:
   * **Angle applies strictly to Split Titles** (`.split-name`).
   * **Deltas and Timers remain strictly flat (0°)** and are forced to the opposite side of the connector bar line:
-    - Split Names on Top $\implies$ Deltas/Timers on Bottom.
-    - Split Names on Bottom $\implies$ Deltas/Timers on Top.
+    - Split Names on Top ⟹ Deltas/Timers on Bottom.
+    - Split Names on Bottom ⟹ Deltas/Timers on Top.
   * This prevents title and timer text from ever colliding.
 
 ### 5. Live Ghost Runner Calculation (`calculateGhostProgress`)
 * Given current run elapsed seconds $t$ and cumulative comparison split timestamps $C = [c_0, c_1, \dots, c_n]$:
   - If $t \ge c_n$: Ghost has finished (progress 1.0 at final split).
-  - Else find interval $c_{k-1} \le t < c_k$. Progress ratio $p = \frac{t - c_{k-1}}{c_k - c_{k-1}}$.
-  - Physical X: $\text{X}_{\text{ghost}} = \text{startX}_k + p \times (\text{endX}_k - \text{startX}_k)$.
-  - Screen bounds check: If $\text{X}_{\text{ghost}} < \text{scrollLeft}$, activate left edge pill (`❮ 🏆`); if $\text{X}_{\text{ghost}} > \text{scrollLeft} + \text{clientWidth}$, activate right edge pill (`🏆 ❯`).
+  - Else find interval $c_{k-1} \le t < c_k$. Progress ratio:
+
+    $$
+    p = \frac{t - c_{k-1}}{c_k - c_{k-1}}
+    $$
+
+  - Track coordinate interpolation:
+
+    $$
+    \text{ghostCoord} = \text{startCoord}_k + p \times (\text{endCoord}_k - \text{startCoord}_k)
+    $$
+
+    *(Mapped to X in horizontal track mode, Y in vertical track mode).*
+  - Screen bounds check: If `ghostCoord < scrollOffset + 25`, activate leading edge pill (`❮ 🏆`); if `ghostCoord > scrollOffset + clientSpan - 25`, activate trailing edge pill (`🏆 ❯`).
 
 ### 6. Skipped Splits & Incomplete Comparison Data
 * **Skipped Split Detection**:
