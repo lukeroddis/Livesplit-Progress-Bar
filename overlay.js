@@ -1238,12 +1238,12 @@ function updateTrackWindow(idx) {
     const num = parseInt(splitPref, 10);
     if (!isNaN(num) && num > 0) V = num;
   } else {
-    const isDocked = track?.parentElement?.classList.contains("docked-bottom") || document.getElementById("hud-comp-track")?.classList.contains("docked-bottom");
-    const pRight = (isDocked && !isVertical) ? 140 : 24;
-    const availW = Math.max(300, viewportW - (24 + pRight));
+    const pLeft = 24;
+    const pRight = 24;
+    const availW = Math.max(300, viewportW - (pLeft + pRight));
     V = isVertical 
       ? Math.max(4, Math.floor((viewportH - 40) / 64)) 
-      : Math.max(4, Math.floor(availW / 140));
+      : Math.max(4, Math.floor(availW / 125));
   }
 
   // If total nodes (Start node + all N splits = N + 1) fit within V capacity:
@@ -2699,10 +2699,8 @@ function updateTrackDensityAndAngle() {
       spacing = 64;
     }
   } else {
-    // When docked at bottom, leave breathing room on the right so the track doesn't overlap the floating Settings trigger pill
-    const isDocked = track.parentElement?.classList.contains("docked-bottom") || document.getElementById("hud-comp-track")?.classList.contains("docked-bottom");
     const pLeft = 24;
-    const pRight = isDocked ? 140 : 24;
+    const pRight = 24;
     const availW = Math.max(300, viewportWidth - (pLeft + pRight));
 
     if (splitPref === "all") {
@@ -2717,7 +2715,7 @@ function updateTrackDensityAndAngle() {
       }
     } else if (alwaysShowLast && splitsList.length > 2) {
       // Auto mode: calculate capacity based on comfortable spacing, fully utilizing real estate
-      const V = Math.max(4, Math.floor(availW / 140));
+      const V = Math.max(4, Math.floor(availW / 125));
       const K = Math.min(V, splitsList.length + 1);
       spacing = Math.max(45, Math.floor(availW / K));
     } else {
