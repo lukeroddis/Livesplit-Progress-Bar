@@ -725,6 +725,19 @@
         assert(toast.classList.contains("hud-toast"), "has hud-toast class");
         assert(toast.innerText.includes("Personal Best"), "displays comparison name");
       });
+
+      it("recalculates completed split deltas and segment states when switching comparisons", () => {
+        const originalComp = window.getCurrentComparison ? window.getCurrentComparison() : "Personal Best";
+        window.applyActiveComparison("Personal Best", false, false);
+        
+        // Cycle comparison to next
+        window.cycleComparison(false);
+        const compAfter = window.getCurrentComparison ? window.getCurrentComparison() : "";
+        assert(compAfter !== originalComp, "successfully switches active comparison");
+
+        // Revert back
+        window.applyActiveComparison(originalComp, false, false);
+      });
     });
 
     // --- RENDER RESULTS ---

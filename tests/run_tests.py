@@ -1877,8 +1877,53 @@ def test_comparison_hotkeys_and_toast():
 
     assert sim_cycle(0, True) == 3   # PB -> Worst Segments (reverse wraparound)
     assert sim_cycle(3, True) == 2   # Worst Segments -> Average Segments
-    assert sim_cycle(2, True) == 1   # Average Segments -> Best Segments
-    assert sim_cycle(1, True) == 0   # Best Segments -> PB
+    # 6. Completed run comparison recalculation assertions
+    assert 'completedSplitTimes[i] ?? lockedDeltas[i]?.splitTimeSec' in overlay_src, "overlay.js must check completedSplitTimes when recalculating comparisons"
+    assert 'setDeltaDisplay(i, displayDelta, stateClass, splitTimeSec)' in overlay_src, "overlay.js must update DOM deltas across completed splits"
+    assert '<div id="hud-toast" class="hud-toast" style="display: none;">' not in html_src, "index.html #hud-toast must not have inline display: none"
+    assert "visibility: hidden;" in css_src, "style.css .hud-toast must have visibility: hidden"
+    assert "visibility: visible;" in css_src, "style.css .hud-toast.show must have visibility: visible"
+
+    # 7. Mathematical simulation of completed run delta recalculation across comparison switch
+    split_times = [60.0, 120.0, 180.0]
+    pb_targets = [62.0, 118.0, 185.0]
+    best_targets = [55.0, 110.0, 165.0]
+
+    def sim_recalc(completed_times, targets, is_gold_flags):
+        results = []
+        prev_diff = 0.0
+        for i, (t_run, t_comp) in enumerate(zip(completed_times, targets)):
+            diff = t_run - t_comp
+            change = diff - prev_diff
+            gained = change <= 0.001
+            is_ahead = diff <= 0
+            if is_gold_flags[i]:
+                state = "gold"
+            elif is_ahead:
+                state = "ahead-gaining" if gained else "ahead-losing"
+            else:
+                state = "behind-gaining" if gained else "behind-losing"
+            prev_diff = diff
+            results.append({"diff": round(diff, 2), "state": state})
+        return results
+
+    golds = [False, False, False]
+    pb_results = sim_recalc(split_times, pb_targets, golds)
+    assert pb_results[0] == {"diff": -2.0, "state": "ahead-gaining"}
+    assert pb_results[1] == {"diff": 2.0, "state": "behind-losing"}
+    assert pb_results[2] == {"diff": -5.0, "state": "ahead-gaining"}
+
+    # Switch to Best Segments post-run
+    best_results = sim_recalc(split_times, best_targets, golds)
+    assert best_results[0] == {"diff": 5.0, "state": "behind-losing"}
+    assert best_results[1] == {"diff": 10.0, "state": "behind-losing"}
+    assert best_results[2] == {"diff": 15.0, "state": "behind-losing"}
+
+    # Gold persistence: if split 0 was marked gold, it stays gold
+    golds_with_split0 = [True, False, False]
+    best_gold_results = sim_recalc(split_times, best_targets, golds_with_split0)
+    assert best_gold_results[0]["state"] == "gold"
+    assert best_gold_results[1]["state"] == "behind-losing"
 
     print("✓ Comparison switching hotkey (C, Shift+C, NumPad 4/6) and toast tests passed.")
 

@@ -298,7 +298,7 @@ function applyActiveTimingMethod(method) {
   }
 }
 
-function applyActiveComparison(compName, updateLiveSplit = false) {
+function applyActiveComparison(compName, updateLiveSplit = false, showToast = true) {
   const norm = normalizeComparisonName(compName) || "Personal Best";
   currentComparison = norm;
   localStorage.setItem("livesplit_current_comparison", currentComparison);
@@ -325,26 +325,81 @@ function applyActiveComparison(compName, updateLiveSplit = false) {
     selComp.value = currentComparison;
   }
 
+  let prevDiff = 0;
   for (let i = 0; i < splitsList.length; i++) {
-    if (!lockedDeltas[i]) {
+    const splitTimeSec = completedSplitTimes[i] ?? lockedDeltas[i]?.splitTimeSec;
+    if (splitTimeSec !== null && splitTimeSec !== undefined && !isNaN(splitTimeSec) && splitTimeSec > 0) {
+      // Completed split: recalculate delta and segment status against newly active comparison
+      const targetSec = (i < comparisonTimes.length && comparisonTimes[i] !== null && comparisonTimes[i] > 0)
+        ? comparisonTimes[i]
+        : null;
+
+      if (targetSec !== null) {
+        const diff = splitTimeSec - targetSec;
+        const deltaChange = diff - prevDiff;
+        const gainedTime = deltaChange <= 0.001;
+        const isAhead = diff <= 0;
+        const isGold = (lockedDeltas[i]?.stateClass === "gold");
+
+        let stateClass = "uncoloured";
+        if (isGold) {
+          stateClass = "gold";
+        } else if (isAhead) {
+          stateClass = gainedTime ? "ahead-gaining" : "ahead-losing";
+        } else {
+          stateClass = gainedTime ? "behind-gaining" : "behind-losing";
+        }
+        prevDiff = diff;
+
+        const displayDelta = { text: formatDeltaSeconds(diff), isAhead, signedSeconds: diff };
+        lockedDeltas[i] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
+        setDeltaDisplay(i, displayDelta, stateClass, splitTimeSec);
+      } else {
+        const displayDelta = { text: "-", isAhead: false, signedSeconds: 0 };
+        const stateClass = "uncoloured";
+        lockedDeltas[i] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
+        setDeltaDisplay(i, displayDelta, stateClass, splitTimeSec);
+      }
+    } else if (lockedDeltas[i]?.stateClass === "uncoloured" && (completedSplitTimes[i] === null || completedSplitTimes[i] === undefined)) {
+      // Skipped split: retain uncoloured placeholder
+      const skipDelta = { text: "-", isAhead: false, signedSeconds: 0 };
+      setDeltaDisplay(i, skipDelta, "uncoloured", null);
+    } else {
+      // Upcoming split: update target comparison time
       const timeSpan = document.getElementById(`time-val-${i}`);
       if (timeSpan) {
         const targetVal = formatTargetTime(comparisonTimes[i]);
         timeSpan.innerText = targetVal || "-";
+        timeSpan.className = "split-time-val target-time";
+      }
+      const deltaSpan = document.getElementById(`delta-val-${i}`);
+      if (deltaSpan) {
+        deltaSpan.innerText = "";
+        deltaSpan.className = "split-delta-val";
       }
     }
+  }
+
+  if (currentIndex >= 0 && currentIndex < splitsList.length) {
+    previousDeltaSeconds = prevDiff;
+  }
+
+  if (currentIndex >= 0) {
+    saveInRunState();
   }
 
   if (updateLiveSplit && ws && ws.readyState === WebSocket.OPEN) {
     ws.send(`setcomparison ${currentComparison}`);
   }
 
-  showComparisonToast(currentComparison);
+  if (showToast) {
+    showComparisonToast(currentComparison);
+  }
 }
 
 let comparisonToastTimer = null;
 function showComparisonToast(compName) {
-  if (!isOverlayInitialized || !compName) return;
+  if (!compName) return;
   let toast = document.getElementById("hud-toast");
   if (!toast) {
     toast = document.createElement("div");
@@ -352,6 +407,7 @@ function showComparisonToast(compName) {
     toast.className = "hud-toast";
     document.body.appendChild(toast);
   }
+  toast.style.display = "";
   toast.innerHTML = `<span style="color: #38bdf8;">⚖️ Comparison:</span> <span>${compName}</span>`;
   toast.classList.add("show");
   if (comparisonToastTimer) clearTimeout(comparisonToastTimer);
@@ -822,7 +878,7 @@ function parseLSS(xmlText, isNewDrop = false) {
       localStorage.setItem("livesplit_comparisons_rt", JSON.stringify(comparisonsDataRT));
 
       updateGoldBadge();
-      applyActiveComparison(currentComparison, false);
+      applyActiveComparison(currentComparison, false, false);
       if (!isNewDrop) {
         loadInRunState();
       }
@@ -1046,7 +1102,7 @@ function loadCachedSplits() {
       applyActiveTimingMethod(currentTimingMethod);
 
       updateGoldBadge();
-      applyActiveComparison(currentComparison, false);
+      applyActiveComparison(currentComparison, false, false);
       loadInRunState();
       renderTrack();
       const dropDesc = document.getElementById("dropzone-desc");
@@ -1075,7 +1131,7 @@ function loadCachedSplits() {
   initDefaultComparisons();
 
   updateGoldBadge();
-  applyActiveComparison(currentComparison, false);
+  applyActiveComparison(currentComparison, false, false);
   loadInRunState();
   renderTrack();
   if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
