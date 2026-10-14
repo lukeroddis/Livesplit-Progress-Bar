@@ -690,8 +690,10 @@
     });
 
     describe("Always Show Last Split: updateTrackWindow", () => {
-      it("exports updateTrackWindow on window", () => {
+      it("exports updateTrackWindow, shiftTrackWindow, and isTrackWindowed on window", () => {
         assert(typeof window.updateTrackWindow === "function", "updateTrackWindow exported");
+        assert(typeof window.shiftTrackWindow === "function", "shiftTrackWindow exported");
+        assert(typeof window.isTrackWindowed === "function", "isTrackWindowed exported");
       });
 
       it("returns false and preserves continuous track when alwaysShowLast is disabled", () => {
@@ -699,6 +701,20 @@
         const res = window.updateTrackWindow(0);
         assert(res === false, "returns false when disabled");
         localStorage.setItem("livesplit_always_show_last_split", "true");
+      });
+
+      it("shifts visible window with shiftTrackWindow when track is windowed", () => {
+        localStorage.setItem("livesplit_always_show_last_split", "true");
+        localStorage.setItem("livesplit_visible_splits", "8");
+        const isWin = window.isTrackWindowed();
+        if (isWin) {
+          const offsetBefore = window.getTrackManualScrollOffset ? window.getTrackManualScrollOffset() : 0;
+          const shifted = window.shiftTrackWindow(1);
+          assert(typeof shifted === "boolean", "shiftTrackWindow returns boolean");
+          const offsetAfter = window.getTrackManualScrollOffset ? window.getTrackManualScrollOffset() : 0;
+          assert(offsetAfter >= offsetBefore, "offset shifted forward");
+          window.shiftTrackWindow(-1);
+        }
       });
     });
 

@@ -90,7 +90,7 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
 | **`C`** (or **`NumPad 6`** / **`]`**) | Cycle forward to next comparison time (with HUD toast) |
 | **`Shift + C`** (or **`NumPad 4`** / **`[`**) | Cycle backward to previous comparison time (with HUD toast) |
 | **`Scroll Wheel`** | Scroll splits left/right (or up/down if sidebar) like LiveSplit |
-| **`←` / `→`** (or **`↑` / `↓`**) | Pan splits with keyboard arrow keys |
+| **`←` / `→`** (or **`↑` / `↓`**) | Pan splits / browse future and previous splits with keyboard arrow keys (works in continuous and windowed mode with pinned last split) |
 | **`E`** or **`F2`** | Toggle Interactive Layout Edit Mode (Drag & Scale) |
 | **`Esc`** | Exit Edit Mode or close open modals |
 | **`Settings`** | Bottom-right discreet pill to configure styles, profiles, and drop `.lss` files |

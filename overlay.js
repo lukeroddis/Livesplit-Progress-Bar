@@ -36,6 +36,7 @@ let inflightResolver = null;
 let lastSplitRecordedSec = 0;
 let previousDeltaSeconds = 0;
 let lastElapsedSec = 0;
+let trackManualScrollOffset = 0;
 
 const IN_RUN_STATE_KEY = "livesplit_in_run_state";
 
@@ -60,6 +61,7 @@ function saveInRunState() {
 
 function clearInRunState() {
   try {
+    trackManualScrollOffset = 0;
     localStorage.removeItem(IN_RUN_STATE_KEY);
     const rtaEl = document.getElementById("timer-rta");
     const igtEl = document.getElementById("timer-igt");
@@ -1276,6 +1278,73 @@ function renderTrack() {
   updateTrackStatus(currentIndex);
 }
 
+function getVisibleSplitsCapacity() {
+  const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+  if (splitPref !== "auto" && splitPref !== "all") {
+    const num = parseInt(splitPref, 10);
+    if (!isNaN(num) && num > 0) return num;
+  }
+  const viewport = document.getElementById("track-viewport");
+  const track = document.getElementById("track");
+  const isVertical = track?.classList.contains("vertical");
+  const viewportW = viewport?.clientWidth || window.innerWidth || 1920;
+  const viewportH = viewport?.clientHeight || window.innerHeight || 800;
+  const pLeft = 24;
+  const pRight = 24;
+  const availW = Math.max(300, viewportW - (pLeft + pRight));
+  return isVertical 
+    ? Math.max(4, Math.floor((viewportH - 40) / 64)) 
+    : Math.max(4, Math.floor(availW / 125));
+}
+
+function isTrackWindowed() {
+  const N = splitsList.length;
+  if (N <= 1) return false;
+  const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
+  const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+  if (!alwaysShowLast || splitPref === "all") return false;
+
+  const V = getVisibleSplitsCapacity();
+  return (N + 1 > V);
+}
+
+function getDefaultTrackWindowPosition(idx, N, V, W) {
+  const half = Math.floor((W - 1) / 2);
+  const idealStart = idx - half;
+  const maxK = Math.max(0, N - V + 1);
+
+  if (idealStart + (W - 1) >= N - 1) {
+    return maxK;
+  }
+  if (idealStart <= -1) {
+    return 0;
+  }
+  return Math.max(0, Math.min(maxK, idealStart + 1));
+}
+
+function shiftTrackWindow(direction) {
+  const N = splitsList.length;
+  if (N <= 1) return false;
+  if (!isTrackWindowed()) return false;
+
+  const V = getVisibleSplitsCapacity();
+  const W = Math.max(2, V - 1);
+  const maxK = Math.max(0, N - V + 1);
+  const defaultK = getDefaultTrackWindowPosition(currentIndex, N, V, W);
+  const currentK = Math.max(0, Math.min(maxK, defaultK + trackManualScrollOffset));
+  const newK = Math.max(0, Math.min(maxK, currentK + direction));
+
+  if (newK !== currentK) {
+    trackManualScrollOffset = newK - defaultK;
+    updateTrackWindow(currentIndex);
+    if (lastElapsedSec > 0) {
+      updateGhostRunner(lastElapsedSec);
+    }
+    return true;
+  }
+  return false;
+}
+
 function updateTrackWindow(idx) {
   const N = splitsList.length;
   const nodeStart = document.getElementById("node-start");
@@ -1305,24 +1374,7 @@ function updateTrackWindow(idx) {
     return false;
   }
 
-  const viewport = document.getElementById("track-viewport");
-  const track = document.getElementById("track");
-  const isVertical = track?.classList.contains("vertical");
-  const viewportW = viewport?.clientWidth || window.innerWidth || 1920;
-  const viewportH = viewport?.clientHeight || window.innerHeight || 800;
-
-  let V = 8;
-  if (splitPref !== "auto" && splitPref !== "all") {
-    const num = parseInt(splitPref, 10);
-    if (!isNaN(num) && num > 0) V = num;
-  } else {
-    const pLeft = 24;
-    const pRight = 24;
-    const availW = Math.max(300, viewportW - (pLeft + pRight));
-    V = isVertical 
-      ? Math.max(4, Math.floor((viewportH - 40) / 64)) 
-      : Math.max(4, Math.floor(availW / 125));
-  }
+  const V = getVisibleSplitsCapacity();
 
   // If total nodes (Start node + all N splits = N + 1) fit within V capacity:
   if (N + 1 <= V) {
@@ -1339,34 +1391,33 @@ function updateTrackWindow(idx) {
   // N + 1 > V: Pin the final split (N - 1) in the last visible slot.
   // Sliding portion has W = V - 1 slots.
   const W = Math.max(2, V - 1);
-  const cur = Math.max(-1, Math.min(N - 1, idx));
-  const half = Math.floor((W - 1) / 2);
-  const idealStart = cur - half;
+  const maxK = Math.max(0, N - V + 1);
+  const defaultK = getDefaultTrackWindowPosition(idx, N, V, W);
+  const k = Math.max(0, Math.min(maxK, defaultK + trackManualScrollOffset));
 
-  let hasDiscontinuity = true;
   let startNodeVisible = false;
   let windowStart = 0;
   let windowEnd = 0;
+  let hasDiscontinuity = true;
 
-  if (idealStart + (W - 1) >= N - 1) {
-    // Reached finale: active window encompasses the final split.
-    // Display the last V splits continuously with no discontinuity break!
-    hasDiscontinuity = false;
-    startNodeVisible = false;
-    windowStart = Math.max(0, N - V);
-    windowEnd = N - 1;
-  } else if (idealStart <= -1) {
-    // Near start of run: Start node is visible in slot 0.
+  if (k === 0) {
+    // Earliest view: Start node is visible in slot 0.
     // Takes 1 slot, so W - 1 splits are visible in slots 1..(W - 1).
     startNodeVisible = true;
     windowStart = 0;
     windowEnd = Math.max(0, W - 2);
     hasDiscontinuity = (windowEnd < N - 1);
+  } else if (k >= maxK) {
+    // Finale view: active window encompasses the final split.
+    // Display the last V splits continuously with no discontinuity break!
+    hasDiscontinuity = false;
+    startNodeVisible = false;
+    windowStart = Math.max(0, N - V);
+    windowEnd = N - 1;
   } else {
     // Mid-run: Start node is omitted.
-    // cur is centered with 'half' past splits to the left and upcoming splits to the right.
     startNodeVisible = false;
-    windowStart = idealStart;
+    windowStart = k - 1;
     windowEnd = windowStart + (W - 1);
     hasDiscontinuity = (windowEnd < N - 1);
   }
@@ -1407,6 +1458,9 @@ function updateTrackWindow(idx) {
 }
 
 function updateTrackStatus(idx) {
+  if (idx !== currentIndex) {
+    trackManualScrollOffset = 0;
+  }
   currentIndex = idx;
   const nodeStart = document.getElementById("node-start");
   if (nodeStart) {
@@ -2977,10 +3031,14 @@ function setupTrackScrollInteractions() {
     }
 
     if (delta !== 0) {
-      if (isVertical) {
-        viewport.scrollTop += delta;
+      if (isTrackWindowed()) {
+        shiftTrackWindow(delta > 0 ? 1 : -1);
       } else {
-        viewport.scrollLeft += delta;
+        if (isVertical) {
+          viewport.scrollTop += delta;
+        } else {
+          viewport.scrollLeft += delta;
+        }
       }
       e.preventDefault();
     }
@@ -3000,21 +3058,38 @@ function setupTrackScrollInteractions() {
     const track = document.getElementById("track");
     if (!track) return;
     const isVertical = track.classList.contains("vertical");
+    const isWindowed = isTrackWindowed();
 
     if (isVertical) {
-      if (e.key === "ArrowDown") {
-        viewport.scrollTop += 80;
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        if (isWindowed) {
+          shiftTrackWindow(1);
+        } else {
+          viewport.scrollTop += 80;
+        }
         e.preventDefault();
-      } else if (e.key === "ArrowUp") {
-        viewport.scrollTop -= 80;
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        if (isWindowed) {
+          shiftTrackWindow(-1);
+        } else {
+          viewport.scrollTop -= 80;
+        }
         e.preventDefault();
       }
     } else {
-      if (e.key === "ArrowRight") {
-        viewport.scrollLeft += 100;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        if (isWindowed) {
+          shiftTrackWindow(1);
+        } else {
+          viewport.scrollLeft += 100;
+        }
         e.preventDefault();
-      } else if (e.key === "ArrowLeft") {
-        viewport.scrollLeft -= 100;
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        if (isWindowed) {
+          shiftTrackWindow(-1);
+        } else {
+          viewport.scrollLeft -= 100;
+        }
         e.preventDefault();
       }
     }
@@ -3328,5 +3403,8 @@ window.getCurrentIndex = () => currentIndex;
 window.updateTrackStatus = updateTrackStatus;
 window.updateGhostBadge = updateGhostBadge;
 window.updateTrackWindow = updateTrackWindow;
+window.shiftTrackWindow = shiftTrackWindow;
+window.isTrackWindowed = isTrackWindowed;
+window.getTrackManualScrollOffset = () => trackManualScrollOffset;
 window.showComparisonToast = showComparisonToast;
 window.initOverlay = initOverlay;

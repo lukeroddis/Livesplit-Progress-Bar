@@ -1730,7 +1730,10 @@ def test_always_show_last_split_and_schematic_break():
     assert '<span class="disc-slash"></span><span class="disc-slash"></span>' in overlay_src, "discontinuity-break must render double slashes"
     assert "function updateTrackWindow(" in overlay_src, "overlay.js must define updateTrackWindow(idx)"
     assert "updateTrackWindow(idx)" in overlay_src, "overlay.js updateTrackStatus must call updateTrackWindow"
+    assert "function shiftTrackWindow(" in overlay_src, "overlay.js must define shiftTrackWindow for arrow key scrolling"
+    assert "function isTrackWindowed()" in overlay_src, "overlay.js must define isTrackWindowed"
     assert "window.updateTrackWindow = updateTrackWindow;" in overlay_src, "overlay.js must export updateTrackWindow on window"
+    assert "window.shiftTrackWindow = shiftTrackWindow;" in overlay_src, "overlay.js must export shiftTrackWindow on window"
     assert "window.updateTrackStatus = updateTrackStatus;" in overlay_src, "overlay.js must export updateTrackStatus on window"
     assert "window.updateGhostBadge = updateGhostBadge;" in overlay_src, "overlay.js must export updateGhostBadge on window"
     assert "item.classList.remove(...ALL_SPLIT_STATE_CLASSES);" in overlay_src, "overlay.js must not wipe out windowing classes"
@@ -1747,36 +1750,40 @@ def test_always_show_last_split_and_schematic_break():
     assert "showLastSplit" in schema_json.get("properties", {}).get("preferences", {}).get("properties", {}), \
         "schema/layout-v1.json preferences must declare showLastSplit"
 
-    # 6. Mathematical Sliding Window & Discontinuity Simulation
-    def simulate_track_window(total_splits, visible_capacity, current_idx, always_show_last=True):
+    # 6. Mathematical Sliding Window, Discontinuity & Arrow Key Scroll Simulation
+    def simulate_track_window(total_splits, visible_capacity, current_idx, always_show_last=True, manual_scroll_offset=0):
         N = total_splits
         V = visible_capacity
         if not always_show_last or (N + 1) <= V:
             return {"omitted": [], "has_discontinuity": False, "visible_count": N + 1, "start_visible": True, "visible_splits": list(range(N))}
 
         W = max(2, V - 1)
-        cur = max(-1, min(N - 1, current_idx))
         half = (W - 1) // 2
-        ideal_start = cur - half
-
-        has_discontinuity = True
-        start_node_visible = False
-        window_start = 0
-        window_end = 0
+        ideal_start = current_idx - half
+        max_k = max(0, N - V + 1)
 
         if ideal_start + (W - 1) >= N - 1:
-            has_discontinuity = False
-            start_node_visible = False
-            window_start = max(0, N - V)
-            window_end = N - 1
+            default_k = max_k
         elif ideal_start <= -1:
+            default_k = 0
+        else:
+            default_k = max(0, min(max_k, ideal_start + 1))
+
+        k = max(0, min(max_k, default_k + manual_scroll_offset))
+
+        if k == 0:
             start_node_visible = True
             window_start = 0
             window_end = max(0, W - 2)
             has_discontinuity = (window_end < N - 1)
+        elif k >= max_k:
+            start_node_visible = False
+            window_start = max(0, N - V)
+            window_end = N - 1
+            has_discontinuity = False
         else:
             start_node_visible = False
-            window_start = ideal_start
+            window_start = k - 1
             window_end = window_start + (W - 1)
             has_discontinuity = (window_end < N - 1)
 
@@ -1805,6 +1812,24 @@ def test_always_show_last_split_and_schematic_break():
     assert sim_start["visible_count"] == 10, "Total visible nodes on screen must equal capacity V=10 exactly"
     assert 32 in sim_start["visible_splits"], "Final split 32 must always be visible at the end on Start node"
 
+    # Scenario A2: User presses ArrowRight on Start node to view future splits (offset = +1)
+    sim_scroll_1 = simulate_track_window(33, 10, -1, manual_scroll_offset=1)
+    assert sim_scroll_1["start_visible"] is False, "Start node scrolls off to reveal next split"
+    assert sim_scroll_1["visible_splits"] == [0, 1, 2, 3, 4, 5, 6, 7, 8, 32], "Split 8 slides in from right"
+    assert sim_scroll_1["visible_count"] == 10, "Capacity V=10 is strictly preserved"
+    assert sim_scroll_1["has_discontinuity"] is True
+
+    # Scenario A3: User presses ArrowRight again (offset = +2)
+    sim_scroll_2 = simulate_track_window(33, 10, -1, manual_scroll_offset=2)
+    assert sim_scroll_2["visible_splits"] == [1, 2, 3, 4, 5, 6, 7, 8, 9, 32], "Split 0 slides off, split 9 slides in"
+    assert sim_scroll_2["visible_count"] == 10
+
+    # Scenario A4: User scrolls ArrowRight all the way to finale (offset = +24)
+    sim_scroll_end = simulate_track_window(33, 10, -1, manual_scroll_offset=24)
+    assert sim_scroll_end["visible_splits"] == [23, 24, 25, 26, 27, 28, 29, 30, 31, 32], "Shows finale splits"
+    assert sim_scroll_end["has_discontinuity"] is False, "Discontinuity vanishes at finale"
+    assert sim_scroll_end["visible_count"] == 10
+
     # Scenario B: Runner is mid-run at Split 15 (centered window)
     sim_mid = simulate_track_window(33, 10, 15)
     assert sim_mid["has_discontinuity"] is True
@@ -1813,6 +1838,16 @@ def test_always_show_last_split_and_schematic_break():
     assert 15 == sim_mid["visible_splits"][4], "Current split 15 must be dead-center in the 9 sliding slots"
     assert sim_mid["visible_count"] == 10, "Total visible nodes on screen must be exactly 10"
     assert 32 in sim_mid["visible_splits"], "Final split 32 must be pinned at the end"
+
+    # Scenario B2: Runner mid-run peeks at future splits (offset = +2)
+    sim_mid_future = simulate_track_window(33, 10, 15, manual_scroll_offset=2)
+    assert sim_mid_future["visible_splits"] == [13, 14, 15, 16, 17, 18, 19, 20, 21, 32], "Future splits 20, 21 come into view"
+    assert sim_mid_future["visible_count"] == 10
+
+    # Scenario B3: Runner mid-run peeks at earlier splits (offset = -2)
+    sim_mid_past = simulate_track_window(33, 10, 15, manual_scroll_offset=-2)
+    assert sim_mid_past["visible_splits"] == [9, 10, 11, 12, 13, 14, 15, 16, 17, 32], "Earlier splits 9, 10 come into view"
+    assert sim_mid_past["visible_count"] == 10
 
     # Scenario C: Runner approaches the finale (Split 29)
     sim_end = simulate_track_window(33, 10, 29)
