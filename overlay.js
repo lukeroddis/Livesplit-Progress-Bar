@@ -2727,7 +2727,7 @@ function toggleSettingsMenu(forceOpen) {
     quickWrap.classList.remove("menu-open");
     triggerPill.classList.remove("is-pressed");
     triggerPill.setAttribute("aria-pressed", "false");
-    triggerPill.setAttribute("title", "Click to open LiveSplit Settings & .lss Loader");
+    triggerPill.setAttribute("title", "Click to open LiveSplit Settings");
   }
 }
 

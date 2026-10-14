@@ -91,7 +91,7 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
 | **`←` / `→`** (or **`↑` / `↓`**) | Pan splits with keyboard arrow keys |
 | **`E`** or **`F2`** | Toggle Interactive Layout Edit Mode (Drag & Scale) |
 | **`Esc`** | Exit Edit Mode or close open modals |
-| **`Settings & .lss`** | Bottom-right discreet pill to configure styles, profiles, and drop `.lss` files |
+| **`Settings`** | Bottom-right discreet pill to configure styles, profiles, and drop `.lss` files |
 
 For multi-scene or automated OBS setups, configure sources instantly with query parameters:
 
