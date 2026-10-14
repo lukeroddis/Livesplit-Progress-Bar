@@ -1342,6 +1342,42 @@ def test_track_scrolling_consistency_and_mousewheel():
     print("✓ Track scroll wheel & arrow key consistency tests passed.")
 
 
+def test_skipped_split_and_incomplete_data_handling():
+    """Verify skipped splits and splits with incomplete data are uncoloured and display a dash '-' for delta."""
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+    with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
+        css_src = f.read()
+
+    # 1. State class arrays include 'uncoloured' and 'delta-uncoloured'
+    assert '"uncoloured"' in overlay_src, "ALL_SPLIT_STATE_CLASSES must include 'uncoloured'"
+    assert '"delta-uncoloured"' in overlay_src, "ALL_DELTA_CLASSES must include 'delta-uncoloured'"
+
+    # 2. CSS styles for uncoloured bar fills, dots, and deltas
+    assert ".segment-bar-fill.uncoloured" in css_src, "style.css must define .segment-bar-fill.uncoloured"
+    assert ".split-item.completed.uncoloured .dot" in css_src, "style.css must style uncoloured dots"
+    assert ".delta-uncoloured" in css_src, "style.css must style .delta-uncoloured"
+
+    # 3. Skipped split detection logic
+    assert "parsedLastSplit > (lastSplitRecordedSec + 0.001)" in overlay_src, \
+        "overlay.js must distinguish completed splits from skipped splits using lastSplitRecordedSec monotonic comparison"
+
+    # 4. Incomplete data fallback (fresh splits with no PB comparison)
+    assert 'stateClass = "uncoloured"' in overlay_src, "overlay.js must set stateClass to 'uncoloured' when data is incomplete"
+    assert 'displayDelta = { text: "-", isAhead: false, signedSeconds: 0 }' in overlay_src, \
+        "overlay.js must set delta text to '-' when data is incomplete or split is skipped"
+
+    # 5. Multiple skipped splits loop
+    assert "for (let s = currentIndex; s < idx - 1; s++)" in overlay_src, \
+        "overlay.js must mark all skipped intermediate splits as uncoloured when jumping multiple splits"
+
+    # 6. Undo split handles skipped splits rollback
+    assert "for (let k = newIdx - 1; k >= 0; k--)" in overlay_src, \
+        "overlay.js handleUndoSplit must traverse backward past skipped splits to restore last recorded time"
+
+    print("✓ Skipped splits & incomplete data uncoloured handling tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -1373,6 +1409,7 @@ def main():
         test_version_and_license()
         test_layout_profiles_and_extensible_schema()
         test_track_scrolling_consistency_and_mousewheel()
+        test_skipped_split_and_incomplete_data_handling()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

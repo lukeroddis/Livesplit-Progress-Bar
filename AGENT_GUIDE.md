@@ -83,6 +83,18 @@ Query these **strictly upon split index transition, start, or reset**:
   - Physical X: $\text{X}_{\text{ghost}} = \text{startX}_k + p \times (\text{endX}_k - \text{startX}_k)$.
   - Screen bounds check: If $\text{X}_{\text{ghost}} < \text{scrollLeft}$, activate left edge pill (`❮ 🏆`); if $\text{X}_{\text{ghost}} > \text{scrollLeft} + \text{clientWidth}$, activate right edge pill (`🏆 ❯`).
 
+### 6. Skipped Splits & Incomplete Comparison Data
+* **Skipped Split Detection**:
+  - LiveSplit Server does not record a new split time when a split is skipped; `getlastsplittime` returns the time of the previous completed split (or `"-"` / `null`).
+  - A split is recorded as completed if and only if `parsedLastSplit > lastSplitRecordedSec + 0.001`.
+  - If not, it is marked as skipped (`isSkipped = true`, `splitTimeSec = null`).
+* **Uncoloured Styling & Dash Deltas**:
+  - Skipped splits and splits with incomplete data (e.g. fresh new splits with no PB comparison targets) are assigned `stateClass = "uncoloured"`.
+  - The progress bar segment fill is styled with `.segment-bar-fill.uncoloured` (`#475569`, no colored glow).
+  - The node dot is styled with `.split-item.completed.uncoloured .dot` (`#334155`).
+  - The delta is displayed as `"-"` (`.delta-uncoloured`).
+  - For completed splits on fresh splits, `timeSpan` displays the recorded split time, whereas for skipped splits `timeSpan` displays `"-"`.
+
 ---
 
 ## 4. LocalStorage Keys & State Schema

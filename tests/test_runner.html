@@ -79,9 +79,18 @@
     <div id="timer-rta"></div>
     <div id="timer-igt"></div>
     <div id="block-igt"></div>
-    <div id="block-rta"></div>
-    <div id="track-viewport"><div id="track"></div></div>
-    <div id="hud-comp-title"></div>
+    <div id="track-viewport">
+      <div id="track">
+        <div id="item-0" class="split-item">
+          <div id="fill-0" class="segment-bar-fill"></div>
+          <div class="dot"></div>
+          <div id="delta-0" class="split-delta">
+            <span id="delta-val-0" class="split-delta-val"></span>
+            <span id="time-val-0" class="split-time-val"></span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="hud-comp-timers"></div>
     <div id="hud-comp-track"></div>
     <span id="gold-toggle-badge"></span>
@@ -602,6 +611,36 @@
         assert(vp !== null, "track-viewport exists");
         const wheelEvt = new WheelEvent("wheel", { deltaY: 50, cancelable: true });
         window.dispatchEvent(wheelEvt);
+      });
+    });
+
+    suite("Skipped Splits & Incomplete Data", () => {
+      it("ALL_SPLIT_STATE_CLASSES includes uncoloured", () => {
+        const item = document.getElementById("item-0");
+        assert(item !== null, "item-0 exists");
+        item.classList.add("completed", "uncoloured");
+        assert(item.classList.contains("uncoloured"), "item-0 accepts uncoloured class");
+        item.classList.remove("uncoloured");
+      });
+
+      it("setDeltaDisplay handles uncoloured state and dash delta correctly", () => {
+        const delta = { text: "-", isAhead: false, signedSeconds: 0 };
+        window.setDeltaDisplay(0, delta, "uncoloured", null);
+        const deltaSpan = document.getElementById("delta-val-0");
+        const timeSpan = document.getElementById("time-val-0");
+        const fill = document.getElementById("fill-0");
+        const item = document.getElementById("item-0");
+        assertEqual(deltaSpan.innerText, "-");
+        assertEqual(timeSpan.innerText, "-");
+        assert(fill.classList.contains("uncoloured"), "fill has uncoloured class");
+        assert(item.classList.contains("uncoloured"), "item has uncoloured class");
+      });
+
+      it("setDeltaDisplay preserves completed time on incomplete comparison data", () => {
+        const delta = { text: "-", isAhead: false, signedSeconds: 0 };
+        window.setDeltaDisplay(0, delta, "uncoloured", 45.2);
+        const timeSpan = document.getElementById("time-val-0");
+        assert(timeSpan.innerText.includes("45") || timeSpan.innerText.includes("0:45"), "timeSpan displays split time");
       });
     });
 

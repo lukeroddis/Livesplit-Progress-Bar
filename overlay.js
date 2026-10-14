@@ -38,13 +38,13 @@ let lastElapsedSec = 0;
 const ALL_DELTA_CLASSES = [
   "delta-ahead-gaining", "delta-ahead-losing", 
   "delta-behind-gaining", "delta-behind-losing", 
-  "delta-gold"
+  "delta-gold", "delta-uncoloured"
 ];
 const ALL_SPLIT_STATE_CLASSES = [
   "completed", "current", "target-time", 
   "ahead-gaining", "ahead-losing", 
   "behind-gaining", "behind-losing", 
-  "gold", "overdue",
+  "gold", "uncoloured", "overdue",
   ...ALL_DELTA_CLASSES
 ];
 let cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
@@ -1054,6 +1054,8 @@ function updateTrackStatus(idx) {
         } else if (fill) {
           fill.style.width = "100%";
           fill.style.height = "100%";
+          fill.className = "segment-bar-fill uncoloured";
+          item.classList.add("uncoloured");
           if (fill.parentElement) fill.parentElement.classList.remove("overdue");
         }
       } else if (i === idx) {
@@ -1765,7 +1767,9 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
       timeSpan.className = "split-time-val";
     } else {
       const targetVal = formatTargetTime(comparisonTimes[index]);
-      timeSpan.innerText = targetVal || "-";
+      timeSpan.innerText = (stateClass === "uncoloured" && (splitTimeSec === null || splitTimeSec === undefined))
+        ? "-"
+        : (targetVal || "-");
       timeSpan.className = "split-time-val target-time";
     }
   }
@@ -1826,16 +1830,22 @@ function handleUndoSplit(newIdx, oldIdx) {
     }
   }
 
-  // Roll back lastSplitRecordedSec
-  lastSplitRecordedSec = (newIdx > 0 && completedSplitTimes[newIdx - 1] != null)
-    ? completedSplitTimes[newIdx - 1]
-    : 0;
+  // Roll back lastSplitRecordedSec to the last actual completed split
+  lastSplitRecordedSec = 0;
+  for (let k = newIdx - 1; k >= 0; k--) {
+    if (completedSplitTimes[k] != null) {
+      lastSplitRecordedSec = completedSplitTimes[k];
+      break;
+    }
+  }
 
-  // Roll back previousDeltaSeconds
-  if (newIdx > 0 && lockedDeltas[newIdx - 1] && lockedDeltas[newIdx - 1].deltaInfo) {
-    previousDeltaSeconds = lockedDeltas[newIdx - 1].deltaInfo.signedSeconds;
-  } else {
-    previousDeltaSeconds = 0;
+  // Roll back previousDeltaSeconds to the last completed split with comparison data
+  previousDeltaSeconds = 0;
+  for (let k = newIdx - 1; k >= 0; k--) {
+    if (lockedDeltas[k] && lockedDeltas[k].deltaInfo && lockedDeltas[k].stateClass !== "uncoloured") {
+      previousDeltaSeconds = lockedDeltas[k].deltaInfo.signedSeconds || 0;
+      break;
+    }
   }
 }
 
@@ -2059,122 +2069,162 @@ async function pollLoop() {
             }
           }
         } else if (currentIndex >= 0 && idx > currentIndex) {
-          const prevIdx = currentIndex;
-
-          // 1. Get exact cumulative split time from LiveSplit for the completed split
-          const rawLastSplit = await sendCommand("getlastsplittime");
-          let splitTimeSec = timeStringToSeconds(rawLastSplit);
-          if (splitTimeSec === null || splitTimeSec <= 0) {
-            splitTimeSec = currentTotalSec;
+          // If runner skipped multiple splits in one leap, mark skipped intermediate splits as uncoloured
+          for (let s = currentIndex; s < idx - 1; s++) {
+            delete completedSplitTimes[s];
+            const skipDelta = { text: "-", isAhead: false, signedSeconds: 0 };
+            lockedDeltas[s] = { deltaInfo: skipDelta, stateClass: "uncoloured", splitTimeSec: null };
+            setDeltaDisplay(s, skipDelta, "uncoloured", null);
           }
 
-          // 2. Compute segment duration
-          const prevSplitSec = (prevIdx > 0 && completedSplitTimes[prevIdx - 1] != null)
-            ? completedSplitTimes[prevIdx - 1]
-            : 0;
+          const prevIdx = idx - 1;
 
-          let segmentDurationSec = (splitTimeSec !== null && splitTimeSec >= prevSplitSec)
-            ? (splitTimeSec - prevSplitSec)
-            : ((currentTotalSec !== null && currentTotalSec >= lastSplitRecordedSec)
-                ? (currentTotalSec - lastSplitRecordedSec)
-                : null);
+          // 1. Get exact cumulative split time from LiveSplit for the evaluated split
+          const rawLastSplit = await sendCommand("getlastsplittime");
+          const parsedLastSplit = timeStringToSeconds(rawLastSplit);
 
-          if (splitTimeSec !== null) {
+          // A split was completed IF AND ONLY IF LiveSplit recorded a new positive split time
+          // that is strictly greater than the last recorded split time of this run!
+          const isSplitCompleted = (parsedLastSplit !== null && parsedLastSplit > 0 && parsedLastSplit > (lastSplitRecordedSec + 0.001));
+
+          let splitTimeSec = null;
+          let isSkipped = !isSplitCompleted;
+
+          if (isSplitCompleted) {
+            splitTimeSec = parsedLastSplit;
             completedSplitTimes[prevIdx] = splitTimeSec;
             lastSplitRecordedSec = splitTimeSec;
-          }
-
-          // 3. Get delta from LiveSplit
-          const rawFinalDelta = await sendCommand("getdelta");
-          const finalDeltaInfo = formatDeltaLive(rawFinalDelta);
-
-          // 4. Evaluate Gold Split (Personal Best Segment)
-          let isGold = false;
-          const isGoldsEnabled = cachedEnableGolds;
-          const bestSec = (prevIdx < bestSegmentTimes.length && bestSegmentTimes[prevIdx] !== null && bestSegmentTimes[prevIdx] > 0)
-            ? bestSegmentTimes[prevIdx]
-            : null;
-
-          // Only ever mark gold if Golds are enabled, we have a valid positive best segment, and we strictly beat it
-          if (isGoldsEnabled && bestSec !== null && segmentDurationSec !== null && segmentDurationSec > 0) {
-            if (segmentDurationSec < (bestSec - 0.05)) {
-              isGold = true;
-              bestSegmentTimes[prevIdx] = segmentDurationSec;
-              if (currentTimingMethod === "RealTime") {
-                bestSegmentTimesRT[prevIdx] = segmentDurationSec;
-              } else {
-                bestSegmentTimesGT[prevIdx] = segmentDurationSec;
-              }
-
-              // Only write to persistent storage immediately if the user opted out of discarding on reset
-              const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
-              if (!discardOnReset) {
-                if (currentTimingMethod === "RealTime") {
-                  localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
-                } else {
-                  localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
-                }
-              }
-            }
-          }
-
-          // 5. Determine State Classification (LiveSplit Standard 4-State)
-          let stateClass = "behind-losing";
-          if (isGold) {
-            stateClass = "gold";
-          } else if (finalDeltaInfo) {
-            const currentDeltaSec = finalDeltaInfo.signedSeconds;
-            const deltaChange = currentDeltaSec - previousDeltaSeconds;
-            const gainedTime = deltaChange <= 0.001; // Gained time or stayed even vs PB segment
-
-            if (finalDeltaInfo.isAhead) {
-              stateClass = gainedTime ? "ahead-gaining" : "ahead-losing";
-            } else {
-              stateClass = gainedTime ? "behind-gaining" : "behind-losing";
-            }
           } else {
-            const targetSec = comparisonTimes[prevIdx];
-            if (targetSec && splitTimeSec) {
-              stateClass = (splitTimeSec <= targetSec) ? "ahead-gaining" : "behind-losing";
+            delete completedSplitTimes[prevIdx];
+          }
+
+          let stateClass = "uncoloured";
+          let displayDelta = { text: "-", isAhead: false, signedSeconds: 0 };
+
+          if (!isSkipped) {
+            // 2. Compute segment duration
+            let prevSplitSec = 0;
+            for (let k = prevIdx - 1; k >= 0; k--) {
+              if (completedSplitTimes[k] != null) {
+                prevSplitSec = completedSplitTimes[k];
+                break;
+              }
             }
-          }
 
-          if (finalDeltaInfo) {
-            previousDeltaSeconds = finalDeltaInfo.signedSeconds;
-          }
+            let segmentDurationSec = (splitTimeSec >= prevSplitSec)
+              ? (splitTimeSec - prevSplitSec)
+              : null;
 
-          // Check if final split completed and beats overall Personal Best
-          if (prevIdx === splitsList.length - 1 && splitTimeSec !== null && splitTimeSec > 0) {
-            const overallPbSec = comparisonTimes[splitsList.length - 1];
-            if (overallPbSec === null || overallPbSec === undefined || splitTimeSec < overallPbSec) {
-              for (let i = 0; i < splitsList.length; i++) {
-                if (completedSplitTimes[i] != null) {
-                  comparisonTimes[i] = completedSplitTimes[i];
+            // 3. Get delta from LiveSplit
+            const rawFinalDelta = await sendCommand("getdelta");
+            const finalDeltaInfo = formatDeltaLive(rawFinalDelta);
+            const targetSec = (prevIdx < comparisonTimes.length && comparisonTimes[prevIdx] !== null && comparisonTimes[prevIdx] > 0)
+              ? comparisonTimes[prevIdx]
+              : null;
+
+            // 4. Evaluate Gold Split (Personal Best Segment)
+            let isGold = false;
+            const isGoldsEnabled = cachedEnableGolds;
+            const bestSec = (prevIdx < bestSegmentTimes.length && bestSegmentTimes[prevIdx] !== null && bestSegmentTimes[prevIdx] > 0)
+              ? bestSegmentTimes[prevIdx]
+              : null;
+
+            // Only ever mark gold if Golds are enabled, we have a valid positive best segment, and we strictly beat it
+            if (isGoldsEnabled && bestSec !== null && segmentDurationSec !== null && segmentDurationSec > 0) {
+              if (segmentDurationSec < (bestSec - 0.05)) {
+                isGold = true;
+                bestSegmentTimes[prevIdx] = segmentDurationSec;
+                if (currentTimingMethod === "RealTime") {
+                  bestSegmentTimesRT[prevIdx] = segmentDurationSec;
+                } else {
+                  bestSegmentTimesGT[prevIdx] = segmentDurationSec;
+                }
+
+                // Only write to persistent storage immediately if the user opted out of discarding on reset
+                const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
+                if (!discardOnReset) {
                   if (currentTimingMethod === "RealTime") {
-                    comparisonTimesRT[i] = completedSplitTimes[i];
+                    localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
                   } else {
-                    comparisonTimesGT[i] = completedSplitTimes[i];
+                    localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
                   }
                 }
               }
+            }
 
-              // Completed PB run: commit both targets AND newly earned best segments to baseline!
-              baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
-              baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
-              localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(baselineBestSegmentTimesGT));
-              localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(baselineBestSegmentTimesRT));
-              localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
-              localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+            // 5. Determine State Classification & Delta Display
+            if (isGold) {
+              stateClass = "gold";
+              if (finalDeltaInfo) {
+                displayDelta = finalDeltaInfo;
+                previousDeltaSeconds = finalDeltaInfo.signedSeconds;
+              } else if (targetSec) {
+                const diff = splitTimeSec - targetSec;
+                displayDelta = { text: formatDeltaSeconds(diff), isAhead: diff <= 0, signedSeconds: diff };
+                previousDeltaSeconds = diff;
+              }
+            } else if (finalDeltaInfo) {
+              displayDelta = finalDeltaInfo;
+              const currentDeltaSec = finalDeltaInfo.signedSeconds;
+              const deltaChange = currentDeltaSec - previousDeltaSeconds;
+              const gainedTime = deltaChange <= 0.001; // Gained time or stayed even vs PB segment
 
-              if (currentTimingMethod === "RealTime") {
-                localStorage.setItem("livesplit_targets_rt", JSON.stringify(comparisonTimesRT));
+              if (finalDeltaInfo.isAhead) {
+                stateClass = gainedTime ? "ahead-gaining" : "ahead-losing";
               } else {
-                localStorage.setItem("livesplit_targets_gt", JSON.stringify(comparisonTimesGT));
+                stateClass = gainedTime ? "behind-gaining" : "behind-losing";
+              }
+              previousDeltaSeconds = currentDeltaSec;
+            } else if (targetSec) {
+              const diff = splitTimeSec - targetSec;
+              displayDelta = { text: formatDeltaSeconds(diff), isAhead: diff <= 0, signedSeconds: diff };
+              const deltaChange = diff - previousDeltaSeconds;
+              const gainedTime = deltaChange <= 0.001;
+
+              if (diff <= 0) {
+                stateClass = gainedTime ? "ahead-gaining" : "ahead-losing";
+              } else {
+                stateClass = gainedTime ? "behind-gaining" : "behind-losing";
+              }
+              previousDeltaSeconds = diff;
+            } else {
+              // Incomplete data: fresh new splits with no existing data to compare against
+              stateClass = "uncoloured";
+              displayDelta = { text: "-", isAhead: false, signedSeconds: 0 };
+            }
+
+            // Check if final split completed and beats overall Personal Best
+            if (prevIdx === splitsList.length - 1 && splitTimeSec !== null && splitTimeSec > 0) {
+              const overallPbSec = comparisonTimes[splitsList.length - 1];
+              if (overallPbSec === null || overallPbSec === undefined || splitTimeSec < overallPbSec) {
+                for (let i = 0; i < splitsList.length; i++) {
+                  if (completedSplitTimes[i] != null) {
+                    comparisonTimes[i] = completedSplitTimes[i];
+                    if (currentTimingMethod === "RealTime") {
+                      comparisonTimesRT[i] = completedSplitTimes[i];
+                    } else {
+                      comparisonTimesGT[i] = completedSplitTimes[i];
+                    }
+                  }
+                }
+
+                // Completed PB run: commit both targets AND newly earned best segments to baseline!
+                baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
+                baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
+                localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(baselineBestSegmentTimesGT));
+                localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(baselineBestSegmentTimesRT));
+                localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
+                localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+
+                if (currentTimingMethod === "RealTime") {
+                  localStorage.setItem("livesplit_targets_rt", JSON.stringify(comparisonTimesRT));
+                } else {
+                  localStorage.setItem("livesplit_targets_gt", JSON.stringify(comparisonTimesGT));
+                }
               }
             }
-          }
+          } // end if (!isSkipped)
 
-          const displayDelta = finalDeltaInfo || { text: "-", isAhead: false, signedSeconds: 0 };
           lockedDeltas[prevIdx] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
           setDeltaDisplay(prevIdx, displayDelta, stateClass, splitTimeSec);
 
@@ -2788,5 +2838,6 @@ window.toggleTimingMethod = toggleTimingMethod;
 window.resetSettingsMenuPosition = resetSettingsMenuPosition;
 window.toggleSettingsMenu = toggleSettingsMenu;
 window.handleUndoSplit = handleUndoSplit;
+window.setDeltaDisplay = setDeltaDisplay;
 window.setupTrackScrollInteractions = setupTrackScrollInteractions;
 window.initOverlay = initOverlay;
