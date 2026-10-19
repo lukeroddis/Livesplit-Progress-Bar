@@ -33,7 +33,7 @@
 
 ## 2. LiveSplit Server Protocol Nuances (`ws://localhost:16834/livesplit`)
 
-LiveSplit Server is a single-threaded TCP socket bridge. Deviating from these protocol constraints will crash communication or induce severe UI desynchronization:
+LiveSplit Server is a single-threaded WebSocket bridge (natively built-in as of LiveSplit v1.8.30+ under `Right-click → Control → Start WebSocket Server`, or via legacy `LiveSplit.Server.dll` in v1.7.0+). Deviating from these protocol constraints will crash communication or induce severe UI desynchronization:
 
 ### ⚠️ Blacklisted Commands
 * **`gettimingmethod`**: **STRICTLY BLACKLISTED**. Do **never** query this command. LiveSplit Server does not implement it; queries hang indefinitely until socket timeout (80ms), blocking the entire command queue.

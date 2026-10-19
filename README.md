@@ -19,13 +19,25 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
 
 ---
 
+## 📋 Prerequisites & Compatibility
+
+| Software | Minimum Version | Recommended | Notes |
+| :--- | :--- | :--- | :--- |
+| **LiveSplit** | **v1.8.30+** (or v1.7.0+ with legacy `LiveSplit.Server.dll`) | **v1.8.37+** | Built-in WebSocket server under `Control → Start WebSocket Server` (zero external DLLs required). |
+| **OBS Studio** | **v27.2+** | **v29.0+** (or 30+) | Supports modern Chromium browser sources, hardware acceleration, and CSS `backdrop-filter` frosted glass blur. |
+| **Desktop Browsers** | Chrome 90+, Edge 90+, Firefox 90+ | Latest | For standalone browser display and multi-monitor setups. |
+
+---
+
 ## ⚡ Quick Start (60 Seconds)
 
-1. **Start LiveSplit Server**:
-   * In LiveSplit, right-click → **Edit Layout** → add **Control → LiveSplit Server**.
-   * Right-click → **Control → Start Server** (default: `ws://localhost:16834`).
+1. **Start LiveSplit WebSocket Server**:
+   * **LiveSplit v1.8.30+ (Recommended)**: Right-click LiveSplit → **Control** → **Start WebSocket Server** (default: `ws://localhost:16834/livesplit`).
+     * *Tip (v1.8.37+)*: In `Right-click → Settings`, check the option to automatically start the WebSocket server whenever LiveSplit opens.
+   * **Older LiveSplit versions (v1.7.0 – v1.8.29)**: Right-click → **Edit Layout** → add **Control → LiveSplit Server**, then right-click → **Control → Start Server**.
+   * *(Important: Select **WebSocket Server**, not TCP Server, as browser overlays communicate via WebSockets).*
 2. **Open the Overlay**:
-   * **In OBS Studio**: Add a **Browser Source** pointing to `index.html` (or your local web server), set resolution to `1920×1080` (or match your game resolution), and check *"Shutdown source when not visible"*.
+   * **In OBS Studio (Recommended)**: Add a **Browser Source** pointing to `index.html` (or your local web server), set resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
    * **In Desktop Browser**: Open [index.html](index.html) in Chrome, Edge, or Firefox.
 3. **Load Your Splits**:
    * Drag and drop your `.lss` splits file directly onto the window. Splits, targets, and history are cached locally.
