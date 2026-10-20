@@ -1309,7 +1309,13 @@ body.edit-mode .layout-toolbar {
   transform: translateY(-50%);
   font-size: var(--name-font-size, 17px);
   font-weight: 700;
-  white-space: nowrap;
+  /* allow wrapping but limit to two lines */
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word; /* break long words to avoid overflow */
 }
 
 .track.vertical .split-delta {
