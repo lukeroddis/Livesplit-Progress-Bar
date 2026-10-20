@@ -1,6 +1,9 @@
 name: Release & Package Overlay
 
 on:
+  pull_request:
+    types: [closed]
+    branches: [main]
   push:
     tags:
       - "v*"
@@ -24,11 +27,13 @@ jobs:
   release:
     name: Build & Publish Release
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -40,11 +45,29 @@ jobs:
         run: |
           python tests/run_tests.py
 
-      - name: Bump Version (if workflow_dispatch)
-        id: bump
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.bump_type != 'none'
+      - name: Determine Bump Type
+        id: determine_bump
         run: |
-          python scripts/bump_version.py ${{ github.event.inputs.bump_type }}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "BUMP_TYPE=${{ github.event.inputs.bump_type }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            LABELS="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+            if echo "$LABELS" | grep -q "major"; then
+              echo "BUMP_TYPE=major" >> $GITHUB_ENV
+            elif echo "$LABELS" | grep -q "minor"; then
+              echo "BUMP_TYPE=minor" >> $GITHUB_ENV
+            else
+              echo "BUMP_TYPE=patch" >> $GITHUB_ENV
+            fi
+          else
+            echo "BUMP_TYPE=none" >> $GITHUB_ENV
+          fi
+
+      - name: Bump Version & Tag
+        id: bump
+        if: env.BUMP_TYPE != 'none'
+        run: |
+          python scripts/bump_version.py ${{ env.BUMP_TYPE }}
           VERSION=$(python -c "import json; print(json.load(open('package.json'))['version'])")
           echo "NEW_VERSION=v$VERSION" >> $GITHUB_ENV
           git config user.name "github-actions[bot]"
@@ -77,7 +100,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: "LiveSplit Minimal Overlay ${{ env.RELEASE_TAG }}"
+          name: "LiveSplit Progress Bar ${{ env.RELEASE_TAG }}"
           files: ${{ env.ZIP_NAME }}
           generate_release_notes: true
           draft: false
