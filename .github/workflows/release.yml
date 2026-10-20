@@ -52,7 +52,11 @@ jobs:
             echo "BUMP_TYPE=${{ github.event.inputs.bump_type }}" >> $GITHUB_ENV
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             LABELS="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
-            if echo "$LABELS" | grep -q "major"; then
+            if echo "$LABELS" | grep -q -E "skip-release|no-release"; then
+              echo "SKIP_RELEASE=true" >> $GITHUB_ENV
+              echo "BUMP_TYPE=none" >> $GITHUB_ENV
+              echo "skip-release label detected: Skipping release generation."
+            elif echo "$LABELS" | grep -q "major"; then
               echo "BUMP_TYPE=major" >> $GITHUB_ENV
             elif echo "$LABELS" | grep -q "minor"; then
               echo "BUMP_TYPE=minor" >> $GITHUB_ENV
@@ -65,7 +69,7 @@ jobs:
 
       - name: Bump Version & Tag
         id: bump
-        if: env.BUMP_TYPE != 'none'
+        if: env.SKIP_RELEASE != 'true' && env.BUMP_TYPE != 'none'
         run: |
           python scripts/bump_version.py ${{ env.BUMP_TYPE }}
           VERSION=$(python -c "import json; print(json.load(open('package.json'))['version'])")
@@ -78,6 +82,7 @@ jobs:
 
       - name: Resolve Version Tag
         id: resolve_tag
+        if: env.SKIP_RELEASE != 'true'
         run: |
           if [ -n "$NEW_VERSION" ]; then
             TAG="$NEW_VERSION"
@@ -91,12 +96,14 @@ jobs:
           echo "Target tag: $TAG"
 
       - name: Bundle Runtime Package
+        if: env.SKIP_RELEASE != 'true'
         run: |
           ZIP_NAME="livesplit-minimal-overlay-${RELEASE_TAG}.zip"
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
           zip -r "$ZIP_NAME" index.html style.css layout.js overlay.js package.json LICENSE README.md assets/ src/ schema/
 
       - name: Create GitHub Release
+        if: env.SKIP_RELEASE != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
