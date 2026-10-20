@@ -30,7 +30,7 @@ const safeStorage = {
 };
 window.safeStorage = safeStorage;
 
-const APP_VERSION = "v1.0.0";
+const APP_VERSION = "v1.0.1";
 const WS_URL = "ws://localhost:16834/livesplit";
 
 // Generic fallback splits used if no .lss is loaded
