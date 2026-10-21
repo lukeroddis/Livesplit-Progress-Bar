@@ -1020,6 +1020,28 @@
         rc.stopSimulation();
       });
 
+      it("DOM slot order in #leaderboard-rows strictly matches rank order (slot 0 is rank 1, slot 1 is rank 2...)", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+
+        // Mock custom ranking: shadow (1), you (2), apex (3), speeddemon (4)
+        const mockEntrants = [
+          { userId: "sim_shadow", username: "ShadowPacer", rank: 1, gapDisplay: "LEADER", intervalDisplay: "--", color: "#a855f7" },
+          { userId: "you", username: "You", rank: 2, isHost: true, gapDisplay: "+8.2s", intervalDisplay: "+8.2s", color: "#38bdf8" },
+          { userId: "sim_apex", username: "ApexRunner", rank: 3, gapDisplay: "+10.1s", intervalDisplay: "+1.9s", color: "#f59e0b" },
+          { userId: "sim_speeddemon", username: "SpeedDemon", rank: 4, gapDisplay: "+14.2s", intervalDisplay: "+4.1s", color: "#06b6d4" }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(mockEntrants, true, false, false);
+        const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
+        assertEqual(rows[0].getAttribute("data-user-id"), "sim_shadow", "slot 0 is rank 1 (ShadowPacer)");
+        assertEqual(rows[1].getAttribute("data-user-id"), "you", "slot 1 is rank 2 (You)");
+        assertEqual(rows[2].getAttribute("data-user-id"), "sim_apex", "slot 2 is rank 3 (ApexRunner)");
+        assertEqual(rows[3].getAttribute("data-user-id"), "sim_speeddemon", "slot 3 is rank 4 (SpeedDemon)");
+
+        rc.stopSimulation();
+      });
+
       it("updateGhostRunner executes cleanly during race simulation", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);

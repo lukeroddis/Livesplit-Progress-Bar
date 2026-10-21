@@ -291,9 +291,7 @@
           }
         }
 
-        if (ranksChanged) {
-          rowsEl.appendChild(row);
-        }
+        rowsEl.appendChild(row);
       }
     });
 
