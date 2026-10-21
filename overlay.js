@@ -2670,6 +2670,11 @@ async function pollLoop() {
         previousDeltaSeconds = 0;
         lastElapsedSec = 0;
 
+        const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+        if (rc && typeof rc.reset === "function") {
+          rc.reset();
+        }
+
         // Discard uncommitted in-run gold split segments by default upon reset
         const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
         if (discardOnReset && baselineBestSegmentTimesGT.length > 0) {

@@ -999,6 +999,27 @@
         rc.stopSimulation();
       });
 
+      it("Reset cleanly clears simulation state and leaderboard transforms", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+        rc.updateHostProgress(45, 1, [30], [30, 60], "Split 2");
+
+        assertEqual(typeof rc.reset, "function");
+        assertEqual(typeof window.LiveSplit.Leaderboard.reset, "function");
+
+        rc.reset();
+        const entrants = rc.getRankedEntrants();
+        assertEqual(entrants[0].currentTimeSec, 0);
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
+        const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
+        rows.forEach((r) => {
+          assertEqual(r.style.transform, "");
+        });
+
+        rc.stopSimulation();
+      });
+
       it("updateGhostRunner executes cleanly during race simulation", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);

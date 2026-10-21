@@ -12,10 +12,9 @@
 (function () {
   "use strict";
 
-  // Cache previous entrant row Y coordinates for FLIP animation (userId -> clientRectTop)
-  const prevRowTops = new Map();
   const rowElementMap = new Map();
-  let prevRankOrder = [];
+  // Map of userId -> previous rank (1, 2, 3...)
+  const prevRanks = new Map();
   let isMuteListenerAttached = false;
 
   /**
@@ -193,23 +192,14 @@
       ? rankedEntrants
       : getPreviewEntrants();
 
-    const newRankOrder = entrants.map(r => r.userId || "unknown");
-    const ranksChanged = (newRankOrder.length !== prevRankOrder.length) ||
-      newRankOrder.some((uId, i) => uId !== prevRankOrder[i]);
+    // Determine if any entrant changed rank position
+    const ranksChanged = entrants.some((r, idx) => prevRanks.get(r.userId) !== (idx + 1));
 
-    // -------------------------------------------------------------
-    // FLIP Step 1 (FIRST): Record pre-reorder tops before moving DOM nodes
-    // -------------------------------------------------------------
-    const oldTops = new Map();
-    if (ranksChanged) {
-      rowElementMap.forEach((row, uId) => {
-        if (row && row.isConnected) {
-          oldTops.set(uId, row.getBoundingClientRect().top);
-          // Cancel in-flight transition & clear inline transform so newTop measures true natural flow
-          row.style.transition = "none";
-          row.style.transform = "";
-        }
-      });
+    // Dynamic slot height (distance between adjacent rows in px)
+    let slotHeight = 44;
+    if (rowsEl.children.length >= 2) {
+      const h = rowsEl.children[1].offsetTop - rowsEl.children[0].offsetTop;
+      if (h > 24 && h < 120) slotHeight = h;
     }
 
     // -------------------------------------------------------------
@@ -308,22 +298,25 @@
     });
 
     // -------------------------------------------------------------
-    // FLIP Steps 3-6 (LAST, INVERT, PLAY): Smoothly animate overtakes
+    // Deterministic Rank Slot Animation: zero glitches, zero overlapping
     // -------------------------------------------------------------
-    if (ranksChanged && oldTops.size > 0) {
-      // Step 3 (INVERT): Synchronously counteract DOM reorder before browser renders
-      entrants.forEach((racer) => {
+    if (ranksChanged && prevRanks.size > 0) {
+      // Step 3 (INVERT): Synchronously counteract DOM displacement before browser renders
+      entrants.forEach((racer, idx) => {
         const uId = racer.userId || "unknown";
         const row = rowElementMap.get(uId);
-        if (!row || !oldTops.has(uId)) return;
+        if (!row) return;
 
-        const oldTop = oldTops.get(uId);
-        const newTop = row.getBoundingClientRect().top;
-        const dy = oldTop - newTop;
+        const oldRank = prevRanks.get(uId);
+        const newRank = idx + 1;
+        const rankDelta = (oldRank !== undefined) ? (oldRank - newRank) : 0;
 
-        if (Math.abs(dy) > 0.5) {
+        if (rankDelta !== 0) {
           row.style.transition = "none";
-          row.style.transform = `translateY(${dy}px)`;
+          row.style.transform = `translateY(${rankDelta * slotHeight}px)`;
+        } else {
+          row.style.transition = "none";
+          row.style.transform = "";
         }
       });
 
@@ -332,33 +325,44 @@
 
       // Step 5 (PLAY): Smoothly glide rows to natural target positions
       requestAnimationFrame(() => {
-        entrants.forEach((racer) => {
+        entrants.forEach((racer, idx) => {
           const uId = racer.userId || "unknown";
           const row = rowElementMap.get(uId);
-          if (!row || !oldTops.has(uId)) return;
+          if (!row) return;
 
-          const oldTop = oldTops.get(uId);
-          const newTop = row.getBoundingClientRect().top;
-          const dy = oldTop - newTop;
+          const oldRank = prevRanks.get(uId);
+          const newRank = idx + 1;
+          const rankDelta = (oldRank !== undefined) ? (oldRank - newRank) : 0;
 
-          row.style.transition = "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)";
-          row.style.transform = "";
+          if (rankDelta !== 0) {
+            row.style.transition = "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)";
+            row.style.transform = "";
 
-          if (dy > 0) {
-            row.classList.add("overtake-flash");
-            setTimeout(() => {
-              row.classList.remove("overtake-flash");
-            }, 600);
+            if (rankDelta > 0) {
+              row.classList.add("overtake-flash");
+              setTimeout(() => {
+                row.classList.remove("overtake-flash");
+              }, 500);
+            }
           }
         });
       });
-      prevRankOrder = newRankOrder;
     } else if (ranksChanged) {
-      prevRankOrder = newRankOrder;
+      // First render / clean reset: ensure zero residual transforms
+      entrants.forEach((racer) => {
+        const row = rowElementMap.get(racer.userId);
+        if (row) {
+          row.style.transition = "none";
+          row.style.transform = "";
+        }
+      });
     }
 
+    // Update recorded ranks
+    entrants.forEach((r, idx) => prevRanks.set(r.userId, idx + 1));
+
     // Clean up rows of racers who left
-    const activeIds = new Set(newRankOrder);
+    const activeIds = new Set(entrants.map(r => r.userId));
     rowElementMap.forEach((row, uId) => {
       if (!activeIds.has(uId)) {
         if (row.parentNode) row.parentNode.removeChild(row);
@@ -367,11 +371,23 @@
     });
   }
 
+  function reset() {
+    prevRanks.clear();
+    rowElementMap.forEach((row) => {
+      if (row) {
+        row.style.transition = "none";
+        row.style.transform = "";
+        row.classList.remove("overtake-flash");
+      }
+    });
+  }
+
   // Export to namespace
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.Leaderboard = {
     renderLeaderboard,
-    getPreviewEntrants
+    getPreviewEntrants,
+    reset
   };
   window.LiveSplitLeaderboard = window.LiveSplit.Leaderboard;
 })();

@@ -40,6 +40,7 @@
     let simulationTimer = null;
     let activeSplitsList = [];
     let activeComparisonTimes = [];
+    const lastKnownRanks = new Map();
 
     // Entrants map: userId -> Entrant Object
     const entrants = new Map();
@@ -109,7 +110,7 @@
         list.push(hostState);
       }
 
-      // Sort criteria:
+      // Sort criteria with hysteresis to eliminate 60 FPS neck-and-neck position jitter:
       // 1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
       // 2. Active runners ranked by continuous race score descending (further along split track)
       // 3. Ties broken by currentTimeSec ascending
@@ -120,12 +121,32 @@
         if (a.isFinished && !b.isFinished) return -1;
         if (!a.isFinished && b.isFinished) return 1;
 
-        const scoreDiff = (b.score || 0) - (a.score || 0);
-        if (Math.abs(scoreDiff) > 0.0001) {
+        const scoreA = a.score || 0;
+        const scoreB = b.score || 0;
+        const prevRankA = lastKnownRanks.get(a.userId);
+        const prevRankB = lastKnownRanks.get(b.userId);
+        const HYSTERESIS = 0.015; // ~0.45s pace advantage required to complete overtake
+
+        if (prevRankA !== undefined && prevRankB !== undefined) {
+          if (prevRankA < prevRankB) {
+            // A holds rank ahead of B unless B exceeds A by hysteresis margin
+            if (scoreB - scoreA > HYSTERESIS) return 1;
+            return -1;
+          } else if (prevRankB < prevRankA) {
+            // B holds rank ahead of A unless A exceeds B by hysteresis margin
+            if (scoreA - scoreB > HYSTERESIS) return -1;
+            return 1;
+          }
+        }
+
+        const scoreDiff = scoreB - scoreA;
+        if (Math.abs(scoreDiff) > 0.005) {
           return scoreDiff;
         }
         return (a.currentTimeSec || 0) - (b.currentTimeSec || 0);
       });
+
+      list.forEach((r, idx) => lastKnownRanks.set(r.userId, idx + 1));
 
       // Calculate leader gap and interval to competitor ahead based on track course reference time
       const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
@@ -590,6 +611,35 @@
       return false;
     }
 
+    function reset() {
+      hostState.currentTimeSec = 0;
+      hostState.currentSplitIndex = 0;
+      hostState.currentSplitName = "Start";
+      hostState.score = 0;
+      hostState.isFinished = false;
+      hostState.finalTimeSec = null;
+      hostState.splitTimes = [];
+
+      entrants.forEach((racer) => {
+        if (racer.isHost) {
+          Object.assign(racer, hostState);
+        } else {
+          racer.currentTimeSec = 0;
+          racer.currentSplitIndex = 0;
+          racer.currentSplitName = activeSplitsList[0] || "Split 1";
+          racer.score = 0;
+          racer.isFinished = false;
+          racer.finalTimeSec = null;
+        }
+      });
+
+      lastKnownRanks.clear();
+      notifyListeners("race_reset", null);
+      if (typeof window !== "undefined" && window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.reset === "function") {
+        window.LiveSplitLeaderboard.reset();
+      }
+    }
+
     return {
       init(opts = {}) {
         if (opts.username) {
@@ -610,6 +660,7 @@
       getRankedEntrants,
       setEntrantMuted,
       toggleEntrantMuted,
+      reset,
       subscribe(fn) {
         listeners.add(fn);
         return () => listeners.delete(fn);
