@@ -181,6 +181,19 @@
         </div>
       </div>
 
+      <!-- Section: Live Race Telemetry (therun.gg) -->
+      <div class="settings-section" id="section-race-mode">
+        <div class="settings-section-header">LIVE RACE TELEMETRY</div>
+        <div class="settings-grid">
+          <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to toggle Live Race connection">Race: Off</button>
+          <button type="button" class="settings-tile-btn" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
+        </div>
+        <div class="settings-profile-bar" style="margin-top: 6px;">
+          <input type="text" id="input-therun-username" class="settings-profile-input" placeholder="therun.gg username (auto-detect)" title="Enter your therun.gg username to automatically detect when you enter a live race">
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Save username for zero-click race detection">✓ Save</button>
+        </div>
+      </div>
+
       <!-- Section: Actions (Bar Styles modal & Edit Layout mode) -->
       <div class="settings-section">
         <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
@@ -541,6 +554,7 @@
   <script src="src/core/split-engine.js"></script>
   <script src="src/core/ghost-math.js"></script>
   <script src="src/core/livesplit-client.js"></script>
+  <script src="src/core/race-client.js"></script>
 
   <!-- UI & interaction modules -->
   <script src="src/ui/layout-engine.js"></script>

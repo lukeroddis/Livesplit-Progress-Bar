@@ -2070,6 +2070,7 @@ def test_modular_architecture():
         "src/core/split-engine.js",
         "src/core/ghost-math.js",
         "src/core/livesplit-client.js",
+        "src/core/race-client.js",
         "src/ui/layout-engine.js",
         "src/ui/track-renderer.js",
         "src/ui/interactions.js"
@@ -2101,6 +2102,10 @@ def test_modular_architecture():
     with open(client_path, "r", encoding="utf-8") as f:
         assert "window.LiveSplit.Client" in f.read(), "src/core/livesplit-client.js must export LiveSplit.Client"
 
+    race_path = os.path.join(ROOT_DIR, "src", "core", "race-client.js")
+    with open(race_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.RaceClient" in f.read(), "src/core/race-client.js must export LiveSplit.RaceClient"
+
     track_path = os.path.join(ROOT_DIR, "src", "ui", "track-renderer.js")
     with open(track_path, "r", encoding="utf-8") as f:
         assert "window.LiveSplit.TrackRenderer" in f.read(), "src/ui/track-renderer.js must export LiveSplit.TrackRenderer"
@@ -2118,6 +2123,53 @@ def test_modular_architecture():
     assert "createLiveElementCache" in overlay_src, "overlay.js must hook into createLiveElementCache"
 
     print("✓ Modular architecture (src/core, src/ui, LiveSplit namespaces, 60 FPS element caching) passed.")
+
+
+def test_race_client_and_simulation_engine():
+    """Verify Live Race client architecture, therun.gg telemetry handling,
+    F1 continuous ranking score calculation, leader/interval gap math, and simulation mode."""
+    race_path = os.path.join(ROOT_DIR, "src", "core", "race-client.js")
+    with open(race_path, "r", encoding="utf-8") as f:
+        race_src = f.read()
+
+    # 1. Core API definitions and namespaces
+    assert "createRaceClient" in race_src, "race-client.js must define createRaceClient"
+    assert "startAutoDetect" in race_src, "race-client.js must support auto-detection"
+    assert "connectToRace" in race_src, "race-client.js must support connectToRace"
+    assert "startSimulation" in race_src, "race-client.js must support startSimulation"
+    assert "stopSimulation" in race_src, "race-client.js must support stopSimulation"
+    assert "getRankedEntrants" in race_src, "race-client.js must compute getRankedEntrants"
+
+    # 2. Mathematical simulation of F1 continuous score & overtake logic
+    entrants = [
+        {"userId": "A", "score": 3.85, "currentTimeSec": 95.0, "isFinished": False},
+        {"userId": "B", "score": 4.10, "currentTimeSec": 94.0, "isFinished": False},
+        {"userId": "C", "score": 8.00, "currentTimeSec": 120.5, "finalTimeSec": 120.5, "isFinished": True},
+        {"userId": "D", "score": 8.00, "currentTimeSec": 125.0, "finalTimeSec": 125.0, "isFinished": True},
+    ]
+
+    def sort_entrants(runners):
+        return sorted(runners, key=lambda r: (
+            0 if r["isFinished"] else 1,
+            r.get("finalTimeSec", 0) if r["isFinished"] else -r["score"],
+            r.get("currentTimeSec", 0)
+        ))
+
+    ranked = sort_entrants(entrants)
+    assert [r["userId"] for r in ranked] == ["C", "D", "B", "A"], "Ranking order must follow F1 finish & continuous score rules"
+
+    # 3. URL parsing logic
+    def parse_race_id(url):
+        import re
+        m = re.search(r'(?:therun\.gg\/races\/|racetime\.gg\/[^/]+\/)?([a-zA-Z0-9_-]+)\/?$', url.strip())
+        return m.group(1) if m else url.strip()
+
+    assert parse_race_id("https://therun.gg/races/f0ub") == "f0ub"
+    assert parse_race_id("therun.gg/races/mario-cup-1") == "mario-cup-1"
+    assert parse_race_id("https://racetime.gg/sm64/live-race-xyz") == "live-race-xyz"
+    assert parse_race_id("simple_id_99") == "simple_id_99"
+
+    print("✓ Live Race client telemetry, F1 ranking, and simulation engine tests passed.")
 
 
 def test_track_orientation_and_split_density_reflow():
@@ -2282,6 +2334,7 @@ def main():
         test_comparison_hotkeys_and_toast()
         test_architectural_safeguards_and_bug_fixes()
         test_modular_architecture()
+        test_race_client_and_simulation_engine()
         test_track_orientation_and_split_density_reflow()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)

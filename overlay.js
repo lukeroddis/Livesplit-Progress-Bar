@@ -2798,6 +2798,14 @@ async function pollLoop() {
         if (currentTotalSec !== null) {
           updateLiveSegmentProgress(currentTotalSec);
           updateGhostRunner(currentTotalSec);
+          if (window.LiveSplitRaceClient) {
+            window.LiveSplitRaceClient.updateHostProgress(
+              currentTotalSec,
+              currentIndex,
+              completedSplitTimes,
+              comparisonTimes
+            );
+          }
         }
       }
     }
@@ -3342,6 +3350,79 @@ function initOverlay() {
   document.getElementById("ghost-badge")?.addEventListener("click", cycleGhostComparison);
   document.getElementById("split-density-badge")?.addEventListener("click", cycleVisibleSplits);
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
+
+  // Live Race Controls & Telemetry
+  const raceClient = window.LiveSplitRaceClient;
+  const raceToggleBtn = document.getElementById("race-toggle-badge");
+  const raceSimBtn = document.getElementById("race-sim-badge");
+  const therunUserInp = document.getElementById("input-therun-username");
+  const therunSaveBtn = document.getElementById("btn-save-therun-username");
+
+  if (raceClient) {
+    const savedUsername = localStorage.getItem("therun_username") || "";
+    if (therunUserInp && savedUsername) {
+      therunUserInp.value = savedUsername;
+    }
+    if (savedUsername) {
+      raceClient.startAutoDetect(savedUsername);
+    }
+
+    if (therunSaveBtn) {
+      therunSaveBtn.addEventListener("click", () => {
+        const val = (therunUserInp ? therunUserInp.value : "").trim();
+        localStorage.setItem("therun_username", val);
+        if (val) {
+          raceClient.startAutoDetect(val);
+          therunSaveBtn.textContent = "✓ Saved";
+          setTimeout(() => { therunSaveBtn.textContent = "✓ Save"; }, 1500);
+        } else {
+          raceClient.stopAutoDetect();
+          therunSaveBtn.textContent = "Cleared";
+          setTimeout(() => { therunSaveBtn.textContent = "✓ Save"; }, 1500);
+        }
+      });
+    }
+
+    if (raceSimBtn) {
+      raceSimBtn.addEventListener("click", () => {
+        if (raceClient.isSimulating()) {
+          raceClient.stopSimulation();
+          raceSimBtn.textContent = "🧪 Test Race";
+          raceSimBtn.style.color = "#f59e0b";
+          if (raceToggleBtn) {
+            raceToggleBtn.textContent = "Race: Off";
+            raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
+          }
+        } else {
+          raceClient.startSimulation(splitsList, comparisonTimes);
+          raceSimBtn.textContent = "🧪 Stop Sim";
+          raceSimBtn.style.color = "#ef4444";
+          if (raceToggleBtn) {
+            raceToggleBtn.textContent = "Race: Sim";
+            raceToggleBtn.style.color = "#4ade80";
+          }
+        }
+      });
+    }
+
+    raceClient.subscribe((event, data) => {
+      if (event === "race_connected") {
+        if (raceToggleBtn) {
+          raceToggleBtn.textContent = data && data.isSimulated ? "Race: Sim" : `Race: ${raceClient.getRaceId()}`;
+          raceToggleBtn.style.color = "#4ade80";
+        }
+      } else if (event === "race_disconnected") {
+        if (raceToggleBtn) {
+          raceToggleBtn.textContent = "Race: Off";
+          raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
+        }
+        if (raceSimBtn) {
+          raceSimBtn.textContent = "🧪 Test Race";
+          raceSimBtn.style.color = "#f59e0b";
+        }
+      }
+    });
+  }
 
   // Latching pressed-down trigger pill and close button setup
   const triggerPill = document.getElementById("settings-trigger-pill");
