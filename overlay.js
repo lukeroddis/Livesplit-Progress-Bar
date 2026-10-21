@@ -2921,11 +2921,16 @@ async function pollLoop() {
           updateLiveSegmentProgress(currentTotalSec);
           updateGhostRunner(currentTotalSec);
           if (window.LiveSplitRaceClient) {
+            const hostSplitName = (currentIndex < 0)
+              ? "Start"
+              : (currentIndex < splitsList.length ? splitsList[currentIndex] : "Finished");
             window.LiveSplitRaceClient.updateHostProgress(
               currentTotalSec,
               currentIndex,
               completedSplitTimes,
-              comparisonTimes
+              comparisonTimes,
+              hostSplitName,
+              splitsList
             );
           }
         }
@@ -3582,6 +3587,13 @@ function initOverlay() {
           raceSimBtn.textContent = "🧪 Test Race";
           raceSimBtn.style.color = "#f59e0b";
         }
+      } else if (event === "entrant_mute_changed") {
+        if (data && data.userId) {
+          const marker = document.getElementById(`ghost-marker-race-${data.userId}`);
+          if (marker) {
+            marker.style.display = data.isMuted ? "none" : "flex";
+          }
+        }
       }
     });
   }
@@ -3724,3 +3736,6 @@ window.isTrackWindowed = isTrackWindowed;
 window.getTrackManualScrollOffset = () => trackManualScrollOffset;
 window.showComparisonToast = showComparisonToast;
 window.initOverlay = initOverlay;
+window.getLastElapsedSec = () => lastElapsedSec;
+window.LiveSplit = window.LiveSplit || {};
+window.LiveSplit.getLastElapsedSec = () => lastElapsedSec;

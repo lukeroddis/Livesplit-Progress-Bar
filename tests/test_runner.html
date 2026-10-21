@@ -916,6 +916,71 @@
         assertEqual(rc.isSimulating(), false);
       });
 
+      it("Simulated competitors advance through split names dynamically", () => {
+        const rc = window.LiveSplit.RaceClient;
+        const splits = ["Forest", "Cave", "Castle", "Boss"];
+        const comps = [20, 40, 60, 80];
+        rc.startSimulation(splits, comps);
+
+        const entrants = rc.getRankedEntrants();
+        const comp1 = entrants.find(e => !e.isHost);
+        assert(comp1, "competitor exists");
+        assertEqual(comp1.currentSplitName, "Forest");
+
+        // Simulate host progressing past 45s (into 'Castle' split)
+        rc.updateHostProgress(50, 2, [20, 40], comps, "Castle", splits);
+        const updated = rc.getRankedEntrants();
+        const updatedComp = updated.find(e => e.userId === comp1.userId);
+        assert(updatedComp.currentSplitName === "Castle" || updatedComp.currentSplitName === "Boss" || updatedComp.currentSplitName === "Cave",
+          "competitor split advanced based on pace");
+
+        rc.stopSimulation();
+      });
+
+      it("Mute button toggles entrant muted state and leaderboard row persists", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+        const entrants = rc.getRankedEntrants();
+        const rival = entrants.find(e => !e.isHost);
+
+        assertEqual(rival.isMuted, false);
+        rc.toggleEntrantMuted(rival.userId);
+        assertEqual(rival.isMuted, true);
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(rc.getRankedEntrants(), true, false, false);
+        const row = document.querySelector(`.leaderboard-row[data-user-id="${rival.userId}"]`);
+        assert(row, "row exists");
+        assert(row.classList.contains("is-muted"), "row has is-muted class");
+
+        const btn = row.querySelector(".racer-mute-btn");
+        assert(btn, "mute button exists");
+        assertEqual(btn.textContent, "🔇");
+
+        // Simulate user clicking un-mute button
+        btn.click();
+        assertEqual(rival.isMuted, false);
+        assert(!row.classList.contains("is-muted"), "row is un-muted");
+        assertEqual(btn.textContent, "👁️");
+
+        rc.stopSimulation();
+      });
+
+      it("Repeated leaderboard renders preserve all entrant rows without dropping positions", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+        const entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 4);
+
+        // Call renderLeaderboard multiple times rapidly (as occurs at 60 FPS)
+        for (let t = 0; t < 10; t++) {
+          window.LiveSplit.Leaderboard.renderLeaderboard(rc.getRankedEntrants(), true, false, false);
+        }
+
+        const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
+        assertEqual(rows.length, 4, "all 4 rows remain present in DOM without dropping");
+        rc.stopSimulation();
+      });
+
       it("updateGhostRunner executes cleanly during race simulation", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);

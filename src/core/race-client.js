@@ -38,6 +38,7 @@
     let autoDetectUsername = "";
     let isSimulating = false;
     let simulationTimer = null;
+    let activeSplitsList = [];
 
     // Entrants map: userId -> Entrant Object
     const entrants = new Map();
@@ -155,10 +156,27 @@
     /**
      * Updates the host runner's in-run progress.
      */
-    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = []) {
+    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = []) {
+      if (Array.isArray(splitsList) && splitsList.length > 0) {
+        activeSplitsList = splitsList;
+      }
       hostState.currentTimeSec = Math.max(0, currentSec || 0);
       hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
       hostState.splitTimes = completedSplitTimes;
+
+      let hostSplitName = currentSplitName;
+      if (!hostSplitName) {
+        if (currentIndex < 0) {
+          hostSplitName = "Start";
+        } else if (activeSplitsList && activeSplitsList[currentIndex]) {
+          hostSplitName = activeSplitsList[currentIndex];
+        } else if (comparisonTimes && currentIndex >= comparisonTimes.length) {
+          hostSplitName = "Finished";
+        } else {
+          hostSplitName = `Split ${currentIndex + 1}`;
+        }
+      }
+      hostState.currentSplitName = hostSplitName;
 
       // Calculate in-segment progress ratio
       let ratio = 0;
@@ -175,6 +193,7 @@
 
       if (comparisonTimes && currentIndex >= comparisonTimes.length - 1 && ratio >= 1.0) {
         hostState.isFinished = true;
+        hostState.currentSplitName = "Finished";
         if (!hostState.finalTimeSec) hostState.finalTimeSec = currentSec;
       }
 
@@ -364,7 +383,11 @@
       isSimulating = true;
       raceId = "sim_cup_2026";
 
-      const count = (splitsList && splitsList.length > 0) ? splitsList.length : 8;
+      activeSplitsList = (Array.isArray(splitsList) && splitsList.length > 0)
+        ? [...splitsList]
+        : ["Split 1", "Split 2", "Split 3", "Split 4", "Split 5", "Split 6", "Split 7", "Finished"];
+
+      const count = activeSplitsList.length;
 
       // Create 3 simulated competitors with distinct personalities and paces
       const simConfigs = [
@@ -406,7 +429,7 @@
           paceFactor: cfg.paceFactor,
           driftOffset: cfg.driftOffset,
           currentSplitIndex: 0,
-          currentSplitName: splitsList[0] || "Split 1",
+          currentSplitName: activeSplitsList[0] || "Split 1",
           currentTimeSec: 0,
           isFinished: false,
           finalTimeSec: null,
@@ -429,7 +452,9 @@
           tickSimulatedCompetitors(hostState.currentTimeSec, compList);
         } else {
           simVirtualSec += 0.05;
-          updateHostProgress(simVirtualSec, Math.floor(simVirtualSec / 30), [], compList);
+          const curIdx = Math.floor(simVirtualSec / 30);
+          const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
+          updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList);
         }
         notifyListeners("entrant_updated", null);
         if (typeof window !== "undefined" && typeof window.updateGhostRunner === "function") {
@@ -476,6 +501,7 @@
         if (simSec >= finalTarget) {
           racer.isFinished = true;
           racer.currentSplitIndex = totalSplits - 1;
+          racer.currentSplitName = (activeSplitsList && activeSplitsList[totalSplits - 1]) ? activeSplitsList[totalSplits - 1] : "Finished";
           racer.finalTimeSec = racer.finalTimeSec || simSec;
           racer.score = totalSplits;
           return;
@@ -496,6 +522,7 @@
         }
 
         racer.currentSplitIndex = sIdx;
+        racer.currentSplitName = (activeSplitsList && activeSplitsList[sIdx]) ? activeSplitsList[sIdx] : `Split ${sIdx + 1}`;
         racer.score = sIdx + sRatio;
       });
     }

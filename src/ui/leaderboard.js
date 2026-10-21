@@ -14,6 +14,8 @@
 
   // Cache previous entrant row Y coordinates for FLIP animation (userId -> clientRectTop)
   const prevRowTops = new Map();
+  const rowElementMap = new Map();
+  let prevRankOrder = [];
   let isMuteListenerAttached = false;
 
   /**
@@ -98,10 +100,12 @@
    */
   function initMuteListener(containerEl) {
     if (isMuteListenerAttached || !containerEl) return;
-    containerEl.addEventListener("click", (e) => {
+
+    function handleMuteAction(e) {
       const btn = e.target.closest(".racer-mute-btn");
       if (!btn) return;
       e.stopPropagation();
+      e.preventDefault();
 
       const userId = btn.getAttribute("data-mute-user");
       if (!userId) return;
@@ -113,12 +117,23 @@
         btn.title = isNowMuted ? "Unmute pin on track" : "Mute pin on track";
         btn.closest(".leaderboard-row")?.classList.toggle("is-muted", isNowMuted);
 
+        // Immediately update track pin display
+        const marker = document.getElementById(`ghost-marker-race-${userId}`);
+        if (marker) {
+          marker.style.display = isNowMuted ? "none" : "flex";
+        }
+
         // Refresh track pins immediately
         if (typeof window.updateGhostRunner === "function") {
-          window.updateGhostRunner(window.lastElapsedSec || 0);
+          const curSec = (window.LiveSplit && typeof window.LiveSplit.getLastElapsedSec === "function")
+            ? window.LiveSplit.getLastElapsedSec()
+            : ((typeof window.getLastElapsedSec === "function") ? window.getLastElapsedSec() : (window.lastElapsedSec || 0));
+          window.updateGhostRunner(curSec);
         }
       }
-    });
+    }
+
+    containerEl.addEventListener("click", handleMuteAction);
     isMuteListenerAttached = true;
   }
 
@@ -178,23 +193,25 @@
       ? rankedEntrants
       : getPreviewEntrants();
 
+    const newRankOrder = entrants.map(r => r.userId || "unknown");
+    const ranksChanged = (newRankOrder.length !== prevRankOrder.length) ||
+      newRankOrder.some((uId, i) => uId !== prevRankOrder[i]);
+
     // -------------------------------------------------------------
-    // FLIP Animation: Step 1 (FIRST) - Record pre-update row tops
+    // FLIP Step 1 (FIRST): Record pre-reorder tops only when ranking permutation changes
     // -------------------------------------------------------------
-    const existingRows = rowsEl.querySelectorAll(".leaderboard-row");
     const oldTops = new Map();
-    existingRows.forEach((row) => {
-      const uId = row.getAttribute("data-user-id");
-      if (uId) {
-        oldTops.set(uId, row.getBoundingClientRect().top);
-      }
-    });
+    if (ranksChanged) {
+      rowElementMap.forEach((row, uId) => {
+        if (row && row.isConnected) {
+          oldTops.set(uId, row.getBoundingClientRect().top);
+        }
+      });
+    }
 
     // -------------------------------------------------------------
-    // Step 2: Render/update row HTML elements in standings order
+    // Step 2: In-place update of rows without destroying child elements
     // -------------------------------------------------------------
-    const fragment = document.createDocumentFragment();
-
     entrants.forEach((racer) => {
       const uId = racer.userId || "unknown";
       const isHost = !!racer.isHost;
@@ -202,77 +219,123 @@
       const rank = racer.rank || 1;
       const color = racer.color || (isHost ? "#38bdf8" : "#94a3b8");
 
-      let row = rowsEl.querySelector(`.leaderboard-row[data-user-id="${uId}"]`);
-      if (!row) {
+      let row = rowElementMap.get(uId);
+      if (!row || !rowsEl.contains(row)) {
         row = document.createElement("div");
-        row.className = "leaderboard-row";
+        row.className = `leaderboard-row${isHost ? " is-host" : ""}${isMuted ? " is-muted" : ""}`;
         row.setAttribute("data-user-id", uId);
+        row.style.setProperty("--racer-color", color);
+
+        const avatarMarkup = racer.avatar && (racer.avatar.startsWith("http") || racer.avatar.startsWith("data:"))
+          ? `<img class="racer-avatar-img" src="${racer.avatar}" alt="" />`
+          : `<span class="racer-avatar-emoji">${racer.avatar || (isHost ? "👤" : "🏎️")}</span>`;
+
+        const displayName = isHost ? "You" : racer.username;
+        const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
+        const gapVal = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
+        const intVal = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
+
+        row.innerHTML = `
+          <div class="pos-badge pos-${rank <= 3 ? rank : 'other'}">${rank}</div>
+          <div class="racer-accent-bar"></div>
+          <div class="racer-avatar-badge">${avatarMarkup}</div>
+          <div class="racer-name-block">
+            <span class="racer-name">${escapeHtml(displayName)}${isHost ? '<span class="host-pill">YOU</span>' : ''}</span>
+            <span class="racer-split">${escapeHtml(splitLabel)}</span>
+          </div>
+          <div class="racer-gap-col">
+            <span class="racer-gap">${gapVal}</span>
+            <span class="racer-interval">${intVal}</span>
+          </div>
+          ${!isHost ? `<button type="button" class="racer-mute-btn" data-mute-user="${uId}" title="${isMuted ? 'Unmute pin on track' : 'Mute pin on track'}">${isMuted ? '🔇' : '👁️'}</button>` : '<div class="racer-mute-spacer"></div>'}
+        `;
+        rowElementMap.set(uId, row);
+        rowsEl.appendChild(row);
+      } else {
+        // In-place property update: never destroy button or child nodes
+        row.className = `leaderboard-row${isHost ? " is-host" : ""}${isMuted ? " is-muted" : ""}`;
+        row.style.setProperty("--racer-color", color);
+
+        const posBadge = row.querySelector(".pos-badge");
+        if (posBadge) {
+          posBadge.textContent = rank;
+          posBadge.className = `pos-badge pos-${rank <= 3 ? rank : 'other'}`;
+        }
+
+        const splitEl = row.querySelector(".racer-split");
+        const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
+        if (splitEl && splitEl.textContent !== splitLabel) {
+          splitEl.textContent = splitLabel;
+        }
+
+        const gapEl = row.querySelector(".racer-gap");
+        const gapVal = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
+        if (gapEl && gapEl.textContent !== gapVal) {
+          gapEl.textContent = gapVal;
+        }
+
+        const intEl = row.querySelector(".racer-interval");
+        const intVal = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
+        if (intEl && intEl.textContent !== intVal) {
+          intEl.textContent = intVal;
+        }
+
+        const muteBtn = row.querySelector(".racer-mute-btn");
+        if (muteBtn) {
+          const expectedIcon = isMuted ? "🔇" : "👁️";
+          if (muteBtn.textContent !== expectedIcon) {
+            muteBtn.textContent = expectedIcon;
+            muteBtn.title = isMuted ? "Unmute pin on track" : "Mute pin on track";
+          }
+        }
+
+        if (ranksChanged) {
+          rowsEl.appendChild(row);
+        }
       }
-
-      row.className = `leaderboard-row${isHost ? " is-host" : ""}${isMuted ? " is-muted" : ""}`;
-      row.style.setProperty("--racer-color", color);
-
-      const avatarMarkup = racer.avatar && (racer.avatar.startsWith("http") || racer.avatar.startsWith("data:"))
-        ? `<img class="racer-avatar-img" src="${racer.avatar}" alt="" />`
-        : `<span class="racer-avatar-emoji">${racer.avatar || (isHost ? "👤" : "🏎️")}</span>`;
-
-      const displayName = isHost ? "You" : racer.username;
-      const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
-      const gapVal = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
-      const intVal = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
-
-      row.innerHTML = `
-        <div class="pos-badge pos-${rank <= 3 ? rank : 'other'}">${rank}</div>
-        <div class="racer-accent-bar"></div>
-        <div class="racer-avatar-badge">${avatarMarkup}</div>
-        <div class="racer-name-block">
-          <span class="racer-name">${escapeHtml(displayName)}${isHost ? '<span class="host-pill">YOU</span>' : ''}</span>
-          <span class="racer-split">${escapeHtml(splitLabel)}</span>
-        </div>
-        <div class="racer-gap-col">
-          <span class="racer-gap">${gapVal}</span>
-          <span class="racer-interval">${intVal}</span>
-        </div>
-        ${!isHost ? `<button type="button" class="racer-mute-btn" data-mute-user="${uId}" title="${isMuted ? 'Unmute pin on track' : 'Mute pin on track'}">${isMuted ? '🔇' : '👁️'}</button>` : '<div class="racer-mute-spacer"></div>'}
-      `;
-
-      fragment.appendChild(row);
     });
 
-    // Replace content in DOM
-    rowsEl.innerHTML = "";
-    rowsEl.appendChild(fragment);
-
     // -------------------------------------------------------------
-    // FLIP Animation: Steps 3-6 (LAST, INVERT, PLAY)
+    // FLIP Steps 3-6 (LAST, INVERT, PLAY): Smoothly animate overtakes
     // -------------------------------------------------------------
-    const updatedRows = rowsEl.querySelectorAll(".leaderboard-row");
-    updatedRows.forEach((row) => {
-      const uId = row.getAttribute("data-user-id");
-      if (!uId || !oldTops.has(uId)) return;
+    if (ranksChanged && oldTops.size > 0) {
+      entrants.forEach((racer) => {
+        const uId = racer.userId || "unknown";
+        const row = rowElementMap.get(uId);
+        if (!row || !oldTops.has(uId)) return;
 
-      const oldTop = oldTops.get(uId);
-      const newTop = row.getBoundingClientRect().top;
-      const dy = oldTop - newTop;
+        const oldTop = oldTops.get(uId);
+        const newTop = row.getBoundingClientRect().top;
+        const dy = oldTop - newTop;
 
-      if (Math.abs(dy) > 0.5) {
-        // INVERT: Immediately counteract visual jump
-        row.style.transform = `translateY(${dy}px)`;
-        row.style.transition = "none";
+        if (Math.abs(dy) > 0.5) {
+          row.style.transition = "none";
+          row.style.transform = `translateY(${dy}px)`;
 
-        // PLAY: Animate smoothly to natural position on next frame
-        requestAnimationFrame(() => {
-          row.style.transition = "transform 0.28s cubic-bezier(0.2, 0, 0, 1)";
-          row.style.transform = "";
+          requestAnimationFrame(() => {
+            row.style.transition = "transform 0.28s cubic-bezier(0.2, 0, 0, 1)";
+            row.style.transform = "";
 
-          // Flash overtake highlight if moving up in position
-          if (dy > 0) {
-            row.classList.add("overtake-flash");
-            setTimeout(() => {
-              row.classList.remove("overtake-flash");
-            }, 600);
-          }
-        });
+            if (dy > 0) {
+              row.classList.add("overtake-flash");
+              setTimeout(() => {
+                row.classList.remove("overtake-flash");
+              }, 600);
+            }
+          });
+        }
+      });
+      prevRankOrder = newRankOrder;
+    } else if (ranksChanged) {
+      prevRankOrder = newRankOrder;
+    }
+
+    // Clean up rows of racers who left
+    const activeIds = new Set(newRankOrder);
+    rowElementMap.forEach((row, uId) => {
+      if (!activeIds.has(uId)) {
+        if (row.parentNode) row.parentNode.removeChild(row);
+        rowElementMap.delete(uId);
       }
     });
   }
