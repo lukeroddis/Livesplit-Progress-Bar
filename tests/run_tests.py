@@ -1395,6 +1395,14 @@ def test_layout_profiles_and_extensible_schema():
     for exp in expected_exports:
         assert exp in layout_src, f"layout.js missing function/export '{exp}'"
 
+    # 4b. Modal export flow must avoid premature auto-download upon opening modal
+    assert "triggerFileDownload(filename, jsonStr);" not in layout_src, \
+        "exportProfileToFile must not auto-trigger file download prior to opening modal"
+    assert "✓ Downloaded!" in layout_src, \
+        "layout.js must give user visual confirmation upon clicking download in modal"
+    assert "✓ Copied to clipboard!" in layout_src, \
+        "layout.js must give user visual confirmation upon copying JSON in modal"
+
     # 5. Check URL parameter integration (?profile= and ?layout=)
     assert 'params.get("profile") || params.get("layout")' in layout_src, \
         "layout.js parseUrlParameters must check ?profile= and ?layout= URL parameters"
@@ -1723,6 +1731,16 @@ def test_timer_anchor_and_expansion_modes():
     assert cycle("auto") == "right"
     assert cycle("right") == "left"
     assert cycle("left") == "auto"
+
+    # 9. Button element check & edit mode click safety
+    assert '<button type="button" class="hud-btn-icon" id="badge-anchor-timers"' in html_src, \
+        "index.html #badge-anchor-timers must be a button with .hud-btn-icon styling so it is clickable and excluded from dragging"
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_src = f.read()
+    assert "if (window.hudLayout && window.hudLayout.isEditMode && window.hudLayout.isEditMode()) return;" in overlay_src, \
+        "overlay.js block-igt and block-rta must be disabled while in layout edit mode"
+    assert 'rtaBlock.removeAttribute("title")' in layout_src, \
+        "layout.js setEditMode must suppress tooltips on timer blocks in edit mode"
 
     print("✓ Timer anchor, smart auto-detection, and expansion modes passed.")
 

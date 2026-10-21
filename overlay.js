@@ -3399,9 +3399,11 @@ function initOverlay() {
 
   // Direct click on timer blocks to focus timing method
   document.getElementById("block-igt")?.addEventListener("click", () => {
+    if (window.hudLayout && window.hudLayout.isEditMode && window.hudLayout.isEditMode()) return;
     setTimingMethodFocus("GameTime");
   });
   document.getElementById("block-rta")?.addEventListener("click", () => {
+    if (window.hudLayout && window.hudLayout.isEditMode && window.hudLayout.isEditMode()) return;
     setTimingMethodFocus("RealTime");
   });
 

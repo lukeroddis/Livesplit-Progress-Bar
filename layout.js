@@ -402,11 +402,13 @@
     const label = document.getElementById("export-filename-label");
     const banner = document.getElementById("export-status-banner");
     const btnCopy = document.getElementById("btn-copy-export-json");
+    const btnDownload = document.getElementById("btn-redownload-export-json");
     if (!modal) return;
     if (ta) ta.value = jsonStr;
     if (label) label.textContent = filename;
-    if (banner) banner.textContent = `✓ Export ready for ${filename}`;
+    if (banner) banner.textContent = `Export ready for ${filename}`;
     if (btnCopy) btnCopy.textContent = "📋 Copy JSON";
+    if (btnDownload) btnDownload.textContent = "💾 Download .json";
     modal.style.display = "flex";
     modal.classList.add("is-open");
   }
@@ -459,7 +461,7 @@
     const safeName = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
     const filename = `livesplit-layout-${safeName}.json`;
 
-    triggerFileDownload(filename, jsonStr);
+
     openExportModal(filename, jsonStr);
   }
 
@@ -1113,10 +1115,10 @@
     if (badge) {
       if (cur === "right") {
         badge.innerText = "⇤ Exp Left";
-        badge.title = "Timer Expansion: Forced Expand Left (anchored to right edge). Click to toggle.";
+        badge.title = "Timer Expansion: Forced Expand Left (anchored to right edge). Click to cycle.";
       } else if (cur === "left") {
         badge.innerText = "⇥ Exp Right";
-        badge.title = "Timer Expansion: Forced Expand Right (anchored to left edge). Click to toggle.";
+        badge.title = "Timer Expansion: Forced Expand Right (anchored to left edge). Click to cycle.";
       } else {
         const w = window.innerWidth || 1920;
         const x = (layoutState && layoutState.timers && layoutState.timers.x) || 0;
@@ -1124,7 +1126,7 @@
         const compWidth = el ? el.offsetWidth : 300;
         const isRight = (x + compWidth / 2) > (w / 2);
         badge.innerText = isRight ? "⇤ Auto (L)" : "⇥ Auto (R)";
-        badge.title = `Timer Expansion: Auto (${isRight ? "expanding left" : "expanding right"}). Click to toggle.`;
+        badge.title = `Timer Expansion: Auto (${isRight ? "expanding left" : "expanding right"}). Click to cycle.`;
       }
     }
   }
@@ -1312,10 +1314,26 @@
 
   function setEditMode(enabled) {
     isEditMode = !!enabled;
+    const rtaBlock = document.getElementById("block-rta");
+    const igtBlock = document.getElementById("block-igt");
     if (isEditMode) {
       document.body.classList.add("edit-mode");
+      if (rtaBlock) {
+        if (!rtaBlock.dataset.origTitle && rtaBlock.title) rtaBlock.dataset.origTitle = rtaBlock.title;
+        rtaBlock.removeAttribute("title");
+      }
+      if (igtBlock) {
+        if (!igtBlock.dataset.origTitle && igtBlock.title) igtBlock.dataset.origTitle = igtBlock.title;
+        igtBlock.removeAttribute("title");
+      }
     } else {
       document.body.classList.remove("edit-mode");
+      if (rtaBlock && rtaBlock.dataset.origTitle) {
+        rtaBlock.title = rtaBlock.dataset.origTitle;
+      }
+      if (igtBlock && igtBlock.dataset.origTitle) {
+        igtBlock.title = igtBlock.dataset.origTitle;
+      }
       saveLayout();
     }
     applyAllLayouts();
@@ -2220,10 +2238,12 @@
     if (btnCopyExportJson) {
       btnCopyExportJson.addEventListener("click", () => {
         const ta = document.getElementById("export-json-textarea");
+        const banner = document.getElementById("export-status-banner");
         if (ta) {
           ta.select();
           const copySuccess = () => {
             btnCopyExportJson.innerText = "✓ Copied!";
+            if (banner) banner.textContent = "✓ Copied to clipboard!";
             setTimeout(() => { btnCopyExportJson.innerText = "📋 Copy JSON"; }, 1500);
           };
           if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2241,11 +2261,19 @@
     if (btnRedownloadExportJson) {
       btnRedownloadExportJson.addEventListener("click", () => {
         const ta = document.getElementById("export-json-textarea");
+        const banner = document.getElementById("export-status-banner");
         const active = getActiveProfileName() || "Default";
         const safeName = active.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
         const filename = `livesplit-layout-${safeName}.json`;
         if (ta && ta.value) {
           triggerFileDownload(filename, ta.value);
+          btnRedownloadExportJson.textContent = "✓ Downloaded!";
+          if (banner) {
+            banner.textContent = `✓ Download initiated for ${filename}`;
+          }
+          setTimeout(() => {
+            btnRedownloadExportJson.textContent = "💾 Download .json";
+          }, 2500);
         }
       });
     }
