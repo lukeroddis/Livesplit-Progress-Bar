@@ -1042,6 +1042,32 @@
         rc.stopSimulation();
       });
 
+      it("preserves row DOM element references across steady render frames", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+
+        const entrantsFrame1 = [
+          { userId: "sim_shadow", username: "ShadowPacer", rank: 1, gapDisplay: "LEADER", intervalDisplay: "--", color: "#a855f7" },
+          { userId: "you", username: "You", rank: 2, isHost: true, gapDisplay: "+8.2s", intervalDisplay: "+8.2s", color: "#38bdf8" }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrantsFrame1, true, false, false);
+        const rowsFrame1 = Array.from(document.querySelectorAll("#leaderboard-rows .leaderboard-row"));
+
+        const entrantsFrame2 = [
+          { userId: "sim_shadow", username: "ShadowPacer", rank: 1, gapDisplay: "LEADER", intervalDisplay: "--", color: "#a855f7" },
+          { userId: "you", username: "You", rank: 2, isHost: true, gapDisplay: "+8.5s", intervalDisplay: "+8.5s", color: "#38bdf8" }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrantsFrame2, true, false, false);
+        const rowsFrame2 = Array.from(document.querySelectorAll("#leaderboard-rows .leaderboard-row"));
+
+        assertEqual(rowsFrame1[0], rowsFrame2[0], "Row 0 DOM node identity is preserved");
+        assertEqual(rowsFrame1[1], rowsFrame2[1], "Row 1 DOM node identity is preserved");
+
+        rc.stopSimulation();
+      });
+
       it("DOM slot order in #leaderboard-rows automatically sorts entrants if passed in unsorted order", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);

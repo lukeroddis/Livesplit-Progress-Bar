@@ -114,11 +114,12 @@
       // 1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
       // 2. Active runners ranked by continuous race score descending (further along split track)
       // 3. Ties broken by currentTimeSec ascending
-      // Incumbency bonus (~0.0001 per rank held) provides subtle position hysteresis
-      // to eliminate 60 FPS jitter while strictly preserving mathematical transitivity (no Timsort cycles).
+      // Incumbency bonus (~0.012 per rank held, equivalent to ~0.36s of track time) provides
+      // realistic racing overtake stability so neck-and-neck competitors don't jitter or oscillate,
+      // while scalar scoring strictly preserves mathematical transitivity (zero Timsort cycles).
       list.forEach((r) => {
         const prevRank = lastKnownRanks.get(r.userId);
-        const incumbency = (prevRank !== undefined) ? ((100 - prevRank) * 0.0001) : 0;
+        const incumbency = (prevRank !== undefined) ? ((10 - prevRank) * 0.012) : 0;
         r._effectiveScore = (r.score || 0) + incumbency;
       });
 

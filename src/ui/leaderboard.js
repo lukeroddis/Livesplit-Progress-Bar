@@ -198,12 +198,18 @@
     // Determine if any entrant changed rank position
     const ranksChanged = entrants.some((r, idx) => prevRanks.get(r.userId) !== (r.rank || idx + 1));
 
-    // FLIP Step 1 (FIRST): If positions changed, snapshot each row's visual screen Y position before DOM mutation
+    // Check if the current DOM order of elements matches the desired rank order
+    const currentDomIds = Array.from(rowsEl.children).map(c => c.getAttribute("data-user-id"));
+    const desiredDomIds = entrants.map(r => r.userId || "unknown");
+    const domOrderMatches = (currentDomIds.length === desiredDomIds.length) &&
+      currentDomIds.every((id, i) => id === desiredDomIds[i]);
+
+    // FLIP Step 1 (FIRST): If positions changed, snapshot each row's un-transformed layout Y position (offsetTop)
     const firstTops = new Map();
     if (ranksChanged && prevRanks.size > 0) {
       rowElementMap.forEach((row, uId) => {
         if (row && rowsEl.contains(row)) {
-          firstTops.set(uId, row.getBoundingClientRect().top);
+          firstTops.set(uId, row.offsetTop);
         }
       });
     }
@@ -296,13 +302,20 @@
             muteBtn.title = isMuted ? "Unmute pin on track" : "Mute pin on track";
           }
         }
-
-        rowsEl.appendChild(row);
       }
     });
 
+    // Reorder DOM child nodes only when the physical order has actually changed.
+    // Preserves active CSS transitions and prevents layout thrashing on steady frames.
+    if (!domOrderMatches) {
+      entrants.forEach((racer) => {
+        const row = rowElementMap.get(racer.userId);
+        if (row) rowsEl.appendChild(row);
+      });
+    }
+
     // -------------------------------------------------------------
-    // Step 3 (INVERT) & Step 4 (PLAY): 60 FPS FLIP Overtake Animation
+    // Step 3 (INVERT) & Step 4 (PLAY): 60 FPS FLIP Overtake Animation (0.55s glide)
     // -------------------------------------------------------------
     if (ranksChanged && firstTops.size > 0) {
       const animatedRows = [];
@@ -313,25 +326,18 @@
 
         const oldTop = firstTops.get(uId);
         if (oldTop !== undefined) {
-          const newTop = row.getBoundingClientRect().top;
+          const newTop = row.offsetTop;
           const deltaY = oldTop - newTop;
 
           if (Math.abs(deltaY) > 0.5) {
             row.style.transition = "none";
             row.style.transform = `translateY(${deltaY}px)`;
-            animatedRows.push(row);
-
-            const oldRank = prevRanks.get(uId);
-            const newRank = racer.rank || 1;
-            if (oldRank !== undefined && newRank < oldRank) {
-              row.classList.add("overtake-flash");
-              setTimeout(() => {
-                row.classList.remove("overtake-flash");
-              }, 500);
-            }
+            row.style.zIndex = deltaY > 0 ? "3" : "1";
+            animatedRows.push({ row, isOvertaker: deltaY > 0 });
           } else {
             row.style.transition = "none";
             row.style.transform = "";
+            row.style.zIndex = "";
           }
         }
       });
@@ -342,11 +348,25 @@
       // Play step: smoothly glide rows back to their natural target positions (transform = "")
       if (animatedRows.length > 0) {
         requestAnimationFrame(() => {
-          animatedRows.forEach((row) => {
-            row.style.transition = "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)";
+          animatedRows.forEach(({ row, isOvertaker }) => {
+            row.style.transition = "transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1)";
             row.style.transform = "";
+            if (isOvertaker) {
+              row.classList.add("overtake-flash");
+              setTimeout(() => {
+                row.classList.remove("overtake-flash");
+              }, 600);
+            }
           });
         });
+
+        // Clear temporary zIndex and transitions after the glide completes
+        setTimeout(() => {
+          animatedRows.forEach(({ row }) => {
+            row.style.zIndex = "";
+            row.style.transition = "";
+          });
+        }, 580);
       }
     } else if (ranksChanged) {
       // First render / initial placement: clean any residual transforms
@@ -354,6 +374,7 @@
         if (row) {
           row.style.transition = "none";
           row.style.transform = "";
+          row.style.zIndex = "";
         }
       });
     }
@@ -377,6 +398,7 @@
       if (row) {
         row.style.transition = "none";
         row.style.transform = "";
+        row.style.zIndex = "";
         row.classList.remove("overtake-flash");
       }
     });
