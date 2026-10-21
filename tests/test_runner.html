@@ -98,6 +98,8 @@
     <div id="leaderboard-rows"></div>
     <span id="badge-scale-leaderboard"></span>
     <span id="leaderboard-status-badge"></span>
+    <input type="checkbox" id="cb-toggle-leaderboard">
+    <button id="btn-toggle-leaderboard"></button>
     <span id="gold-toggle-badge"></span>
     <span id="timing-method-badge"></span>
     <span id="comparison-badge"></span>
@@ -894,6 +896,37 @@
         window.LiveSplit.Leaderboard.renderLeaderboard(preview, false, false, true);
         const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
         assert(rows.length >= 3, "renders >= 3 rows into #leaderboard-rows");
+      });
+
+      it("LiveSplit.RaceClient is direct instance with getRankedEntrants and simulation controls", () => {
+        const rc = window.LiveSplit.RaceClient;
+        assert(rc, "RaceClient exists");
+        assertEqual(typeof rc.getRankedEntrants, "function");
+        assertEqual(typeof rc.startSimulation, "function");
+        assertEqual(typeof rc.stopSimulation, "function");
+        assertEqual(typeof rc.isSimulating, "function");
+        assertEqual(rc.isSimulating(), false);
+
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+        assertEqual(rc.isSimulating(), true);
+        const entrants = rc.getRankedEntrants();
+        assert(entrants.length >= 4, "Simulation provides host + 3 virtual competitors");
+
+        rc.stopSimulation();
+        assertEqual(rc.isSimulating(), false);
+      });
+
+      it("updateGhostRunner executes cleanly during race simulation", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+        let threw = false;
+        try {
+          window.updateGhostRunner(10);
+        } catch (e) {
+          threw = true;
+        }
+        rc.stopSimulation();
+        assert(!threw, "updateGhostRunner does not throw error during simulation");
       });
     });
 

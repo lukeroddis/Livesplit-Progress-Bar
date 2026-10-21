@@ -2329,7 +2329,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         "badge-scale-leaderboard",
         "race-leaderboard",
         "leaderboard-status-badge",
-        "leaderboard-rows"
+        "leaderboard-rows",
+        "cb-toggle-leaderboard",
+        "btn-toggle-leaderboard"
     ]
     for eid in expected_ids:
         assert f'id="{eid}"' in html, f"index.html missing leaderboard element id '{eid}'"

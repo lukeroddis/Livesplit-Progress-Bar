@@ -549,12 +549,13 @@
   }
 
   // Export to namespace
+  const defaultClient = createRaceClient();
+  defaultClient.createRaceClient = createRaceClient;
+  defaultClient.instance = defaultClient;
+
   window.LiveSplit = window.LiveSplit || {};
-  window.LiveSplit.RaceClient = {
-    createRaceClient,
-    instance: createRaceClient()
-  };
+  window.LiveSplit.RaceClient = defaultClient;
   window.createLiveSplitRaceClient = createRaceClient;
-  window.LiveSplitRaceClient = window.LiveSplit.RaceClient.instance;
+  window.LiveSplitRaceClient = defaultClient;
 
 })();

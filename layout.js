@@ -1346,10 +1346,12 @@
       saveLayout();
     }
     applyAllLayouts();
-    const rc = window.LiveSplit && window.LiveSplit.RaceClient ? window.LiveSplit.RaceClient : window.LiveSplitRaceClient;
+    const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
     if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
+      const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
+      const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
       const entrants = rc ? rc.getRankedEntrants() : [];
-      window.LiveSplitLeaderboard.renderLeaderboard(entrants, rc ? rc.isSimulating : false, rc ? rc.isConnected : false, isEditMode);
+      window.LiveSplitLeaderboard.renderLeaderboard(entrants, isSim, isConn, isEditMode);
     }
   }
 

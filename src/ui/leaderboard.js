@@ -86,6 +86,13 @@
     ];
   }
 
+  function getRaceClient() {
+    if (typeof window === "undefined") return null;
+    const rc = window.LiveSplit && window.LiveSplit.RaceClient ? window.LiveSplit.RaceClient : window.LiveSplitRaceClient;
+    if (!rc) return null;
+    return rc.instance || rc;
+  }
+
   /**
    * Initializes click event delegation for competitor mute buttons.
    */
@@ -99,7 +106,7 @@
       const userId = btn.getAttribute("data-mute-user");
       if (!userId) return;
 
-      const rc = window.LiveSplit && window.LiveSplit.RaceClient ? window.LiveSplit.RaceClient : window.LiveSplitRaceClient;
+      const rc = getRaceClient();
       if (rc && typeof rc.toggleEntrantMuted === "function") {
         const isNowMuted = rc.toggleEntrantMuted(userId);
         btn.innerHTML = isNowMuted ? "🔇" : "👁️";
@@ -132,23 +139,33 @@
 
     initMuteListener(rowsEl);
 
-    const isRaceActive = isSimulating || isConnected;
+    const isSim = typeof isSimulating === "function" ? isSimulating() : !!isSimulating;
+    const isConn = typeof isConnected === "function" ? isConnected() : !!isConnected;
+    const isRaceActive = isSim || isConn;
+
+    let isLayoutVisible = true;
+    if (window.hudLayout && typeof window.hudLayout.getState === "function") {
+      const state = window.hudLayout.getState();
+      if (state && state.leaderboard && state.leaderboard.visible === false) {
+        isLayoutVisible = false;
+      }
+    }
 
     // Component visibility rules
-    if (!isRaceActive && !isEditMode) {
-      compEl.style.display = "none";
+    if ((!isRaceActive && !isEditMode) || !isLayoutVisible) {
+      compEl.classList.add("is-hidden");
       prevRowTops.clear();
       return;
     }
 
-    compEl.style.display = "";
+    compEl.classList.remove("is-hidden");
 
     // Update status badge
     if (statusBadge) {
-      if (isSimulating) {
+      if (isSim) {
         statusBadge.innerText = "SIM";
         statusBadge.className = "leaderboard-status status-sim";
-      } else if (isConnected) {
+      } else if (isConn) {
         statusBadge.innerText = "LIVE";
         statusBadge.className = "leaderboard-status status-live";
       } else {

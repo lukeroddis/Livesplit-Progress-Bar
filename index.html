@@ -16,6 +16,7 @@
       <label><input type="checkbox" id="cb-toggle-title" checked> Title</label>
       <label><input type="checkbox" id="cb-toggle-timers" checked> Timers</label>
       <label><input type="checkbox" id="cb-toggle-track" checked> Track</label>
+      <label><input type="checkbox" id="cb-toggle-leaderboard" checked> Standings</label>
     </div>
     <div class="toolbar-spinbox-group" title="Exact number of splits visible on screen (or Fit All)">
       <label for="input-visible-splits">Splits:</label>
@@ -108,7 +109,7 @@
   </div>
 
   <!-- HUD Component 4: Live Race F1-Style Dynamic Leaderboard -->
-  <div id="hud-comp-leaderboard" class="hud-component" data-component-id="leaderboard" style="display: none;">
+  <div id="hud-comp-leaderboard" class="hud-component" data-component-id="leaderboard">
     <div class="hud-component-header">
       <span class="hud-drag-handle">::: Live Standings</span>
       <div class="hud-comp-controls">
@@ -211,6 +212,7 @@
         <div class="settings-grid">
           <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to toggle Live Race connection">Race: Off</button>
           <button type="button" class="settings-tile-btn" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
+          <button type="button" class="settings-tile-btn" id="btn-toggle-leaderboard" style="color: #38bdf8;" title="Click to toggle Live Standings Tower visibility">Standings: ON</button>
         </div>
         <div class="settings-profile-bar" style="margin-top: 6px;">
           <input type="text" id="input-therun-username" class="settings-profile-input" placeholder="therun.gg username (auto-detect)" title="Enter your therun.gg username to automatically detect when you enter a live race">

@@ -1973,8 +1973,10 @@ function updateGhostRunner(currentSec) {
   const isVertical = track.classList.contains("vertical");
 
   const activeList = activeGhostComparisons.filter(g => g && g !== "off");
-  const rc = window.LiveSplit && window.LiveSplit.RaceClient ? window.LiveSplit.RaceClient : window.LiveSplitRaceClient;
-  const isRaceActive = rc && (rc.isConnected || rc.isSimulating);
+  const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+  const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
+  const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
+  const isRaceActive = isSim || isConn;
   const raceEntrants = isRaceActive ? rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted) : [];
 
   if ((activeList.length === 0 && raceEntrants.length === 0) || currentSec === null || currentSec < 0 || splitsList.length === 0) {
@@ -1985,8 +1987,8 @@ function updateGhostRunner(currentSec) {
       const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
       window.LiveSplitLeaderboard.renderLeaderboard(
         rc ? rc.getRankedEntrants() : [],
-        rc ? rc.isSimulating : false,
-        rc ? rc.isConnected : false,
+        isSim,
+        isConn,
         isEditMode
       );
     }
@@ -2005,8 +2007,8 @@ function updateGhostRunner(currentSec) {
 
   const scrollOffset = isVertical ? viewport.scrollTop : viewport.scrollLeft;
   const clientSpan = isVertical ? viewport.clientHeight : viewport.clientWidth;
-  const visibleMin = scrollOffset + 25;
-  const visibleMax = scrollOffset + clientSpan - 25;
+  const visibleMin = (scrollOffset > 0) ? (scrollOffset + 10) : -20;
+  const visibleMax = scrollOffset + clientSpan + 20;
 
   const nodeStart = document.getElementById("node-start");
   if (!nodeStart) return;
@@ -2253,8 +2255,8 @@ function updateGhostRunner(currentSec) {
     const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
     window.LiveSplitLeaderboard.renderLeaderboard(
       rc ? rc.getRankedEntrants() : [],
-      rc ? rc.isSimulating : false,
-      rc ? rc.isConnected : false,
+      isSim,
+      isConn,
       isEditMode
     );
   }
@@ -2589,6 +2591,7 @@ let pollTick = 0;
 
 async function pollLoop() {
   while (ws && ws.readyState === WebSocket.OPEN) {
+    try {
     // 0. Periodic Auto-Sync with LiveSplit hotkeys (every ~500ms)
     pollTick = (pollTick + 1) % 15;
     if (pollTick === 0) {
@@ -2929,6 +2932,9 @@ async function pollLoop() {
       }
     }
 
+    } catch (loopErr) {
+      console.error("[LiveSplit] Error in pollLoop tick:", loopErr);
+    }
     await new Promise((r) => setTimeout(r, 33));
   }
 }
@@ -3471,11 +3477,48 @@ function initOverlay() {
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
 
   // Live Race Controls & Telemetry
-  const raceClient = window.LiveSplitRaceClient;
+  const raceClient = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
   const raceToggleBtn = document.getElementById("race-toggle-badge");
   const raceSimBtn = document.getElementById("race-sim-badge");
   const therunUserInp = document.getElementById("input-therun-username");
   const therunSaveBtn = document.getElementById("btn-save-therun-username");
+  const btnToggleLeaderboard = document.getElementById("btn-toggle-leaderboard");
+
+  if (btnToggleLeaderboard) {
+    const syncLeaderboardBtn = () => {
+      const state = window.hudLayout ? window.hudLayout.getState() : null;
+      const isVis = state ? (state.leaderboard?.visible !== false) : true;
+      btnToggleLeaderboard.textContent = isVis ? "Standings: ON" : "Standings: OFF";
+      btnToggleLeaderboard.style.color = isVis ? "#38bdf8" : "rgba(148, 163, 184, 0.9)";
+    };
+    syncLeaderboardBtn();
+
+    btnToggleLeaderboard.addEventListener("click", () => {
+      if (window.hudLayout) {
+        const state = window.hudLayout.getState();
+        if (state) {
+          if (!state.leaderboard) {
+            state.leaderboard = { x: 42, y: 110, scale: 1.0, visible: true, docked: "none" };
+          }
+          state.leaderboard.visible = !(state.leaderboard.visible !== false);
+          window.hudLayout.saveLayout();
+          window.hudLayout.applyComponentLayout("leaderboard");
+          syncLeaderboardBtn();
+
+          const isSim = raceClient ? (typeof raceClient.isSimulating === "function" ? raceClient.isSimulating() : !!raceClient.isSimulating) : false;
+          const isConn = raceClient ? (typeof raceClient.isConnected === "function" ? raceClient.isConnected() : !!raceClient.isConnected) : false;
+          if (window.LiveSplitLeaderboard) {
+            window.LiveSplitLeaderboard.renderLeaderboard(
+              raceClient ? raceClient.getRankedEntrants() : [],
+              isSim,
+              isConn,
+              window.hudLayout.isEditMode ? window.hudLayout.isEditMode() : false
+            );
+          }
+        }
+      }
+    });
+  }
 
   if (raceClient) {
     const savedUsername = localStorage.getItem("therun_username") || "";
