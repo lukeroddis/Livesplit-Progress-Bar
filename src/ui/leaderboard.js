@@ -15,8 +15,6 @@
   const rowElementMap = new Map();
   // Map of userId -> previous rank (1, 2, 3...)
   const prevRanks = new Map();
-  // Map of userId -> active Animation object
-  const activeAnimations = new Map();
   let isMuteListenerAttached = false;
 
   /**
@@ -206,18 +204,8 @@
     const domOrderMatches = (currentDomIds.length === desiredDomIds.length) &&
       currentDomIds.every((id, i) => id === desiredDomIds[i]);
 
-    // FLIP Step 1 (FIRST): If positions changed, snapshot each row's un-transformed layout Y position (offsetTop)
-    const firstTops = new Map();
-    if (ranksChanged && prevRanks.size > 0) {
-      rowElementMap.forEach((row, uId) => {
-        if (row && rowsEl.contains(row)) {
-          firstTops.set(uId, row.offsetTop);
-        }
-      });
-    }
-
     // -------------------------------------------------------------
-    // Step 2 (LAST): In-place update of rows and append in strict rank order
+    // Step 2: In-place update of rows and append in strict rank order
     // -------------------------------------------------------------
     entrants.forEach((racer) => {
       const uId = racer.userId || "unknown";
@@ -308,8 +296,8 @@
       }
     });
 
-    // Reorder DOM child nodes only when the physical order has actually changed.
-    // Preserves active CSS transitions and prevents layout thrashing on steady frames.
+    // Reorder DOM child nodes only when the physical slot order has actually changed.
+    // Instant, crisp slot switching with zero layout thrashing, zero flicker, and zero delay.
     if (!domOrderMatches) {
       entrants.forEach((racer) => {
         const row = rowElementMap.get(racer.userId);
@@ -317,78 +305,14 @@
       });
     }
 
-    // -------------------------------------------------------------
-    // Step 3 (INVERT) & Step 4 (PLAY): 1.0s GPU-Accelerated Position Trading
-    // -------------------------------------------------------------
-    if (ranksChanged && firstTops.size > 0) {
-      entrants.forEach((racer) => {
-        const uId = racer.userId || "unknown";
-        const row = rowElementMap.get(uId);
-        if (!row) return;
-
-        const oldTop = firstTops.get(uId);
-        if (oldTop !== undefined) {
-          const newTop = row.offsetTop;
-          const deltaY = oldTop - newTop;
-
-          if (Math.abs(deltaY) > 0.5) {
-            const isOvertaker = deltaY > 0;
-            row.style.zIndex = isOvertaker ? "3" : "1";
-
-            if (isOvertaker) {
-              row.classList.add("overtake-flash");
-              setTimeout(() => {
-                row.classList.remove("overtake-flash");
-              }, 1000);
-            }
-
-            // Cancel any in-flight animation on this row
-            if (activeAnimations.has(uId)) {
-              try { activeAnimations.get(uId).cancel(); } catch (_) {}
-              activeAnimations.delete(uId);
-            }
-
-            if (typeof row.animate === "function") {
-              // Web Animations API: buttery-smooth 1.0s compositor glide with zero flicker
-              const anim = row.animate([
-                { transform: `translateY(${deltaY}px)` },
-                { transform: "translateY(0px)" }
-              ], {
-                duration: 1000,
-                easing: "cubic-bezier(0.2, 0.9, 0.3, 1)",
-                fill: "none"
-              });
-              activeAnimations.set(uId, anim);
-              anim.onfinish = () => {
-                activeAnimations.delete(uId);
-                row.style.zIndex = "";
-              };
-            } else {
-              // Fallback for headless environments
-              row.style.transition = "none";
-              row.style.transform = `translateY(${deltaY}px)`;
-              void rowsEl.offsetHeight;
-              requestAnimationFrame(() => {
-                row.style.transition = "transform 1.0s cubic-bezier(0.2, 0.9, 0.3, 1)";
-                row.style.transform = "";
-              });
-            }
-          } else {
-            row.style.transform = "";
-            row.style.zIndex = "";
-          }
-        }
-      });
-    } else if (ranksChanged) {
-      // First render / initial placement: clean any residual transforms
-      rowElementMap.forEach((row) => {
-        if (row) {
-          row.style.transition = "none";
-          row.style.transform = "";
-          row.style.zIndex = "";
-        }
-      });
-    }
+    // Ensure zero residual transforms or inline offsets on all rows
+    rowElementMap.forEach((row) => {
+      if (row) {
+        if (row.style.transform) row.style.transform = "";
+        if (row.style.transition) row.style.transition = "";
+        if (row.style.zIndex) row.style.zIndex = "";
+      }
+    });
 
     // Update recorded ranks
     entrants.forEach((r, idx) => prevRanks.set(r.userId, r.rank || (idx + 1)));
@@ -405,11 +329,6 @@
 
   function reset() {
     prevRanks.clear();
-    activeAnimations.forEach((anim) => {
-      try { anim.cancel(); } catch (_) {}
-    });
-    activeAnimations.clear();
-
     rowElementMap.forEach((row) => {
       if (row) {
         row.style.transition = "none";
