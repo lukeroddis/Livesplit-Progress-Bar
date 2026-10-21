@@ -1113,10 +1113,10 @@
     if (badge) {
       if (cur === "right") {
         badge.innerText = "⇤ Exp Left";
-        badge.title = "Timer Expansion: Forced Expand Left (anchored to right edge). Click to toggle.";
+        badge.title = "Timer Expansion: Forced Expand Left (anchored to right edge). Click to cycle.";
       } else if (cur === "left") {
         badge.innerText = "⇥ Exp Right";
-        badge.title = "Timer Expansion: Forced Expand Right (anchored to left edge). Click to toggle.";
+        badge.title = "Timer Expansion: Forced Expand Right (anchored to left edge). Click to cycle.";
       } else {
         const w = window.innerWidth || 1920;
         const x = (layoutState && layoutState.timers && layoutState.timers.x) || 0;
@@ -1124,7 +1124,7 @@
         const compWidth = el ? el.offsetWidth : 300;
         const isRight = (x + compWidth / 2) > (w / 2);
         badge.innerText = isRight ? "⇤ Auto (L)" : "⇥ Auto (R)";
-        badge.title = `Timer Expansion: Auto (${isRight ? "expanding left" : "expanding right"}). Click to toggle.`;
+        badge.title = `Timer Expansion: Auto (${isRight ? "expanding left" : "expanding right"}). Click to cycle.`;
       }
     }
   }
@@ -1312,10 +1312,26 @@
 
   function setEditMode(enabled) {
     isEditMode = !!enabled;
+    const rtaBlock = document.getElementById("block-rta");
+    const igtBlock = document.getElementById("block-igt");
     if (isEditMode) {
       document.body.classList.add("edit-mode");
+      if (rtaBlock) {
+        if (!rtaBlock.dataset.origTitle && rtaBlock.title) rtaBlock.dataset.origTitle = rtaBlock.title;
+        rtaBlock.removeAttribute("title");
+      }
+      if (igtBlock) {
+        if (!igtBlock.dataset.origTitle && igtBlock.title) igtBlock.dataset.origTitle = igtBlock.title;
+        igtBlock.removeAttribute("title");
+      }
     } else {
       document.body.classList.remove("edit-mode");
+      if (rtaBlock && rtaBlock.dataset.origTitle) {
+        rtaBlock.title = rtaBlock.dataset.origTitle;
+      }
+      if (igtBlock && igtBlock.dataset.origTitle) {
+        igtBlock.title = igtBlock.dataset.origTitle;
+      }
       saveLayout();
     }
     applyAllLayouts();
