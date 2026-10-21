@@ -981,6 +981,24 @@
         rc.stopSimulation();
       });
 
+      it("Leaderboard calculates realistic track deltas and displays INT badge", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
+        // Simulate host progress at 45s
+        rc.updateHostProgress(45, 1, [30], [30, 60, 90], "Split 2", ["Split 1", "Split 2", "Split 3"]);
+
+        const entrants = rc.getRankedEntrants();
+        assertEqual(entrants[0].gapDisplay, "LEADER");
+        assert(entrants[1].gapToLeaderSec >= 0, "P2 has positive gap to leader");
+        assert(entrants[1].gapDisplay.startsWith("+"), "P2 gap starts with +");
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
+        const intTags = document.querySelectorAll("#leaderboard-rows .interval-tag");
+        assert(intTags.length >= 2, "INT badges rendered for non-leader entrants");
+
+        rc.stopSimulation();
+      });
+
       it("updateGhostRunner executes cleanly during race simulation", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);

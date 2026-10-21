@@ -39,6 +39,7 @@
     let isSimulating = false;
     let simulationTimer = null;
     let activeSplitsList = [];
+    let activeComparisonTimes = [];
 
     // Entrants map: userId -> Entrant Object
     const entrants = new Map();
@@ -83,6 +84,21 @@
       return match ? match[1] : trimmed;
     }
 
+    function getCourseRefTime(runner) {
+      if (runner.isFinished && typeof runner.finalTimeSec === "number") {
+        return runner.finalTimeSec;
+      }
+      const score = Math.max(0, runner.score || 0);
+      const sIdx = Math.floor(score);
+      const sRatio = Math.max(0, Math.min(1.0, score - sIdx));
+      const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
+        ? activeComparisonTimes
+        : [30, 60, 90, 120, 150, 180, 210, 240];
+      const tPrev = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
+      const tNext = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (tPrev + 30);
+      return tPrev + sRatio * (tNext - tPrev);
+    }
+
     /**
      * Returns all entrants (host + competitors), sorted into F1 standings order.
      */
@@ -111,9 +127,14 @@
         return (a.currentTimeSec || 0) - (b.currentTimeSec || 0);
       });
 
-      // Calculate leader gap and interval to competitor ahead
-      let leaderTime = list.length > 0 ? (list[0].finalTimeSec || list[0].currentTimeSec || 0) : 0;
-      let leaderScore = list.length > 0 ? (list[0].score || 0) : 0;
+      // Calculate leader gap and interval to competitor ahead based on track course reference time
+      const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
+        ? activeComparisonTimes
+        : [30, 60, 90, 120, 150, 180, 210, 240];
+      const finalTargetSec = comp[comp.length - 1] || (comp.length * 30);
+
+      const leader = list[0];
+      const leaderRefTime = leader ? getCourseRefTime(leader) : 0;
 
       list.forEach((runner, idx) => {
         runner.rank = idx + 1;
@@ -124,13 +145,27 @@
           runner.gapDisplay = "LEADER";
           runner.intervalDisplay = "--";
         } else {
-          const runnerTime = runner.finalTimeSec || runner.currentTimeSec || 0;
+          const runnerRefTime = getCourseRefTime(runner);
           const aheadRunner = list[idx - 1];
-          const aheadTime = aheadRunner.finalTimeSec || aheadRunner.currentTimeSec || 0;
+          const aheadRefTime = getCourseRefTime(aheadRunner);
 
-          // Estimated gap based on time or score difference
-          const gap = Math.max(0, runnerTime - leaderTime);
-          const interval = Math.max(0, runnerTime - aheadTime);
+          let gap = 0;
+          if (runner.isFinished && leader.isFinished) {
+            gap = Math.max(0, runner.finalTimeSec - leader.finalTimeSec);
+          } else if (!runner.isFinished && leader.isFinished) {
+            gap = Math.max(0, (finalTargetSec - runnerRefTime) + Math.max(0, leader.finalTimeSec - finalTargetSec));
+          } else {
+            gap = Math.max(0, leaderRefTime - runnerRefTime);
+          }
+
+          let interval = 0;
+          if (runner.isFinished && aheadRunner.isFinished) {
+            interval = Math.max(0, runner.finalTimeSec - aheadRunner.finalTimeSec);
+          } else if (!runner.isFinished && aheadRunner.isFinished) {
+            interval = Math.max(0, (finalTargetSec - runnerRefTime) + Math.max(0, aheadRunner.finalTimeSec - finalTargetSec));
+          } else {
+            interval = Math.max(0, aheadRefTime - runnerRefTime);
+          }
 
           runner.gapToLeaderSec = gap;
           runner.intervalSec = interval;
@@ -159,6 +194,9 @@
     function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = []) {
       if (Array.isArray(splitsList) && splitsList.length > 0) {
         activeSplitsList = splitsList;
+      }
+      if (Array.isArray(comparisonTimes) && comparisonTimes.length > 0) {
+        activeComparisonTimes = comparisonTimes;
       }
       hostState.currentTimeSec = Math.max(0, currentSec || 0);
       hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
@@ -386,6 +424,10 @@
       activeSplitsList = (Array.isArray(splitsList) && splitsList.length > 0)
         ? [...splitsList]
         : ["Split 1", "Split 2", "Split 3", "Split 4", "Split 5", "Split 6", "Split 7", "Finished"];
+
+      if (Array.isArray(comparisonTimes) && comparisonTimes.length > 0) {
+        activeComparisonTimes = comparisonTimes;
+      }
 
       const count = activeSplitsList.length;
 

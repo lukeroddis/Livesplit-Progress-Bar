@@ -2165,8 +2165,25 @@ function updateGhostRunner(currentSec) {
 
     const hostScore = Math.max(0, currentIndex) + runnerSegProgress;
     const isAhead = (hostScore >= (racer.score || 0));
-    const deltaSec = currentSec - (racer.currentTimeSec || 0);
-    const deltaStr = formatDeltaSeconds(deltaSec);
+
+    // Calculate course reference times for track delta parity
+    function getCompetitorTrackRef(sc) {
+      const s = Math.max(0, sc || 0);
+      const idx = Math.floor(s);
+      const rat = Math.max(0, Math.min(1.0, s - idx));
+      const tP = idx > 0 ? (comparisonTimes[idx - 1] || (idx * 30)) : 0;
+      const tN = (idx < comparisonTimes.length) ? (comparisonTimes[idx] || ((idx + 1) * 30)) : (tP + 30);
+      return tP + rat * (tN - tP);
+    }
+
+    const hostCourseSec = getCompetitorTrackRef(hostScore);
+    const racerCourseSec = racer.isFinished && typeof racer.finalTimeSec === "number"
+      ? racer.finalTimeSec
+      : getCompetitorTrackRef(racer.score || 0);
+    const deltaSec = currentSec - (racer.currentTimeSec || 0) !== 0 && hostScore === (racer.score || 0)
+      ? 0
+      : (hostCourseSec - racerCourseSec);
+    const deltaStr = formatDeltaSeconds(-deltaSec);
 
     if (ghostCoord < visibleMin) {
       marker.style.display = "none";

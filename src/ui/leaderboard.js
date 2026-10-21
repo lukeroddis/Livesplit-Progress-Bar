@@ -198,13 +198,16 @@
       newRankOrder.some((uId, i) => uId !== prevRankOrder[i]);
 
     // -------------------------------------------------------------
-    // FLIP Step 1 (FIRST): Record pre-reorder tops only when ranking permutation changes
+    // FLIP Step 1 (FIRST): Record pre-reorder tops before moving DOM nodes
     // -------------------------------------------------------------
     const oldTops = new Map();
     if (ranksChanged) {
       rowElementMap.forEach((row, uId) => {
         if (row && row.isConnected) {
           oldTops.set(uId, row.getBoundingClientRect().top);
+          // Cancel in-flight transition & clear inline transform so newTop measures true natural flow
+          row.style.transition = "none";
+          row.style.transform = "";
         }
       });
     }
@@ -219,6 +222,13 @@
       const rank = racer.rank || 1;
       const color = racer.color || (isHost ? "#38bdf8" : "#94a3b8");
 
+      const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
+      const rawInt = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
+      const gapVal = (rank === 1) ? "LEADER" : rawGap;
+      const cleanInt = (rank === 1) ? "--" : rawInt.replace(/^\+/, "");
+      const intMarkup = (rank === 1) ? "--" : `<span class="interval-tag">INT</span>+${escapeHtml(cleanInt)}`;
+      const gapTooltip = (rank === 1) ? "Race Leader" : `Leader Gap: ${gapVal} | Interval to Ahead: +${cleanInt}`;
+
       let row = rowElementMap.get(uId);
       if (!row || !rowsEl.contains(row)) {
         row = document.createElement("div");
@@ -232,8 +242,6 @@
 
         const displayName = isHost ? "You" : racer.username;
         const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
-        const gapVal = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
-        const intVal = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
 
         row.innerHTML = `
           <div class="pos-badge pos-${rank <= 3 ? rank : 'other'}">${rank}</div>
@@ -243,9 +251,9 @@
             <span class="racer-name">${escapeHtml(displayName)}${isHost ? '<span class="host-pill">YOU</span>' : ''}</span>
             <span class="racer-split">${escapeHtml(splitLabel)}</span>
           </div>
-          <div class="racer-gap-col">
-            <span class="racer-gap">${gapVal}</span>
-            <span class="racer-interval">${intVal}</span>
+          <div class="racer-gap-col" title="${escapeHtml(gapTooltip)}">
+            <span class="racer-gap${rank === 1 ? ' is-leader' : ''}">${gapVal}</span>
+            <span class="racer-interval">${intMarkup}</span>
           </div>
           ${!isHost ? `<button type="button" class="racer-mute-btn" data-mute-user="${uId}" title="${isMuted ? 'Unmute pin on track' : 'Mute pin on track'}">${isMuted ? '🔇' : '👁️'}</button>` : '<div class="racer-mute-spacer"></div>'}
         `;
@@ -269,15 +277,19 @@
         }
 
         const gapEl = row.querySelector(".racer-gap");
-        const gapVal = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
         if (gapEl && gapEl.textContent !== gapVal) {
           gapEl.textContent = gapVal;
+          gapEl.classList.toggle("is-leader", rank === 1);
         }
 
         const intEl = row.querySelector(".racer-interval");
-        const intVal = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
-        if (intEl && intEl.textContent !== intVal) {
-          intEl.textContent = intVal;
+        if (intEl && intEl.innerHTML !== intMarkup) {
+          intEl.innerHTML = intMarkup;
+        }
+
+        const gapCol = row.querySelector(".racer-gap-col");
+        if (gapCol && gapCol.title !== gapTooltip) {
+          gapCol.title = gapTooltip;
         }
 
         const muteBtn = row.querySelector(".racer-mute-btn");
@@ -299,6 +311,7 @@
     // FLIP Steps 3-6 (LAST, INVERT, PLAY): Smoothly animate overtakes
     // -------------------------------------------------------------
     if (ranksChanged && oldTops.size > 0) {
+      // Step 3 (INVERT): Synchronously counteract DOM reorder before browser renders
       entrants.forEach((racer) => {
         const uId = racer.userId || "unknown";
         const row = rowElementMap.get(uId);
@@ -311,19 +324,33 @@
         if (Math.abs(dy) > 0.5) {
           row.style.transition = "none";
           row.style.transform = `translateY(${dy}px)`;
-
-          requestAnimationFrame(() => {
-            row.style.transition = "transform 0.28s cubic-bezier(0.2, 0, 0, 1)";
-            row.style.transform = "";
-
-            if (dy > 0) {
-              row.classList.add("overtake-flash");
-              setTimeout(() => {
-                row.classList.remove("overtake-flash");
-              }, 600);
-            }
-          });
         }
+      });
+
+      // Step 4: Synchronous layout flush commits inverted transforms
+      void rowsEl.offsetHeight;
+
+      // Step 5 (PLAY): Smoothly glide rows to natural target positions
+      requestAnimationFrame(() => {
+        entrants.forEach((racer) => {
+          const uId = racer.userId || "unknown";
+          const row = rowElementMap.get(uId);
+          if (!row || !oldTops.has(uId)) return;
+
+          const oldTop = oldTops.get(uId);
+          const newTop = row.getBoundingClientRect().top;
+          const dy = oldTop - newTop;
+
+          row.style.transition = "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)";
+          row.style.transform = "";
+
+          if (dy > 0) {
+            row.classList.add("overtake-flash");
+            setTimeout(() => {
+              row.classList.remove("overtake-flash");
+            }, 600);
+          }
+        });
       });
       prevRankOrder = newRankOrder;
     } else if (ranksChanged) {

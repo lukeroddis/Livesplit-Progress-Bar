@@ -2891,10 +2891,28 @@ body.edit-mode .settings-menu-panel {
   color: #f1f5f9;
 }
 
+.racer-gap.is-leader {
+  color: #facc15;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 6px rgba(250, 204, 21, 0.4);
+}
+
 .racer-interval {
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 9px;
   color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.interval-tag {
+  font-size: 7.5px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
 }
 
 .racer-mute-btn {
