@@ -919,7 +919,7 @@ def test_quick_settings_menu_architecture():
         "file-trigger",
         "file-input",
         "connection-status",
-        "btn-reset-settings-pos",
+
         "btn-close-settings",
         "ctrl-timer-display",
         "comparison-badge",
@@ -1006,7 +1006,7 @@ def test_draggable_settings_and_timer_display_modes():
         layout_js = f.read()
 
     # 1. Drag & Drop HTML Elements & Controls
-    assert 'id="btn-reset-settings-pos"' in html, "index.html missing btn-reset-settings-pos"
+    assert 'id="btn-reset-settings-pos"' not in html, "index.html should omit redundant btn-reset-settings-pos"
     assert 'class="settings-drag-grip"' in html, "index.html missing settings-drag-grip"
     assert 'id="ctrl-timer-display"' in html, "index.html missing ctrl-timer-display"
     assert 'data-val="gametime"' in html and 'data-val="realtime"' in html and 'data-val="both"' in html, \
@@ -1016,7 +1016,7 @@ def test_draggable_settings_and_timer_display_modes():
     assert ".settings-menu-header.is-dragging" in css, "style.css missing .is-dragging header style"
     assert ".settings-menu-panel.is-custom-pos" in css, "style.css missing .is-custom-pos panel style"
     assert "cursor: grab;" in css, "style.css missing cursor: grab for header"
-    assert ".settings-reset-pos-btn" in css, "style.css missing .settings-reset-pos-btn"
+    assert "resetSettingsMenuPosition" in overlay_js, "overlay.js must retain resetSettingsMenuPosition for double-click"
 
     # 3. overlay.js draggable logic and unpinned auto-hide guarantees
     assert "function initSettingsMenuDraggable" in overlay_js, "overlay.js missing initSettingsMenuDraggable"

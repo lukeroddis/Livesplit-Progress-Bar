@@ -3215,15 +3215,7 @@ function restoreSettingsMenuPosition() {
 function initSettingsMenuDraggable() {
   const panel = document.getElementById("footer-bar");
   const header = document.querySelector(".settings-menu-header");
-  const resetBtn = document.getElementById("btn-reset-settings-pos");
   if (!panel || !header) return;
-
-  if (resetBtn) {
-    resetBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      resetSettingsMenuPosition();
-    });
-  }
 
   header.addEventListener("dblclick", (e) => {
     if (e.target.closest("button") || e.target.closest(".connection-status-pill")) return;
