@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-  const COMPONENTS = ["title", "timers", "track"];
+  const COMPONENTS = ["title", "timers", "track", "leaderboard"];
 
   const DEFAULT_TRACK_STYLE = {
     orientation: "horizontal", // 'horizontal' | 'vertical'
@@ -56,6 +56,13 @@
         scale: 1.0,
         visible: true,
         docked: "bottom"
+      },
+      leaderboard: {
+        x: 42,
+        y: 110,
+        scale: 1.0,
+        visible: true,
+        docked: "none"
       }
     };
   }

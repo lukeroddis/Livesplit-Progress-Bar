@@ -93,6 +93,11 @@
     </div>
     <div id="hud-comp-timers"></div>
     <div id="hud-comp-track"></div>
+    <div id="hud-comp-leaderboard"></div>
+    <div id="race-leaderboard"></div>
+    <div id="leaderboard-rows"></div>
+    <span id="badge-scale-leaderboard"></span>
+    <span id="leaderboard-status-badge"></span>
     <span id="gold-toggle-badge"></span>
     <span id="timing-method-badge"></span>
     <span id="comparison-badge"></span>
@@ -166,6 +171,7 @@
   <script src="../src/ui/layout-engine.js"></script>
   <script src="../src/ui/track-renderer.js"></script>
   <script src="../src/ui/interactions.js"></script>
+  <script src="../src/ui/leaderboard.js"></script>
   <script src="../layout.js"></script>
   <script src="../overlay.js"></script>
 
@@ -867,6 +873,27 @@
           threw = true;
         }
         assert(!threw, "updateTrackDensityAndAngle runs without error at currentIndex = -1");
+      });
+    });
+
+    describe("Live Race & F1 Dynamic Leaderboard", () => {
+      it("LiveSplitLeaderboard exports renderLeaderboard and getPreviewEntrants", () => {
+        assert(window.LiveSplit && window.LiveSplit.Leaderboard, "LiveSplit.Leaderboard is exported");
+        assertEqual(typeof window.LiveSplit.Leaderboard.renderLeaderboard, "function");
+        assertEqual(typeof window.LiveSplit.Leaderboard.getPreviewEntrants, "function");
+      });
+
+      it("getPreviewEntrants provides valid default mock entrants for Layout Mode", () => {
+        const preview = window.LiveSplit.Leaderboard.getPreviewEntrants();
+        assert(Array.isArray(preview) && preview.length >= 3, "preview entrants array has >= 3 entrants");
+        assert(preview.some(e => e.isHost), "preview entrants includes host");
+      });
+
+      it("renderLeaderboard mounts rows into DOM cleanly", () => {
+        const preview = window.LiveSplit.Leaderboard.getPreviewEntrants();
+        window.LiveSplit.Leaderboard.renderLeaderboard(preview, false, false, true);
+        const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
+        assert(rows.length >= 3, "renders >= 3 rows into #leaderboard-rows");
       });
     });
 

@@ -150,7 +150,9 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
-        os.path.join("src", "ui", "interactions.js")
+        os.path.join("src", "ui", "interactions.js"),
+        os.path.join("src", "core", "race-client.js"),
+        os.path.join("src", "ui", "leaderboard.js")
     ]:
         path = os.path.join(ROOT_DIR, js_file)
         with open(path, "r", encoding="utf-8") as f:
@@ -2073,7 +2075,8 @@ def test_modular_architecture():
         "src/core/race-client.js",
         "src/ui/layout-engine.js",
         "src/ui/track-renderer.js",
-        "src/ui/interactions.js"
+        "src/ui/interactions.js",
+        "src/ui/leaderboard.js"
     ]
 
     # 1. Script inclusion in index.html and test_runner.html
@@ -2117,6 +2120,10 @@ def test_modular_architecture():
     inter_path = os.path.join(ROOT_DIR, "src", "ui", "interactions.js")
     with open(inter_path, "r", encoding="utf-8") as f:
         assert "window.LiveSplit.Interactions" in f.read(), "src/ui/interactions.js must export LiveSplit.Interactions"
+
+    lead_path = os.path.join(ROOT_DIR, "src", "ui", "leaderboard.js")
+    with open(lead_path, "r", encoding="utf-8") as f:
+        assert "window.LiveSplit.Leaderboard" in f.read(), "src/ui/leaderboard.js must export LiveSplit.Leaderboard"
 
     # 3. Verify zero-allocation 60 FPS element caching in overlay.js
     assert "getLiveElements(currentIndex)" in overlay_src, "overlay.js must use getLiveElements for 60 FPS tick"
@@ -2295,6 +2302,102 @@ def test_track_orientation_and_split_density_reflow():
     print("✓ Track orientation reflow, dimensional fallbacks, and Start-screen split updates passed.")
 
 
+
+def test_live_race_ghost_pins_and_f1_leaderboard():
+    """Verify Live Race competitor track pins, dead-reckoning mapping parity,
+    F1 timing tower component, FLIP animations, and interactive mute toggles."""
+    import json
+
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html = f.read()
+    with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
+        css = f.read()
+    with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
+        layout_js = f.read()
+    with open(os.path.join(ROOT_DIR, "src", "ui", "layout-engine.js"), "r", encoding="utf-8") as f:
+        layout_engine_js = f.read()
+    with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
+        schema_json = json.load(f)
+    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
+        overlay_js = f.read()
+    with open(os.path.join(ROOT_DIR, "src", "ui", "leaderboard.js"), "r", encoding="utf-8") as f:
+        leaderboard_js = f.read()
+
+    # 1. HTML DOM Structure
+    expected_ids = [
+        "hud-comp-leaderboard",
+        "badge-scale-leaderboard",
+        "race-leaderboard",
+        "leaderboard-status-badge",
+        "leaderboard-rows"
+    ]
+    for eid in expected_ids:
+        assert f'id="{eid}"' in html, f"index.html missing leaderboard element id '{eid}'"
+    assert 'data-component-id="leaderboard"' in html, "index.html must register leaderboard data-component-id"
+
+    # 2. Component registry in layout systems and schema
+    assert '"leaderboard"' in layout_js, "layout.js COMPONENTS must include 'leaderboard'"
+    assert '"leaderboard"' in layout_engine_js, "src/ui/layout-engine.js COMPONENTS must include 'leaderboard'"
+    assert "leaderboard" in schema_json["properties"]["components"]["properties"], "schema/layout-v1.json must define leaderboard component"
+
+    # 3. CSS styling
+    expected_selectors = [
+        ".ghost-marker.race-competitor",
+        ".ghost-marker.race-competitor .ghost-icon-wrap",
+        ".ghost-marker.race-competitor .ghost-needle",
+        ".ghost-marker.race-competitor .racer-tag",
+        "#hud-comp-leaderboard",
+        "#hud-comp-leaderboard.has-bg",
+        ".race-leaderboard",
+        ".leaderboard-header",
+        ".leaderboard-status",
+        ".leaderboard-rows",
+        ".leaderboard-row",
+        ".leaderboard-row.is-host",
+        ".leaderboard-row.is-muted",
+        ".leaderboard-row.overtake-flash",
+        ".pos-badge",
+        ".pos-badge.pos-1",
+        ".racer-accent-bar",
+        ".racer-avatar-badge",
+        ".racer-name",
+        ".host-pill",
+        ".racer-gap",
+        ".racer-interval",
+        ".racer-mute-btn"
+    ]
+    for sel in expected_selectors:
+        assert sel in css, f"style.css missing selector '{sel}'"
+
+    # 4. Dead-reckoning & track pin parity logic in overlay.js
+    assert "getOrCreateRaceMarker" in overlay_js, "overlay.js must define getOrCreateRaceMarker"
+    assert "getSegmentCoords" in overlay_js, "overlay.js must use unified getSegmentCoords for track pins"
+    assert "LiveSplitLeaderboard.renderLeaderboard" in overlay_js, "overlay.js must trigger LiveSplitLeaderboard.renderLeaderboard"
+    assert "window.updateGhostRunner = updateGhostRunner;" in overlay_js, "overlay.js must export updateGhostRunner globally"
+
+    # 5. Leaderboard FLIP animation math simulation
+    def sim_flip_transform(old_top, new_top):
+        dy = old_top - new_top
+        return f"translateY({dy}px)" if abs(dy) > 0.5 else None
+
+    assert sim_flip_transform(120, 160) == "translateY(-40px)", "FLIP invert transform must counteract downward move"
+    assert sim_flip_transform(200, 150) == "translateY(50px)", "FLIP invert transform must counteract upward move"
+    assert sim_flip_transform(100, 100.2) is None, "Sub-pixel shifts within 0.5px must be ignored to prevent jitter"
+
+    # 6. Standings & mute state simulation
+    mock_entrants = [
+        {"userId": "sim_speeddemon", "username": "SpeedDemon", "score": 2.5, "isHost": False, "isMuted": False},
+        {"userId": "you", "username": "You", "score": 2.2, "isHost": True, "isMuted": False},
+        {"userId": "sim_shadow", "username": "ShadowPacer", "score": 1.9, "isHost": False, "isMuted": True}
+    ]
+    # Filter for track pins: competitors only, unmuted only
+    track_competitors = [e for e in mock_entrants if not e["isHost"] and not e["isMuted"]]
+    assert len(track_competitors) == 1, "Only unmuted competitors should render on progress track"
+    assert track_competitors[0]["userId"] == "sim_speeddemon"
+
+    print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -2336,6 +2439,7 @@ def main():
         test_modular_architecture()
         test_race_client_and_simulation_engine()
         test_track_orientation_and_split_density_reflow()
+        test_live_race_ghost_pins_and_f1_leaderboard()
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

@@ -22,10 +22,12 @@
      - [`split-engine.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/split-engine.js): `.lss` XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
      - [`ghost-math.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
      - [`livesplit-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
+     - [`race-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-client.js): therun.gg/racetime.gg live telemetry bridge, F1-style continuous scoring, leader gap/interval calculations, and local simulated race engine.
    - **`src/ui/` Interface & Layout Modules**:
      - [`layout-engine.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
      - [`track-renderer.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/track-renderer.js): Sliding window math, schematic breaks, and zero-allocation 60 FPS element caching.
      - [`interactions.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
+     - [`leaderboard.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/leaderboard.js): Live race F1 timing tower controller, 60 FPS FLIP overtake reorder animations, and entrant mute controls.
    - [layout.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
    - [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js): Application bootstrap, high-frequency render ticks, and LiveSplit Server WebSocket bridge.
 

@@ -1918,6 +1918,42 @@ function getOrCreateGhostMarker(ghostInfo) {
   return marker;
 }
 
+function getOrCreateRaceMarker(racer) {
+  const markerId = `ghost-marker-race-${racer.userId}`;
+  let marker = document.getElementById(markerId);
+  const track = document.getElementById("track");
+  if (!track) return null;
+
+  const color = racer.color || "#38bdf8";
+  const avatarHtml = racer.avatar && (racer.avatar.startsWith("http") || racer.avatar.startsWith("data:"))
+    ? `<img class="racer-avatar-img" src="${racer.avatar}" alt="" />`
+    : `<span class="ghost-icon racer-avatar">${racer.avatar || "🏎️"}</span>`;
+
+  if (!marker) {
+    marker = document.createElement("div");
+    marker.id = markerId;
+    marker.className = "ghost-marker race-competitor";
+    marker.style.setProperty("--racer-color", color);
+    marker.innerHTML = `
+      <div class="ghost-icon-wrap racer-avatar-wrap">${avatarHtml}</div>
+      <div class="ghost-needle racer-needle"></div>
+      <div class="racer-tag">${racer.username || ""}</div>
+    `;
+    track.appendChild(marker);
+  } else {
+    if (!track.contains(marker)) {
+      track.appendChild(marker);
+    }
+    marker.style.setProperty("--racer-color", color);
+    const wrap = marker.querySelector(".racer-avatar-wrap");
+    if (wrap) wrap.innerHTML = avatarHtml;
+    const tag = marker.querySelector(".racer-tag");
+    if (tag) tag.textContent = racer.username || "";
+  }
+  knownGhostMarkers.add(marker);
+  return marker;
+}
+
 function hideAllGhostMarkers() {
   const staticMarker = document.getElementById("ghost-marker");
   if (staticMarker) staticMarker.style.display = "none";
@@ -1937,10 +1973,23 @@ function updateGhostRunner(currentSec) {
   const isVertical = track.classList.contains("vertical");
 
   const activeList = activeGhostComparisons.filter(g => g && g !== "off");
-  if (activeList.length === 0 || currentSec === null || currentSec <= 0 || splitsList.length === 0) {
+  const rc = window.LiveSplit && window.LiveSplit.RaceClient ? window.LiveSplit.RaceClient : window.LiveSplitRaceClient;
+  const isRaceActive = rc && (rc.isConnected || rc.isSimulating);
+  const raceEntrants = isRaceActive ? rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted) : [];
+
+  if ((activeList.length === 0 && raceEntrants.length === 0) || currentSec === null || currentSec < 0 || splitsList.length === 0) {
     hideAllGhostMarkers();
     if (edgeLeft) edgeLeft.style.display = "none";
     if (edgeRight) edgeRight.style.display = "none";
+    if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
+      const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
+      window.LiveSplitLeaderboard.renderLeaderboard(
+        rc ? rc.getRankedEntrants() : [],
+        rc ? rc.isSimulating : false,
+        rc ? rc.isConnected : false,
+        isEditMode
+      );
+    }
     return;
   }
 
@@ -1966,17 +2015,7 @@ function updateGhostRunner(currentSec) {
   const rightOffscreenGhosts = [];
   const renderedMarkerIds = new Set();
 
-  activeList.forEach((gId) => {
-    const ghostInfo = getGhostComparisonInfo(gId);
-    if (!ghostInfo) return;
-
-    const marker = getOrCreateGhostMarker(ghostInfo);
-    if (!marker) return;
-    renderedMarkerIds.add(marker.id);
-
-    const { segIdx, ratio } = calculateGhostProgress(currentSec, ghostInfo.times);
-
-    // Calculate physical track coordinates (Y in vertical mode, X in horizontal mode)
+  function getSegmentCoords(segIdx) {
     let startCoord = 0;
     let endCoord = 0;
     let prevNode = null;
@@ -2000,8 +2039,7 @@ function updateGhostRunner(currentSec) {
               startCoord = discY;
               endCoord = discY;
             } else {
-              marker.style.display = "none";
-              return;
+              return null;
             }
           } else {
             prevNode = prevItem;
@@ -2010,8 +2048,7 @@ function updateGhostRunner(currentSec) {
             endCoord = currentItem.offsetTop + (currentItem.offsetHeight / 2);
           }
         } else {
-          marker.style.display = "none";
-          return;
+          return null;
         }
       }
     } else {
@@ -2032,8 +2069,7 @@ function updateGhostRunner(currentSec) {
               startCoord = discX;
               endCoord = discX;
             } else {
-              marker.style.display = "none";
-              return;
+              return null;
             }
           } else {
             prevNode = prevItem;
@@ -2042,13 +2078,31 @@ function updateGhostRunner(currentSec) {
             endCoord = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
           }
         } else {
-          marker.style.display = "none";
-          return;
+          return null;
         }
       }
     }
 
-    const ghostCoord = startCoord + ratio * (endCoord - startCoord);
+    return { startCoord, endCoord, prevNode, nextNode };
+  }
+
+  // 1. Render active comparison ghosts (WR, PB, Best, Avg, Worst)
+  activeList.forEach((gId) => {
+    const ghostInfo = getGhostComparisonInfo(gId);
+    if (!ghostInfo) return;
+
+    const marker = getOrCreateGhostMarker(ghostInfo);
+    if (!marker) return;
+    renderedMarkerIds.add(marker.id);
+
+    const { segIdx, ratio } = calculateGhostProgress(currentSec, ghostInfo.times);
+    const coords = getSegmentCoords(segIdx);
+    if (!coords) {
+      marker.style.display = "none";
+      return;
+    }
+
+    const ghostCoord = coords.startCoord + ratio * (coords.endCoord - coords.startCoord);
 
     // Compute live delta vs this ghost
     const ghostTimes = ghostInfo.times;
@@ -2066,33 +2120,83 @@ function updateGhostRunner(currentSec) {
     const deltaStr = formatDeltaSeconds(liveDeltaGhost);
 
     if (ghostCoord < visibleMin) {
-      // Off-screen to the left (or top in vertical mode)
       marker.style.display = "none";
       leftOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
     } else if (ghostCoord > visibleMax) {
-      // Off-screen to the right (or bottom in vertical mode)
       marker.style.display = "none";
       rightOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
     } else {
-      // On-screen!
       marker.style.display = "flex";
       if (isVertical) {
         marker.style.transform = `translateY(${ghostCoord}px) translateY(-50%) translateX(-50%)`;
       } else {
         marker.style.transform = `translateX(${ghostCoord}px) translateX(-50%)`;
-
-        // Dynamically shrink pin when hovering over split text, extend longer in open track
-        const distPrev = Math.abs(ghostCoord - startCoord);
-        const distNext = Math.abs(endCoord - ghostCoord);
-        const prevThreshold = getNodeTextThreshold(prevNode, false);
-        const nextThreshold = getNodeTextThreshold(nextNode, true);
+        const distPrev = Math.abs(ghostCoord - coords.startCoord);
+        const distNext = Math.abs(coords.endCoord - ghostCoord);
+        const prevThreshold = getNodeTextThreshold(coords.prevNode, false);
+        const nextThreshold = getNodeTextThreshold(coords.nextNode, true);
         const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
         marker.classList.toggle("compact", isHoveringText);
       }
     }
   });
 
-  // Hide static template marker and any marker not in active list
+  // 2. Render live race competitors (therun.gg / racetime.gg / simulation)
+  raceEntrants.forEach((racer) => {
+    let segIdx = Math.floor(racer.score || 0);
+    let ratio = (racer.score || 0) - segIdx;
+    if (racer.isFinished) {
+      segIdx = splitsList.length - 1;
+      ratio = 1.0;
+    }
+    segIdx = Math.max(0, Math.min(splitsList.length - 1, segIdx));
+    ratio = Math.max(0, Math.min(1.0, ratio));
+
+    const coords = getSegmentCoords(segIdx);
+    if (!coords) return;
+
+    const marker = getOrCreateRaceMarker(racer);
+    if (!marker) return;
+    renderedMarkerIds.add(marker.id);
+
+    const ghostCoord = coords.startCoord + ratio * (coords.endCoord - coords.startCoord);
+
+    const hostScore = Math.max(0, currentIndex) + runnerSegProgress;
+    const isAhead = (hostScore >= (racer.score || 0));
+    const deltaSec = currentSec - (racer.currentTimeSec || 0);
+    const deltaStr = formatDeltaSeconds(deltaSec);
+
+    if (ghostCoord < visibleMin) {
+      marker.style.display = "none";
+      leftOffscreenGhosts.push({
+        ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
+        deltaStr,
+        isAhead
+      });
+    } else if (ghostCoord > visibleMax) {
+      marker.style.display = "none";
+      rightOffscreenGhosts.push({
+        ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
+        deltaStr,
+        isAhead
+      });
+    } else {
+      marker.style.display = "flex";
+      if (isVertical) {
+        marker.style.transform = `translateY(${ghostCoord}px) translateY(-50%) translateX(-50%)`;
+      } else {
+        marker.style.transform = `translateX(${ghostCoord}px) translateX(-50%)`;
+        const distPrev = Math.abs(ghostCoord - coords.startCoord);
+        const distNext = Math.abs(coords.endCoord - ghostCoord);
+        const prevThreshold = getNodeTextThreshold(coords.prevNode, false);
+        const nextThreshold = getNodeTextThreshold(coords.nextNode, true);
+        const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
+        marker.classList.toggle("compact", isHoveringText);
+      }
+    }
+  });
+
+  // Hide static template marker and any marker not in rendered set
   const staticMarker = document.getElementById("ghost-marker");
   if (staticMarker) staticMarker.style.display = "none";
   knownGhostMarkers.forEach((m) => {
@@ -2109,12 +2213,14 @@ function updateGhostRunner(currentSec) {
     edgeLeft.style.display = "flex";
     if (leftOffscreenGhosts.length === 1) {
       const g = leftOffscreenGhosts[0];
-      edgeLeft.innerHTML = `<span>${prevArrow}</span> <span id="ghost-edge-left-icon">${g.ghostInfo.icon}</span> <span id="ghost-edge-left-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span>`;
+      const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
+      edgeLeft.innerHTML = `<span>${prevArrow}</span> <span id="ghost-edge-left-icon" ${iconCol}>${g.ghostInfo.icon}</span> <span id="ghost-edge-left-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span>`;
     } else {
       let html = `<span style="opacity:0.7;">${prevArrow}</span> `;
       html += leftOffscreenGhosts.map(g => {
         const col = g.isAhead ? "#22c55e" : "#ef4444";
-        return `<span>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
+        const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
+        return `<span ${iconCol}>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
       }).join(" &nbsp;");
       edgeLeft.innerHTML = html;
     }
@@ -2127,17 +2233,30 @@ function updateGhostRunner(currentSec) {
     edgeRight.style.display = "flex";
     if (rightOffscreenGhosts.length === 1) {
       const g = rightOffscreenGhosts[0];
-      edgeRight.innerHTML = `<span id="ghost-edge-right-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span> <span id="ghost-edge-right-icon">${g.ghostInfo.icon}</span> <span>${nextArrow}</span>`;
+      const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
+      edgeRight.innerHTML = `<span id="ghost-edge-right-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span> <span id="ghost-edge-right-icon" ${iconCol}>${g.ghostInfo.icon}</span> <span>${nextArrow}</span>`;
     } else {
       let html = rightOffscreenGhosts.map(g => {
         const col = g.isAhead ? "#22c55e" : "#ef4444";
-        return `<span>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
+        const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
+        return `<span ${iconCol}>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
       }).join(" &nbsp;");
       html += ` <span style="opacity:0.7;">${nextArrow}</span>`;
       edgeRight.innerHTML = html;
     }
   } else if (edgeRight) {
     edgeRight.style.display = "none";
+  }
+
+  // 3. Render F1 Dynamic Leaderboard
+  if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
+    const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
+    window.LiveSplitLeaderboard.renderLeaderboard(
+      rc ? rc.getRankedEntrants() : [],
+      rc ? rc.isSimulating : false,
+      rc ? rc.isConnected : false,
+      isEditMode
+    );
   }
 }
 
@@ -3555,6 +3674,7 @@ window.getLockedDeltas = () => lockedDeltas;
 window.getCurrentIndex = () => currentIndex;
 window.updateTrackStatus = updateTrackStatus;
 window.updateGhostBadge = updateGhostBadge;
+window.updateGhostRunner = updateGhostRunner;
 window.updateTrackWindow = updateTrackWindow;
 window.shiftTrackWindow = shiftTrackWindow;
 window.isTrackWindowed = isTrackWindowed;

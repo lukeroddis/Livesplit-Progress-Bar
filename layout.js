@@ -7,7 +7,7 @@
 (function () {
   const STORAGE_KEY = "livesplit_hud_layout";
   const TRACK_STYLE_KEY = "livesplit_track_style";
-  const COMPONENTS = ["title", "timers", "track"];
+  const COMPONENTS = ["title", "timers", "track", "leaderboard"];
 
   const DEFAULT_TRACK_STYLE = {
     orientation: "horizontal", // 'horizontal' | 'vertical'
@@ -124,6 +124,13 @@
         scale: 1.0,
         visible: true,
         docked: "bottom"
+      },
+      leaderboard: {
+        x: 42,
+        y: 110,
+        scale: 1.0,
+        visible: true,
+        docked: "none"
       }
     };
   }
@@ -710,6 +717,8 @@
     if (elTitle) elTitle.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTitle !== false);
     if (elTimers) elTimers.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTimers !== false);
     if (elTrackComp) elTrackComp.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTrack !== false);
+    const elLeaderboard = document.getElementById("hud-comp-leaderboard");
+    if (elLeaderboard) elLeaderboard.classList.toggle("has-bg", isBgActive);
 
     // Remove existing positional classes and set active ones
     track.classList.remove(
@@ -1337,6 +1346,11 @@
       saveLayout();
     }
     applyAllLayouts();
+    const rc = window.LiveSplit && window.LiveSplit.RaceClient ? window.LiveSplit.RaceClient : window.LiveSplitRaceClient;
+    if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
+      const entrants = rc ? rc.getRankedEntrants() : [];
+      window.LiveSplitLeaderboard.renderLeaderboard(entrants, rc ? rc.isSimulating : false, rc ? rc.isConnected : false, isEditMode);
+    }
   }
 
   function toggleEditMode() {

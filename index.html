@@ -107,6 +107,30 @@
     <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
   </div>
 
+  <!-- HUD Component 4: Live Race F1-Style Dynamic Leaderboard -->
+  <div id="hud-comp-leaderboard" class="hud-component" data-component-id="leaderboard" style="display: none;">
+    <div class="hud-component-header">
+      <span class="hud-drag-handle">::: Live Standings</span>
+      <div class="hud-comp-controls">
+        <span class="hud-scale-badge" id="badge-scale-leaderboard">100%</span>
+        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+      </div>
+    </div>
+    <div class="race-leaderboard" id="race-leaderboard">
+      <div class="leaderboard-header">
+        <div class="leaderboard-title-group">
+          <span class="leaderboard-f1-flag">🏁</span>
+          <span class="leaderboard-title">STANDINGS</span>
+        </div>
+        <span class="leaderboard-status" id="leaderboard-status-badge">LIVE</span>
+      </div>
+      <div class="leaderboard-rows" id="leaderboard-rows">
+        <!-- Dynamic entrant rows rendered here -->
+      </div>
+    </div>
+    <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
+  </div>
+
   <!-- Transient HUD Toast Notification (Pace / Comparison hotkey switches) -->
   <div id="hud-toast" class="hud-toast"></div>
 
@@ -560,6 +584,7 @@
   <script src="src/ui/layout-engine.js"></script>
   <script src="src/ui/track-renderer.js"></script>
   <script src="src/ui/interactions.js"></script>
+  <script src="src/ui/leaderboard.js"></script>
 
   <script src="layout.js"></script>
   <script src="overlay.js"></script>

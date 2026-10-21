@@ -416,6 +416,26 @@
       });
 
       notifyListeners("race_connected", { raceId, isSimulated: true });
+
+      let simVirtualSec = 0;
+      let lastHostSecSeen = hostState.currentTimeSec;
+      simulationTimer = setInterval(() => {
+        if (!isSimulating) return;
+        const compList = (comparisonTimes && comparisonTimes.length > 0)
+          ? comparisonTimes
+          : [30, 60, 90, 120, 150, 180, 210, 240];
+        if (hostState.currentTimeSec > 0 && hostState.currentTimeSec !== lastHostSecSeen) {
+          lastHostSecSeen = hostState.currentTimeSec;
+          tickSimulatedCompetitors(hostState.currentTimeSec, compList);
+        } else {
+          simVirtualSec += 0.05;
+          updateHostProgress(simVirtualSec, Math.floor(simVirtualSec / 30), [], compList);
+        }
+        notifyListeners("entrant_updated", null);
+        if (typeof window !== "undefined" && typeof window.updateGhostRunner === "function") {
+          window.updateGhostRunner(hostState.currentTimeSec || simVirtualSec);
+        }
+      }, 50);
     }
 
     function stopSimulation() {
@@ -436,10 +456,13 @@
      * Ticks simulated competitors along the track synchronized to host elapsed seconds.
      */
     function tickSimulatedCompetitors(hostSec, comparisonTimes = []) {
-      if (!isSimulating || !comparisonTimes || comparisonTimes.length === 0) return;
+      if (!isSimulating) return;
+      const effectiveComp = (comparisonTimes && comparisonTimes.length > 0)
+        ? comparisonTimes
+        : [30, 60, 90, 120, 150, 180, 210, 240];
 
-      const totalSplits = comparisonTimes.length;
-      const finalTarget = comparisonTimes[totalSplits - 1] || (totalSplits * 30);
+      const totalSplits = effectiveComp.length;
+      const finalTarget = effectiveComp[totalSplits - 1] || (totalSplits * 30);
 
       entrants.forEach((racer) => {
         if (racer.isHost) return;
@@ -462,8 +485,8 @@
         let sIdx = 0;
         let sRatio = 0;
         for (let i = 0; i < totalSplits; i++) {
-          const tNext = comparisonTimes[i] || ((i + 1) * 30);
-          const tPrev = i > 0 ? (comparisonTimes[i - 1] || (i * 30)) : 0;
+          const tNext = effectiveComp[i] || ((i + 1) * 30);
+          const tPrev = i > 0 ? (effectiveComp[i - 1] || (i * 30)) : 0;
           if (simSec < tNext) {
             sIdx = i;
             const dur = Math.max(1, tNext - tPrev);
