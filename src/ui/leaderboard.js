@@ -188,22 +188,28 @@
       }
     }
 
-    const entrants = (isRaceActive && rankedEntrants.length > 0)
+    const rawEntrants = (isRaceActive && rankedEntrants.length > 0)
       ? rankedEntrants
       : getPreviewEntrants();
 
-    // Determine if any entrant changed rank position
-    const ranksChanged = entrants.some((r, idx) => prevRanks.get(r.userId) !== (idx + 1));
+    // Ensure entrants is strictly sorted by rank ascending (Rank 1 at slot 0, Rank 2 at slot 1, etc.)
+    const entrants = [...rawEntrants].sort((a, b) => (a.rank || 0) - (b.rank || 0));
 
-    // Dynamic slot height (distance between adjacent rows in px)
-    let slotHeight = 44;
-    if (rowsEl.children.length >= 2) {
-      const h = rowsEl.children[1].offsetTop - rowsEl.children[0].offsetTop;
-      if (h > 24 && h < 120) slotHeight = h;
+    // Determine if any entrant changed rank position
+    const ranksChanged = entrants.some((r, idx) => prevRanks.get(r.userId) !== (r.rank || idx + 1));
+
+    // FLIP Step 1 (FIRST): If positions changed, snapshot each row's visual screen Y position before DOM mutation
+    const firstTops = new Map();
+    if (ranksChanged && prevRanks.size > 0) {
+      rowElementMap.forEach((row, uId) => {
+        if (row && rowsEl.contains(row)) {
+          firstTops.set(uId, row.getBoundingClientRect().top);
+        }
+      });
     }
 
     // -------------------------------------------------------------
-    // Step 2: In-place update of rows without destroying child elements
+    // Step 2 (LAST): In-place update of rows and append in strict rank order
     // -------------------------------------------------------------
     entrants.forEach((racer) => {
       const uId = racer.userId || "unknown";
@@ -296,59 +302,55 @@
     });
 
     // -------------------------------------------------------------
-    // Deterministic Rank Slot Animation: zero glitches, zero overlapping
+    // Step 3 (INVERT) & Step 4 (PLAY): 60 FPS FLIP Overtake Animation
     // -------------------------------------------------------------
-    if (ranksChanged && prevRanks.size > 0) {
-      // Step 3 (INVERT): Synchronously counteract DOM displacement before browser renders
-      entrants.forEach((racer, idx) => {
+    if (ranksChanged && firstTops.size > 0) {
+      const animatedRows = [];
+      entrants.forEach((racer) => {
         const uId = racer.userId || "unknown";
         const row = rowElementMap.get(uId);
         if (!row) return;
 
-        const oldRank = prevRanks.get(uId);
-        const newRank = idx + 1;
-        const rankDelta = (oldRank !== undefined) ? (oldRank - newRank) : 0;
+        const oldTop = firstTops.get(uId);
+        if (oldTop !== undefined) {
+          const newTop = row.getBoundingClientRect().top;
+          const deltaY = oldTop - newTop;
 
-        if (rankDelta !== 0) {
-          row.style.transition = "none";
-          row.style.transform = `translateY(${rankDelta * slotHeight}px)`;
-        } else {
-          row.style.transition = "none";
-          row.style.transform = "";
-        }
-      });
+          if (Math.abs(deltaY) > 0.5) {
+            row.style.transition = "none";
+            row.style.transform = `translateY(${deltaY}px)`;
+            animatedRows.push(row);
 
-      // Step 4: Synchronous layout flush commits inverted transforms
-      void rowsEl.offsetHeight;
-
-      // Step 5 (PLAY): Smoothly glide rows to natural target positions
-      requestAnimationFrame(() => {
-        entrants.forEach((racer, idx) => {
-          const uId = racer.userId || "unknown";
-          const row = rowElementMap.get(uId);
-          if (!row) return;
-
-          const oldRank = prevRanks.get(uId);
-          const newRank = idx + 1;
-          const rankDelta = (oldRank !== undefined) ? (oldRank - newRank) : 0;
-
-          if (rankDelta !== 0) {
-            row.style.transition = "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)";
-            row.style.transform = "";
-
-            if (rankDelta > 0) {
+            const oldRank = prevRanks.get(uId);
+            const newRank = racer.rank || 1;
+            if (oldRank !== undefined && newRank < oldRank) {
               row.classList.add("overtake-flash");
               setTimeout(() => {
                 row.classList.remove("overtake-flash");
               }, 500);
             }
+          } else {
+            row.style.transition = "none";
+            row.style.transform = "";
           }
-        });
+        }
       });
+
+      // Synchronous layout flush commits inverted transforms before next frame
+      void rowsEl.offsetHeight;
+
+      // Play step: smoothly glide rows back to their natural target positions (transform = "")
+      if (animatedRows.length > 0) {
+        requestAnimationFrame(() => {
+          animatedRows.forEach((row) => {
+            row.style.transition = "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)";
+            row.style.transform = "";
+          });
+        });
+      }
     } else if (ranksChanged) {
-      // First render / clean reset: ensure zero residual transforms
-      entrants.forEach((racer) => {
-        const row = rowElementMap.get(racer.userId);
+      // First render / initial placement: clean any residual transforms
+      rowElementMap.forEach((row) => {
         if (row) {
           row.style.transition = "none";
           row.style.transform = "";
@@ -357,7 +359,7 @@
     }
 
     // Update recorded ranks
-    entrants.forEach((r, idx) => prevRanks.set(r.userId, idx + 1));
+    entrants.forEach((r, idx) => prevRanks.set(r.userId, r.rank || (idx + 1)));
 
     // Clean up rows of racers who left
     const activeIds = new Set(entrants.map(r => r.userId));

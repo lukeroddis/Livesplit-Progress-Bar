@@ -2940,8 +2940,6 @@ async function pollLoop() {
         }
       } else {
         if (currentTotalSec !== null) {
-          updateLiveSegmentProgress(currentTotalSec);
-          updateGhostRunner(currentTotalSec);
           if (window.LiveSplitRaceClient) {
             const hostSplitName = (currentIndex < 0)
               ? "Start"
@@ -2955,6 +2953,8 @@ async function pollLoop() {
               splitsList
             );
           }
+          updateLiveSegmentProgress(currentTotalSec);
+          updateGhostRunner(currentTotalSec);
         }
       }
     }

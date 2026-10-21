@@ -110,10 +110,18 @@
         list.push(hostState);
       }
 
-      // Sort criteria with hysteresis to eliminate 60 FPS neck-and-neck position jitter:
+      // Sort criteria:
       // 1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
       // 2. Active runners ranked by continuous race score descending (further along split track)
       // 3. Ties broken by currentTimeSec ascending
+      // Incumbency bonus (~0.0001 per rank held) provides subtle position hysteresis
+      // to eliminate 60 FPS jitter while strictly preserving mathematical transitivity (no Timsort cycles).
+      list.forEach((r) => {
+        const prevRank = lastKnownRanks.get(r.userId);
+        const incumbency = (prevRank !== undefined) ? ((100 - prevRank) * 0.0001) : 0;
+        r._effectiveScore = (r.score || 0) + incumbency;
+      });
+
       list.sort((a, b) => {
         if (a.isFinished && b.isFinished) {
           return (a.finalTimeSec || Infinity) - (b.finalTimeSec || Infinity);
@@ -121,29 +129,19 @@
         if (a.isFinished && !b.isFinished) return -1;
         if (!a.isFinished && b.isFinished) return 1;
 
-        const scoreA = a.score || 0;
-        const scoreB = b.score || 0;
-        const prevRankA = lastKnownRanks.get(a.userId);
-        const prevRankB = lastKnownRanks.get(b.userId);
-        const HYSTERESIS = 0.015; // ~0.45s pace advantage required to complete overtake
-
-        if (prevRankA !== undefined && prevRankB !== undefined) {
-          if (prevRankA < prevRankB) {
-            // A holds rank ahead of B unless B exceeds A by hysteresis margin
-            if (scoreB - scoreA > HYSTERESIS) return 1;
-            return -1;
-          } else if (prevRankB < prevRankA) {
-            // B holds rank ahead of A unless A exceeds B by hysteresis margin
-            if (scoreA - scoreB > HYSTERESIS) return -1;
-            return 1;
-          }
+        const scoreA = a._effectiveScore !== undefined ? a._effectiveScore : (a.score || 0);
+        const scoreB = b._effectiveScore !== undefined ? b._effectiveScore : (b.score || 0);
+        const diff = scoreB - scoreA;
+        if (Math.abs(diff) > 0.0001) {
+          return diff;
         }
 
-        const scoreDiff = scoreB - scoreA;
-        if (Math.abs(scoreDiff) > 0.005) {
-          return scoreDiff;
+        const timeDiff = (a.currentTimeSec || 0) - (b.currentTimeSec || 0);
+        if (Math.abs(timeDiff) > 0.001) {
+          return timeDiff;
         }
-        return (a.currentTimeSec || 0) - (b.currentTimeSec || 0);
+
+        return String(a.userId || "").localeCompare(String(b.userId || ""));
       });
 
       list.forEach((r, idx) => lastKnownRanks.set(r.userId, idx + 1));
