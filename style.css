@@ -2768,7 +2768,7 @@ body.edit-mode .settings-menu-panel {
 }
 
 .leaderboard-row.overtake-flash {
-  animation: overtake-pulse 0.6s ease-out;
+  animation: overtake-pulse 1.0s ease-out;
 }
 
 @keyframes overtake-pulse {
@@ -2791,6 +2791,7 @@ body.edit-mode .settings-menu-panel {
   width: 18px;
   text-align: center;
   color: #94a3b8;
+  transition: color 0.4s ease, text-shadow 0.4s ease;
 }
 
 .pos-badge.pos-1 {

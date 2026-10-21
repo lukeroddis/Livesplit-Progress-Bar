@@ -15,6 +15,8 @@
   const rowElementMap = new Map();
   // Map of userId -> previous rank (1, 2, 3...)
   const prevRanks = new Map();
+  // Map of userId -> active Animation object
+  const activeAnimations = new Map();
   let isMuteListenerAttached = false;
 
   /**
@@ -262,8 +264,9 @@
         rowElementMap.set(uId, row);
         rowsEl.appendChild(row);
       } else {
-        // In-place property update: never destroy button or child nodes
-        row.className = `leaderboard-row${isHost ? " is-host" : ""}${isMuted ? " is-muted" : ""}`;
+        // In-place property update: never wipe out running animations or overtake-flash class
+        row.classList.toggle("is-host", isHost);
+        row.classList.toggle("is-muted", isMuted);
         row.style.setProperty("--racer-color", color);
 
         const posBadge = row.querySelector(".pos-badge");
@@ -315,10 +318,9 @@
     }
 
     // -------------------------------------------------------------
-    // Step 3 (INVERT) & Step 4 (PLAY): 60 FPS FLIP Overtake Animation (0.55s glide)
+    // Step 3 (INVERT) & Step 4 (PLAY): 1.0s GPU-Accelerated Position Trading
     // -------------------------------------------------------------
     if (ranksChanged && firstTops.size > 0) {
-      const animatedRows = [];
       entrants.forEach((racer) => {
         const uId = racer.userId || "unknown";
         const row = rowElementMap.get(uId);
@@ -330,44 +332,53 @@
           const deltaY = oldTop - newTop;
 
           if (Math.abs(deltaY) > 0.5) {
-            row.style.transition = "none";
-            row.style.transform = `translateY(${deltaY}px)`;
-            row.style.zIndex = deltaY > 0 ? "3" : "1";
-            animatedRows.push({ row, isOvertaker: deltaY > 0 });
+            const isOvertaker = deltaY > 0;
+            row.style.zIndex = isOvertaker ? "3" : "1";
+
+            if (isOvertaker) {
+              row.classList.add("overtake-flash");
+              setTimeout(() => {
+                row.classList.remove("overtake-flash");
+              }, 1000);
+            }
+
+            // Cancel any in-flight animation on this row
+            if (activeAnimations.has(uId)) {
+              try { activeAnimations.get(uId).cancel(); } catch (_) {}
+              activeAnimations.delete(uId);
+            }
+
+            if (typeof row.animate === "function") {
+              // Web Animations API: buttery-smooth 1.0s compositor glide with zero flicker
+              const anim = row.animate([
+                { transform: `translateY(${deltaY}px)` },
+                { transform: "translateY(0px)" }
+              ], {
+                duration: 1000,
+                easing: "cubic-bezier(0.2, 0.9, 0.3, 1)",
+                fill: "none"
+              });
+              activeAnimations.set(uId, anim);
+              anim.onfinish = () => {
+                activeAnimations.delete(uId);
+                row.style.zIndex = "";
+              };
+            } else {
+              // Fallback for headless environments
+              row.style.transition = "none";
+              row.style.transform = `translateY(${deltaY}px)`;
+              void rowsEl.offsetHeight;
+              requestAnimationFrame(() => {
+                row.style.transition = "transform 1.0s cubic-bezier(0.2, 0.9, 0.3, 1)";
+                row.style.transform = "";
+              });
+            }
           } else {
-            row.style.transition = "none";
             row.style.transform = "";
             row.style.zIndex = "";
           }
         }
       });
-
-      // Synchronous layout flush commits inverted transforms before next frame
-      void rowsEl.offsetHeight;
-
-      // Play step: smoothly glide rows back to their natural target positions (transform = "")
-      if (animatedRows.length > 0) {
-        requestAnimationFrame(() => {
-          animatedRows.forEach(({ row, isOvertaker }) => {
-            row.style.transition = "transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1)";
-            row.style.transform = "";
-            if (isOvertaker) {
-              row.classList.add("overtake-flash");
-              setTimeout(() => {
-                row.classList.remove("overtake-flash");
-              }, 600);
-            }
-          });
-        });
-
-        // Clear temporary zIndex and transitions after the glide completes
-        setTimeout(() => {
-          animatedRows.forEach(({ row }) => {
-            row.style.zIndex = "";
-            row.style.transition = "";
-          });
-        }, 580);
-      }
     } else if (ranksChanged) {
       // First render / initial placement: clean any residual transforms
       rowElementMap.forEach((row) => {
@@ -394,6 +405,11 @@
 
   function reset() {
     prevRanks.clear();
+    activeAnimations.forEach((anim) => {
+      try { anim.cancel(); } catch (_) {}
+    });
+    activeAnimations.clear();
+
     rowElementMap.forEach((row) => {
       if (row) {
         row.style.transition = "none";
