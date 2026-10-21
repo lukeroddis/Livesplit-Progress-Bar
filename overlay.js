@@ -2938,24 +2938,24 @@ async function pollLoop() {
         if (idx >= 0) {
           saveInRunState();
         }
-      } else {
-        if (currentTotalSec !== null) {
-          if (window.LiveSplitRaceClient) {
-            const hostSplitName = (currentIndex < 0)
-              ? "Start"
-              : (currentIndex < splitsList.length ? splitsList[currentIndex] : "Finished");
-            window.LiveSplitRaceClient.updateHostProgress(
-              currentTotalSec,
-              currentIndex,
-              completedSplitTimes,
-              comparisonTimes,
-              hostSplitName,
-              splitsList
-            );
-          }
-          updateLiveSegmentProgress(currentTotalSec);
-          updateGhostRunner(currentTotalSec);
+      }
+
+      if (idx >= 0 && currentTotalSec !== null) {
+        if (window.LiveSplitRaceClient) {
+          const hostSplitName = (currentIndex < 0)
+            ? "Start"
+            : (currentIndex < splitsList.length ? splitsList[currentIndex] : "Finished");
+          window.LiveSplitRaceClient.updateHostProgress(
+            currentTotalSec,
+            currentIndex,
+            completedSplitTimes,
+            comparisonTimes,
+            hostSplitName,
+            splitsList
+          );
         }
+        updateLiveSegmentProgress(currentTotalSec);
+        updateGhostRunner(currentTotalSec);
       }
     }
 

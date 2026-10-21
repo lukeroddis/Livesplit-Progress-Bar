@@ -2397,6 +2397,12 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert len(track_competitors) == 1, "Only unmuted competitors should render on progress track"
     assert track_competitors[0]["userId"] == "sim_speeddemon"
 
+    # 7. Strict anti-flicker and bounding defense assertions
+    assert "transform: none !important;" in css, "style.css must lock .leaderboard-row with transform: none !important"
+    with open(os.path.join(ROOT_DIR, "src", "core", "race-client.js"), "r", encoding="utf-8") as rf:
+        race_code = rf.read()
+    assert "if (hostState.currentTimeSec > 0)" in race_code, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
+
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
 

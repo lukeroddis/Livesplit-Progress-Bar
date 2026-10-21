@@ -2658,6 +2658,7 @@ body.edit-mode .settings-menu-panel {
   min-width: 270px;
   max-width: 380px;
   user-select: none;
+  overflow: hidden;
 }
 
 #hud-comp-leaderboard.has-bg {
@@ -2675,6 +2676,7 @@ body.edit-mode .settings-menu-panel {
   gap: 4px;
   padding: 10px 12px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .leaderboard-header {
@@ -2739,6 +2741,7 @@ body.edit-mode .settings-menu-panel {
   flex-direction: column;
   gap: 4px;
   position: relative;
+  overflow: hidden;
 }
 
 .leaderboard-row {
@@ -2750,7 +2753,7 @@ body.edit-mode .settings-menu-panel {
   border-radius: 6px;
   padding: 5px 8px;
   box-sizing: border-box;
-  will-change: transform;
+  transform: none !important;
   transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
   position: relative;
   overflow: hidden;

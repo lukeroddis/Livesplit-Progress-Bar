@@ -242,7 +242,20 @@
         const curTarget = comparisonTimes[currentIndex];
         const prevTarget = currentIndex > 0 ? (comparisonTimes[currentIndex - 1] || 0) : 0;
         const dur = (curTarget && prevTarget) ? (curTarget - prevTarget) : (curTarget || 30);
-        const lastSplitSec = (completedSplitTimes && currentIndex > 0) ? (completedSplitTimes[currentIndex - 1] || 0) : 0;
+        
+        let lastSplitSec = 0;
+        if (completedSplitTimes && currentIndex > 0) {
+          for (let k = currentIndex - 1; k >= 0; k--) {
+            if (completedSplitTimes[k] !== undefined && completedSplitTimes[k] !== null && completedSplitTimes[k] > 0) {
+              lastSplitSec = completedSplitTimes[k];
+              break;
+            }
+          }
+          if (lastSplitSec === 0 && prevTarget > 0) {
+            lastSplitSec = prevTarget;
+          }
+        }
+        
         const inSeg = Math.max(0, (currentSec || 0) - lastSplitSec);
         ratio = dur > 0 ? Math.max(0, Math.min(1.0, inSeg / dur)) : 0;
       }
@@ -503,16 +516,17 @@
       notifyListeners("race_connected", { raceId, isSimulated: true });
 
       let simVirtualSec = 0;
-      let lastHostSecSeen = hostState.currentTimeSec;
       simulationTimer = setInterval(() => {
         if (!isSimulating) return;
         const compList = (comparisonTimes && comparisonTimes.length > 0)
           ? comparisonTimes
           : [30, 60, 90, 120, 150, 180, 210, 240];
-        if (hostState.currentTimeSec > 0 && hostState.currentTimeSec !== lastHostSecSeen) {
-          lastHostSecSeen = hostState.currentTimeSec;
+
+        if (hostState.currentTimeSec > 0) {
+          // LiveSplit is driving the run: keep competitors synchronized to host run time
           tickSimulatedCompetitors(hostState.currentTimeSec, compList);
         } else {
+          // Standalone / offline simulation without LiveSplit: advance virtual time
           simVirtualSec += 0.05;
           const curIdx = Math.floor(simVirtualSec / 30);
           const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
