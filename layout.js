@@ -402,11 +402,13 @@
     const label = document.getElementById("export-filename-label");
     const banner = document.getElementById("export-status-banner");
     const btnCopy = document.getElementById("btn-copy-export-json");
+    const btnDownload = document.getElementById("btn-redownload-export-json");
     if (!modal) return;
     if (ta) ta.value = jsonStr;
     if (label) label.textContent = filename;
-    if (banner) banner.textContent = `✓ Export ready for ${filename}`;
+    if (banner) banner.textContent = `Export ready for ${filename}`;
     if (btnCopy) btnCopy.textContent = "📋 Copy JSON";
+    if (btnDownload) btnDownload.textContent = "💾 Download .json";
     modal.style.display = "flex";
     modal.classList.add("is-open");
   }
@@ -459,7 +461,7 @@
     const safeName = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
     const filename = `livesplit-layout-${safeName}.json`;
 
-    triggerFileDownload(filename, jsonStr);
+
     openExportModal(filename, jsonStr);
   }
 
@@ -2236,10 +2238,12 @@
     if (btnCopyExportJson) {
       btnCopyExportJson.addEventListener("click", () => {
         const ta = document.getElementById("export-json-textarea");
+        const banner = document.getElementById("export-status-banner");
         if (ta) {
           ta.select();
           const copySuccess = () => {
             btnCopyExportJson.innerText = "✓ Copied!";
+            if (banner) banner.textContent = "✓ Copied to clipboard!";
             setTimeout(() => { btnCopyExportJson.innerText = "📋 Copy JSON"; }, 1500);
           };
           if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2257,11 +2261,19 @@
     if (btnRedownloadExportJson) {
       btnRedownloadExportJson.addEventListener("click", () => {
         const ta = document.getElementById("export-json-textarea");
+        const banner = document.getElementById("export-status-banner");
         const active = getActiveProfileName() || "Default";
         const safeName = active.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
         const filename = `livesplit-layout-${safeName}.json`;
         if (ta && ta.value) {
           triggerFileDownload(filename, ta.value);
+          btnRedownloadExportJson.textContent = "✓ Downloaded!";
+          if (banner) {
+            banner.textContent = `✓ Download initiated for ${filename}`;
+          }
+          setTimeout(() => {
+            btnRedownloadExportJson.textContent = "💾 Download .json";
+          }, 2500);
         }
       });
     }

@@ -1395,6 +1395,14 @@ def test_layout_profiles_and_extensible_schema():
     for exp in expected_exports:
         assert exp in layout_src, f"layout.js missing function/export '{exp}'"
 
+    # 4b. Modal export flow must avoid premature auto-download upon opening modal
+    assert "triggerFileDownload(filename, jsonStr);" not in layout_src, \
+        "exportProfileToFile must not auto-trigger file download prior to opening modal"
+    assert "✓ Downloaded!" in layout_src, \
+        "layout.js must give user visual confirmation upon clicking download in modal"
+    assert "✓ Copied to clipboard!" in layout_src, \
+        "layout.js must give user visual confirmation upon copying JSON in modal"
+
     # 5. Check URL parameter integration (?profile= and ?layout=)
     assert 'params.get("profile") || params.get("layout")' in layout_src, \
         "layout.js parseUrlParameters must check ?profile= and ?layout= URL parameters"
