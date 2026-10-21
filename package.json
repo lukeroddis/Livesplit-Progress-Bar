@@ -1,6 +1,6 @@
 {
   "name": "livesplit-minimal-overlay",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A modern, widescreen-optimized HUD and progress bar overlay for speedrunners",
   "main": "index.html",
   "scripts": {
