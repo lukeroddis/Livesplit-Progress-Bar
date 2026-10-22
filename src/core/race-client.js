@@ -790,7 +790,16 @@
         ? realTimeSec
         : Math.max(0, currentSec || 0);
       lastHostRealTimeSec = raceClockSec;
-      lastHostGameTimeSec = Math.max(0, currentSec || 0);
+
+      if (currentTimingMethod === "GameTime") {
+        lastHostGameTimeSec = Math.max(0, currentSec || 0);
+      } else {
+        if (typeof currentSec === "number" && currentSec > 0 && currentSec !== realTimeSec) {
+          lastHostGameTimeSec = currentSec;
+        } else if (lastHostGameTimeSec === 0) {
+          lastHostGameTimeSec = lastHostRealTimeSec;
+        }
+      }
 
       const normCompletedGT = normalizeSplitTimes(completedSplitTimes);
       const normCompletedRT = normalizeSplitTimes(completedSplitTimesRT);
@@ -1140,6 +1149,10 @@
       stopSimulation();
       isSimulating = true;
       raceId = "sim_cup_2026";
+      lastHostGameTimeSec = 0;
+      lastHostRealTimeSec = 0;
+      lastHostCompletedSplitsGT = [];
+      lastHostCompletedSplitsRT = [];
 
       activeSplitsList = (Array.isArray(splitsList) && splitsList.length > 0)
         ? [...splitsList]
@@ -1331,6 +1344,15 @@
               racer.currentTimeSecGT = 0;
               racer.currentTimeSecRT = 0;
               racer.currentTimeSec = 0;
+              racer.currentSplitIndex = 0;
+              racer.currentSplitName = (activeSplitsList && activeSplitsList[0]) ? activeSplitsList[0] : "Split 1";
+              racer.splitTimes = [];
+              racer.splitTimesGT = [];
+              racer.splitTimesRT = [];
+              racer.isFinished = false;
+              racer.finalTimeSec = null;
+              racer.score = 0;
+              racer.lastSplitEffect = null;
             });
           }
         } else {
@@ -1394,8 +1416,8 @@
           racer.currentTimeSec = isRT ? racer.currentTimeSecRT : racer.currentTimeSecGT;
         }
 
-        const checkTimes = racer.checkpointTimes || activeTargets;
-        const pbTimes = racer.pbCheckpointTimes || activeTargets;
+        const checkTimes = racer.checkpointTimes || (isRT ? racer.checkpointTimesRT : racer.checkpointTimesGT) || activeTargets;
+        const pbTimes = racer.pbCheckpointTimes || (isRT ? racer.pbCheckpointTimesRT : racer.pbCheckpointTimesGT) || activeTargets;
         const finalTarget = checkTimes[checkTimes.length - 1] || finalCourseTarget;
 
         // Check if finished

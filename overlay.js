@@ -3913,8 +3913,9 @@ function initOverlay() {
             raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
           }
         } else {
-          const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : comparisonTimes;
-          raceClient.startSimulation(splitsList, rtComparisons, rtComparisons);
+          const gtComparisons = (comparisonTimesGT && comparisonTimesGT.length > 0) ? comparisonTimesGT : comparisonTimes;
+          const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : gtComparisons;
+          raceClient.startSimulation(splitsList, gtComparisons, rtComparisons);
           raceSimBtn.textContent = "🧪 Stop Sim";
           raceSimBtn.style.color = "#ef4444";
           if (raceToggleBtn) {

@@ -1961,6 +1961,73 @@
         rc.stopSimulation();
         window.LiveSplit.Leaderboard.reset();
       });
+
+      it("Simulation timescale parity prevents slower host from jumping to 1st place when split time is shorter due to GameTime vs RealTime difference", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.setTimingMethod("GameTime");
+
+        // Course targets: Game Time targets = [100.0, 200.0], Real Time targets = [140.0, 280.0]
+        rc.startSimulation(["Split 1", "Split 2"], [100.0, 200.0], [140.0, 280.0]);
+
+        const entrants = rc.getRankedEntrants();
+        const competitor = entrants.find(e => !e.isHost);
+        assert(competitor, "Competitor exists in simulation");
+
+        // Configure competitor checkpoints:
+        // Competitor completes Split 1 at 95.0s Game Time / 133.0s Real Time (faster than course target)
+        competitor.checkpointTimesGT = [95.0, 190.0];
+        competitor.checkpointTimesRT = [133.0, 266.0];
+        competitor.checkpointTimes = competitor.checkpointTimesGT;
+
+        // 1. Race is at 135s Real Time: Competitor has reached 133s Real Time and split to Split 2!
+        // Host has not split yet (Host is on Split 1, at 80s Game Time / 135s Real Time)
+        rc.updateHostProgress(
+          80.0, 0, [], [100.0, 200.0], "Split 1",
+          ["Split 1", "Split 2"], null, true,
+          135.0, [140.0, 280.0], [], "GameTime"
+        );
+
+        let list = rc.getRankedEntrants();
+        let currentComp = list.find(e => e.userId === competitor.userId);
+        let currentHost = list.find(e => e.isHost);
+        assertEqual(currentComp.currentSplitIndex, 1, "Competitor has completed Split 1 and is on Split 2");
+        assertEqual(currentHost.currentSplitIndex, 0, "Host is still on Split 1");
+        const compIndexStep1 = list.findIndex(e => e.userId === competitor.userId);
+        const hostIndexStep1 = list.findIndex(e => e.isHost);
+        assert(compIndexStep1 < hostIndexStep1, "Competitor is ahead of host before host splits");
+        assert(currentHost.rank > 1, "Host is not in 1st place before splitting");
+
+        // 2. Later at 150s Real Time / 105s Game Time: Host splits!
+        // Host completed Split 1 in 105.0s Game Time / 150.0s Real Time.
+        // Even though Host's 105.0s is shorter than Competitor's Real Time 133.0s,
+        // it must compare against Competitor's Game Time 95.0s!
+        rc.updateHostProgress(
+          105.0, 1, [105.0], [100.0, 200.0], "Split 2",
+          ["Split 1", "Split 2"], null, true,
+          150.0, [140.0, 280.0], [150.0], "GameTime"
+        );
+
+        list = rc.getRankedEntrants();
+        currentComp = list.find(e => e.userId === competitor.userId);
+        currentHost = list.find(e => e.isHost);
+        assertEqual(currentComp.currentSplitIndex, 1, "Competitor is on Split 2");
+        assertEqual(currentHost.currentSplitIndex, 1, "Host is on Split 2");
+        const compIndexStep2 = list.findIndex(e => e.userId === competitor.userId);
+        const hostIndexStep2 = list.findIndex(e => e.isHost);
+        assert(compIndexStep2 < hostIndexStep2, "Competitor legitimately stays ahead of host (95.0s GT < 105.0s GT)");
+        assert(currentHost.rank > 1, "Host does NOT jump to 1st place because Host was slower in Game Time");
+
+        // 3. Switch timing method to Real Time:
+        // Host's Real Time split (150.0s) is compared against Competitor's Real Time split (133.0s)
+        rc.setTimingMethod("RealTime");
+        list = rc.getRankedEntrants();
+        const compIndexStep3 = list.findIndex(e => e.userId === competitor.userId);
+        const hostIndexStep3 = list.findIndex(e => e.isHost);
+        assert(compIndexStep3 < hostIndexStep3, "Competitor legitimately stays ahead of host in Real Time (133.0s RT < 150.0s RT)");
+        assert(list.find(e => e.isHost).rank > 1, "Host does not jump to 1st place in Real Time");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---
