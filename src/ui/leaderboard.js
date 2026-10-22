@@ -70,7 +70,9 @@
         isMuted: false,
         currentSplitName: "Split 3",
         gapDisplay: "LEADER",
-        intervalDisplay: "--"
+        intervalDisplay: "--",
+        expectedSegmentDisplay: "28.5s",
+        expectedType: "EXP"
       },
       {
         userId: "you",
@@ -82,7 +84,9 @@
         isMuted: false,
         currentSplitName: "Split 2",
         gapDisplay: "+1.4s",
-        intervalDisplay: "+1.4s"
+        intervalDisplay: "+1.4s",
+        expectedSegmentDisplay: "29.2s",
+        expectedType: "EXP"
       },
       {
         userId: "prev_apex",
@@ -94,7 +98,9 @@
         isMuted: false,
         currentSplitName: "Split 2",
         gapDisplay: "+2.1s",
-        intervalDisplay: "+0.7s"
+        intervalDisplay: "+0.7s",
+        expectedSegmentDisplay: "30.0s",
+        expectedType: "EXP"
       }
     ];
   }
@@ -225,14 +231,16 @@
       const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
 
       const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : "--");
-      const rawInt = racer.intervalDisplay || (rank === 1 ? "--" : "--");
       const gapVal = (rank === 1) ? "LEADER" : rawGap;
-      const isIntBlank = (rank === 1 || rawInt === "--" || !rawInt);
-      const cleanInt = isIntBlank ? "--" : rawInt.replace(/^\+/, "");
-      const intMarkup = isIntBlank ? "--" : `<span class="interval-tag">INT</span>+${escapeHtml(cleanInt)}`;
+      const expType = racer.expectedType || (racer.isFinished ? "FIN" : "EXP");
+      const expVal = racer.expectedSegmentDisplay || "--";
+      const isExpBlank = (expVal === "--" || !expVal);
+      const expMarkup = isExpBlank
+        ? "--"
+        : `<span class="expected-tag interval-tag">${expType}</span>${escapeHtml(expVal)}`;
       const gapTooltip = (rank === 1)
-        ? "Race Leader"
-        : (gapVal === "--" ? "Split 1 in progress" : `Leader Gap: ${gapVal} | Interval to Ahead: ${isIntBlank ? "--" : `+${cleanInt}`}`);
+        ? `Race Leader | Expected: ${expVal}`
+        : (gapVal === "--" ? `Split 1 in progress | Expected: ${expVal}` : `Leader Gap: ${gapVal} | Expected: ${expVal}`);
 
       // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition
       const effect = racer.lastSplitEffect;
@@ -279,7 +287,7 @@
           </div>
           <div class="racer-gap-col" title="${escapeHtml(gapTooltip)}">
             <span class="racer-gap${rank === 1 ? ' is-leader' : ''}">${gapVal}</span>
-            <span class="racer-interval">${intMarkup}</span>
+            <span class="racer-expected racer-interval">${expMarkup}</span>
           </div>
         `;
         rowElementMap.set(uId, row);
@@ -320,9 +328,9 @@
           gapEl.classList.toggle("is-leader", rank === 1);
         }
 
-        const intEl = row.querySelector(".racer-interval");
-        if (intEl && intEl.innerHTML !== intMarkup) {
-          intEl.innerHTML = intMarkup;
+        const intEl = row.querySelector(".racer-expected, .racer-interval");
+        if (intEl && intEl.innerHTML !== expMarkup) {
+          intEl.innerHTML = expMarkup;
         }
 
         const gapCol = row.querySelector(".racer-gap-col");

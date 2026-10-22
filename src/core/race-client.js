@@ -129,8 +129,40 @@
     let simulationTimer = null;
     let activeSplitsList = [];
     let activeComparisonTimes = [];
+    let simulationCourseTargets = [];
     const lastKnownRanks = new Map();
     let lastExternalHostUpdate = 0;
+
+    /**
+     * Normalizes split times dictionary/array into a clean numeric array.
+     */
+    function normalizeSplitTimes(times) {
+      if (!times) return [];
+      if (Array.isArray(times)) {
+        return times
+          .map(t => (typeof t === "number" ? t : parseFloat(t)))
+          .filter(t => typeof t === "number" && !isNaN(t));
+      }
+      if (typeof times === "object") {
+        const keys = Object.keys(times)
+          .map(k => Number(k))
+          .filter(k => !isNaN(k) && k >= 0)
+          .sort((a, b) => a - b);
+        if (keys.length === 0) return [];
+        const maxIdx = keys[keys.length - 1];
+        const arr = [];
+        for (let i = 0; i <= maxIdx; i++) {
+          const val = times[i];
+          if (typeof val === "number" && !isNaN(val)) {
+            arr[i] = val;
+          } else if (typeof val === "string" && !isNaN(parseFloat(val))) {
+            arr[i] = parseFloat(val);
+          }
+        }
+        return arr;
+      }
+      return [];
+    }
 
     // Entrants map: userId -> Entrant Object
     const entrants = new Map();
@@ -215,7 +247,9 @@
       const sRatio = Math.max(0, Math.min(1.0, score - sIdx));
       const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
         ? activeComparisonTimes
-        : [30, 60, 90, 120, 150, 180, 210, 240];
+        : ((simulationCourseTargets && simulationCourseTargets.length > 0)
+          ? simulationCourseTargets
+          : [30, 60, 90, 120, 150, 180, 210, 240]);
       const tPrev = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
       const tNext = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (tPrev + 30);
       return tPrev + sRatio * (tNext - tPrev);
@@ -308,8 +342,8 @@
           return Math.max(0, timeB - timeA);
         }
 
-        const splitsB = Array.isArray(runner.splitTimes) ? runner.splitTimes : [];
-        const splitsA = Array.isArray(aheadRunner.splitTimes) ? aheadRunner.splitTimes : [];
+        const splitsB = normalizeSplitTimes(runner.splitTimes);
+        const splitsA = normalizeSplitTimes(aheadRunner.splitTimes);
 
         const countB = splitsB.length;
         const countA = splitsA.length;
@@ -373,6 +407,33 @@
       list.forEach((runner, idx) => {
         runner.rank = idx + 1;
 
+        // Calculate expected segment duration for current split (or total time if finished)
+        const sIdx = Math.max(0, runner.currentSplitIndex || 0);
+        if (runner.isFinished) {
+          runner.expectedType = "FIN";
+          const finSec = typeof runner.finalTimeSec === "number" ? runner.finalTimeSec : (runner.currentTimeSec || 0);
+          runner.expectedSegmentSec = finSec;
+          runner.expectedSegmentDisplay = formatGapTime(finSec).replace(/^\+/, "");
+        } else {
+          runner.expectedType = "EXP";
+          let segSec = 30.0;
+          if (runner.checkpointTimes && runner.checkpointTimes.length > sIdx) {
+            const prevT = sIdx > 0 ? (runner.checkpointTimes[sIdx - 1] || 0) : 0;
+            segSec = Math.max(0.1, (runner.checkpointTimes[sIdx] || 0) - prevT);
+          } else {
+            const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
+              ? activeComparisonTimes
+              : ((simulationCourseTargets && simulationCourseTargets.length > 0)
+                ? simulationCourseTargets
+                : [30, 60, 90, 120, 150, 180, 210, 240]);
+            const prevT = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
+            const nextT = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (prevT + 30);
+            segSec = Math.max(0.1, nextT - prevT);
+          }
+          runner.expectedSegmentSec = segSec;
+          runner.expectedSegmentDisplay = formatGapTime(segSec).replace(/^\+/, "");
+        }
+
         if (idx === 0) {
           runner.gapToLeaderSec = 0;
           runner.intervalSec = 0;
@@ -428,7 +489,7 @@
       }
       hostState.currentTimeSec = Math.max(0, currentSec || 0);
       hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
-      hostState.splitTimes = completedSplitTimes;
+      hostState.splitTimes = normalizeSplitTimes(completedSplitTimes);
 
       if (splitFlash && splitFlash.type) {
         const completedName = splitFlash.completedSplitName
@@ -496,7 +557,7 @@
 
       // In simulation mode, update simulated competitors synchronously
       if (isSimulating) {
-        tickSimulatedCompetitors(currentSec, comparisonTimes);
+        tickSimulatedCompetitors(currentSec);
       } else if (hostUsername) {
         entrants.forEach((racer) => {
           if (racer.isHost && racer.userId !== hostState.userId) {
@@ -744,8 +805,18 @@
         ? [...splitsList]
         : ["Split 1", "Split 2", "Split 3", "Split 4", "Split 5", "Split 6", "Split 7", "Finished"];
 
+      const fallbackTargets = [30, 60, 90, 120, 150, 180, 210, 240];
       if (Array.isArray(comparisonTimes) && comparisonTimes.length > 0) {
-        activeComparisonTimes = comparisonTimes;
+        simulationCourseTargets = [...comparisonTimes];
+        activeComparisonTimes = [...comparisonTimes];
+      } else {
+        simulationCourseTargets = [...fallbackTargets];
+        activeComparisonTimes = [...fallbackTargets];
+      }
+
+      while (simulationCourseTargets.length < activeSplitsList.length) {
+        const lastT = simulationCourseTargets[simulationCourseTargets.length - 1] || 0;
+        simulationCourseTargets.push(lastT + 30);
       }
 
       const stored = loadStoredUsername();
@@ -768,6 +839,17 @@
       entrants.set(hostState.userId, Object.assign({}, hostState));
 
       SIMULATED_COMPETITORS.forEach((cfg) => {
+        const checkpointTimes = [];
+        let cumTime = 0;
+        for (let k = 0; k < simulationCourseTargets.length; k++) {
+          const prevT = k > 0 ? simulationCourseTargets[k - 1] : 0;
+          const baseSegDur = Math.max(1, simulationCourseTargets[k] - prevT);
+          const splitJitter = Math.sin((k + 1) * 1.7 + cfg.driftOffset) * 0.75;
+          const segDur = Math.max(1, (baseSegDur * cfg.paceFactor) + splitJitter);
+          cumTime += segDur;
+          checkpointTimes.push(cumTime);
+        }
+
         entrants.set(cfg.id, {
           userId: cfg.id,
           username: cfg.username,
@@ -775,6 +857,7 @@
           color: cfg.color,
           paceFactor: cfg.paceFactor,
           driftOffset: cfg.driftOffset,
+          checkpointTimes,
           currentSplitIndex: 0,
           currentSplitName: activeSplitsList[0] || "Split 1",
           currentTimeSec: 0,
@@ -782,7 +865,8 @@
           isFinished: false,
           finalTimeSec: null,
           score: 0,
-          isMuted: false
+          isMuted: false,
+          lastSplitEffect: null
         });
       });
 
@@ -790,21 +874,21 @@
 
       let simVirtualSec = hostState.currentTimeSec || 0;
 
-      function advanceVirtualHost(baseSec, compList) {
+      function advanceVirtualHost(baseSec) {
         simVirtualSec = baseSec + 0.05;
         const curIdx = Math.floor(simVirtualSec / 30);
         let hostFlash = null;
         if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
           if (!Array.isArray(hostState.splitTimes)) hostState.splitTimes = [];
           for (let k = hostState.currentSplitIndex; k < curIdx; k++) {
-            hostState.splitTimes[k] = (compList && compList[k]) || ((k + 1) * 30);
+            hostState.splitTimes[k] = simulationCourseTargets[k] || ((k + 1) * 30);
           }
           const prevSplitName = hostState.currentSplitName
             || (activeSplitsList && activeSplitsList[hostState.currentSplitIndex])
             || `Split ${hostState.currentSplitIndex + 1}`;
           const nextSplitName = (activeSplitsList && activeSplitsList[curIdx])
             ? activeSplitsList[curIdx]
-            : (compList && curIdx >= compList.length ? "Finished" : `Split ${curIdx + 1}`);
+            : (curIdx >= simulationCourseTargets.length ? "Finished" : `Split ${curIdx + 1}`);
           hostFlash = {
             type: "gold",
             timestamp: Date.now(),
@@ -813,27 +897,23 @@
           };
         }
         const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
-        updateHostProgress(simVirtualSec, curIdx, hostState.splitTimes, compList, sName, activeSplitsList, hostFlash, false);
-        tickSimulatedCompetitors(simVirtualSec, compList);
+        updateHostProgress(simVirtualSec, curIdx, hostState.splitTimes, simulationCourseTargets, sName, activeSplitsList, hostFlash, false);
       }
 
       simulationTimer = setInterval(() => {
         if (!isSimulating) return;
-        const compList = (comparisonTimes && comparisonTimes.length > 0)
-          ? comparisonTimes
-          : [30, 60, 90, 120, 150, 180, 210, 240];
 
         const isExternalHostRunning = hostState.currentTimeSec > 0 && (Date.now() - lastExternalHostUpdate < 1500);
 
         if (hostState.currentTimeSec > 0) {
           if (isExternalHostRunning && lastExternalHostUpdate > 0) {
             // LiveSplit is actively driving the run: keep competitors synchronized to host run time
-            tickSimulatedCompetitors(hostState.currentTimeSec, compList);
+            tickSimulatedCompetitors(hostState.currentTimeSec);
           } else {
-            advanceVirtualHost(Math.max(simVirtualSec, hostState.currentTimeSec), compList);
+            advanceVirtualHost(Math.max(simVirtualSec, hostState.currentTimeSec));
           }
         } else {
-          advanceVirtualHost(simVirtualSec, compList);
+          advanceVirtualHost(simVirtualSec);
         }
         notifyListeners("entrant_updated", null);
         if (typeof window !== "undefined" && typeof window.updateGhostRunner === "function") {
@@ -867,48 +947,50 @@
     /**
      * Ticks simulated competitors along the track synchronized to host elapsed seconds.
      */
-    function tickSimulatedCompetitors(hostSec, comparisonTimes = []) {
+    function tickSimulatedCompetitors(hostSec) {
       if (!isSimulating) return;
-      const effectiveComp = (comparisonTimes && comparisonTimes.length > 0)
-        ? comparisonTimes
-        : [30, 60, 90, 120, 150, 180, 210, 240];
-
-      const totalSplits = effectiveComp.length;
-      const finalTarget = effectiveComp[totalSplits - 1] || (totalSplits * 30);
+      const totalSplits = simulationCourseTargets.length;
+      const finalCourseTarget = simulationCourseTargets[totalSplits - 1] || (totalSplits * 30);
 
       entrants.forEach((racer) => {
         if (racer.isHost) return;
 
-        // Dynamic time oscillation to simulate mistakes, recovery, and overtakes
-        const wave = Math.sin((hostSec * 0.15) + racer.driftOffset) * 2.2;
-        const simSec = Math.max(0, (hostSec * racer.paceFactor) + wave);
-        racer.currentTimeSec = simSec;
+        // In a live speedrun race, all competitors share the elapsed race timer
+        racer.currentTimeSec = Math.max(0, hostSec || 0);
+
+        const checkTimes = racer.checkpointTimes || simulationCourseTargets;
+        const finalTarget = checkTimes[checkTimes.length - 1] || finalCourseTarget;
 
         // Check if finished
-        if (simSec >= finalTarget) {
-          racer.isFinished = true;
-          if (!Array.isArray(racer.splitTimes)) racer.splitTimes = [];
-          for (let k = racer.currentSplitIndex; k < totalSplits; k++) {
-            const targetSec = effectiveComp[k] || ((k + 1) * 30);
-            racer.splitTimes[k] = Math.max(1, targetSec / (racer.paceFactor || 1.0));
+        if (racer.currentTimeSec >= finalTarget) {
+          if (!racer.isFinished) {
+            racer.isFinished = true;
+            racer.finalTimeSec = racer.finalTimeSec || finalTarget;
+            racer.currentSplitIndex = totalSplits - 1;
+            racer.currentSplitName = (activeSplitsList && activeSplitsList[totalSplits - 1])
+              ? activeSplitsList[totalSplits - 1]
+              : "Finished";
+            racer.score = totalSplits;
+            if (!Array.isArray(racer.splitTimes)) racer.splitTimes = [];
+            for (let k = 0; k < totalSplits; k++) {
+              if (!racer.splitTimes[k]) {
+                racer.splitTimes[k] = checkTimes[k] || ((k + 1) * 30);
+              }
+            }
           }
-          racer.currentSplitIndex = totalSplits - 1;
-          racer.currentSplitName = (activeSplitsList && activeSplitsList[totalSplits - 1]) ? activeSplitsList[totalSplits - 1] : "Finished";
-          racer.finalTimeSec = racer.finalTimeSec || simSec;
-          racer.score = totalSplits;
           return;
         }
 
-        // Locate competitor's active split segment based on comparison curves
+        // Determine current split and in-segment progress ratio
         let sIdx = 0;
         let sRatio = 0;
         for (let i = 0; i < totalSplits; i++) {
-          const tNext = effectiveComp[i] || ((i + 1) * 30);
-          const tPrev = i > 0 ? (effectiveComp[i - 1] || (i * 30)) : 0;
-          if (simSec < tNext) {
+          const tNext = checkTimes[i] || ((i + 1) * 30);
+          const tPrev = i > 0 ? (checkTimes[i - 1] || (i * 30)) : 0;
+          if (racer.currentTimeSec < tNext) {
             sIdx = i;
-            const dur = Math.max(1, tNext - tPrev);
-            sRatio = Math.max(0, Math.min(1.0, (simSec - tPrev) / dur));
+            const dur = Math.max(0.1, tNext - tPrev);
+            sRatio = Math.max(0, Math.min(1.0, (racer.currentTimeSec - tPrev) / dur));
             break;
           }
         }
@@ -916,19 +998,22 @@
         if (sIdx > racer.currentSplitIndex) {
           if (!Array.isArray(racer.splitTimes)) racer.splitTimes = [];
           for (let k = racer.currentSplitIndex; k < sIdx; k++) {
-            const targetSec = effectiveComp[k] || ((k + 1) * 30);
-            racer.splitTimes[k] = Math.max(1, targetSec / (racer.paceFactor || 1.0));
+            racer.splitTimes[k] = checkTimes[k] || ((k + 1) * 30);
           }
-          // Completed a split in simulation!
+          // Completed a split in simulation: determine split glow type
+          const lastK = sIdx - 1;
+          const actualSeg = (checkTimes[lastK] || ((lastK + 1) * 30)) - (lastK > 0 ? (checkTimes[lastK - 1] || (lastK * 30)) : 0);
+          const baseSeg = (simulationCourseTargets[lastK] || ((lastK + 1) * 30)) - (lastK > 0 ? (simulationCourseTargets[lastK - 1] || (lastK * 30)) : 0);
+
           let flashType = "green";
-          // High pace / positive wave -> Gold split
-          if (wave > 1.2 || (racer.paceFactor >= 1.02 && wave > 0.3)) {
+          if (actualSeg < baseSeg - 0.4) {
             flashType = "gold";
-          } else if (wave < -0.6 || racer.paceFactor < 0.98) {
+          } else if (actualSeg > baseSeg + 0.4) {
             flashType = "red";
           } else {
             flashType = "green";
           }
+
           const prevSplitName = racer.currentSplitName
             || (activeSplitsList && activeSplitsList[racer.currentSplitIndex])
             || `Split ${racer.currentSplitIndex + 1}`;

@@ -1070,7 +1070,7 @@
         rc.stopSimulation();
       });
 
-      it("Leaderboard calculates realistic track deltas and displays INT badge", () => {
+      it("Leaderboard calculates realistic track deltas and displays EXP badge", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
         // Simulate host progress at 45s
@@ -1082,8 +1082,82 @@
         assert(entrants[1].gapDisplay.startsWith("+"), "P2 gap starts with +");
 
         window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
-        const intTags = document.querySelectorAll("#leaderboard-rows .interval-tag");
-        assert(intTags.length >= 2, "INT badges rendered for non-leader entrants");
+        const expTags = document.querySelectorAll("#leaderboard-rows .expected-tag, #leaderboard-rows .interval-tag");
+        assert(expTags.length >= 2, "EXP badges rendered for entrants");
+
+        rc.stopSimulation();
+      });
+
+      it("You tile displays valid milestone delta when host splits with object completedSplitTimes", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
+        // Simulate LiveSplit reporting split times as an Object { 0: 31.5 }
+        rc.updateHostProgress(35, 1, { 0: 31.5 }, [30, 60, 90], "Split 2", ["Split 1", "Split 2", "Split 3"]);
+
+        const entrants = rc.getRankedEntrants();
+        const you = entrants.find(e => e.isHost || e.userId === "you");
+        assert(you !== undefined, "host entrant is present");
+        assert(you.gapDisplay !== "--", `host gapDisplay should not be blank, got ${you.gapDisplay}`);
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
+        const youRow = document.querySelector("#leaderboard-rows .leaderboard-row.is-host");
+        assert(youRow !== null, "You row is rendered");
+        const youGap = youRow.querySelector(".racer-gap");
+        assert(youGap && youGap.textContent !== "--", `You row gap in DOM should not be --, got ${youGap ? youGap.textContent : "null"}`);
+
+        rc.stopSimulation();
+      });
+
+      it("Comparison switching does not destabilize competitor checkpoints or trigger false split flashes", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
+
+        // Advance host to 15s (midway through Split 1)
+        rc.updateHostProgress(15, 0, {}, [30, 60, 90], "Split 1", ["Split 1", "Split 2", "Split 3"]);
+        let entrants = rc.getRankedEntrants();
+        const competitorInitial = entrants.find(e => !e.isHost && e.userId === "sim_apex");
+        assertEqual(competitorInitial.currentSplitIndex, 0, "ApexRunner on split 0 at 15s");
+        assertEqual(competitorInitial.lastSplitEffect, null, "No split flash effect active before split");
+
+        // Host switches comparison profile (e.g. to Best Segments where Split 1 target is 10s)
+        rc.updateHostProgress(15, 0, {}, [10, 20, 30], "Split 1", ["Split 1", "Split 2", "Split 3"]);
+        entrants = rc.getRankedEntrants();
+        const competitorAfterSwitch = entrants.find(e => !e.isHost && e.userId === "sim_apex");
+
+        // Competitors must NOT falsely jump to Split 1 or fire split flashes
+        assertEqual(competitorAfterSwitch.currentSplitIndex, 0, "ApexRunner remains on split 0 despite host comparison switch");
+        assertEqual(competitorAfterSwitch.lastSplitEffect, null, "No false split flash caused by comparison switch");
+
+        rc.stopSimulation();
+      });
+
+      it("All competitor deltas increment immediately once leader crosses first split checkpoint", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
+
+        // Leader splits at 28.0s, race clock is at 28.5s
+        let entrants = rc.getRankedEntrants();
+        const leader = entrants[0];
+        leader.currentSplitIndex = 1;
+        leader.splitTimes = [28.0];
+        leader.currentTimeSec = 28.5;
+
+        // All other 9 runners are at race time 28.5s on split 0
+        entrants.forEach(r => {
+          if (r.userId !== leader.userId) {
+            r.currentSplitIndex = 0;
+            r.splitTimes = [];
+            r.currentTimeSec = 28.5;
+          }
+        });
+
+        entrants = rc.getRankedEntrants();
+        assertEqual(entrants[0].gapDisplay, "LEADER");
+
+        // Every single competitor behind must have an incrementing gap of +0.5s (28.5 - 28.0)
+        for (let i = 1; i < entrants.length; i++) {
+          assertEqual(entrants[i].gapDisplay, "+0.5s", `Competitor ${entrants[i].username} delta increments immediately`);
+        }
 
         rc.stopSimulation();
       });

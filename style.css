@@ -3153,19 +3153,21 @@ body.edit-mode .settings-menu-panel {
   text-shadow: 0 0 6px rgba(250, 204, 21, 0.4);
 }
 
+.racer-expected,
 .racer-interval {
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 9px;
-  color: #64748b;
+  color: #94a3b8;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
+.expected-tag,
 .interval-tag {
   font-size: 7.5px;
   font-weight: 800;
-  color: #64748b;
+  color: #38bdf8;
   letter-spacing: 0.04em;
-  opacity: 0.75;
+  opacity: 0.85;
 }
