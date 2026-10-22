@@ -213,7 +213,12 @@
       : getPreviewEntrants();
 
     // Ensure entrants is strictly sorted by rank ascending (Rank 1 at slot 0, Rank 2 at slot 1, etc.)
-    const entrants = [...rawEntrants].sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    const entrants = [...rawEntrants].sort((a, b) => {
+      if (a.isDNF && !b.isDNF) return 1;
+      if (!a.isDNF && b.isDNF) return -1;
+      if (a.isDNF && b.isDNF) return 0;
+      return (a.rank || 0) - (b.rank || 0);
+    });
 
     // Check if the current DOM order of elements matches the desired rank order
     const currentDomIds = Array.from(rowsEl.children).map(c => c.getAttribute("data-user-id"));
@@ -228,13 +233,15 @@
       const uId = racer.userId || "unknown";
       const isHost = !!racer.isHost;
       const isMuted = !!racer.isMuted;
-      const rank = racer.rank || 1;
+      const isDnf = !!racer.isDNF;
+      const rank = isDnf ? "DNF" : (racer.rank || 1);
+      const posClass = isDnf ? "pos-dnf" : `pos-${(typeof rank === 'number' && rank <= 3) ? rank : 'other'}`;
       const color = racer.color || (isHost ? "#38bdf8" : "#94a3b8");
       const displayName = racer.username || (isHost ? "You" : "Runner");
-      const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
+      const splitLabel = isDnf ? "DNF" : (racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`));
 
       const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : "--");
-      const gapVal = (rank === 1) ? "LEADER" : rawGap;
+      const gapVal = isDnf ? "DNF" : ((rank === 1) ? "LEADER" : rawGap);
       const expType = racer.expectedType || (racer.isFinished ? "FIN" : "EXP");
       const expVal = racer.expectedSegmentDisplay || "--";
       const elapsedVal = racer.elapsedSegmentDisplay || "--";
@@ -250,35 +257,41 @@
         ? `Race Leader | Segment: ${elapsedVal} / ${expVal}`
         : (gapVal === "--" ? `Split 1 in progress | Segment: ${elapsedVal} / ${expVal}` : `Leader Gap: ${gapVal} | Segment: ${elapsedVal} / ${expVal}`);
 
-      // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition
+      // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition (4 seconds total)
       const effect = racer.lastSplitEffect;
       const effectAge = effect ? (Date.now() - (effect.timestamp || 0)) : Infinity;
-      const isEffectActive = effect && effect.type && effectAge >= 0 && effectAge < 2000;
+      const isEffectActive = !isDnf && effect && effect.type && effectAge >= 0 && effectAge < 4000;
       const targetClass = isEffectActive ? `split-flash-${effect.type}` : null;
 
-      // Determine active split text and styling based on 2-phase transition:
-      // Phase 1 (< 1100ms): Display completed split name in gold/green/red
-      // Phase 2 (1100ms - 2000ms): Swipe transition to incoming new split name in neutral color
+      // Determine active split text and styling based on 3-phase transition over 4 seconds:
+      // Phase 1 (0ms - 2000ms): Display completed split name in celebratory gold/green/red
+      // Phase 2 (2000ms - 2500ms): Gradual fade out of completed split name
+      // Phase 3 (2500ms - 4000ms): Smooth scroll and fade in of incoming new split name in neutral color
       let displayedSplit = splitLabel;
       let splitClass = "racer-split";
       if (isEffectActive) {
-        if (effectAge < 1100) {
+        if (effectAge < 850) {
           displayedSplit = effect.completedSplitName || splitLabel;
           splitClass = `racer-split is-completed-${effect.type}`;
+        } else if (effectAge < 1300) {
+          displayedSplit = effect.completedSplitName || splitLabel;
+          splitClass = `racer-split is-completed-${effect.type} split-fade-out`;
         } else {
           displayedSplit = effect.newSplitName || splitLabel;
           splitClass = "racer-split split-swipe-in";
         }
       }
 
-      const rowTitle = isHost
-        ? "Your race progress"
-        : (isMuted ? "Double-click to show runner pin on track" : "Double-click to hide runner pin on track");
+      const rowTitle = isDnf
+        ? `${displayName} did not finish (DNF)`
+        : (isHost
+          ? "Your race progress"
+          : (isMuted ? "Double-click to show runner pin on track" : "Double-click to hide runner pin on track"));
 
       let row = rowElementMap.get(uId);
       if (!row || !rowsEl.contains(row)) {
         row = document.createElement("div");
-        row.className = `leaderboard-row${isHost ? " is-host" : ""}${isMuted ? " is-muted" : ""}`;
+        row.className = `leaderboard-row${isHost ? " is-host" : ""}${isMuted ? " is-muted" : ""}${isDnf ? " is-dnf" : ""}`;
         row.setAttribute("data-user-id", uId);
         row.title = rowTitle;
         row.style.setProperty("--racer-color", color);
@@ -286,7 +299,7 @@
         const avatarMarkup = buildAvatarMarkup(racer.avatar, isHost);
 
         row.innerHTML = `
-          <div class="pos-badge pos-${rank <= 3 ? rank : 'other'}">${rank}</div>
+          <div class="pos-badge ${posClass}">${rank}</div>
           <div class="racer-accent-bar"></div>
           <div class="racer-avatar-badge">${avatarMarkup}</div>
           <div class="racer-name-block">
@@ -304,6 +317,7 @@
         // In-place property update: never wipe out running animations
         row.classList.toggle("is-host", isHost);
         row.classList.toggle("is-muted", isMuted);
+        row.classList.toggle("is-dnf", isDnf);
         if (row.title !== rowTitle) {
           row.title = rowTitle;
         }
@@ -312,7 +326,7 @@
         const posBadge = row.querySelector(".pos-badge");
         if (posBadge) {
           posBadge.textContent = rank;
-          posBadge.className = `pos-badge pos-${rank <= 3 ? rank : 'other'}`;
+          posBadge.className = `pos-badge ${posClass}`;
         }
 
         const nameEl = row.querySelector(".racer-name");

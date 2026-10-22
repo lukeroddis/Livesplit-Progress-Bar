@@ -2851,24 +2851,29 @@ body.edit-mode .settings-menu-panel {
   }
 }
 
-/* Split Completion Tile Glow Pulses (Gold / Green / Red) */
+/* Split Completion Tile Glow Pulses (Gold / Green / Red) - 4-second gradual fade */
 .leaderboard-row.split-flash-gold {
   border-color: #facc15;
   background: rgba(250, 204, 21, 0.32);
-  box-shadow: 0 0 16px rgba(250, 204, 21, 0.75), inset 0 0 10px rgba(250, 204, 21, 0.25);
-  animation: split-pulse-gold 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.80), inset 0 0 12px rgba(250, 204, 21, 0.28);
+  animation: split-pulse-gold 4.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes split-pulse-gold {
   0% {
-    background: rgba(250, 204, 21, 0.38);
+    background: rgba(250, 204, 21, 0.42);
     border-color: #facc15;
-    box-shadow: 0 0 18px rgba(250, 204, 21, 0.8), inset 0 0 10px rgba(250, 204, 21, 0.3);
+    box-shadow: 0 0 22px rgba(250, 204, 21, 0.85), inset 0 0 12px rgba(250, 204, 21, 0.35);
   }
-  40% {
-    background: rgba(250, 204, 21, 0.22);
-    border-color: rgba(250, 204, 21, 0.75);
-    box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+  30% {
+    background: rgba(250, 204, 21, 0.28);
+    border-color: rgba(250, 204, 21, 0.85);
+    box-shadow: 0 0 15px rgba(250, 204, 21, 0.60), inset 0 0 8px rgba(250, 204, 21, 0.20);
+  }
+  65% {
+    background: rgba(250, 204, 21, 0.14);
+    border-color: rgba(250, 204, 21, 0.45);
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.25);
   }
   100% {
     background: rgba(30, 41, 59, 0.55);
@@ -2879,21 +2884,26 @@ body.edit-mode .settings-menu-panel {
 
 .leaderboard-row.is-host.split-flash-gold {
   border-color: #facc15;
-  background: rgba(250, 204, 21, 0.35);
-  box-shadow: 0 0 18px rgba(250, 204, 21, 0.85), inset 0 0 12px rgba(250, 204, 21, 0.35);
-  animation: split-pulse-gold-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  background: rgba(250, 204, 21, 0.38);
+  box-shadow: 0 0 22px rgba(250, 204, 21, 0.90), inset 0 0 14px rgba(250, 204, 21, 0.38);
+  animation: split-pulse-gold-host 4.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes split-pulse-gold-host {
   0% {
-    background: rgba(250, 204, 21, 0.40);
+    background: rgba(250, 204, 21, 0.45);
     border-color: #facc15;
-    box-shadow: 0 0 20px rgba(250, 204, 21, 0.85), inset 0 0 12px rgba(250, 204, 21, 0.35);
+    box-shadow: 0 0 24px rgba(250, 204, 21, 0.90), inset 0 0 14px rgba(250, 204, 21, 0.38);
   }
-  40% {
-    background: rgba(250, 204, 21, 0.25);
-    border-color: rgba(250, 204, 21, 0.85);
-    box-shadow: 0 0 14px rgba(250, 204, 21, 0.5);
+  30% {
+    background: rgba(250, 204, 21, 0.30);
+    border-color: rgba(250, 204, 21, 0.88);
+    box-shadow: 0 0 16px rgba(250, 204, 21, 0.65), inset 0 0 9px rgba(250, 204, 21, 0.24);
+  }
+  65% {
+    background: rgba(250, 204, 21, 0.16);
+    border-color: rgba(250, 204, 21, 0.50);
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.30);
   }
   100% {
     background: rgba(56, 189, 248, 0.12);
@@ -2905,20 +2915,25 @@ body.edit-mode .settings-menu-panel {
 .leaderboard-row.split-flash-green {
   border-color: #22c55e;
   background: rgba(34, 197, 94, 0.32);
-  box-shadow: 0 0 16px rgba(34, 197, 94, 0.75), inset 0 0 10px rgba(34, 197, 94, 0.22);
-  animation: split-pulse-green 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.80), inset 0 0 12px rgba(34, 197, 94, 0.25);
+  animation: split-pulse-green 4.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes split-pulse-green {
   0% {
-    background: rgba(34, 197, 94, 0.38);
+    background: rgba(34, 197, 94, 0.42);
     border-color: #22c55e;
-    box-shadow: 0 0 18px rgba(34, 197, 94, 0.8), inset 0 0 10px rgba(34, 197, 94, 0.25);
+    box-shadow: 0 0 22px rgba(34, 197, 94, 0.85), inset 0 0 12px rgba(34, 197, 94, 0.30);
   }
-  40% {
-    background: rgba(34, 197, 94, 0.20);
-    border-color: rgba(34, 197, 94, 0.75);
-    box-shadow: 0 0 11px rgba(34, 197, 94, 0.4);
+  30% {
+    background: rgba(34, 197, 94, 0.26);
+    border-color: rgba(34, 197, 94, 0.85);
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.55), inset 0 0 8px rgba(34, 197, 94, 0.18);
+  }
+  65% {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.40);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.22);
   }
   100% {
     background: rgba(30, 41, 59, 0.55);
@@ -2929,21 +2944,26 @@ body.edit-mode .settings-menu-panel {
 
 .leaderboard-row.is-host.split-flash-green {
   border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.35);
-  box-shadow: 0 0 18px rgba(34, 197, 94, 0.8), inset 0 0 12px rgba(34, 197, 94, 0.28);
-  animation: split-pulse-green-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  background: rgba(34, 197, 94, 0.38);
+  box-shadow: 0 0 22px rgba(34, 197, 94, 0.85), inset 0 0 14px rgba(34, 197, 94, 0.32);
+  animation: split-pulse-green-host 4.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes split-pulse-green-host {
   0% {
-    background: rgba(34, 197, 94, 0.40);
+    background: rgba(34, 197, 94, 0.45);
     border-color: #22c55e;
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.85), inset 0 0 12px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.90), inset 0 0 14px rgba(34, 197, 94, 0.35);
   }
-  40% {
-    background: rgba(34, 197, 94, 0.24);
-    border-color: rgba(34, 197, 94, 0.8);
-    box-shadow: 0 0 12px rgba(34, 197, 94, 0.45);
+  30% {
+    background: rgba(34, 197, 94, 0.30);
+    border-color: rgba(34, 197, 94, 0.88);
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.60), inset 0 0 9px rgba(34, 197, 94, 0.22);
+  }
+  65% {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.48);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.25);
   }
   100% {
     background: rgba(56, 189, 248, 0.12);
@@ -2955,20 +2975,25 @@ body.edit-mode .settings-menu-panel {
 .leaderboard-row.split-flash-red {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.32);
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.75), inset 0 0 10px rgba(239, 68, 68, 0.22);
-  animation: split-pulse-red 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.80), inset 0 0 12px rgba(239, 68, 68, 0.25);
+  animation: split-pulse-red 4.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes split-pulse-red {
   0% {
-    background: rgba(239, 68, 68, 0.38);
+    background: rgba(239, 68, 68, 0.42);
     border-color: #ef4444;
-    box-shadow: 0 0 18px rgba(239, 68, 68, 0.8), inset 0 0 10px rgba(239, 68, 68, 0.25);
+    box-shadow: 0 0 22px rgba(239, 68, 68, 0.85), inset 0 0 12px rgba(239, 68, 68, 0.30);
   }
-  40% {
-    background: rgba(239, 68, 68, 0.20);
-    border-color: rgba(239, 68, 68, 0.75);
-    box-shadow: 0 0 11px rgba(239, 68, 68, 0.4);
+  30% {
+    background: rgba(239, 68, 68, 0.26);
+    border-color: rgba(239, 68, 68, 0.85);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.55), inset 0 0 8px rgba(239, 68, 68, 0.18);
+  }
+  65% {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.40);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.22);
   }
   100% {
     background: rgba(30, 41, 59, 0.55);
@@ -2979,21 +3004,26 @@ body.edit-mode .settings-menu-panel {
 
 .leaderboard-row.is-host.split-flash-red {
   border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.35);
-  box-shadow: 0 0 18px rgba(239, 68, 68, 0.8), inset 0 0 12px rgba(239, 68, 68, 0.28);
-  animation: split-pulse-red-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  background: rgba(239, 68, 68, 0.38);
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.85), inset 0 0 14px rgba(239, 68, 68, 0.32);
+  animation: split-pulse-red-host 4.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes split-pulse-red-host {
   0% {
-    background: rgba(239, 68, 68, 0.40);
+    background: rgba(239, 68, 68, 0.45);
     border-color: #ef4444;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.85), inset 0 0 12px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 24px rgba(239, 68, 68, 0.90), inset 0 0 14px rgba(239, 68, 68, 0.35);
   }
-  40% {
-    background: rgba(239, 68, 68, 0.24);
-    border-color: rgba(239, 68, 68, 0.8);
-    box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
+  30% {
+    background: rgba(239, 68, 68, 0.30);
+    border-color: rgba(239, 68, 68, 0.88);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.60), inset 0 0 9px rgba(239, 68, 68, 0.22);
+  }
+  65% {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.48);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
   }
   100% {
     background: rgba(56, 189, 248, 0.12);
@@ -3021,9 +3051,24 @@ body.edit-mode .settings-menu-panel {
   text-shadow: 0 0 8px rgba(248, 113, 113, 0.85);
 }
 
-/* Phase 2 Incoming Split Swipe Animation */
+/* Phase 2 Completed Split Fade Out & Phase 3 Incoming Split Scroll Animation */
+.racer-split.split-fade-out {
+  animation: split-fade-out-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes split-fade-out-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+
 .racer-split.split-swipe-in {
-  animation: split-swipe-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: split-swipe-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes split-swipe-up {
@@ -3035,6 +3080,37 @@ body.edit-mode .settings-menu-panel {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* DNF (Did Not Finish) Standings & Badge Styling */
+.pos-badge.pos-dnf {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.5);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.leaderboard-row.is-dnf {
+  opacity: 0.52;
+  filter: saturate(0.6);
+  border-color: rgba(148, 163, 184, 0.08);
+  background: rgba(15, 23, 42, 0.45);
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+.leaderboard-row.is-dnf .racer-gap {
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.ghost-marker.is-dnf {
+  opacity: 0.35;
+  filter: grayscale(1);
+  pointer-events: none;
 }
 
 .pos-badge {

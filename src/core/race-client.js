@@ -187,9 +187,41 @@
       splitTimes: [],
       isFinished: false,
       finalTimeSec: null,
+      isDNF: false,
+      dnfTimeSec: null,
       score: 0,
       isMuted: false
     };
+
+    function setHostDNF(isDnf = true) {
+      hostState.isDNF = !!isDnf;
+      if (hostState.isDNF) {
+        hostState.dnfTimeSec = hostState.currentTimeSec || 0;
+        hostState.currentSplitName = "DNF";
+      } else {
+        hostState.dnfTimeSec = null;
+      }
+      entrants.set(hostState.userId, Object.assign({}, hostState));
+      notifyListeners("entrant_updated", { runnerId: hostState.userId, isDNF: hostState.isDNF });
+    }
+
+    function isHostDNF() {
+      return !!hostState.isDNF;
+    }
+
+    function setEntrantDNF(userId, isDnf = true) {
+      const e = entrants.get(userId);
+      if (e) {
+        e.isDNF = !!isDnf;
+        if (e.isDNF) {
+          e.dnfTimeSec = e.currentTimeSec || 0;
+          e.currentSplitName = "DNF";
+        } else {
+          e.dnfTimeSec = null;
+        }
+        notifyListeners("entrant_updated", { runnerId: userId, isDNF: e.isDNF });
+      }
+    }
 
     function setHostUsername(name) {
       hostUsername = (name || "").trim();
@@ -316,6 +348,16 @@
         if (a.isFinished && !b.isFinished) return -1;
         if (!a.isFinished && b.isFinished) return 1;
 
+        // DNF runners ranked at the bottom of the standings
+        if (a.isDNF && !b.isDNF) return 1;
+        if (!a.isDNF && b.isDNF) return -1;
+        if (a.isDNF && b.isDNF) {
+          const sA = a.currentSplitIndex || 0;
+          const sB = b.currentSplitIndex || 0;
+          if (sB !== sA) return sB - sA;
+          return (b.dnfTimeSec || 0) - (a.dnfTimeSec || 0);
+        }
+
         // Checkpoint rule: in speedrun races, any runner on a higher split checkpoint is physically ahead!
         const splitIdxA = a.currentSplitIndex || 0;
         const splitIdxB = b.currentSplitIndex || 0;
@@ -439,6 +481,20 @@
       }
 
       list.forEach((runner, idx) => {
+        if (runner.isDNF) {
+          runner.rank = "DNF";
+          runner.gapToLeaderSec = null;
+          runner.intervalSec = null;
+          runner.gapDisplay = "DNF";
+          runner.intervalDisplay = "--";
+          runner.expectedType = "DNF";
+          runner.expectedSegmentSec = null;
+          runner.expectedSegmentDisplay = "--";
+          runner.elapsedSegmentSec = null;
+          runner.elapsedSegmentDisplay = "--";
+          return;
+        }
+
         runner.rank = idx + 1;
 
         // Calculate expected segment duration and elapsed segment time for current split
@@ -572,7 +628,7 @@
           completedSplitName: completedName,
           newSplitName: newName
         };
-      } else if (hostState.lastSplitEffect && (Date.now() - (hostState.lastSplitEffect.timestamp || 0)) > 2200) {
+      } else if (hostState.lastSplitEffect && (Date.now() - (hostState.lastSplitEffect.timestamp || 0)) > 4200) {
         hostState.lastSplitEffect = null;
       }
 
@@ -847,7 +903,19 @@
       if (data.picture) {
         existing.avatar = data.picture;
       }
-      if (data.hasEnded || data.isFinished) {
+      const isDnf = data.isDNF === true ||
+                    data.dnf === true ||
+                    data.forfeited === true ||
+                    data.isForfeit === true ||
+                    String(data.status?.value || data.status || "").toLowerCase() === "forfeited" ||
+                    String(data.status?.value || data.status || "").toLowerCase() === "dnf" ||
+                    String(data.status?.value || data.status || "").toLowerCase() === "quit" ||
+                    (data.hasEnded === true && !data.isFinished && !existing.isFinished);
+      if (isDnf) {
+        existing.isDNF = true;
+        if (!existing.dnfTimeSec) existing.dnfTimeSec = existing.currentTimeSec || 0;
+        existing.currentSplitName = "DNF";
+      } else if (data.hasEnded || data.isFinished) {
         existing.isFinished = true;
         existing.finalTimeSec = existing.currentTimeSec;
       }
@@ -907,6 +975,8 @@
       hostState.splitTimes = [];
       hostState.isFinished = false;
       hostState.finalTimeSec = null;
+      hostState.isDNF = false;
+      hostState.dnfTimeSec = null;
       hostState.score = 0;
       hostState.lastSplitEffect = null;
 
@@ -943,6 +1013,8 @@
           splitTimes: [],
           isFinished: false,
           finalTimeSec: null,
+          isDNF: false,
+          dnfTimeSec: null,
           score: 0,
           isMuted: false,
           lastSplitEffect: null
@@ -954,6 +1026,7 @@
       let simVirtualSec = hostState.currentTimeSec || 0;
 
       function advanceVirtualHost(baseSec) {
+        if (hostState.isDNF) return;
         simVirtualSec = baseSec + 0.05;
         let curIdx = 0;
         for (let i = 0; i < simulationCourseTargets.length; i++) {
@@ -992,7 +1065,11 @@
 
         const isExternalHostRunning = hostState.currentTimeSec > 0 && (Date.now() - lastExternalHostUpdate < 1500);
 
-        if (hostState.currentTimeSec > 0) {
+        if (hostState.isDNF) {
+          // Host has forfeited / DNF'd: competitors continue running to finish line
+          simVirtualSec += 0.05;
+          tickSimulatedCompetitors(simVirtualSec);
+        } else if (hostState.currentTimeSec > 0) {
           if (isExternalHostRunning && lastExternalHostUpdate > 0) {
             // LiveSplit is actively driving the run: keep competitors synchronized to host run time
             tickSimulatedCompetitors(hostState.currentTimeSec);
@@ -1113,7 +1190,7 @@
             completedSplitName: prevSplitName,
             newSplitName: nextSplitName
           };
-        } else if (racer.lastSplitEffect && (Date.now() - (racer.lastSplitEffect.timestamp || 0)) > 2200) {
+        } else if (racer.lastSplitEffect && (Date.now() - (racer.lastSplitEffect.timestamp || 0)) > 4200) {
           racer.lastSplitEffect = null;
         }
 
@@ -1153,6 +1230,8 @@
       hostState.score = 0;
       hostState.isFinished = false;
       hostState.finalTimeSec = null;
+      hostState.isDNF = false;
+      hostState.dnfTimeSec = null;
       hostState.splitTimes = [];
       hostState.lastSplitEffect = null;
 
@@ -1167,6 +1246,8 @@
           racer.score = 0;
           racer.isFinished = false;
           racer.finalTimeSec = null;
+          racer.isDNF = false;
+          racer.dnfTimeSec = null;
           racer.lastSplitEffect = null;
         }
       });
@@ -1192,6 +1273,9 @@
       stopAutoDetect,
       setHostUsername,
       getHostUsername,
+      setHostDNF,
+      isHostDNF,
+      setEntrantDNF,
       startSimulation,
       stopSimulation,
       isSimulating: () => isSimulating,

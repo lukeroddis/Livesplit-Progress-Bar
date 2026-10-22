@@ -1594,6 +1594,94 @@
 
         rc.stopSimulation();
       });
+
+      it("Split completion glow lasts 4.0s with gradual fade and 3-phase title transition", () => {
+        const rc = window.LiveSplit.RaceClient;
+        const now = Date.now();
+        const testEntrants = [
+          {
+            userId: "racer_p1",
+            username: "FlashRacer",
+            rank: 1,
+            lastSplitEffect: {
+              type: "gold",
+              timestamp: now - 3500, // 3.5s old: still active within 4.0s window
+              completedSplitName: "Temple 1",
+              newSplitName: "Temple 2"
+            },
+            color: "#facc15"
+          },
+          {
+            userId: "racer_fade",
+            username: "FadeRacer",
+            rank: 2,
+            lastSplitEffect: {
+              type: "green",
+              timestamp: now - 1000, // 1.0s old: in Phase 2 fade-out
+              completedSplitName: "Cave 1",
+              newSplitName: "Cave 2"
+            },
+            color: "#22c55e"
+          }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(testEntrants, true, false, false);
+        const rowP1 = document.querySelector('.leaderboard-row[data-user-id="racer_p1"]');
+        const rowFade = document.querySelector('.leaderboard-row[data-user-id="racer_fade"]');
+
+        assert(rowP1 && rowP1.classList.contains("split-flash-gold"), "Split glow remains active past 3.0s (up to 4.0s)");
+        const p1Split = rowP1.querySelector(".racer-split");
+        assertEqual(p1Split.textContent, "Temple 2", "Phase 3 displays new split name");
+        assert(p1Split.classList.contains("split-swipe-in"), "Phase 3 has split-swipe-in scroll class");
+
+        const fadeSplit = rowFade.querySelector(".racer-split");
+        assertEqual(fadeSplit.textContent, "Cave 1", "Phase 2 displays completed split name fading out");
+        assert(fadeSplit.classList.contains("split-fade-out"), "Phase 2 has split-fade-out class");
+
+        window.LiveSplit.Leaderboard.reset();
+      });
+
+      it("Did Not Finish (DNF) runners rank at bottom of leaderboard with DNF badges while competitors continue racing", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
+
+        // Advance competitors and host into the race
+        rc.updateHostProgress(45, 1, [25.0], [30, 60, 90], "Split 2");
+
+        let entrants = rc.getRankedEntrants();
+        const activeHost = entrants.find(e => e.isHost);
+        assert(activeHost, "Host exists in active simulation");
+        assertEqual(typeof activeHost.rank, "number", "Host initially has numeric rank");
+
+        // Simulate host resetting/cancelling run (DNF)
+        rc.setHostDNF(true);
+        assertEqual(rc.isHostDNF(), true, "isHostDNF returns true");
+
+        entrants = rc.getRankedEntrants();
+        const dnfHost = entrants.find(e => e.isHost);
+        assertEqual(dnfHost.rank, "DNF", "DNF runner receives 'DNF' rank");
+        assertEqual(dnfHost.gapDisplay, "DNF", "DNF runner displays 'DNF' gap");
+        assertEqual(dnfHost.expectedType, "DNF", "DNF runner displays 'DNF' expected type");
+
+        // The DNF runner must be at the very bottom of the leaderboard
+        assertEqual(entrants[entrants.length - 1].userId, dnfHost.userId, "DNF runner is sorted to the bottom of the standings");
+
+        // Verify remaining competitors still have active ranks and positions
+        const p1 = entrants[0];
+        assertEqual(p1.rank, 1, "Leader remains in 1st place");
+        assert(p1.currentTimeSec > 0, "Competitors continue racing with active time");
+
+        // Render leaderboard and check DOM elements
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
+        const hostRow = document.querySelector(`.leaderboard-row[data-user-id="${dnfHost.userId}"]`);
+        assert(hostRow, "DNF host row rendered in DOM");
+        assert(hostRow.classList.contains("is-dnf"), "DNF row receives .is-dnf styling");
+        const posBadge = hostRow.querySelector(".pos-badge");
+        assertEqual(posBadge.textContent.trim(), "DNF", "Position badge renders 'DNF'");
+        assert(posBadge.classList.contains("pos-dnf"), "Position badge has pos-dnf class");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---
