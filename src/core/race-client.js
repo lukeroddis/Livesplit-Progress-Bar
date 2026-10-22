@@ -566,9 +566,9 @@
           let prevSplitTime = 0;
           const normSplits = normalizeSplitTimes(runner.splitTimes);
 
-          if (runner.checkpointTimes && runner.checkpointTimes.length > sIdx) {
-            const prevT = sIdx > 0 ? (runner.checkpointTimes[sIdx - 1] || 0) : 0;
-            segSec = Math.max(0.1, (runner.checkpointTimes[sIdx] || 0) - prevT);
+          if (runner.pbCheckpointTimes && runner.pbCheckpointTimes.length > sIdx) {
+            const prevPb = sIdx > 0 ? (runner.pbCheckpointTimes[sIdx - 1] || 0) : 0;
+            segSec = Math.max(0.1, (runner.pbCheckpointTimes[sIdx] || 0) - prevPb);
           } else {
             const comp = (activeComparisonTimesRT && activeComparisonTimesRT.length > 0)
               ? activeComparisonTimesRT
@@ -579,7 +579,8 @@
                   : [30, 60, 90, 120, 150, 180, 210, 240]));
             const prevT = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
             const nextT = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (prevT + 30);
-            segSec = Math.max(0.1, nextT - prevT);
+            const pace = typeof runner.paceFactor === "number" ? runner.paceFactor : 1.0;
+            segSec = Math.max(0.1, (nextT - prevT) * pace);
           }
 
           if (sIdx > 0 && normSplits.length >= sIdx && typeof normSplits[sIdx - 1] === "number") {
@@ -1050,11 +1051,19 @@
 
       SIMULATED_COMPETITORS.forEach((cfg) => {
         const checkpointTimes = [];
+        const pbCheckpointTimes = [];
         let cumTime = 0;
+        let cumPb = 0;
         for (let k = 0; k < simulationCourseTargets.length; k++) {
           const prevT = k > 0 ? simulationCourseTargets[k - 1] : 0;
           const baseSegDur = Math.max(1, simulationCourseTargets[k] - prevT);
-          // Substantial segment swing (-12% to +14%) reflecting mistakes, bad RNG, and gold splits:
+
+          // Expected Personal Best segment duration for this competitor
+          const pbSegDur = Math.max(0.5, baseSegDur * cfg.paceFactor);
+          cumPb += pbSegDur;
+          pbCheckpointTimes.push(cumPb);
+
+          // Actual simulated segment duration with variance / swing (-12% to +14%)
           const seed = Math.sin((k + 1) * 12.9898 + (cfg.driftOffset * 78.233)) * 43758.5453;
           const pseudoRand = (seed - Math.floor(seed)) * 2.0 - 1.0; // range -1.0 to +1.0
           const wave = Math.sin((k + 1) * 2.1 + cfg.driftOffset);
@@ -1072,6 +1081,7 @@
           paceFactor: cfg.paceFactor,
           driftOffset: cfg.driftOffset,
           checkpointTimes,
+          pbCheckpointTimes,
           currentSplitIndex: 0,
           currentSplitName: activeSplitsList[0] || "Split 1",
           currentTimeSec: 0,
@@ -1191,6 +1201,7 @@
         racer.currentTimeSec = Math.max(0, hostSec || 0);
 
         const checkTimes = racer.checkpointTimes || simulationCourseTargets;
+        const pbTimes = racer.pbCheckpointTimes || simulationCourseTargets;
         const finalTarget = checkTimes[checkTimes.length - 1] || finalCourseTarget;
 
         // Check if finished
@@ -1213,34 +1224,32 @@
           return;
         }
 
-        // Determine current split and in-segment progress ratio
+        // Determine current split checkpoint based on actual completion times:
+        // A runner advances to split i + 1 when racer.currentTimeSec >= checkTimes[i]
         let sIdx = 0;
-        let sRatio = 0;
         for (let i = 0; i < totalSplits; i++) {
-          const tNext = checkTimes[i] || ((i + 1) * 30);
-          const tPrev = i > 0 ? (checkTimes[i - 1] || (i * 30)) : 0;
-          if (racer.currentTimeSec < tNext) {
+          if (racer.currentTimeSec < checkTimes[i]) {
             sIdx = i;
-            const dur = Math.max(0.1, tNext - tPrev);
-            sRatio = Math.max(0, Math.min(1.0, (racer.currentTimeSec - tPrev) / dur));
             break;
           }
+          sIdx = i + 1;
         }
+        sIdx = Math.min(sIdx, totalSplits - 1);
 
         if (sIdx > racer.currentSplitIndex) {
           if (!Array.isArray(racer.splitTimes)) racer.splitTimes = [];
           for (let k = racer.currentSplitIndex; k < sIdx; k++) {
             racer.splitTimes[k] = checkTimes[k] || ((k + 1) * 30);
           }
-          // Completed a split in simulation: determine split glow type
+          // Completed a split in simulation: determine split glow type by comparing actual vs expected PB segment duration
           const lastK = sIdx - 1;
           const actualSeg = (checkTimes[lastK] || ((lastK + 1) * 30)) - (lastK > 0 ? (checkTimes[lastK - 1] || (lastK * 30)) : 0);
-          const baseSeg = (simulationCourseTargets[lastK] || ((lastK + 1) * 30)) - (lastK > 0 ? (simulationCourseTargets[lastK - 1] || (lastK * 30)) : 0);
+          const pbSeg = (pbTimes[lastK] || ((lastK + 1) * 30)) - (lastK > 0 ? (pbTimes[lastK - 1] || (lastK * 30)) : 0);
 
           let flashType = "green";
-          if (actualSeg < baseSeg - 0.4) {
+          if (actualSeg < pbSeg - 0.4) {
             flashType = "gold";
-          } else if (actualSeg > baseSeg + 0.4) {
+          } else if (actualSeg > pbSeg + 0.4) {
             flashType = "red";
           } else {
             flashType = "green";
@@ -1264,6 +1273,19 @@
 
         racer.currentSplitIndex = sIdx;
         racer.currentSplitName = (activeSplitsList && activeSplitsList[sIdx]) ? activeSplitsList[sIdx] : `Split ${sIdx + 1}`;
+
+        // In-segment progress ratio is driven by Personal Best (expected) pace:
+        // - At expected pace, the pin moves smoothly across the segment
+        // - If faster than PB, the runner splits early and the pin jumps to the next split
+        // - If slower than PB, the pin reaches 100% and hangs at the split node until the split occurs
+        const actualPrevSplitTime = sIdx > 0 ? (checkTimes[sIdx - 1] || 0) : 0;
+        const elapsedInSegment = Math.max(0, racer.currentTimeSec - actualPrevSplitTime);
+
+        const pbPrev = sIdx > 0 ? (pbTimes[sIdx - 1] || 0) : 0;
+        const pbNext = pbTimes[sIdx] || ((sIdx + 1) * 30);
+        const expectedDuration = Math.max(0.5, pbNext - pbPrev);
+
+        const sRatio = Math.max(0, Math.min(1.0, elapsedInSegment / expectedDuration));
         racer.score = sIdx + sRatio;
       });
     }

@@ -1784,6 +1784,73 @@
 
         rc.stopSimulation();
       });
+
+      it("Simulated competitors advance by Personal Best pace and hang at split node if slower or jump forward if faster", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3", "Finished"], [30, 60, 90, 120]);
+
+        const entrants = rc.getRankedEntrants();
+        const comp = entrants.find(e => !e.isHost);
+        assert(comp, "Competitor exists in simulation");
+        assert(Array.isArray(comp.pbCheckpointTimes) && comp.pbCheckpointTimes.length === 4, "Competitor has pbCheckpointTimes generated");
+
+        // Manually configure test checkpoints: PB = 30s for Split 1, actual = 45s (slower by 15s)
+        comp.pbCheckpointTimes = [30.0, 60.0, 90.0, 120.0];
+        comp.checkpointTimes = [45.0, 75.0, 105.0, 135.0];
+
+        // 1. Midway through split (15s): competitor pin moves at normal expected pace (15 / 30 = 0.50)
+        // Does NOT slow down in advance!
+        rc.updateHostProgress(15, 0, [], [30, 60, 90, 120], "Split 1");
+        let list = rc.getRankedEntrants();
+        let targetComp = list.find(e => e.userId === comp.userId);
+        assertEqual(targetComp.currentSplitIndex, 0, "Competitor in Split 1");
+        assert(Math.abs(targetComp.score - 0.50) < 0.05, "Pin moves at normal expected pace, not slowed down in advance");
+
+        // 2. At 30s: Competitor has reached expected PB duration (30 / 30 = 1.0)
+        rc.updateHostProgress(30, 0, [], [30, 60, 90, 120], "Split 1");
+        list = rc.getRankedEntrants();
+        targetComp = list.find(e => e.userId === comp.userId);
+        assertEqual(targetComp.currentSplitIndex, 0, "Competitor still in Split 1");
+        assertEqual(targetComp.score, 1.0, "Pin reaches 100% of segment at expected PB time");
+
+        // 3. At 40s: Competitor is overdue (40s > 30s PB, but hasn't reached actual 45s split yet)
+        // Pin hangs at split node (capped at 1.0)
+        rc.updateHostProgress(40, 0, [], [30, 60, 90, 120], "Split 1");
+        list = rc.getRankedEntrants();
+        targetComp = list.find(e => e.userId === comp.userId);
+        assertEqual(targetComp.currentSplitIndex, 0, "Competitor still in Split 1");
+        assertEqual(targetComp.score, 1.0, "Pin hangs at split node (score remains 1.0)");
+        assert(targetComp.elapsedSegmentSec > targetComp.expectedSegmentSec, "Elapsed time exceeds expected time on leaderboard");
+
+        // 4. At 45s: Competitor reaches actual split time!
+        // Split occurs with red flash, advances to Split 2, and pin enters next segment
+        rc.updateHostProgress(45.5, 0, [], [30, 60, 90, 120], "Split 1");
+        list = rc.getRankedEntrants();
+        targetComp = list.find(e => e.userId === comp.userId);
+        assertEqual(targetComp.currentSplitIndex, 1, "Competitor advanced to Split 2");
+        assertEqual(targetComp.lastSplitEffect?.type, "red", "Slower split triggered red split flash");
+        assert(targetComp.score >= 1.0 && targetComp.score < 2.0, "Competitor entered segment 2");
+
+        // 5. Test faster split: PB = 30s (total 60s), actual = 15s (total 60s)
+        targetComp.pbCheckpointTimes = [45.0, 75.0, 105.0, 135.0];
+        targetComp.checkpointTimes = [45.0, 60.0, 90.0, 120.0]; // 15s duration on Split 2
+
+        // At 55s (10s into Split 2): pin is at 10 / 30 = 0.33 of segment 2 (score ~ 1.33)
+        rc.updateHostProgress(55, 0, [], [30, 60, 90, 120], "Split 1");
+        list = rc.getRankedEntrants();
+        targetComp = list.find(e => e.userId === comp.userId);
+        assert(Math.abs(targetComp.score - 1.33) < 0.05, "Pin moves at normal expected pace across segment 2");
+
+        // At 60.5s: competitor splits early! Pin jumps to Split 3 (score >= 2.0) with gold flash
+        rc.updateHostProgress(60.5, 0, [], [30, 60, 90, 120], "Split 1");
+        list = rc.getRankedEntrants();
+        targetComp = list.find(e => e.userId === comp.userId);
+        assertEqual(targetComp.currentSplitIndex, 2, "Competitor early split jumped to Split 3");
+        assertEqual(targetComp.lastSplitEffect?.type, "gold", "Fast split triggered gold split flash");
+        assert(targetComp.score >= 2.0, "Pin jumped to split node / next segment");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---

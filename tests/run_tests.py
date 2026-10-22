@@ -2476,6 +2476,7 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "rowsEl.insertBefore(row, currentChild)" in leaderboard_code, "leaderboard.js must use targeted insertBefore reconciliation"
     assert "row.style.animationDelay" in leaderboard_code, "leaderboard.js must lock animationDelay to elapsed progress"
     assert "simVirtualSec" in race_code, "race-client.js must track and reset simVirtualSec"
+    assert "pbCheckpointTimes" in race_code, "race-client.js must generate pbCheckpointTimes for competitors"
     assert "isSecondResetWithDNF" in overlay_js, "overlay.js must handle double reset to clear DNF"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
