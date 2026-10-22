@@ -1988,6 +1988,7 @@ function hideAllGhostMarkers() {
     staticMarker.style.removeProperty("--ghost-splay-x");
     staticMarker.style.removeProperty("--ghost-needle-angle");
     staticMarker.style.removeProperty("--ghost-needle-height");
+    staticMarker.classList.remove("splay-left", "splay-right");
   }
   knownGhostMarkers.forEach((m) => {
     if (m) {
@@ -1996,6 +1997,7 @@ function hideAllGhostMarkers() {
       m.style.removeProperty("--ghost-splay-x");
       m.style.removeProperty("--ghost-needle-angle");
       m.style.removeProperty("--ghost-needle-height");
+      m.classList.remove("splay-left", "splay-right");
     }
   });
 }
@@ -2247,10 +2249,12 @@ function updateGhostRunner(currentSec) {
     }
   });
 
-  // 3. Intelligent Horizontal Fan / Splay with Angled Needles for Overlapping Pins
-  // Pins within 24px spread horizontally so badges never overlap or hit the ceiling,
-  // with needles angling directly down to each runner's exact coordinate on the track.
-  const COLLISION_THRESHOLD = 24; // px
+  // 3. Intelligent Mini-Leaderboard Track Pins with Orthogonal Drop Lines (Image 2)
+  // Clustered pins align horizontally in race order (Furthest Behind on left -> Furthest Ahead on right).
+  // Pin heads float at a consistent height above split text.
+  // Orthogonal leader lines connect behind the pin heads down to each runner's actual track coordinate,
+  // with least drawing precedence so text and badges are always 100% readable.
+  const COLLISION_THRESHOLD = 26; // px
 
   visibleOnscreenMarkers.sort((a, b) => {
     if (Math.abs(a.coord - b.coord) > 0.001) {
@@ -2281,9 +2285,10 @@ function updateGhostRunner(currentSec) {
       marker.style.removeProperty("--ghost-splay-x");
       marker.style.removeProperty("--ghost-needle-angle");
       marker.style.removeProperty("--ghost-needle-height");
+      marker.classList.remove("splay-left", "splay-right");
     });
   } else {
-    // Horizontal track orientation: Horizontal Fan-Out / Angled Needles
+    // Horizontal track orientation: Mini-Leaderboard Strip with Orthogonal Drop Lines
     const clusters = [];
     let curCluster = [];
 
@@ -2304,7 +2309,6 @@ function updateGhostRunner(currentSec) {
       clusters.push(curCluster);
     }
 
-    const badgeSpacing = 24; // px spacing between badge centers in fan
     const baseNeedleLength = 16; // default baseline needle length in px
 
     clusters.forEach((cluster) => {
@@ -2314,11 +2318,14 @@ function updateGhostRunner(currentSec) {
         const marker = item.marker;
         marker.style.display = "flex";
         marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
-        marker.style.zIndex = "20";
         marker.style.removeProperty("--ghost-splay-x");
         marker.style.removeProperty("--ghost-needle-angle");
         marker.style.removeProperty("--ghost-needle-height");
         marker.style.removeProperty("--ghost-stack-offset");
+        marker.classList.remove("splay-left", "splay-right");
+
+        const iconWrap = marker.querySelector(".ghost-icon-wrap");
+        if (iconWrap) iconWrap.style.zIndex = "30";
 
         const distPrev = Math.abs(item.coord - item.coords.startCoord);
         const distNext = Math.abs(item.coords.endCoord - item.coord);
@@ -2327,18 +2334,16 @@ function updateGhostRunner(currentSec) {
         const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
         marker.classList.toggle("compact", isHoveringText);
       } else {
+        // Clustered mini-leaderboard:
+        // Spacing adjusts dynamically: 22px for 2 pins, down to 16px for 5+ pins (card-deck shingle)
+        const badgeSpacing = (N <= 2) ? 22 : ((N <= 3) ? 20 : ((N <= 4) ? 18 : 16));
         const clusterMinCoord = cluster[0].coord;
         const clusterMaxCoord = cluster[N - 1].coord;
         const clusterCenter = (clusterMinCoord + clusterMaxCoord) / 2;
 
-        // Compact 2-tier honeycomb crown:
-        // Odd-index pins sit in Row 1 (elevated 12px) nestled between Row 0 pins (baseline).
-        // This keeps the cluster tight (~40px total width) rather than stretching across the track,
-        // while preventing needle collision and keeping badges well below the top ceiling.
-        const stepX = (N <= 2) ? 14 : ((N <= 3) ? 13 : 11); // px horizontal offset per pin
         const badgePositions = [];
         for (let k = 0; k < N; k++) {
-          badgePositions.push(clusterCenter + (k - (N - 1) / 2) * stepX);
+          badgePositions.push(clusterCenter + (k - (N - 1) / 2) * badgeSpacing);
         }
 
         // Keep all badges within visible bounds (e.g. at Start split = 0)
@@ -2357,8 +2362,9 @@ function updateGhostRunner(currentSec) {
           marker.style.display = "flex";
           marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
 
-          const isOdd = (k % 2 === 1);
-          marker.style.zIndex = `${25 + (isOdd ? 4 : 0) + k}`;
+          // Leader (on right) has highest z-index so badges layer naturally
+          const iconWrap = marker.querySelector(".ghost-icon-wrap");
+          if (iconWrap) iconWrap.style.zIndex = `${30 + k}`;
 
           const deltaX = Math.round((badgePositions[k] - item.coord) * 10) / 10;
 
@@ -2370,32 +2376,22 @@ function updateGhostRunner(currentSec) {
           marker.classList.toggle("compact", isHoveringText);
 
           const effH = isHoveringText ? Math.min(5, baseNeedleLength) : baseNeedleLength;
-          // Stagger odd pins vertically by 12px for clear 2-tier separation
-          const staggerY = (N > 1 && isOdd) ? 12 : 0;
-          const totalH = effH + staggerY;
 
-          // Angle theta: vector from shifted badge to runner track anchor is (-deltaX, totalH).
-          // In CSS, transform: rotate(deg) rotates clockwise (positive deg moves vector toward -X / left).
-          // When badge is shifted right (deltaX > 0), needle must tilt toward left (A > 0).
-          // When badge is shifted left (deltaX < 0), needle must tilt toward right (A < 0).
-          const angleRad = Math.atan2(deltaX, totalH);
-          const angleDeg = Math.round((angleRad * (180 / Math.PI)) * 10) / 10;
-          const needleLen = Math.round(Math.sqrt(deltaX * deltaX + totalH * totalH) * 10) / 10;
+          marker.style.removeProperty("--ghost-needle-angle");
+          marker.style.removeProperty("--ghost-stack-offset");
+          marker.style.setProperty("--ghost-needle-height", `${effH}px`);
 
-          if (Math.abs(deltaX) > 0.5 || staggerY > 0) {
+          if (deltaX > 1) {
             marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
-            marker.style.setProperty("--ghost-needle-angle", `${angleDeg}deg`);
-            marker.style.setProperty("--ghost-needle-height", `${needleLen}px`);
-            if (staggerY > 0) {
-              marker.style.setProperty("--ghost-stack-offset", `${staggerY}px`);
-            } else {
-              marker.style.removeProperty("--ghost-stack-offset");
-            }
+            marker.classList.add("splay-right");
+            marker.classList.remove("splay-left");
+          } else if (deltaX < -1) {
+            marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
+            marker.classList.add("splay-left");
+            marker.classList.remove("splay-right");
           } else {
             marker.style.removeProperty("--ghost-splay-x");
-            marker.style.removeProperty("--ghost-needle-angle");
-            marker.style.removeProperty("--ghost-needle-height");
-            marker.style.removeProperty("--ghost-stack-offset");
+            marker.classList.remove("splay-left", "splay-right");
           }
         });
       }

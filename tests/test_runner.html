@@ -1215,7 +1215,7 @@
         rc.stopSimulation();
       });
 
-      it("Intelligent pin stacking resolves colliding pins into horizontal fan splay with angled needles", () => {
+      it("Intelligent pin stacking resolves colliding pins into mini-leaderboard strip with orthogonal drop lines", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Forest", "Cave", "Castle"], [30, 60, 90]);
         // Simulate progress where competitors cluster near Start
@@ -1224,13 +1224,10 @@
           const pins = Array.from(document.querySelectorAll(".ghost-marker.race-competitor"))
             .filter(m => m.style.display !== "none");
           if (pins.length >= 2) {
-            // Check if any stacked pin receives --ghost-splay-x, --ghost-needle-angle, or --ghost-stack-offset
+            // Check if any stacked pin receives --ghost-splay-x or splay classes
             const splays = pins.map(p => p.style.getPropertyValue("--ghost-splay-x") || "0px");
-            const angles = pins.map(p => p.style.getPropertyValue("--ghost-needle-angle") || "0deg");
             const hasSplay = splays.some(off => off !== "0px");
-            const hasAngle = angles.some(ang => ang !== "0deg");
             assert(typeof hasSplay === "boolean", "Splay evaluation runs cleanly");
-            assert(typeof hasAngle === "boolean", "Angle evaluation runs cleanly");
           }
         }
         rc.stopSimulation();

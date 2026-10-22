@@ -2414,13 +2414,13 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert '<span class="host-pill">' not in leaderboard_code, "leaderboard.js must never render host-pill tag (implied by highlighted tile)"
     assert 'const displayName = racer.username || (isHost ? "You" : "Runner");' in leaderboard_code, "leaderboard.js must resolve entrant username rather than overriding to 'You'"
 
-    # 9. Intelligent pin stacking assertions
+    # 9. Intelligent pin stacking & mini-leaderboard assertions
     assert "--ghost-stack-offset" in css, "style.css must support dynamic --ghost-stack-offset"
     assert "--ghost-stack-offset" in overlay_js, "overlay.js must set --ghost-stack-offset for tiered stacking"
-    assert "--ghost-splay-x" in css, "style.css must support horizontal fan splay --ghost-splay-x"
-    assert "--ghost-splay-x" in overlay_js, "overlay.js must compute --ghost-splay-x for horizontal fan stacking"
-    assert "--ghost-needle-angle" in css, "style.css must support angled needle rotation --ghost-needle-angle"
-    assert "--ghost-needle-angle" in overlay_js, "overlay.js must compute --ghost-needle-angle"
+    assert "--ghost-splay-x" in css, "style.css must support mini-leaderboard splay --ghost-splay-x"
+    assert "--ghost-splay-x" in overlay_js, "overlay.js must compute --ghost-splay-x for mini-leaderboard"
+    assert ".splay-right .ghost-needle" in css, "style.css must support orthogonal leader lines"
+    assert "z-index: 5;" in css, "style.css must ensure needle stems have least drawing precedence (z-index: 5)"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
