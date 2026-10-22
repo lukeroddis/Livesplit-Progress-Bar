@@ -1560,7 +1560,7 @@
         rc.stopSimulation();
       });
 
-      it("RaceClient and competitor timers run on Real Time (RTA) so loading screens never freeze the race", () => {
+      it("RaceClient and competitor timers run on the active focused timing method (GameTime vs RealTime) so the race is balanced", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.setTimingMethod("RealTime");
         rc.startSimulation(["Forest", "Cave", "Castle"], [30, 60, 90], [35, 70, 105]);
@@ -1604,7 +1604,7 @@
         assertEqual(gtHost.currentTimeSec, 40.0, "Host currentTimeSec tracks Game Time (40.0s) when Game Time is focused");
         assertEqual(gtHost.expectedSegmentDisplay, "30.0s", "Leaderboard expected segment time uses Game Time target (30.0s)");
         assertEqual(gtHost.elapsedSegmentDisplay, "20.0s", "Leaderboard segment elapsed time ticks in Game Time (40 - 20 = 20.0s)");
-        assertEqual(gtCompetitor.currentTimeSec, 45.0, "Competitor currentTimeSec continues tracking wall-clock time without freezing");
+        assertEqual(gtCompetitor.currentTimeSec, 40.0, "Competitor currentTimeSec tracks focused Game Time (40.0s) so race is balanced");
 
         rc.stopSimulation();
       });
@@ -1979,10 +1979,10 @@
         competitor.checkpointTimesRT = [133.0, 266.0];
         competitor.checkpointTimes = competitor.checkpointTimesGT;
 
-        // 1. Race is at 135s Real Time: Competitor has reached 133s Real Time and split to Split 2!
-        // Host has not split yet (Host is on Split 1, at 80s Game Time / 135s Real Time)
+        // 1. Race is at 96s Game Time (135s Real Time): Competitor has reached 95s Game Time and split to Split 2!
+        // Host has not split yet (Host is on Split 1, at 96s Game Time / 135s Real Time)
         rc.updateHostProgress(
-          80.0, 0, [], [100.0, 200.0], "Split 1",
+          96.0, 0, [], [100.0, 200.0], "Split 1",
           ["Split 1", "Split 2"], null, true,
           135.0, [140.0, 280.0], [], "GameTime"
         );

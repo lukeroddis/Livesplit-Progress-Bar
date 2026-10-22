@@ -892,9 +892,11 @@
 
       entrants.set(hostState.userId, Object.assign({}, hostState));
 
-      // In simulation mode, update simulated competitors synchronously with real-time race clock
+      // In simulation mode, update simulated competitors synchronously with the active focused timer
       if (isSimulating) {
-        tickSimulatedCompetitors(lastHostRealTimeSec, 0);
+        const isRT = (currentTimingMethod === "RealTime");
+        const activeHostSec = isRT ? lastHostRealTimeSec : (lastHostGameTimeSec || hostState.currentTimeSec);
+        tickSimulatedCompetitors(activeHostSec, 0);
       } else if (hostUsername) {
         entrants.forEach((racer) => {
           if (racer.isHost && racer.userId !== hostState.userId) {
@@ -1333,9 +1335,13 @@
         } else if (isExternalHostConnected) {
           // LiveSplit is actively driving the run: keep competitors synchronized to host run time
           if (hostState.currentTimeSec > 0) {
-            tickSimulatedCompetitors(lastHostRealTimeSec || hostState.currentTimeSec, dt);
+            const isRT = (currentTimingMethod === "RealTime");
+            const activeHostSec = isRT ? (lastHostRealTimeSec || hostState.currentTimeSec) : (lastHostGameTimeSec || hostState.currentTimeSec);
+            tickSimulatedCompetitors(activeHostSec, dt);
           } else if (lastHostRealTimeSec > 0) {
-            tickSimulatedCompetitors(lastHostRealTimeSec, dt);
+            const isRT = (currentTimingMethod === "RealTime");
+            const activeHostSec = isRT ? lastHostRealTimeSec : (lastHostGameTimeSec || lastHostRealTimeSec);
+            tickSimulatedCompetitors(activeHostSec, dt);
           } else {
             // LiveSplit is at 0 (start line / reset): competitors stay cleanly at start line
             simVirtualSec = 0;
@@ -1404,16 +1410,26 @@
       entrants.forEach((racer) => {
         if (racer.isHost) return;
 
-        // In a live speedrun race, Real Time is synchronized with wall-clock race progress,
-        // and Game Time advances continuously at 1s/s so competitors NEVER freeze when host enters a loading screen
+        // In simulation mode, competitors advance on the active focused timer (GameTime or RealTime)
         if (typeof hostSec === "number" && hostSec >= 0) {
           racer.currentTimeSec = hostSec;
-          racer.currentTimeSecRT = hostSec;
-          racer.currentTimeSecGT = hostSec;
+          if (isRT) {
+            racer.currentTimeSecRT = hostSec;
+            racer.currentTimeSecGT = lastHostGameTimeSec > 0 ? lastHostGameTimeSec : hostSec;
+          } else {
+            racer.currentTimeSecGT = hostSec;
+            racer.currentTimeSecRT = lastHostRealTimeSec > 0 ? lastHostRealTimeSec : hostSec;
+          }
         } else {
-          racer.currentTimeSecRT = Math.max(0, (racer.currentTimeSecRT || 0) + (dt || 0.05));
-          racer.currentTimeSecGT = Math.max(0, (racer.currentTimeSecGT || 0) + (dt || 0.05));
-          racer.currentTimeSec = isRT ? racer.currentTimeSecRT : racer.currentTimeSecGT;
+          const advSec = Math.max(0, (racer.currentTimeSec || 0) + (dt || 0.05));
+          racer.currentTimeSec = advSec;
+          if (isRT) {
+            racer.currentTimeSecRT = advSec;
+            racer.currentTimeSecGT = lastHostGameTimeSec > 0 ? lastHostGameTimeSec : advSec;
+          } else {
+            racer.currentTimeSecGT = advSec;
+            racer.currentTimeSecRT = lastHostRealTimeSec > 0 ? lastHostRealTimeSec : advSec;
+          }
         }
 
         const checkTimes = racer.checkpointTimes || (isRT ? racer.checkpointTimesRT : racer.checkpointTimesGT) || activeTargets;
