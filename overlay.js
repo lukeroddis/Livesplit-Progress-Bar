@@ -2331,9 +2331,14 @@ function updateGhostRunner(currentSec) {
         const clusterMaxCoord = cluster[N - 1].coord;
         const clusterCenter = (clusterMinCoord + clusterMaxCoord) / 2;
 
+        // Compact 2-tier honeycomb crown:
+        // Odd-index pins sit in Row 1 (elevated 12px) nestled between Row 0 pins (baseline).
+        // This keeps the cluster tight (~40px total width) rather than stretching across the track,
+        // while preventing needle collision and keeping badges well below the top ceiling.
+        const stepX = (N <= 2) ? 14 : ((N <= 3) ? 13 : 11); // px horizontal offset per pin
         const badgePositions = [];
         for (let k = 0; k < N; k++) {
-          badgePositions.push(clusterCenter + (k - (N - 1) / 2) * badgeSpacing);
+          badgePositions.push(clusterCenter + (k - (N - 1) / 2) * stepX);
         }
 
         // Keep all badges within visible bounds (e.g. at Start split = 0)
@@ -2351,7 +2356,9 @@ function updateGhostRunner(currentSec) {
           const marker = item.marker;
           marker.style.display = "flex";
           marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
-          marker.style.zIndex = `${25 + k}`;
+
+          const isOdd = (k % 2 === 1);
+          marker.style.zIndex = `${25 + (isOdd ? 4 : 0) + k}`;
 
           const deltaX = Math.round((badgePositions[k] - item.coord) * 10) / 10;
 
@@ -2363,15 +2370,19 @@ function updateGhostRunner(currentSec) {
           marker.classList.toggle("compact", isHoveringText);
 
           const effH = isHoveringText ? Math.min(5, baseNeedleLength) : baseNeedleLength;
-          // Subtle alternating stagger for visual layering depth without hitting ceiling
-          const staggerY = (k % 2 === 1) ? 3 : 0;
+          // Stagger odd pins vertically by 12px for clear 2-tier separation
+          const staggerY = (N > 1 && isOdd) ? 12 : 0;
           const totalH = effH + staggerY;
 
-          const angleRad = Math.atan2(-deltaX, totalH);
+          // Angle theta: vector from shifted badge to runner track anchor is (-deltaX, totalH).
+          // In CSS, transform: rotate(deg) rotates clockwise (positive deg moves vector toward -X / left).
+          // When badge is shifted right (deltaX > 0), needle must tilt toward left (A > 0).
+          // When badge is shifted left (deltaX < 0), needle must tilt toward right (A < 0).
+          const angleRad = Math.atan2(deltaX, totalH);
           const angleDeg = Math.round((angleRad * (180 / Math.PI)) * 10) / 10;
           const needleLen = Math.round(Math.sqrt(deltaX * deltaX + totalH * totalH) * 10) / 10;
 
-          if (Math.abs(deltaX) > 0.5) {
+          if (Math.abs(deltaX) > 0.5 || staggerY > 0) {
             marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
             marker.style.setProperty("--ghost-needle-angle", `${angleDeg}deg`);
             marker.style.setProperty("--ghost-needle-height", `${needleLen}px`);
