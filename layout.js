@@ -146,6 +146,14 @@
         for (const id of COMPONENTS) {
           merged[id] = Object.assign({}, defaults[id], parsed[id] || {});
         }
+        if (!parsed.leaderboard) {
+          try {
+            const dedicated = localStorage.getItem("livesplit_leaderboard_layout");
+            if (dedicated) {
+              merged.leaderboard = Object.assign({}, defaults.leaderboard, JSON.parse(dedicated));
+            }
+          } catch (_) {}
+        }
         const savedAnchor = localStorage.getItem("livesplit_timer_anchor");
         if (savedAnchor && merged.timers) {
           merged.timers.anchor = savedAnchor;
@@ -155,12 +163,30 @@
     } catch (e) {
       console.warn("Failed to load saved layout, using defaults", e);
     }
-    return getDefaultLayout();
+    const def = getDefaultLayout();
+    try {
+      const dedicated = localStorage.getItem("livesplit_leaderboard_layout");
+      if (dedicated) {
+        def.leaderboard = Object.assign({}, def.leaderboard, JSON.parse(dedicated));
+      }
+    } catch (_) {}
+    return def;
   }
 
   function saveLayout() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(layoutState));
+      if (layoutState && layoutState.leaderboard) {
+        localStorage.setItem("livesplit_leaderboard_layout", JSON.stringify(layoutState.leaderboard));
+      }
+      const activeProf = getActiveProfileName();
+      if (activeProf && activeProf !== "Default") {
+        const profData = getProfileData(activeProf);
+        if (profData) {
+          profData.components = Object.assign({}, profData.components || {}, layoutState);
+          saveProfileToStorage(activeProf, profData);
+        }
+      }
     } catch (e) {
       console.warn("Failed to save layout to localStorage", e);
     }
@@ -310,6 +336,14 @@
           layoutState[compId] = Object.assign({}, defLayout[compId], data.components[compId]);
         }
       }
+    }
+    if (!data.components || !data.components.leaderboard) {
+      try {
+        const dedicated = localStorage.getItem("livesplit_leaderboard_layout");
+        if (dedicated) {
+          layoutState.leaderboard = Object.assign({}, defLayout.leaderboard, JSON.parse(dedicated));
+        }
+      } catch (_) {}
     }
     saveLayout();
     applyAllLayouts();
@@ -1599,6 +1633,36 @@
       }
     });
 
+    // Direct drag listener on leaderboard header (.leaderboard-header) anytime (live race or edit mode)
+    const lbHeader = document.querySelector(".leaderboard-header");
+    const lbComp = document.getElementById("hud-comp-leaderboard");
+    if (lbHeader && lbComp) {
+      lbHeader.addEventListener("pointerdown", (e) => {
+        // Do not drag if clicking buttons or status badge
+        if (e.target.closest("button") || e.target.closest(".leaderboard-status")) {
+          return;
+        }
+
+        e.preventDefault();
+        lbHeader.setPointerCapture(e.pointerId);
+        lbComp.classList.add("is-dragging");
+
+        const state = layoutState.leaderboard;
+        activePointerOp = {
+          type: "drag",
+          compId: "leaderboard",
+          pointerId: e.pointerId,
+          element: lbComp,
+          dragHandle: lbHeader,
+          startX: e.clientX,
+          startY: e.clientY,
+          origX: lbComp.offsetLeft,
+          origY: lbComp.offsetTop,
+          wasDocked: state.docked
+        };
+      });
+    }
+
     // Track dock toggle button
     const trackDockBtn = document.getElementById("btn-dock-track");
     if (trackDockBtn) {
@@ -1705,6 +1769,13 @@
         try {
           if (activePointerOp.element.hasPointerCapture(e.pointerId)) {
             activePointerOp.element.releasePointerCapture(e.pointerId);
+          }
+        } catch (_) {}
+      }
+      if (activePointerOp.dragHandle) {
+        try {
+          if (activePointerOp.dragHandle.hasPointerCapture(e.pointerId)) {
+            activePointerOp.dragHandle.releasePointerCapture(e.pointerId);
           }
         } catch (_) {}
       }
@@ -2510,6 +2581,8 @@
   window.hudLayout = {
     getState: () => layoutState || (layoutState = loadSavedLayout()),
     getTrackStyle: () => currentTrackStyle || (currentTrackStyle = loadSavedTrackStyle()),
+    saveLayout,
+    loadSavedLayout,
     openTrackModal,
     closeTrackModal,
     resetTrackStyle,

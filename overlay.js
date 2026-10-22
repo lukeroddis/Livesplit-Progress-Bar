@@ -3136,7 +3136,14 @@ async function pollLoop() {
           } else if (stateClass.includes("gaining") || displayDelta.isAhead) {
             flashType = "green";
           }
-          pendingHostSplitFlash = { type: flashType, timestamp: Date.now() };
+          const completedName = (prevIdx >= 0 && prevIdx < splitsList.length) ? splitsList[prevIdx] : `Split ${prevIdx + 1}`;
+          const nextName = (idx < splitsList.length) ? splitsList[idx] : "Finished";
+          pendingHostSplitFlash = {
+            type: flashType,
+            timestamp: Date.now(),
+            completedSplitName: completedName,
+            newSplitName: nextName
+          };
 
           // Query target comparison time once for the next newly active split
           if (idx < splitsList.length) {

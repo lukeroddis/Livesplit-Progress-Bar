@@ -1127,10 +1127,44 @@
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
 
+        const now = Date.now();
         const splitEntrants = [
-          { userId: "sim_gold", username: "GoldRacer", rank: 1, lastSplitEffect: { type: "gold", timestamp: Date.now() }, color: "#facc15" },
-          { userId: "sim_green", username: "GreenRacer", rank: 2, lastSplitEffect: { type: "green", timestamp: Date.now() }, color: "#22c55e" },
-          { userId: "sim_red", username: "RedRacer", rank: 3, lastSplitEffect: { type: "red", timestamp: Date.now() }, color: "#ef4444" },
+          {
+            userId: "sim_gold",
+            username: "GoldRacer",
+            rank: 1,
+            lastSplitEffect: {
+              type: "gold",
+              timestamp: now - 300,
+              completedSplitName: "World 1-1",
+              newSplitName: "World 1-2"
+            },
+            color: "#facc15"
+          },
+          {
+            userId: "sim_green",
+            username: "GreenRacer",
+            rank: 2,
+            lastSplitEffect: {
+              type: "green",
+              timestamp: now - 1400,
+              completedSplitName: "World 1-1",
+              newSplitName: "World 1-2"
+            },
+            color: "#22c55e"
+          },
+          {
+            userId: "sim_red",
+            username: "RedRacer",
+            rank: 3,
+            lastSplitEffect: {
+              type: "red",
+              timestamp: now,
+              completedSplitName: "World 1-1",
+              newSplitName: "World 1-2"
+            },
+            color: "#ef4444"
+          },
           { userId: "you", username: "You", rank: 4, isHost: true, color: "#38bdf8" }
         ];
 
@@ -1145,12 +1179,48 @@
         assert(rowRed && rowRed.classList.contains("split-flash-red"), "Red split entrant receives split-flash-red class");
         assert(rowYou && !rowYou.classList.contains("split-flash-gold"), "Unaffected entrant does not receive split flash class");
 
+        // Verify Two-Phase Split Name Transition:
+        // Phase 1 (< 1100ms): rowGold (age 300ms) displays completed split name with celebratory glow class
+        const goldSplitEl = rowGold.querySelector(".racer-split");
+        assert(goldSplitEl, "Gold split element rendered");
+        assertEqual(goldSplitEl.textContent, "World 1-1", "Phase 1 displays completed split name");
+        assert(goldSplitEl.classList.contains("is-completed-gold"), "Phase 1 applies is-completed-gold class");
+
+        // Phase 2 (>= 1100ms): rowGreen (age 1400ms) displays incoming split name with swipe transition class
+        const greenSplitEl = rowGreen.querySelector(".racer-split");
+        assert(greenSplitEl, "Green split element rendered");
+        assertEqual(greenSplitEl.textContent, "World 1-2", "Phase 2 displays incoming new split name");
+        assert(greenSplitEl.classList.contains("split-swipe-in"), "Phase 2 applies split-swipe-in class");
+
         window.LiveSplit.Leaderboard.reset();
         assert(!rowGold.classList.contains("split-flash-gold"), "Leaderboard reset clears split-flash-gold class");
         assert(!rowGreen.classList.contains("split-flash-green"), "Leaderboard reset clears split-flash-green class");
         assert(!rowRed.classList.contains("split-flash-red"), "Leaderboard reset clears split-flash-red class");
 
         rc.stopSimulation();
+      });
+
+      it("Leaderboard position persists to storage and restores across sessions", () => {
+        if (!window.hudLayout) return;
+        const state = window.hudLayout.getState();
+        assert(state && state.leaderboard, "hudLayout contains leaderboard state");
+
+        state.leaderboard.x = 188;
+        state.leaderboard.y = 299;
+        window.hudLayout.saveLayout();
+
+        // Check localStorage keys
+        const savedMain = JSON.parse(localStorage.getItem("livesplit_hud_layout"));
+        assertEqual(savedMain.leaderboard.x, 188, "Main layout storage has updated leaderboard x");
+        assertEqual(savedMain.leaderboard.y, 299, "Main layout storage has updated leaderboard y");
+
+        const savedDedicated = JSON.parse(localStorage.getItem("livesplit_leaderboard_layout"));
+        assertEqual(savedDedicated.x, 188, "Dedicated storage has updated leaderboard x");
+        assertEqual(savedDedicated.y, 299, "Dedicated storage has updated leaderboard y");
+
+        const reloaded = window.hudLayout.loadSavedLayout();
+        assertEqual(reloaded.leaderboard.x, 188, "loadSavedLayout restores exact leaderboard x");
+        assertEqual(reloaded.leaderboard.y, 299, "loadSavedLayout restores exact leaderboard y");
       });
 
       it("splits trigger immediate position swap without delay when racer reaches higher split index", () => {

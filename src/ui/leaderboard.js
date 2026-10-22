@@ -231,6 +231,27 @@
       const intMarkup = (rank === 1) ? "--" : `<span class="interval-tag">INT</span>+${escapeHtml(cleanInt)}`;
       const gapTooltip = (rank === 1) ? "Race Leader" : `Leader Gap: ${gapVal} | Interval to Ahead: +${cleanInt}`;
 
+      // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition
+      const effect = racer.lastSplitEffect;
+      const effectAge = effect ? (Date.now() - (effect.timestamp || 0)) : Infinity;
+      const isEffectActive = effect && effect.type && effectAge >= 0 && effectAge < 2000;
+      const targetClass = isEffectActive ? `split-flash-${effect.type}` : null;
+
+      // Determine active split text and styling based on 2-phase transition:
+      // Phase 1 (< 1100ms): Display completed split name in gold/green/red
+      // Phase 2 (1100ms - 2000ms): Swipe transition to incoming new split name in neutral color
+      let displayedSplit = splitLabel;
+      let splitClass = "racer-split";
+      if (isEffectActive) {
+        if (effectAge < 1100) {
+          displayedSplit = effect.completedSplitName || splitLabel;
+          splitClass = `racer-split is-completed-${effect.type}`;
+        } else {
+          displayedSplit = effect.newSplitName || splitLabel;
+          splitClass = "racer-split split-swipe-in";
+        }
+      }
+
       let row = rowElementMap.get(uId);
       if (!row || !rowsEl.contains(row)) {
         row = document.createElement("div");
@@ -246,7 +267,7 @@
           <div class="racer-avatar-badge">${avatarMarkup}</div>
           <div class="racer-name-block">
             <span class="racer-name">${escapeHtml(displayName)}</span>
-            <span class="racer-split">${escapeHtml(splitLabel)}</span>
+            <span class="${splitClass}">${escapeHtml(displayedSplit)}</span>
           </div>
           <div class="racer-gap-col" title="${escapeHtml(gapTooltip)}">
             <span class="racer-gap${rank === 1 ? ' is-leader' : ''}">${gapVal}</span>
@@ -274,8 +295,13 @@
         }
 
         const splitEl = row.querySelector(".racer-split");
-        if (splitEl && splitEl.textContent !== splitLabel) {
-          splitEl.textContent = splitLabel;
+        if (splitEl) {
+          if (splitEl.textContent !== displayedSplit) {
+            splitEl.textContent = displayedSplit;
+          }
+          if (splitEl.className !== splitClass) {
+            splitEl.className = splitClass;
+          }
         }
 
         const gapEl = row.querySelector(".racer-gap");
@@ -323,11 +349,6 @@
         }
       }
 
-      // Split completion glow pulse (Gold / Green / Red)
-      const effect = racer.lastSplitEffect;
-      const effectAge = effect ? (Date.now() - (effect.timestamp || 0)) : Infinity;
-      const isEffectActive = effect && effect.type && effectAge >= 0 && effectAge < 2000;
-      const targetClass = isEffectActive ? `split-flash-${effect.type}` : null;
       const lastAppliedEffectTime = row.dataset.lastEffectTime;
 
       if (isEffectActive && String(effect.timestamp) !== lastAppliedEffectTime) {
@@ -373,6 +394,10 @@
         row.style.zIndex = "";
         row.classList.remove("overtake-flash", "split-flash-gold", "split-flash-green", "split-flash-red");
         delete row.dataset.lastEffectTime;
+        const splitEl = row.querySelector(".racer-split");
+        if (splitEl) {
+          splitEl.className = "racer-split";
+        }
       }
     });
   }

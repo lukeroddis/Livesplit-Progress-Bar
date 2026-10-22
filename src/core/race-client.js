@@ -374,9 +374,16 @@
       hostState.splitTimes = completedSplitTimes;
 
       if (splitFlash && splitFlash.type) {
+        const completedName = splitFlash.completedSplitName
+          || hostState.currentSplitName
+          || (activeSplitsList && activeSplitsList[Math.max(0, currentIndex - 1)])
+          || (currentIndex > 0 ? `Split ${currentIndex}` : "Start");
+        const newName = splitFlash.newSplitName || hostSplitName;
         hostState.lastSplitEffect = {
           type: splitFlash.type,
-          timestamp: splitFlash.timestamp || Date.now()
+          timestamp: splitFlash.timestamp || Date.now(),
+          completedSplitName: completedName,
+          newSplitName: newName
         };
       } else if (hostState.lastSplitEffect && (Date.now() - (hostState.lastSplitEffect.timestamp || 0)) > 2200) {
         hostState.lastSplitEffect = null;
@@ -628,9 +635,17 @@
           } else if (data.gainedTime === false) {
             flashType = "red";
           }
+          const prevSplitName = existing.currentSplitName
+            || (activeSplitsList && activeSplitsList[existing.currentSplitIndex])
+            || `Split ${existing.currentSplitIndex + 1}`;
+          const nextSplitName = data.currentSplitName
+            || (activeSplitsList && activeSplitsList[data.currentSplitIndex])
+            || `Split ${data.currentSplitIndex + 1}`;
           existing.lastSplitEffect = {
             type: flashType,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            completedSplitName: prevSplitName,
+            newSplitName: nextSplitName
           };
         }
         existing.currentSplitIndex = data.currentSplitIndex;
@@ -714,7 +729,18 @@
         const curIdx = Math.floor(simVirtualSec / 30);
         let hostFlash = null;
         if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
-          hostFlash = { type: "green", timestamp: Date.now() };
+          const prevSplitName = hostState.currentSplitName
+            || (activeSplitsList && activeSplitsList[hostState.currentSplitIndex])
+            || `Split ${hostState.currentSplitIndex + 1}`;
+          const nextSplitName = (activeSplitsList && activeSplitsList[curIdx])
+            ? activeSplitsList[curIdx]
+            : (compList && curIdx >= compList.length ? "Finished" : `Split ${curIdx + 1}`);
+          hostFlash = {
+            type: "gold",
+            timestamp: Date.now(),
+            completedSplitName: prevSplitName,
+            newSplitName: nextSplitName
+          };
         }
         const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
         updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList, hostFlash, false);
@@ -815,9 +841,17 @@
           } else {
             flashType = "green";
           }
+          const prevSplitName = racer.currentSplitName
+            || (activeSplitsList && activeSplitsList[racer.currentSplitIndex])
+            || `Split ${racer.currentSplitIndex + 1}`;
+          const nextSplitName = (activeSplitsList && activeSplitsList[sIdx])
+            ? activeSplitsList[sIdx]
+            : `Split ${sIdx + 1}`;
           racer.lastSplitEffect = {
             type: flashType,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            completedSplitName: prevSplitName,
+            newSplitName: nextSplitName
           };
         } else if (racer.lastSplitEffect && (Date.now() - (racer.lastSplitEffect.timestamp || 0)) > 2200) {
           racer.lastSplitEffect = null;

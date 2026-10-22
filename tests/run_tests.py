@@ -2439,6 +2439,18 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "getClusterClampedCenter" in overlay_js, "overlay.js must use iterative cluster merging to prevent multi-cluster badge collapse"
     assert "getClusterFirstBadge(cB) - getClusterLastBadge(cA)" in overlay_js, "overlay.js must merge overlapping cluster badge bounds"
 
+    # 11. Two-phase split transition, discrete mute button, and leaderboard position persistence
+    assert "is-completed-${effect.type}" in leaderboard_code, "leaderboard.js must apply celebratory glow class in Phase 1"
+    assert "split-swipe-in" in leaderboard_code, "leaderboard.js must apply split-swipe-in class in Phase 2"
+    assert "@keyframes split-swipe-up" in css, "style.css must define @keyframes split-swipe-up for smooth incoming split transition"
+    assert ".racer-split.is-completed-gold" in css, "style.css must style completed gold split text"
+    assert ".racer-split.is-completed-green" in css, "style.css must style completed green split text"
+    assert ".racer-split.is-completed-red" in css, "style.css must style completed red split text"
+    assert "position: absolute;" in css and "top: 3px;" in css and "right: 4px;" in css, "style.css must discretely position racer mute button in top right"
+    assert "cursor: grab;" in css and ".leaderboard-header" in css, "style.css must render grab cursor on leaderboard header"
+    assert "livesplit_leaderboard_layout" in layout_js, "layout.js must persist dedicated leaderboard layout"
+    assert "document.querySelector(\".leaderboard-header\")" in layout_js, "layout.js must wire pointerdown dragging directly to leaderboard header"
+
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
 
