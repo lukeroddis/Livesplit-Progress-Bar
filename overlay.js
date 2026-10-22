@@ -1906,6 +1906,7 @@ function getOrCreateGhostMarker(ghostInfo) {
     marker.innerHTML = `
       <div class="ghost-icon-wrap"><span class="ghost-icon">${ghostInfo.icon}</span></div>
       <div class="ghost-needle"></div>
+      <div class="racer-tag">${ghostInfo.name || ""}</div>
     `;
     track.appendChild(marker);
   } else {
@@ -1915,6 +1916,13 @@ function getOrCreateGhostMarker(ghostInfo) {
     marker.className = `ghost-marker ghost-theme-${ghostInfo.id}`;
     const iconSpan = marker.querySelector(".ghost-icon");
     if (iconSpan) iconSpan.innerText = ghostInfo.icon;
+    let tag = marker.querySelector(".racer-tag");
+    if (!tag) {
+      tag = document.createElement("div");
+      tag.className = "racer-tag";
+      marker.appendChild(tag);
+    }
+    tag.innerText = ghostInfo.name || "";
   }
   knownGhostMarkers.add(marker);
   return marker;
@@ -2251,10 +2259,12 @@ function updateGhostRunner(currentSec) {
 
   // 3. Intelligent Mini-Leaderboard Track Pins with Orthogonal Drop Lines (Image 2)
   // Clustered pins align horizontally in race order (Furthest Behind on left -> Furthest Ahead on right).
-  // Pin heads float at a consistent height above split text.
+  // Pin heads float side-by-side with zero overlap above split text.
   // Orthogonal leader lines connect behind the pin heads down to each runner's actual track coordinate,
   // with least drawing precedence so text and badges are always 100% readable.
-  const COLLISION_THRESHOLD = 26; // px
+  const trackElem = document.getElementById("track");
+  const configuredPinSize = trackElem ? (parseFloat(getComputedStyle(trackElem).getPropertyValue("--ghost-pin-size")) || 26) : 26;
+  const COLLISION_THRESHOLD = configuredPinSize + 2; // px - zero overlap
 
   visibleOnscreenMarkers.sort((a, b) => {
     if (Math.abs(a.coord - b.coord) > 0.001) {
@@ -2278,7 +2288,7 @@ function updateGhostRunner(currentSec) {
 
       const marker = item.marker;
       marker.style.display = "flex";
-      const offsetX = tier * 28;
+      const offsetX = tier * (configuredPinSize + 2);
       marker.style.transform = `translateY(${item.coord}px) translateY(-50%) translateX(calc(-50% + ${offsetX}px))`;
       marker.style.zIndex = `${20 + tier}`;
       marker.style.removeProperty("--ghost-stack-offset");
@@ -2334,12 +2344,20 @@ function updateGhostRunner(currentSec) {
         const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
         marker.classList.toggle("compact", isHoveringText);
       } else {
-        // Clustered mini-leaderboard:
-        // Spacing adjusts dynamically: 22px for 2 pins, down to 16px for 5+ pins (card-deck shingle)
-        const badgeSpacing = (N <= 2) ? 22 : ((N <= 3) ? 20 : ((N <= 4) ? 18 : 16));
+        // Clustered mini-leaderboard: Zero overlap side-by-side
+        let badgeSpacing = configuredPinSize + 2;
         const clusterMinCoord = cluster[0].coord;
         const clusterMaxCoord = cluster[N - 1].coord;
         const clusterCenter = (clusterMinCoord + clusterMaxCoord) / 2;
+
+        const leftBound = visibleMin + (configuredPinSize / 2) + 2;
+        const rightBound = visibleMax - (configuredPinSize / 2) - 2;
+
+        const totalSpan = (N - 1) * badgeSpacing;
+        const availableWidth = Math.max(badgeSpacing, rightBound - leftBound);
+        if (totalSpan > availableWidth && N > 1) {
+          badgeSpacing = availableWidth / (N - 1);
+        }
 
         const badgePositions = [];
         for (let k = 0; k < N; k++) {
@@ -2347,12 +2365,11 @@ function updateGhostRunner(currentSec) {
         }
 
         // Keep all badges within visible bounds (e.g. at Start split = 0)
-        const leftBound = visibleMin + 14;
-        const rightBound = visibleMax - 14;
         if (badgePositions[0] < leftBound) {
           const shift = leftBound - badgePositions[0];
           for (let k = 0; k < N; k++) badgePositions[k] += shift;
-        } else if (badgePositions[N - 1] > rightBound) {
+        }
+        if (badgePositions[N - 1] > rightBound) {
           const shift = badgePositions[N - 1] - rightBound;
           for (let k = 0; k < N; k++) badgePositions[k] -= shift;
         }
@@ -3923,6 +3940,7 @@ window.setGhostComparison = setGhostComparison;
 window.toggleGhostComparison = toggleGhostComparison;
 window.cycleGhostComparison = cycleGhostComparison;
 window.getGhostComparisonInfo = getGhostComparisonInfo;
+window.getOrCreateGhostMarker = getOrCreateGhostMarker;
 window.calculateGhostProgress = calculateGhostProgress;
 window.getNodeTextThreshold = getNodeTextThreshold;
 window.setGhostOpacity = setGhostOpacity;

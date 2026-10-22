@@ -2349,8 +2349,8 @@ body.edit-mode .settings-menu-panel {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: var(--ghost-pin-size, 26px);
+  height: var(--ghost-pin-size, 26px);
   pointer-events: none;
   z-index: auto;
   opacity: var(--ghost-opacity, 0.85);
@@ -2363,20 +2363,22 @@ body.edit-mode .settings-menu-panel {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: var(--ghost-pin-size, 26px);
+  height: var(--ghost-pin-size, 26px);
   border-radius: 50%;
   background: rgba(15, 23, 42, 0.95);
   border: 2px solid var(--ghost-needle-color, #facc15);
   box-shadow: 0 0 10px var(--ghost-needle-glow, rgba(250, 204, 21, 0.6)), 0 4px 10px rgba(0, 0, 0, 0.9);
-  font-size: 13px;
+  font-size: calc(var(--ghost-pin-size, 26px) * 0.5);
   line-height: 1;
   user-select: none;
   transform-origin: center center;
   transform: translateX(var(--ghost-splay-x, 0px));
-  transition: box-shadow 0.25s ease;
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
   position: relative;
   z-index: 30;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .ghost-needle {
@@ -2398,8 +2400,8 @@ body.edit-mode .settings-menu-panel {
   left: 50%;
   width: var(--ghost-splay-x);
   height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
-  background: transparent;
-  box-shadow: none;
+  background: transparent !important;
+  box-shadow: none !important;
   border-radius: 0;
   border-left: 2px solid var(--ghost-needle-color, #facc15);
   border-top: 2px solid var(--ghost-needle-color, #facc15);
@@ -2412,8 +2414,8 @@ body.edit-mode .settings-menu-panel {
   left: calc(50% + var(--ghost-splay-x));
   width: calc(-1 * var(--ghost-splay-x));
   height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
-  background: transparent;
-  box-shadow: none;
+  background: transparent !important;
+  box-shadow: none !important;
   border-radius: 0;
   border-right: 2px solid var(--ghost-needle-color, #facc15);
   border-top: 2px solid var(--ghost-needle-color, #facc15);
@@ -2434,7 +2436,7 @@ body.edit-mode .settings-menu-panel {
 
 /* Zero-length Ghost Pin: Ghost runs directly along track */
 .track.ghost-on-track:not(.vertical) .ghost-marker {
-  bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) / 2) - 13px) !important;
+  bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) / 2) - (var(--ghost-pin-size, 26px) / 2)) !important;
 }
 
 .track.ghost-on-track .ghost-needle {
@@ -2450,7 +2452,7 @@ body.edit-mode .settings-menu-panel {
   border-color: #facc15;
   box-shadow: 0 0 10px rgba(250, 204, 21, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
 }
-.ghost-theme-wr .ghost-needle {
+.ghost-theme-wr:not(.splay-right):not(.splay-left) .ghost-needle {
   background: #facc15;
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
 }
@@ -2463,7 +2465,7 @@ body.edit-mode .settings-menu-panel {
   border-color: #38bdf8;
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
 }
-.ghost-theme-pb .ghost-needle {
+.ghost-theme-pb:not(.splay-right):not(.splay-left) .ghost-needle {
   background: #38bdf8;
   box-shadow: 0 0 6px rgba(56, 189, 248, 0.9);
 }
@@ -2476,7 +2478,7 @@ body.edit-mode .settings-menu-panel {
   border-color: #eab308;
   box-shadow: 0 0 10px rgba(234, 179, 8, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
 }
-.ghost-theme-best .ghost-needle {
+.ghost-theme-best:not(.splay-right):not(.splay-left) .ghost-needle {
   background: #eab308;
   box-shadow: 0 0 6px rgba(234, 179, 8, 0.9);
 }
@@ -2489,7 +2491,7 @@ body.edit-mode .settings-menu-panel {
   border-color: #a78bfa;
   box-shadow: 0 0 10px rgba(167, 139, 250, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
 }
-.ghost-theme-average .ghost-needle {
+.ghost-theme-average:not(.splay-right):not(.splay-left) .ghost-needle {
   background: #a78bfa;
   box-shadow: 0 0 6px rgba(167, 139, 250, 0.9);
 }
@@ -2502,7 +2504,7 @@ body.edit-mode .settings-menu-panel {
   border-color: #f87171;
   box-shadow: 0 0 10px rgba(248, 113, 113, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
 }
-.ghost-theme-worst .ghost-needle {
+.ghost-theme-worst:not(.splay-right):not(.splay-left) .ghost-needle {
   background: #f87171;
   box-shadow: 0 0 6px rgba(248, 113, 113, 0.9);
 }
@@ -2639,7 +2641,8 @@ body.edit-mode .settings-menu-panel {
   background: rgba(15, 23, 42, 0.96);
 }
 
-.ghost-marker.race-competitor .ghost-needle {
+.ghost-marker.race-competitor .ghost-needle,
+.ghost-marker.race-competitor:not(.splay-right):not(.splay-left) .ghost-needle {
   background: var(--racer-color, #38bdf8);
   box-shadow: 0 0 6px var(--racer-color, #38bdf8);
 }
@@ -2649,13 +2652,17 @@ body.edit-mode .settings-menu-panel {
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+  pointer-events: none;
 }
 
 .ghost-marker.race-competitor .racer-avatar {
-  font-size: 13px;
+  font-size: calc(var(--ghost-pin-size, 26px) * 0.5);
   line-height: 1;
+  pointer-events: none;
 }
 
+/* Tooltip tag for all ghost markers (timed comparisons & race competitors) */
+.ghost-marker .racer-tag,
 .ghost-marker.race-competitor .racer-tag {
   position: absolute;
   bottom: 100%;
@@ -2664,7 +2671,7 @@ body.edit-mode .settings-menu-panel {
   background: rgba(15, 23, 42, 0.92);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--racer-color, #38bdf8);
+  border: 1px solid var(--ghost-needle-color, #38bdf8);
   border-radius: 4px;
   padding: 2px 6px;
   font-size: 10px;
@@ -2675,21 +2682,29 @@ body.edit-mode .settings-menu-panel {
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-  z-index: 35;
+  z-index: 70;
 }
 
+.ghost-marker:hover .racer-tag,
 .ghost-marker.race-competitor:hover .racer-tag {
   opacity: 1;
   transform: translateX(-50%) translateY(-6px);
 }
 
-/* Vertical track adjustments for competitor pin tag */
+.ghost-marker:hover .ghost-icon-wrap {
+  z-index: 60 !important;
+  box-shadow: 0 0 14px var(--ghost-needle-color, #38bdf8), 0 4px 12px rgba(0, 0, 0, 0.95);
+}
+
+/* Vertical track adjustments for ghost pin tag */
+.track.vertical .ghost-marker .racer-tag,
 .track.vertical .ghost-marker.race-competitor .racer-tag {
   bottom: auto;
   left: 100%;
   top: 50%;
   transform: translateY(-50%) translateX(6px);
 }
+.track.vertical .ghost-marker:hover .racer-tag,
 .track.vertical .ghost-marker.race-competitor:hover .racer-tag {
   transform: translateY(-50%) translateX(8px);
 }

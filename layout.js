@@ -18,6 +18,7 @@
     barHeight: 6,          // px
     dotSize: 15,           // px
     ghostPinLength: 16,    // px (0 to 36)
+    ghostPinSize: 26,      // px (18 to 44)
     bgOpacity: 55,         // % (0 to 95)
     bgBlur: 8,             // px (0 to 20)
     bgTitle: true,         // boolean
@@ -706,6 +707,10 @@
     track.style.setProperty("--ghost-needle-length", `${pinLength}px`);
     track.classList.toggle("ghost-on-track", pinLength === 0);
 
+    const pinSize = (currentTrackStyle.ghostPinSize != null ? currentTrackStyle.ghostPinSize : 26);
+    root.style.setProperty("--ghost-pin-size", `${pinSize}px`);
+    track.style.setProperty("--ghost-pin-size", `${pinSize}px`);
+
     const opacityVal = (currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55);
     const blurPx = (currentTrackStyle.bgBlur != null ? currentTrackStyle.bgBlur : 8);
     root.style.setProperty("--bg-opacity", (opacityVal / 100).toFixed(2));
@@ -1034,6 +1039,15 @@
     if (sGhostLen && vGhostLen) {
       sGhostLen.value = pinLenVal;
       vGhostLen.innerText = (pinLenVal === 0 ? "0px (On Track)" : `${pinLenVal}px`);
+    }
+
+    // Ghost Runner pinhead size slider
+    const sGhostSize = document.getElementById("slider-ghost-pin-size");
+    const vGhostSize = document.getElementById("val-ghost-pin-size");
+    const pinSizeVal = currentTrackStyle.ghostPinSize != null ? currentTrackStyle.ghostPinSize : 26;
+    if (sGhostSize && vGhostSize) {
+      sGhostSize.value = pinSizeVal;
+      vGhostSize.innerText = `${pinSizeVal}px`;
     }
 
     // Ghost Runner opacity slider
@@ -1469,6 +1483,12 @@
       if (ghostLenParam) {
         const num = parseInt(ghostLenParam, 10);
         if (!isNaN(num)) currentTrackStyle.ghostPinLength = Math.max(0, Math.min(60, num));
+      }
+
+      const ghostSizeParam = params.get("ghostsize") || params.get("pinsize") || params.get("pinheadsize");
+      if (ghostSizeParam) {
+        const num = parseInt(ghostSizeParam, 10);
+        if (!isNaN(num)) currentTrackStyle.ghostPinSize = Math.max(16, Math.min(60, num));
       }
 
       const bgParam = params.get("bg");
@@ -2019,6 +2039,19 @@
         applyTrackStyle();
       });
       sliderGhostLen.addEventListener("change", saveTrackStyle);
+    }
+
+    // Ghost Runner pinhead size slider listener
+    const sliderGhostSize = document.getElementById("slider-ghost-pin-size");
+    if (sliderGhostSize) {
+      sliderGhostSize.addEventListener("input", () => {
+        const val = parseInt(sliderGhostSize.value, 10);
+        currentTrackStyle.ghostPinSize = val;
+        const valBadge = document.getElementById("val-ghost-pin-size");
+        if (valBadge) valBadge.innerText = `${val}px`;
+        applyTrackStyle();
+      });
+      sliderGhostSize.addEventListener("change", saveTrackStyle);
     }
 
     // Ghost Runner opacity slider listener

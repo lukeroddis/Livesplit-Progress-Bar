@@ -431,6 +431,23 @@
           assertEqual(style.ghostPinLength, 16);
         }
       });
+      it("supports customizable ghost pinhead size in track styles", () => {
+        if (window.hudLayout && window.hudLayout.getTrackStyle) {
+          const style = window.hudLayout.getTrackStyle();
+          assertEqual(typeof style.ghostPinSize, "number");
+          assertEqual(style.ghostPinSize, 26);
+        }
+      });
+      it("renders tooltips for timed comparison ghosts", () => {
+        const wrInfo = window.getGhostComparisonInfo("wr");
+        if (wrInfo && window.getOrCreateGhostMarker) {
+          const marker = window.getOrCreateGhostMarker(wrInfo);
+          assert(marker !== null, "WR marker created");
+          const tag = marker.querySelector(".racer-tag");
+          assert(tag !== null, "WR marker contains racer-tag tooltip");
+          assert(tag.innerText.length > 0, "racer-tag displays comparison name");
+        }
+      });
     });
 
     describe("Track Orientation: Horizontal and Vertical Modes", () => {

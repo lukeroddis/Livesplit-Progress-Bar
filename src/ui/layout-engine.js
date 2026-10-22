@@ -19,6 +19,7 @@
     barHeight: 6,          // px
     dotSize: 15,           // px
     ghostPinLength: 16,    // px (0 to 36)
+    ghostPinSize: 26,      // px (18 to 44)
     bgOpacity: 55,         // % (0 to 95)
     bgBlur: 8,             // px (0 to 20)
     bgTitle: true,         // boolean

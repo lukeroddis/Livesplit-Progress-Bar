@@ -98,6 +98,7 @@
         "barHeight": { "type": "integer" },
         "dotSize": { "type": "integer" },
         "ghostPinLength": { "type": "integer" },
+        "ghostPinSize": { "type": "integer" },
         "logoHeight": { "type": "integer" }
       }
     },

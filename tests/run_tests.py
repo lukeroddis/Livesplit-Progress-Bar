@@ -2422,6 +2422,21 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert ".splay-right .ghost-needle" in css, "style.css must support orthogonal leader lines"
     assert "z-index: 5;" in css, "style.css must ensure needle stems have least drawing precedence (z-index: 5)"
 
+    # 10. Zero-overlap pinheads, hover tooltips for all ghosts, blurring bug defense, and custom pinhead size
+    assert 'id="slider-ghost-pin-size"' in html, "index.html must provide #slider-ghost-pin-size in customizer dialog"
+    assert 'id="val-ghost-pin-size"' in html, "index.html must provide #val-ghost-pin-size badge in customizer dialog"
+    assert "ghostPinSize: 26" in layout_js, "layout.js DEFAULT_TRACK_STYLE must include ghostPinSize default (26px)"
+    assert "ghostPinSize: 26" in layout_engine_js, "src/ui/layout-engine.js DEFAULT_TRACK_STYLE must include ghostPinSize: 26"
+    assert "ghostPinSize" in schema_json["properties"]["style"]["properties"], "schema/layout-v1.json must include ghostPinSize in track style schema"
+    assert "--ghost-pin-size" in css, "style.css must define and utilize --ghost-pin-size for pin markers and icon wraps"
+    assert "--ghost-pin-size" in layout_js, "layout.js must apply --ghost-pin-size CSS custom property to track and root"
+    assert "background: transparent !important;" in css, "style.css splayed needles must enforce transparent background to eliminate blurring bug"
+    assert "box-shadow: none !important;" in css, "style.css splayed needles must eliminate box-shadow to prevent blurring glow"
+    assert ".ghost-marker .racer-tag" in css, "style.css must support tooltips for all ghost markers"
+    assert ".ghost-marker:hover .racer-tag" in css, "style.css must reveal tooltip on hovering any ghost marker"
+    assert '<div class="racer-tag">${ghostInfo.name' in overlay_js, "overlay.js getOrCreateGhostMarker must inject tooltip racer-tag with ghostInfo.name"
+    assert "configuredPinSize + 2" in overlay_js, "overlay.js must ensure zero pinhead overlap by spacing pinheads at least configuredPinSize + 2"
+
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
 
