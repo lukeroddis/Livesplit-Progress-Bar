@@ -132,6 +132,7 @@
     let simulationTimer = null;
     let activeSplitsList = [];
     let activeComparisonTimes = [];
+    let activeComparisonTimesRT = [];
     let simulationCourseTargets = [];
     const lastKnownRanks = new Map();
     let lastExternalHostUpdate = 0;
@@ -248,11 +249,13 @@
       const score = Math.max(0, runner.score || 0);
       const sIdx = Math.floor(score);
       const sRatio = Math.max(0, Math.min(1.0, score - sIdx));
-      const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
-        ? activeComparisonTimes
-        : ((simulationCourseTargets && simulationCourseTargets.length > 0)
-          ? simulationCourseTargets
-          : [30, 60, 90, 120, 150, 180, 210, 240]);
+      const comp = (activeComparisonTimesRT && activeComparisonTimesRT.length > 0)
+        ? activeComparisonTimesRT
+        : ((activeComparisonTimes && activeComparisonTimes.length > 0)
+          ? activeComparisonTimes
+          : ((simulationCourseTargets && simulationCourseTargets.length > 0)
+            ? simulationCourseTargets
+            : [30, 60, 90, 120, 150, 180, 210, 240]));
       const tPrev = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
       const tNext = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (tPrev + 30);
       return tPrev + sRatio * (tNext - tPrev);
@@ -295,10 +298,15 @@
       // Incumbency bonus (~0.012 per rank held, equivalent to ~0.36s of track time) provides
       // realistic racing overtake stability so neck-and-neck competitors don't jitter or oscillate,
       // while scalar scoring strictly preserves mathematical transitivity (zero Timsort cycles).
+      // Leaderboard sorting rules:
+      // 1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
+      // 2. Active runners ranked by currentSplitIndex descending (highest milestone reached)
+      // 3. Active runners on the SAME split checkpoint: leaderboard positioning updates on the
+      //    occasion of splitting, NOT based on predicted mid-split interpolation curves.
+      //    Ties are broken by comparing cumulative split times at the last completed split checkpoint!
+      // 4. Stable rank fallback to prevent mid-split swapping or jitter.
       list.forEach((r) => {
-        const prevRank = lastKnownRanks.get(r.userId);
-        const incumbency = (prevRank !== undefined) ? ((10 - prevRank) * 0.012) : 0;
-        r._effectiveScore = (r.score || 0) + incumbency;
+        r._effectiveScore = r.score || 0;
       });
 
       list.sort((a, b) => {
@@ -308,23 +316,46 @@
         if (a.isFinished && !b.isFinished) return -1;
         if (!a.isFinished && b.isFinished) return 1;
 
-        // Checkpoint rule: in speedrun races, any runner on a later split checkpoint is definitively ahead!
+        // Checkpoint rule: in speedrun races, any runner on a higher split checkpoint is physically ahead!
         const splitIdxA = a.currentSplitIndex || 0;
         const splitIdxB = b.currentSplitIndex || 0;
         if (splitIdxB !== splitIdxA) {
           return splitIdxB - splitIdxA;
         }
 
-        const scoreA = a._effectiveScore !== undefined ? a._effectiveScore : (a.score || 0);
-        const scoreB = b._effectiveScore !== undefined ? b._effectiveScore : (b.score || 0);
-        const diff = scoreB - scoreA;
-        if (Math.abs(diff) > 0.0001) {
-          return diff;
+        // Both runners are on the same split checkpoint.
+        // Standings update strictly upon splitting: compare cumulative time at the most recently completed common split.
+        const splitsA = normalizeSplitTimes(a.splitTimes);
+        const splitsB = normalizeSplitTimes(b.splitTimes);
+        const lastCompletedIdx = splitIdxA - 1;
+
+        if (lastCompletedIdx >= 0) {
+          for (let k = lastCompletedIdx; k >= 0; k--) {
+            const tA = splitsA[k];
+            const tB = splitsB[k];
+            if (typeof tA === "number" && typeof tB === "number" && !isNaN(tA) && !isNaN(tB)) {
+              const diff = tA - tB;
+              if (Math.abs(diff) > 0.001) {
+                return diff; // lower cumulative split time crossed earlier -> ranked ahead
+              }
+            }
+          }
         }
 
-        const timeDiff = (a.currentTimeSec || 0) - (b.currentTimeSec || 0);
-        if (Math.abs(timeDiff) > 0.001) {
-          return timeDiff;
+        // Fallback for Split 0 (before anyone has split) or identical cumulative split times:
+        // Preserve stable rank to avoid mid-split swapping or delta glitches
+        const rankA = lastKnownRanks.get(a.userId);
+        const rankB = lastKnownRanks.get(b.userId);
+        if (rankA !== undefined && rankB !== undefined && rankA !== rankB) {
+          return rankA - rankB;
+        }
+
+        // Initial stable order fallback (e.g. before any ranks are recorded):
+        // Simulated competitors: paceFactor provides seeded ordering (host = 1.000)
+        const paceA = typeof a.paceFactor === "number" ? a.paceFactor : (a.isHost ? 1.000 : 1.0);
+        const paceB = typeof b.paceFactor === "number" ? b.paceFactor : (b.isHost ? 1.000 : 1.0);
+        if (Math.abs(paceA - paceB) > 0.0001) {
+          return paceA - paceB;
         }
 
         return String(a.userId || "").localeCompare(String(b.userId || ""));
@@ -429,11 +460,13 @@
             const prevT = sIdx > 0 ? (runner.checkpointTimes[sIdx - 1] || 0) : 0;
             segSec = Math.max(0.1, (runner.checkpointTimes[sIdx] || 0) - prevT);
           } else {
-            const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
-              ? activeComparisonTimes
-              : ((simulationCourseTargets && simulationCourseTargets.length > 0)
-                ? simulationCourseTargets
-                : [30, 60, 90, 120, 150, 180, 210, 240]);
+            const comp = (activeComparisonTimesRT && activeComparisonTimesRT.length > 0)
+              ? activeComparisonTimesRT
+              : ((activeComparisonTimes && activeComparisonTimes.length > 0)
+                ? activeComparisonTimes
+                : ((simulationCourseTargets && simulationCourseTargets.length > 0)
+                  ? simulationCourseTargets
+                  : [30, 60, 90, 120, 150, 180, 210, 240]));
             const prevT = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
             const nextT = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (prevT + 30);
             segSec = Math.max(0.1, nextT - prevT);
@@ -497,7 +530,7 @@
     /**
      * Updates the host runner's in-run progress.
      */
-    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = [], splitFlash = null, isExternal = true) {
+    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = [], splitFlash = null, isExternal = true, realTimeSec = null, comparisonTimesRT = [], completedSplitTimesRT = []) {
       if (isExternal) {
         lastExternalHostUpdate = Date.now();
       }
@@ -507,9 +540,25 @@
       if (Array.isArray(comparisonTimes) && comparisonTimes.length > 0) {
         activeComparisonTimes = comparisonTimes;
       }
-      hostState.currentTimeSec = Math.max(0, currentSec || 0);
+      if (Array.isArray(comparisonTimesRT) && comparisonTimesRT.length > 0) {
+        activeComparisonTimesRT = comparisonTimesRT;
+      } else if (activeComparisonTimesRT.length === 0 && activeComparisonTimes.length > 0) {
+        activeComparisonTimesRT = [...activeComparisonTimes];
+      }
+
+      // Live race clock strictly runs on Real Time (RTA) so loading screens (which pause Game Time)
+      // do not freeze the live race or simulated competitors
+      const raceClockSec = (typeof realTimeSec === "number" && realTimeSec > 0)
+        ? realTimeSec
+        : Math.max(0, currentSec || 0);
+
+      hostState.currentTimeSec = raceClockSec;
       hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
-      hostState.splitTimes = normalizeSplitTimes(completedSplitTimes);
+
+      const normCompletedRT = normalizeSplitTimes(completedSplitTimesRT);
+      hostState.splitTimes = normCompletedRT.length > 0
+        ? normCompletedRT
+        : normalizeSplitTimes(completedSplitTimes);
 
       if (splitFlash && splitFlash.type) {
         const completedName = splitFlash.completedSplitName
@@ -575,9 +624,9 @@
 
       entrants.set(hostState.userId, Object.assign({}, hostState));
 
-      // In simulation mode, update simulated competitors synchronously
+      // In simulation mode, update simulated competitors synchronously with real-time race clock
       if (isSimulating) {
-        tickSimulatedCompetitors(currentSec);
+        tickSimulatedCompetitors(raceClockSec);
       } else if (hostUsername) {
         entrants.forEach((racer) => {
           if (racer.isHost && racer.userId !== hostState.userId) {
@@ -816,7 +865,7 @@
     /**
      * Starts realistic live race simulation with 3 virtual competitors.
      */
-    function startSimulation(splitsList = [], comparisonTimes = []) {
+    function startSimulation(splitsList = [], comparisonTimes = [], comparisonTimesRT = []) {
       stopSimulation();
       isSimulating = true;
       raceId = "sim_cup_2026";
@@ -832,6 +881,12 @@
       } else {
         simulationCourseTargets = [...fallbackTargets];
         activeComparisonTimes = [...fallbackTargets];
+      }
+
+      if (Array.isArray(comparisonTimesRT) && comparisonTimesRT.length > 0) {
+        activeComparisonTimesRT = [...comparisonTimesRT];
+      } else {
+        activeComparisonTimesRT = [...simulationCourseTargets];
       }
 
       while (simulationCourseTargets.length < activeSplitsList.length) {
@@ -929,7 +984,7 @@
           };
         }
         const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
-        updateHostProgress(simVirtualSec, curIdx, hostState.splitTimes, simulationCourseTargets, sName, activeSplitsList, hostFlash, false);
+        updateHostProgress(simVirtualSec, curIdx, hostState.splitTimes, simulationCourseTargets, sName, activeSplitsList, hostFlash, false, simVirtualSec, activeComparisonTimesRT.length > 0 ? activeComparisonTimesRT : simulationCourseTargets, hostState.splitTimes);
       }
 
       simulationTimer = setInterval(() => {
@@ -1091,6 +1146,7 @@
 
     function reset() {
       lastExternalHostUpdate = 0;
+      activeComparisonTimesRT = [];
       hostState.currentTimeSec = 0;
       hostState.currentSplitIndex = 0;
       hostState.currentSplitName = "Start";

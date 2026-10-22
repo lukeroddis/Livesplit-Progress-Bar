@@ -55,6 +55,7 @@ let currentComparison = "Personal Best";
 let comparisonsDataGT = {};
 let comparisonsDataRT = {};
 let completedSplitTimes = {};
+let completedSplitTimesRT = {};
 let currentTimingMethod = "GameTime";
 let timerDisplayMode = "both"; // 'gametime' | 'realtime' | 'both'
 let lockedDeltas = {}; 
@@ -75,6 +76,7 @@ function saveInRunState() {
       currentIndex,
       lockedDeltas,
       completedSplitTimes,
+      completedSplitTimesRT,
       lastSplitRecordedSec,
       previousDeltaSeconds,
       lastElapsedSec,
@@ -123,6 +125,7 @@ function loadInRunState() {
       }
       lockedDeltas = parsed.lockedDeltas || {};
       completedSplitTimes = parsed.completedSplitTimes || {};
+      completedSplitTimesRT = parsed.completedSplitTimesRT || {};
       lastSplitRecordedSec = Number(parsed.lastSplitRecordedSec) || 0;
       previousDeltaSeconds = Number(parsed.previousDeltaSeconds) || 0;
       if (typeof parsed.lastElapsedSec === "number") {
@@ -696,6 +699,7 @@ function parseLSS(xmlText, isNewDrop = false) {
       currentIndex = -1;
       lockedDeltas = {};
       completedSplitTimes = {};
+      completedSplitTimesRT = {};
       lastSplitRecordedSec = 0;
       previousDeltaSeconds = 0;
       lastElapsedSec = 0;
@@ -2673,6 +2677,7 @@ function handleUndoSplit(newIdx, oldIdx) {
   for (let i = newIdx; i < splitsList.length; i++) {
     delete lockedDeltas[i];
     delete completedSplitTimes[i];
+    delete completedSplitTimesRT[i];
 
     const deltaSpan = document.getElementById(`delta-val-${i}`);
     const timeSpan = document.getElementById(`time-val-${i}`);
@@ -2877,6 +2882,7 @@ async function pollLoop() {
         clearInRunState();
         lockedDeltas = {};
         completedSplitTimes = {};
+        completedSplitTimesRT = {};
         lastSplitRecordedSec = 0;
         previousDeltaSeconds = 0;
         lastElapsedSec = 0;
@@ -2952,6 +2958,7 @@ async function pollLoop() {
           clearInRunState();
           lockedDeltas = {};
           completedSplitTimes = {};
+          completedSplitTimesRT = {};
           lastSplitRecordedSec = 0;
           previousDeltaSeconds = 0;
 
@@ -2970,6 +2977,7 @@ async function pollLoop() {
           // If runner skipped multiple splits in one leap, mark skipped intermediate splits as uncoloured
           for (let s = currentIndex; s < idx - 1; s++) {
             delete completedSplitTimes[s];
+            delete completedSplitTimesRT[s];
             const skipDelta = { text: "-", isAhead: false, signedSeconds: 0 };
             lockedDeltas[s] = { deltaInfo: skipDelta, stateClass: "uncoloured", splitTimeSec: null };
             setDeltaDisplay(s, skipDelta, "uncoloured", null);
@@ -2992,8 +3000,14 @@ async function pollLoop() {
             splitTimeSec = parsedLastSplit;
             completedSplitTimes[prevIdx] = splitTimeSec;
             lastSplitRecordedSec = splitTimeSec;
+            if (rtaSec !== null && rtaSec > 0) {
+              completedSplitTimesRT[prevIdx] = rtaSec;
+            } else if (currentTimingMethod === "RealTime") {
+              completedSplitTimesRT[prevIdx] = splitTimeSec;
+            }
           } else {
             delete completedSplitTimes[prevIdx];
+            delete completedSplitTimesRT[prevIdx];
           }
 
           let stateClass = "uncoloured";
@@ -3176,6 +3190,9 @@ async function pollLoop() {
           const hostSplitName = (currentIndex < 0)
             ? "Start"
             : (currentIndex < splitsList.length ? splitsList[currentIndex] : "Finished");
+          const realTimeSec = (rtaSec !== null && rtaSec > 0) ? rtaSec : currentTotalSec;
+          const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : comparisonTimes;
+          const rtCompletedSplits = (Object.keys(completedSplitTimesRT).length > 0) ? completedSplitTimesRT : completedSplitTimes;
           rc.updateHostProgress(
             currentTotalSec,
             currentIndex,
@@ -3183,7 +3200,11 @@ async function pollLoop() {
             comparisonTimes,
             hostSplitName,
             splitsList,
-            pendingHostSplitFlash
+            pendingHostSplitFlash,
+            true,
+            realTimeSec,
+            rtComparisons,
+            rtCompletedSplits
           );
           pendingHostSplitFlash = null;
         }
@@ -3815,7 +3836,8 @@ function initOverlay() {
             raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
           }
         } else {
-          raceClient.startSimulation(splitsList, comparisonTimes);
+          const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : comparisonTimes;
+          raceClient.startSimulation(splitsList, rtComparisons, rtComparisons);
           raceSimBtn.textContent = "🧪 Stop Sim";
           raceSimBtn.style.color = "#ef4444";
           if (raceToggleBtn) {

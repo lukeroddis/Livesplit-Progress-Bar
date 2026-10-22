@@ -1523,6 +1523,77 @@
         }
         rc.stopSimulation();
       });
+
+      it("Leaderboard positions update strictly upon split completion, ignoring mid-split predicted score fluctuations", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
+
+        // Entrant A completed Split 0 faster (25.0s) than Entrant B (28.0s)
+        const entrants = rc.getRankedEntrants();
+        const entrantA = entrants[0];
+        const entrantB = entrants[1];
+
+        entrantA.currentSplitIndex = 1;
+        entrantA.splitTimes = [25.0];
+        entrantA.score = 1.2; // 20% into Split 1
+
+        entrantB.currentSplitIndex = 1;
+        entrantB.splitTimes = [28.0];
+        entrantB.score = 1.8; // 80% into Split 1 (predicted curve gives higher score!)
+
+        const ranked = rc.getRankedEntrants();
+        // Even though entrantB has a higher predicted score (1.8 vs 1.2), entrantA crossed Split 0 checkpoint first (25.0s < 28.0s)
+        // Leaderboard position MUST NOT swap mid-split!
+        assertEqual(ranked[0].userId, entrantA.userId, "Entrant A remains in 1st place mid-split based on last completed split");
+        assertEqual(ranked[1].userId, entrantB.userId, "Entrant B remains in 2nd place mid-split despite higher predicted mid-split score");
+        assertEqual(ranked[1].gapDisplay, "+3.0s", "Fixed leader gap (28.0 - 25.0) remains stable without jumping");
+
+        // Now Entrant B actually completes Split 1 first! (split index advances to 2)
+        entrantB.currentSplitIndex = 2;
+        entrantB.splitTimes = [28.0, 52.0];
+        entrantB.currentTimeSec = 52.0;
+
+        const updated = rc.getRankedEntrants();
+        assertEqual(updated[0].userId, entrantB.userId, "Entrant B overtakes Entrant A upon completing split checkpoint");
+        assertEqual(updated[1].userId, entrantA.userId, "Entrant A drops to 2nd position upon Entrant B splitting");
+
+        rc.stopSimulation();
+      });
+
+      it("RaceClient and competitor timers run on Real Time (RTA) so loading screens never freeze the race", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Forest", "Cave", "Castle"], [30, 60, 90], [35, 70, 105]);
+
+        // Simulate host hitting a loading screen: Game Time (IGT) freezes at 40.0s, but Real Time (RTA) advances from 40.0s to 45.0s
+        rc.updateHostProgress(
+          40.0, // currentSec (IGT frozen)
+          1,    // currentIndex
+          [20.0], // completedSplitTimes (IGT)
+          [30, 60, 90], // comparisonTimes (IGT)
+          "Cave",
+          ["Forest", "Cave", "Castle"],
+          null,
+          true,
+          45.0, // realTimeSec (RTA keeps ticking!)
+          [35, 70, 105], // comparisonTimesRT
+          [22.0] // completedSplitTimesRT
+        );
+
+        const entrants = rc.getRankedEntrants();
+        const host = entrants.find(e => e.isHost);
+        const competitor = entrants.find(e => !e.isHost);
+
+        // Verify race clock and competitor elapsed time are driven by Real Time (45.0s, not frozen 40.0s)
+        assertEqual(host.currentTimeSec, 45.0, "Host currentTimeSec tracks Real Time (45.0s)");
+        assertEqual(competitor.currentTimeSec, 45.0, "Competitor currentTimeSec tracks Real Time without freezing during load screen");
+
+        // Host in Cave split: elapsed segment time is Real Time elapsed since split 0 (45.0 - 22.0 = 23.0s)
+        assertEqual(host.elapsedSegmentDisplay, "23.0s", "Leaderboard segment elapsed time ticks in Real Time");
+        // Expected segment duration is based on Real Time targets (70 - 35 = 35.0s)
+        assertEqual(host.expectedSegmentDisplay, "35.0s", "Leaderboard expected segment time uses Real Time target");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---
