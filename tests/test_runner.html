@@ -1682,6 +1682,108 @@
 
         rc.stopSimulation();
       });
+
+      it("window.hudLayout exports applyComponentLayout and toggles leaderboard visibility", () => {
+        assert(typeof window.hudLayout.applyComponentLayout === "function", "window.hudLayout exports applyComponentLayout");
+        const state = window.hudLayout.getState();
+        const initialVis = state.leaderboard?.visible !== false;
+        
+        // Toggle visibility off
+        if (!state.leaderboard) state.leaderboard = { x: 42, y: 110, scale: 1.0, visible: true, docked: "none" };
+        state.leaderboard.visible = false;
+        window.hudLayout.applyComponentLayout("leaderboard");
+        const lbEl = document.getElementById("hud-comp-leaderboard");
+        assert(lbEl.classList.contains("is-hidden"), "Leaderboard receives .is-hidden when visibility is false");
+
+        // Toggle visibility back on
+        state.leaderboard.visible = true;
+        window.hudLayout.applyComponentLayout("leaderboard");
+        assert(!lbEl.classList.contains("is-hidden"), "Leaderboard removes .is-hidden when visibility is restored");
+
+        state.leaderboard.visible = initialVis;
+        window.hudLayout.saveLayout();
+      });
+
+      it("Leaderboard DOM row targeted reconciliation preserves ongoing split glow without restarting when sibling splits", () => {
+        const now = Date.now();
+        const testEntrants = [
+          {
+            userId: "host_p1",
+            username: "You",
+            isHost: true,
+            rank: 1,
+            lastSplitEffect: {
+              type: "gold",
+              timestamp: now - 1500, // 1.5s into 4.0s glow
+              completedSplitName: "Split 1",
+              newSplitName: "Split 2"
+            },
+            color: "#38bdf8"
+          },
+          {
+            userId: "runner_p2",
+            username: "Runner2",
+            rank: 2,
+            lastSplitEffect: null,
+            color: "#22c55e"
+          }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(testEntrants, true, false, false);
+        const rowHost = document.querySelector('.leaderboard-row[data-user-id="host_p1"]');
+        assert(rowHost && rowHost.classList.contains("split-flash-gold"), "Host row is glowing gold");
+        // Mark the host DOM node with a custom tracker property
+        rowHost._trackerId = "original_host_node";
+
+        // Now Runner 2 splits and starts their animation
+        testEntrants[1].lastSplitEffect = {
+          type: "green",
+          timestamp: now,
+          completedSplitName: "Split 1",
+          newSplitName: "Split 2"
+        };
+        testEntrants[1].rank = 2; // Remains in rank 2
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(testEntrants, true, false, false);
+        const rowHostAfter = document.querySelector('.leaderboard-row[data-user-id="host_p1"]');
+        assertEqual(rowHostAfter._trackerId, "original_host_node", "Host DOM element was preserved in place without re-creating");
+        assert(rowHostAfter.classList.contains("split-flash-gold"), "Host glow remained intact");
+        assertEqual(rowHostAfter.dataset.lastEffectTime, String(testEntrants[0].lastSplitEffect.timestamp), "Host effect timestamp unchanged");
+
+        // Now test when runner 2 overtakes host into rank 1
+        testEntrants[0].rank = 2;
+        testEntrants[1].rank = 1;
+        window.LiveSplit.Leaderboard.renderLeaderboard(testEntrants, true, false, false);
+        const rowHostRank2 = document.querySelector('.leaderboard-row[data-user-id="host_p1"]');
+        assert(rowHostRank2.classList.contains("split-flash-gold"), "Host continues glowing after moving to rank 2");
+        assert(rowHostRank2.style.animationDelay.startsWith("-"), "Host animation-delay locked to elapsed time");
+
+        window.LiveSplit.Leaderboard.reset();
+      });
+
+      it("RaceClient handleUndoSplit rewinds checkpoints, trims splitTimes, and resets finished state", () => {
+        const rc = window.LiveSplit.RaceClient;
+        assert(typeof rc.handleUndoSplit === "function", "RaceClient exports handleUndoSplit");
+        rc.startSimulation(["Split 1", "Split 2", "Split 3", "Finished"], [30, 60, 90, 120]);
+
+        // Complete 2 splits
+        rc.updateHostProgress(65, 2, [28.0, 58.0], [30, 60, 90, 120], "Split 3");
+        let entrants = rc.getRankedEntrants();
+        let host = entrants.find(e => e.isHost);
+        assertEqual(host.currentSplitIndex, 2, "Host at split index 2");
+        assertEqual(host.splitTimes.length, 2, "Host has 2 split times");
+
+        // Undo split back to split index 1
+        rc.handleUndoSplit(1, 2);
+        entrants = rc.getRankedEntrants();
+        host = entrants.find(e => e.isHost);
+        assertEqual(host.currentSplitIndex, 1, "Host rolled back to split index 1");
+        assertEqual(host.splitTimes.length, 1, "Split times trimmed to 1");
+        assertEqual(host.isFinished, false, "Host isFinished is false");
+        assertEqual(host.lastSplitEffect, null, "Host lastSplitEffect cleared");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---

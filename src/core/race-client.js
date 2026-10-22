@@ -136,6 +136,7 @@
     let simulationCourseTargets = [];
     const lastKnownRanks = new Map();
     let lastExternalHostUpdate = 0;
+    let simVirtualSec = 0;
 
     /**
      * Normalizes split times dictionary/array into a clean numeric array.
@@ -200,9 +201,62 @@
         hostState.currentSplitName = "DNF";
       } else {
         hostState.dnfTimeSec = null;
+        hostState.currentSplitName = (activeSplitsList && activeSplitsList[hostState.currentSplitIndex]) || "Start";
       }
       entrants.set(hostState.userId, Object.assign({}, hostState));
       notifyListeners("entrant_updated", { runnerId: hostState.userId, isDNF: hostState.isDNF });
+    }
+
+    /**
+     * Handles LiveSplit Undo Split: cleanly rolls back host checkpoint,
+     * trims split times, and clears completion effects.
+     */
+    function handleUndoSplit(newIdx, oldIdx) {
+      const targetIdx = Math.max(0, typeof newIdx === "number" ? newIdx : 0);
+      hostState.currentSplitIndex = targetIdx;
+      hostState.isFinished = false;
+      hostState.finalTimeSec = null;
+      hostState.lastSplitEffect = null;
+      hostState.isDNF = false;
+      hostState.dnfTimeSec = null;
+
+      if (Array.isArray(hostState.splitTimes)) {
+        hostState.splitTimes = hostState.splitTimes.slice(0, targetIdx);
+      }
+
+      const sName = (activeSplitsList && activeSplitsList[targetIdx])
+        ? activeSplitsList[targetIdx]
+        : (targetIdx >= 0 ? `Split ${targetIdx + 1}` : "Start");
+      hostState.currentSplitName = sName;
+
+      // Rewind virtual host if in simulation
+      if (isSimulating) {
+        if (targetIdx < simulationCourseTargets.length) {
+          const prevTarget = targetIdx > 0 ? (simulationCourseTargets[targetIdx - 1] || 0) : 0;
+          if (simVirtualSec > (simulationCourseTargets[targetIdx] || prevTarget + 30)) {
+            simVirtualSec = prevTarget;
+          }
+        }
+      }
+
+      const hostEntrant = entrants.get(hostState.userId);
+      if (hostEntrant) {
+        Object.assign(hostEntrant, hostState);
+      }
+      entrants.forEach((racer) => {
+        if (racer.isHost && racer.userId !== hostState.userId) {
+          racer.currentSplitIndex = hostState.currentSplitIndex;
+          racer.currentSplitName = hostState.currentSplitName;
+          racer.isFinished = false;
+          racer.finalTimeSec = null;
+          racer.lastSplitEffect = null;
+          if (Array.isArray(racer.splitTimes)) {
+            racer.splitTimes = racer.splitTimes.slice(0, targetIdx);
+          }
+        }
+      });
+
+      notifyListeners("entrant_updated", { runnerId: hostState.userId });
     }
 
     function isHostDNF() {
@@ -609,7 +663,18 @@
         : Math.max(0, currentSec || 0);
 
       hostState.currentTimeSec = raceClockSec;
-      hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
+      if (currentIndex < hostState.currentSplitIndex) {
+        // Rollback / Undo split detected
+        hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
+        hostState.isFinished = false;
+        hostState.finalTimeSec = null;
+        hostState.lastSplitEffect = null;
+        if (Array.isArray(hostState.splitTimes)) {
+          hostState.splitTimes = hostState.splitTimes.slice(0, hostState.currentSplitIndex);
+        }
+      } else {
+        hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
+      }
 
       const normCompletedRT = normalizeSplitTimes(completedSplitTimesRT);
       hostState.splitTimes = normCompletedRT.length > 0
@@ -1023,7 +1088,7 @@
 
       notifyListeners("race_connected", { raceId, isSimulated: true });
 
-      let simVirtualSec = hostState.currentTimeSec || 0;
+      simVirtualSec = hostState.currentTimeSec || 0;
 
       function advanceVirtualHost(baseSec) {
         if (hostState.isDNF) return;
@@ -1063,20 +1128,22 @@
       simulationTimer = setInterval(() => {
         if (!isSimulating) return;
 
-        const isExternalHostRunning = hostState.currentTimeSec > 0 && (Date.now() - lastExternalHostUpdate < 1500);
+        const isExternalHostConnected = (lastExternalHostUpdate > 0);
 
         if (hostState.isDNF) {
           // Host has forfeited / DNF'd: competitors continue running to finish line
           simVirtualSec += 0.05;
           tickSimulatedCompetitors(simVirtualSec);
-        } else if (hostState.currentTimeSec > 0) {
-          if (isExternalHostRunning && lastExternalHostUpdate > 0) {
-            // LiveSplit is actively driving the run: keep competitors synchronized to host run time
+        } else if (isExternalHostConnected) {
+          // LiveSplit is actively driving the run: keep competitors synchronized to host run time
+          if (hostState.currentTimeSec > 0) {
             tickSimulatedCompetitors(hostState.currentTimeSec);
           } else {
-            advanceVirtualHost(Math.max(simVirtualSec, hostState.currentTimeSec));
+            // LiveSplit is at 0 (start line / reset): competitors stay cleanly at start line
+            simVirtualSec = 0;
           }
         } else {
+          // Standalone preview/demo mode without LiveSplit
           advanceVirtualHost(simVirtualSec);
         }
         notifyListeners("entrant_updated", null);
@@ -1091,6 +1158,7 @@
         clearInterval(simulationTimer);
         simulationTimer = null;
       }
+      simVirtualSec = 0;
       if (isSimulating) {
         isSimulating = false;
         raceId = null;
@@ -1223,6 +1291,7 @@
 
     function reset() {
       lastExternalHostUpdate = 0;
+      simVirtualSec = 0;
       activeComparisonTimesRT = [];
       hostState.currentTimeSec = 0;
       hostState.currentSplitIndex = 0;
@@ -1275,6 +1344,7 @@
       getHostUsername,
       setHostDNF,
       isHostDNF,
+      handleUndoSplit,
       setEntrantDNF,
       startSimulation,
       stopSimulation,

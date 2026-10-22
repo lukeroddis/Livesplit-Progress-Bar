@@ -2741,6 +2741,13 @@ function handleUndoSplit(newIdx, oldIdx) {
     }
   }
 
+  const rc = window.LiveSplit && window.LiveSplit.RaceClient
+    ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient)
+    : window.LiveSplitRaceClient;
+  if (rc && typeof rc.handleUndoSplit === "function") {
+    rc.handleUndoSplit(newIdx, oldIdx);
+  }
+
   saveInRunState();
 }
 
@@ -2882,13 +2889,30 @@ async function pollLoop() {
 
     if (isStrictInt) {
       const idx = parseInt(splitIdxStr.trim(), 10);
-      // Reset transition (only when transitioning from an active run to reset, or restarting from a later split)
-      if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0)) {
-        const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
-        const isSim = rc && typeof rc.isSimulating === "function" && rc.isSimulating();
-        const wasRunning = (currentIndex > 0) || (currentIndex === 0 && lastElapsedSec > 1.0);
+      const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+      const isSim = rc && typeof rc.isSimulating === "function" && rc.isSimulating();
+      const wasRunning = (currentIndex > 0) || (currentIndex === 0 && lastElapsedSec > 1.0);
+      const isSecondResetWithDNF = (idx === -1 && currentIndex === -1 && rc && typeof rc.isHostDNF === "function" && rc.isHostDNF());
 
-        if (isSim && wasRunning && typeof rc.isHostDNF === "function" && !rc.isHostDNF()) {
+      // Reset transition (active run to reset, restarting from a later split, or repeated reset to clear DNF)
+      if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0) || isSecondResetWithDNF) {
+        if (isSecondResetWithDNF) {
+          // Second reset while DNF'd: cleanly clear DNF and completely reset the race client
+          clearInRunState();
+          lockedDeltas = {};
+          completedSplitTimes = {};
+          completedSplitTimesRT = {};
+          lastSplitRecordedSec = 0;
+          previousDeltaSeconds = 0;
+          lastElapsedSec = 0;
+          pendingHostSplitFlash = null;
+          if (typeof rc.setHostDNF === "function") {
+            rc.setHostDNF(false);
+          }
+          if (typeof rc.reset === "function") {
+            rc.reset();
+          }
+        } else if (isSim && wasRunning && typeof rc.isHostDNF === "function" && !rc.isHostDNF()) {
           // Reset during active simulation: Host forfeits / cancels their run (DNF)
           // The rest of the simulated competitors continue racing so you can see DNF behavior on the leaderboard!
           rc.setHostDNF(true);
@@ -2976,13 +3000,23 @@ async function pollLoop() {
       // Completed Split
       else if (idx !== currentIndex) {
         if (currentIndex === -1 && idx === 0) {
-          // Timer just started
+          // Timer just started fresh run: ensure any prior DNF is cleared and race starts cleanly
           clearInRunState();
           lockedDeltas = {};
           completedSplitTimes = {};
           completedSplitTimesRT = {};
           lastSplitRecordedSec = 0;
           previousDeltaSeconds = 0;
+
+          const rcStart = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+          if (rcStart) {
+            if (typeof rcStart.setHostDNF === "function" && rcStart.isHostDNF()) {
+              rcStart.setHostDNF(false);
+            }
+            if (typeof rcStart.reset === "function") {
+              rcStart.reset();
+            }
+          }
 
           // Fetch target time for the first split from LiveSplit
           if (splitsList.length > 0) {
@@ -3804,8 +3838,12 @@ function initOverlay() {
             state.leaderboard = { x: 42, y: 110, scale: 1.0, visible: true, docked: "none" };
           }
           state.leaderboard.visible = !(state.leaderboard.visible !== false);
-          window.hudLayout.saveLayout();
-          window.hudLayout.applyComponentLayout("leaderboard");
+          if (typeof window.hudLayout.saveLayout === "function") {
+            window.hudLayout.saveLayout();
+          }
+          if (typeof window.hudLayout.applyComponentLayout === "function") {
+            window.hudLayout.applyComponentLayout("leaderboard");
+          }
           syncLeaderboardBtn();
           refreshLeaderboard();
         }

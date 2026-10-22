@@ -2583,6 +2583,7 @@
     getTrackStyle: () => currentTrackStyle || (currentTrackStyle = loadSavedTrackStyle()),
     saveLayout,
     loadSavedLayout,
+    applyComponentLayout,
     openTrackModal,
     closeTrackModal,
     resetTrackStyle,

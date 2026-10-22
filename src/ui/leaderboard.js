@@ -367,20 +367,38 @@
         // Trigger / re-trigger CSS keyframe glow animation
         row.classList.remove("split-flash-gold", "split-flash-green", "split-flash-red");
         void row.offsetWidth;
+        const initialDelaySec = Math.max(0, (effectAge / 1000)).toFixed(2);
+        row.style.animationDelay = (initialDelaySec > 0.05) ? `-${initialDelaySec}s` : "";
         row.classList.add(targetClass);
         row.dataset.lastEffectTime = String(effect.timestamp);
       } else if (!isEffectActive && (row.classList.contains("split-flash-gold") || row.classList.contains("split-flash-green") || row.classList.contains("split-flash-red"))) {
         row.classList.remove("split-flash-gold", "split-flash-green", "split-flash-red");
+        row.style.animationDelay = "";
         delete row.dataset.lastEffectTime;
       }
     });
 
     // Reorder DOM child nodes only when the physical slot order has actually changed.
-    // Instant, crisp slot switching with zero layout thrashing, zero flicker, and zero delay.
+    // Targeted reconciliation ensures rows that did not move are NEVER detached,
+    // which prevents ongoing CSS animations from restarting or flickering!
     if (!domOrderMatches) {
+      let currentChild = rowsEl.firstElementChild;
       entrants.forEach((racer) => {
         const row = rowElementMap.get(racer.userId);
-        if (row) rowsEl.appendChild(row);
+        if (!row) return;
+        if (currentChild === row) {
+          // Already in exact correct slot, leave completely untouched!
+          currentChild = currentChild.nextElementSibling;
+        } else {
+          // Row needs to be moved to this slot
+          rowsEl.insertBefore(row, currentChild);
+          // If this moved row is in the middle of a split glow animation, preserve its elapsed progress
+          const fx = racer.lastSplitEffect;
+          const fxAge = fx ? (Date.now() - (fx.timestamp || 0)) : Infinity;
+          if (fx && fx.type && fxAge >= 0 && fxAge < 4000) {
+            row.style.animationDelay = `-${(fxAge / 1000).toFixed(2)}s`;
+          }
+        }
       });
     }
 
@@ -404,6 +422,7 @@
         row.style.transition = "";
         row.style.transform = "";
         row.style.zIndex = "";
+        row.style.animationDelay = "";
         row.classList.remove("overtake-flash", "split-flash-gold", "split-flash-green", "split-flash-red");
         delete row.dataset.lastEffectTime;
         const splitEl = row.querySelector(".racer-split");
