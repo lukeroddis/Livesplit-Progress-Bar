@@ -2342,7 +2342,7 @@ body.edit-mode .settings-menu-panel {
    ============================================================ */
 .ghost-marker {
   position: absolute;
-  bottom: var(--ghost-pin-bottom, calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--ghost-needle-length, 16px)));
+  bottom: calc(var(--ghost-pin-bottom, calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--ghost-needle-length, 16px))) + var(--ghost-stack-offset, 0px));
   left: 0;
   display: flex;
   align-items: center;
@@ -2352,8 +2352,8 @@ body.edit-mode .settings-menu-panel {
   pointer-events: none;
   z-index: 20;
   opacity: var(--ghost-opacity, 0.85);
-  transition: opacity 0.2s ease, bottom 0.2s ease;
-  will-change: transform;
+  transition: opacity 0.2s ease, bottom 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, bottom;
   transform: translateX(-50%);
 }
 
@@ -2380,7 +2380,7 @@ body.edit-mode .settings-menu-panel {
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: var(--ghost-needle-length, 16px);
+  height: calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px));
   background: #facc15;
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
   border-radius: 1px;

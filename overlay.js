@@ -1982,9 +1982,15 @@ function refreshLeaderboard() {
 
 function hideAllGhostMarkers() {
   const staticMarker = document.getElementById("ghost-marker");
-  if (staticMarker) staticMarker.style.display = "none";
+  if (staticMarker) {
+    staticMarker.style.display = "none";
+    staticMarker.style.removeProperty("--ghost-stack-offset");
+  }
   knownGhostMarkers.forEach((m) => {
-    if (m) m.style.display = "none";
+    if (m) {
+      m.style.display = "none";
+      m.style.removeProperty("--ghost-stack-offset");
+    }
   });
 }
 
@@ -2034,6 +2040,7 @@ function updateGhostRunner(currentSec) {
   const leftOffscreenGhosts = [];
   const rightOffscreenGhosts = [];
   const renderedMarkerIds = new Set();
+  const visibleOnscreenMarkers = [];
 
   function getSegmentCoords(segIdx) {
     let startCoord = 0;
@@ -2141,23 +2148,18 @@ function updateGhostRunner(currentSec) {
 
     if (ghostCoord < visibleMin) {
       marker.style.display = "none";
+      marker.style.removeProperty("--ghost-stack-offset");
       leftOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
     } else if (ghostCoord > visibleMax) {
       marker.style.display = "none";
+      marker.style.removeProperty("--ghost-stack-offset");
       rightOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
     } else {
-      marker.style.display = "flex";
-      if (isVertical) {
-        marker.style.transform = `translateY(${ghostCoord}px) translateY(-50%) translateX(-50%)`;
-      } else {
-        marker.style.transform = `translateX(${ghostCoord}px) translateX(-50%)`;
-        const distPrev = Math.abs(ghostCoord - coords.startCoord);
-        const distNext = Math.abs(coords.endCoord - ghostCoord);
-        const prevThreshold = getNodeTextThreshold(coords.prevNode, false);
-        const nextThreshold = getNodeTextThreshold(coords.nextNode, true);
-        const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
-        marker.classList.toggle("compact", isHoveringText);
-      }
+      visibleOnscreenMarkers.push({
+        marker,
+        coord: ghostCoord,
+        coords
+      });
     }
   });
 
@@ -2204,6 +2206,7 @@ function updateGhostRunner(currentSec) {
 
     if (ghostCoord < visibleMin) {
       marker.style.display = "none";
+      marker.style.removeProperty("--ghost-stack-offset");
       leftOffscreenGhosts.push({
         ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
         deltaStr,
@@ -2211,24 +2214,61 @@ function updateGhostRunner(currentSec) {
       });
     } else if (ghostCoord > visibleMax) {
       marker.style.display = "none";
+      marker.style.removeProperty("--ghost-stack-offset");
       rightOffscreenGhosts.push({
         ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
         deltaStr,
         isAhead
       });
     } else {
-      marker.style.display = "flex";
-      if (isVertical) {
-        marker.style.transform = `translateY(${ghostCoord}px) translateY(-50%) translateX(-50%)`;
+      visibleOnscreenMarkers.push({
+        marker,
+        coord: ghostCoord,
+        coords
+      });
+    }
+  });
+
+  // 3. Intelligent Tiered Stacking for Colliding / Overlapping Pins
+  // Pins within 24px of each other are elevated to higher tiers so badges never occlude
+  const COLLISION_THRESHOLD = 24; // px
+  visibleOnscreenMarkers.sort((a, b) => a.coord - b.coord);
+
+  const activeTiers = []; // tierIndex -> last occupied coordinate
+
+  visibleOnscreenMarkers.forEach((item) => {
+    let tier = 0;
+    while (activeTiers[tier] !== undefined && (item.coord - activeTiers[tier]) < COLLISION_THRESHOLD) {
+      tier++;
+    }
+    tier = Math.min(tier, 2); // Cap at 3 tiers (0, 1, 2)
+    activeTiers[tier] = item.coord;
+
+    const marker = item.marker;
+    marker.style.display = "flex";
+
+    if (isVertical) {
+      const offsetX = tier * 28;
+      marker.style.transform = `translateY(${item.coord}px) translateY(-50%) translateX(calc(-50% + ${offsetX}px))`;
+      marker.style.zIndex = `${20 + tier}`;
+      marker.style.removeProperty("--ghost-stack-offset");
+    } else {
+      const tierStep = 24; // px per tier
+      const stackOffset = tier * tierStep;
+      if (stackOffset > 0) {
+        marker.style.setProperty("--ghost-stack-offset", `${stackOffset}px`);
       } else {
-        marker.style.transform = `translateX(${ghostCoord}px) translateX(-50%)`;
-        const distPrev = Math.abs(ghostCoord - coords.startCoord);
-        const distNext = Math.abs(coords.endCoord - ghostCoord);
-        const prevThreshold = getNodeTextThreshold(coords.prevNode, false);
-        const nextThreshold = getNodeTextThreshold(coords.nextNode, true);
-        const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
-        marker.classList.toggle("compact", isHoveringText);
+        marker.style.removeProperty("--ghost-stack-offset");
       }
+      marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
+      marker.style.zIndex = `${25 + tier}`;
+
+      const distPrev = Math.abs(item.coord - item.coords.startCoord);
+      const distNext = Math.abs(item.coords.endCoord - item.coord);
+      const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
+      const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
+      const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
+      marker.classList.toggle("compact", tier === 0 && isHoveringText);
     }
   });
 

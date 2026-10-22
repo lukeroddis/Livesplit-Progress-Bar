@@ -2414,6 +2414,10 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert '<span class="host-pill">' not in leaderboard_code, "leaderboard.js must never render host-pill tag (implied by highlighted tile)"
     assert 'const displayName = racer.username || (isHost ? "You" : "Runner");' in leaderboard_code, "leaderboard.js must resolve entrant username rather than overriding to 'You'"
 
+    # 9. Intelligent pin stacking assertions
+    assert "--ghost-stack-offset" in css, "style.css must support dynamic --ghost-stack-offset"
+    assert "--ghost-stack-offset" in overlay_js, "overlay.js must set --ghost-stack-offset for tiered stacking"
+
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
 
