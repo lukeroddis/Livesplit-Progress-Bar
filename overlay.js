@@ -2405,11 +2405,11 @@ function updateGhostRunner(currentSec) {
         const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
         marker.classList.toggle("compact", isHoveringText);
 
-        const effH = isHoveringText ? Math.min(5, baseNeedleLength) : baseNeedleLength;
+        // Stems extend full length down to track dot/bar (passing behind split text at z-index: 5)
 
         marker.style.removeProperty("--ghost-needle-angle");
         marker.style.removeProperty("--ghost-stack-offset");
-        marker.style.setProperty("--ghost-needle-height", `${effH}px`);
+        marker.style.removeProperty("--ghost-needle-height");
 
         if (deltaX > 1) {
           marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);

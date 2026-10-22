@@ -2424,14 +2424,13 @@ body.edit-mode .settings-menu-panel {
   filter: drop-shadow(0 0 3px var(--ghost-needle-glow, rgba(250, 204, 21, 0.9)));
 }
 
-/* Compact / shrunk pin state when hovering over split text */
+/* Stems always extend full length down to track dot/bar (passing behind split text at z-index: 5) */
 .ghost-marker.compact .ghost-needle {
-  height: var(--ghost-needle-height, min(5px, var(--ghost-needle-length, 16px)));
+  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
 }
 
 .ghost-marker.compact .ghost-icon-wrap {
-  transform: translateX(var(--ghost-splay-x, 0px)) scale(0.82);
-  box-shadow: 0 0 6px rgba(250, 204, 21, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+  transform: translateX(var(--ghost-splay-x, 0px));
 }
 
 /* Zero-length Ghost Pin: Ghost runs directly along track */

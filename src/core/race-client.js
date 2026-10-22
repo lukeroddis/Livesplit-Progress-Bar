@@ -28,7 +28,7 @@
     "#14b8a6"  // Teal
   ];
 
-  // Preset virtual competitors for realistic simulation mode
+  // Preset virtual competitors for realistic simulation mode (9 competitors + 1 host = 10 racers total)
   const SIMULATED_COMPETITORS = [
     {
       id: "sim_speeddemon",
@@ -53,6 +53,54 @@
       color: "#a855f7",
       paceFactor: 1.04, // Conservative steady runner
       driftOffset: 2.5
+    },
+    {
+      id: "sim_turboblaze",
+      username: "TurboBlaze",
+      avatar: "🔥",
+      color: "#ef4444",
+      paceFactor: 0.98, // Fast starter
+      driftOffset: -0.9
+    },
+    {
+      id: "sim_echoglide",
+      username: "EchoGlide",
+      avatar: "🌀",
+      color: "#3b82f6",
+      paceFactor: 1.02, // Consistent pacer
+      driftOffset: 1.4
+    },
+    {
+      id: "sim_pixelknight",
+      username: "PixelKnight",
+      avatar: "🛡️",
+      color: "#10b981",
+      paceFactor: 0.99, // Tactical contender
+      driftOffset: -0.4
+    },
+    {
+      id: "sim_novashift",
+      username: "NovaShift",
+      avatar: "✨",
+      color: "#ec4899",
+      paceFactor: 1.05, // Late-run charger
+      driftOffset: 3.1
+    },
+    {
+      id: "sim_frostbyte",
+      username: "FrostByte",
+      avatar: "❄️",
+      color: "#38bdf8",
+      paceFactor: 1.01, // Tight pack runner
+      driftOffset: 0.8
+    },
+    {
+      id: "sim_vipersprint",
+      username: "ViperSprint",
+      avatar: "🐍",
+      color: "#84cc16",
+      paceFactor: 1.03, // Dynamic overtaker
+      driftOffset: -2.3
     }
   ];
 

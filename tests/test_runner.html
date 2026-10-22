@@ -990,7 +990,7 @@
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
         const entrants = rc.getRankedEntrants();
-        assertEqual(entrants.length, 4);
+        assertEqual(entrants.length, 10);
 
         // Call renderLeaderboard multiple times rapidly (as occurs at 60 FPS)
         for (let t = 0; t < 10; t++) {
@@ -998,7 +998,7 @@
         }
 
         const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
-        assertEqual(rows.length, 4, "all 4 rows remain present in DOM without dropping");
+        assertEqual(rows.length, 10, "all 10 rows remain present in DOM without dropping");
         rc.stopSimulation();
       });
 
