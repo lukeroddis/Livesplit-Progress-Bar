@@ -2482,6 +2482,10 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "@keyframes crown-pop" in css, "style.css must define @keyframes crown-pop"
     assert "racer.hasCrown" in leaderboard_code, "leaderboard.js must render fastest segment crown"
     assert "crownUserId" in race_code, "race-client.js must calculate crownUserId for leader previous split"
+    assert "setTimingMethod" in race_code, "race-client.js must export setTimingMethod"
+    assert "getTimingMethod" in race_code, "race-client.js must export getTimingMethod"
+    assert "rc.setTimingMethod" in overlay_js, "overlay.js applyActiveTimingMethod must notify rc.setTimingMethod"
+    assert "completedSplitTimesGT" in overlay_js, "overlay.js must track completedSplitTimesGT"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 

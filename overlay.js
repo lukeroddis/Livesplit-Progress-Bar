@@ -56,6 +56,7 @@ let comparisonsDataGT = {};
 let comparisonsDataRT = {};
 let completedSplitTimes = {};
 let completedSplitTimesRT = {};
+let completedSplitTimesGT = {};
 let currentTimingMethod = "GameTime";
 let timerDisplayMode = "both"; // 'gametime' | 'realtime' | 'both'
 let lockedDeltas = {}; 
@@ -77,6 +78,7 @@ function saveInRunState() {
       lockedDeltas,
       completedSplitTimes,
       completedSplitTimesRT,
+      completedSplitTimesGT,
       lastSplitRecordedSec,
       previousDeltaSeconds,
       lastElapsedSec,
@@ -126,6 +128,7 @@ function loadInRunState() {
       lockedDeltas = parsed.lockedDeltas || {};
       completedSplitTimes = parsed.completedSplitTimes || {};
       completedSplitTimesRT = parsed.completedSplitTimesRT || {};
+      completedSplitTimesGT = parsed.completedSplitTimesGT || {};
       lastSplitRecordedSec = Number(parsed.lastSplitRecordedSec) || 0;
       previousDeltaSeconds = Number(parsed.previousDeltaSeconds) || 0;
       if (typeof parsed.lastElapsedSec === "number") {
@@ -329,6 +332,11 @@ function applyActiveTimingMethod(method) {
         timeSpan.innerText = targetVal || "-";
       }
     }
+  }
+
+  const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+  if (rc && typeof rc.setTimingMethod === "function") {
+    rc.setTimingMethod(currentTimingMethod);
   }
 }
 
@@ -2683,6 +2691,7 @@ function handleUndoSplit(newIdx, oldIdx) {
     delete lockedDeltas[i];
     delete completedSplitTimes[i];
     delete completedSplitTimesRT[i];
+    delete completedSplitTimesGT[i];
 
     const deltaSpan = document.getElementById(`delta-val-${i}`);
     const timeSpan = document.getElementById(`time-val-${i}`);
@@ -2902,6 +2911,7 @@ async function pollLoop() {
           lockedDeltas = {};
           completedSplitTimes = {};
           completedSplitTimesRT = {};
+          completedSplitTimesGT = {};
           lastSplitRecordedSec = 0;
           previousDeltaSeconds = 0;
           lastElapsedSec = 0;
@@ -2920,6 +2930,7 @@ async function pollLoop() {
           lockedDeltas = {};
           completedSplitTimes = {};
           completedSplitTimesRT = {};
+          completedSplitTimesGT = {};
           lastSplitRecordedSec = 0;
           previousDeltaSeconds = 0;
           lastElapsedSec = 0;
@@ -2929,6 +2940,7 @@ async function pollLoop() {
           lockedDeltas = {};
           completedSplitTimes = {};
           completedSplitTimesRT = {};
+          completedSplitTimesGT = {};
           lastSplitRecordedSec = 0;
           previousDeltaSeconds = 0;
           lastElapsedSec = 0;
@@ -3005,6 +3017,7 @@ async function pollLoop() {
           lockedDeltas = {};
           completedSplitTimes = {};
           completedSplitTimesRT = {};
+          completedSplitTimesGT = {};
           lastSplitRecordedSec = 0;
           previousDeltaSeconds = 0;
 
@@ -3054,16 +3067,35 @@ async function pollLoop() {
 
           if (isSplitCompleted) {
             splitTimeSec = parsedLastSplit;
-            completedSplitTimes[prevIdx] = splitTimeSec;
             lastSplitRecordedSec = splitTimeSec;
-            if (rtaSec !== null && rtaSec > 0) {
-              completedSplitTimesRT[prevIdx] = rtaSec;
-            } else if (currentTimingMethod === "RealTime") {
+
+            if (currentTimingMethod === "RealTime") {
               completedSplitTimesRT[prevIdx] = splitTimeSec;
+              if (igtSec !== null && igtSec > 0) {
+                completedSplitTimesGT[prevIdx] = igtSec;
+              } else if (completedSplitTimesGT[prevIdx] != null) {
+                // retain existing GT
+              } else if (completedSplitTimes[prevIdx] != null) {
+                completedSplitTimesGT[prevIdx] = completedSplitTimes[prevIdx];
+              } else {
+                completedSplitTimesGT[prevIdx] = splitTimeSec;
+              }
+            } else {
+              // GameTime
+              completedSplitTimesGT[prevIdx] = splitTimeSec;
+              if (rtaSec !== null && rtaSec > 0) {
+                completedSplitTimesRT[prevIdx] = rtaSec;
+              } else {
+                completedSplitTimesRT[prevIdx] = splitTimeSec;
+              }
             }
+            completedSplitTimes[prevIdx] = (currentTimingMethod === "RealTime")
+              ? completedSplitTimesRT[prevIdx]
+              : completedSplitTimesGT[prevIdx];
           } else {
             delete completedSplitTimes[prevIdx];
             delete completedSplitTimesRT[prevIdx];
+            delete completedSplitTimesGT[prevIdx];
           }
 
           let stateClass = "uncoloured";
@@ -3249,10 +3281,11 @@ async function pollLoop() {
           const realTimeSec = (rtaSec !== null && rtaSec > 0) ? rtaSec : currentTotalSec;
           const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : comparisonTimes;
           const rtCompletedSplits = (Object.keys(completedSplitTimesRT).length > 0) ? completedSplitTimesRT : completedSplitTimes;
+          const gtCompletedSplits = (Object.keys(completedSplitTimesGT).length > 0) ? completedSplitTimesGT : completedSplitTimes;
           rc.updateHostProgress(
             currentTotalSec,
             currentIndex,
-            completedSplitTimes,
+            gtCompletedSplits,
             comparisonTimes,
             hostSplitName,
             splitsList,
@@ -3260,7 +3293,8 @@ async function pollLoop() {
             true,
             realTimeSec,
             rtComparisons,
-            rtCompletedSplits
+            rtCompletedSplits,
+            currentTimingMethod
           );
           pendingHostSplitFlash = null;
         }

@@ -1562,6 +1562,7 @@
 
       it("RaceClient and competitor timers run on Real Time (RTA) so loading screens never freeze the race", () => {
         const rc = window.LiveSplit.RaceClient;
+        rc.setTimingMethod("RealTime");
         rc.startSimulation(["Forest", "Cave", "Castle"], [30, 60, 90], [35, 70, 105]);
 
         // Simulate host hitting a loading screen: Game Time (IGT) freezes at 40.0s, but Real Time (RTA) advances from 40.0s to 45.0s
@@ -1576,7 +1577,8 @@
           true,
           45.0, // realTimeSec (RTA keeps ticking!)
           [35, 70, 105], // comparisonTimesRT
-          [22.0] // completedSplitTimesRT
+          [22.0], // completedSplitTimesRT
+          "RealTime"
         );
 
         const entrants = rc.getRankedEntrants();
@@ -1591,6 +1593,47 @@
         assertEqual(host.elapsedSegmentDisplay, "23.0s", "Leaderboard segment elapsed time ticks in Real Time");
         // Expected segment duration is based on Real Time targets (70 - 35 = 35.0s)
         assertEqual(host.expectedSegmentDisplay, "35.0s", "Leaderboard expected segment time uses Real Time target");
+
+        // Now verify Game Time focus:
+        // Host currentTimeSec tracks Game Time (40.0s), expected segment uses Game Time target (30.0s),
+        // and competitor continues tracking wall-clock progress without freezing
+        rc.setTimingMethod("GameTime");
+        const gtEntrants = rc.getRankedEntrants();
+        const gtHost = gtEntrants.find(e => e.isHost);
+        const gtCompetitor = gtEntrants.find(e => !e.isHost);
+        assertEqual(gtHost.currentTimeSec, 40.0, "Host currentTimeSec tracks Game Time (40.0s) when Game Time is focused");
+        assertEqual(gtHost.expectedSegmentDisplay, "30.0s", "Leaderboard expected segment time uses Game Time target (30.0s)");
+        assertEqual(gtHost.elapsedSegmentDisplay, "20.0s", "Leaderboard segment elapsed time ticks in Game Time (40 - 20 = 20.0s)");
+        assertEqual(gtCompetitor.currentTimeSec, 45.0, "Competitor currentTimeSec continues tracking wall-clock time without freezing");
+
+        rc.stopSimulation();
+      });
+
+      it("Leaderboard deltas, expected segments, and host times follow focused timing method (GameTime vs RealTime) dynamically", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [25, 50, 75], [30, 60, 90]);
+
+        // Host at Split 1 in Game Time: 20s (GT split = 20s), Real Time: 26s (RT split = 26s)
+        rc.setTimingMethod("GameTime");
+        rc.updateHostProgress(
+          20.0, 1, [20.0], [25, 50, 75], "Split 2",
+          ["Split 1", "Split 2", "Split 3"], null, true,
+          26.0, [30, 60, 90], [26.0], "GameTime"
+        );
+
+        let list = rc.getRankedEntrants();
+        let host = list.find(e => e.isHost);
+        assertEqual(rc.getTimingMethod(), "GameTime", "Timing method is GameTime");
+        assertEqual(host.currentTimeSec, 20.0, "Host time is Game Time (20.0s)");
+        assertEqual(host.expectedSegmentDisplay, "25.0s", "Expected segment is Game Time PB (50 - 25 = 25s)");
+
+        // Switch focus to RealTime:
+        rc.setTimingMethod("RealTime");
+        list = rc.getRankedEntrants();
+        host = list.find(e => e.isHost);
+        assertEqual(rc.getTimingMethod(), "RealTime", "Timing method is RealTime");
+        assertEqual(host.currentTimeSec, 26.0, "Host time immediately shifts to Real Time (26.0s)");
+        assertEqual(host.expectedSegmentDisplay, "30.0s", "Expected segment immediately shifts to Real Time PB (60 - 30 = 30s)");
 
         rc.stopSimulation();
       });
