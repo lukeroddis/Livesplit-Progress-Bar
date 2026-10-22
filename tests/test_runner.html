@@ -1135,6 +1135,34 @@
 
         rc.stopSimulation();
       });
+
+      it("splits trigger immediate position swap without delay when racer reaches higher split index", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3"], [30, 60, 90]);
+
+        rc.updateHostProgress(25, 0, [], [30, 60, 90], "Split 1");
+        const entrantsBefore = rc.getRankedEntrants();
+        const firstPlace = entrantsBefore[0];
+        const secondPlace = entrantsBefore[1];
+        const thirdPlace = entrantsBefore[2];
+
+        // 1st place is on split 1, 2nd place is still on split 0
+        firstPlace.currentSplitIndex = 1;
+        secondPlace.currentSplitIndex = 0;
+        // 3rd place racer completes split 0 and advances to split index 1
+        thirdPlace.currentSplitIndex = 1;
+
+        const entrantsAfter = rc.getRankedEntrants();
+        assertEqual(entrantsAfter[0].userId, firstPlace.userId, "First place runner remains in 1st");
+        assertEqual(entrantsAfter[1].userId, thirdPlace.userId, "Third place racer who split ahead is immediately ranked 2nd above racer on previous split");
+        assertEqual(entrantsAfter[2].userId, secondPlace.userId, "Second place racer who has not split yet drops to 3rd");
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrantsAfter, true, false, false);
+        const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
+        assertEqual(rows[1].getAttribute("data-user-id"), thirdPlace.userId, "Leaderboard DOM row immediately reflects 2nd place swap");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---

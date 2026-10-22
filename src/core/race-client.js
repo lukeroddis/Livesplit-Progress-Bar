@@ -131,6 +131,13 @@
         if (a.isFinished && !b.isFinished) return -1;
         if (!a.isFinished && b.isFinished) return 1;
 
+        // Checkpoint rule: in speedrun races, any runner on a later split checkpoint is definitively ahead!
+        const splitIdxA = a.currentSplitIndex || 0;
+        const splitIdxB = b.currentSplitIndex || 0;
+        if (splitIdxB !== splitIdxA) {
+          return splitIdxB - splitIdxA;
+        }
+
         const scoreA = a._effectiveScore !== undefined ? a._effectiveScore : (a.score || 0);
         const scoreB = b._effectiveScore !== undefined ? b._effectiveScore : (b.score || 0);
         const diff = scoreB - scoreA;
