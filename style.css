@@ -3136,7 +3136,7 @@ body.edit-mode .settings-menu-panel {
   flex-direction: column;
   align-items: flex-end;
   flex-shrink: 0;
-  min-width: 52px;
+  min-width: 60px;
 }
 
 .racer-gap {
@@ -3156,11 +3156,23 @@ body.edit-mode .settings-menu-panel {
 .racer-expected,
 .racer-interval {
   font-family: "JetBrains Mono", Consolas, monospace;
-  font-size: 9px;
+  font-size: 8.5px;
   color: #94a3b8;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2.5px;
+  white-space: nowrap;
+}
+
+.racer-elapsed {
+  color: #f1f5f9;
+  font-weight: 700;
+}
+
+.racer-slash {
+  color: #475569;
+  font-weight: 400;
+  margin: 0 1px;
 }
 
 .expected-tag,

@@ -72,6 +72,7 @@
         gapDisplay: "LEADER",
         intervalDisplay: "--",
         expectedSegmentDisplay: "28.5s",
+        elapsedSegmentDisplay: "18.2s",
         expectedType: "EXP"
       },
       {
@@ -86,6 +87,7 @@
         gapDisplay: "+1.4s",
         intervalDisplay: "+1.4s",
         expectedSegmentDisplay: "29.2s",
+        elapsedSegmentDisplay: "14.5s",
         expectedType: "EXP"
       },
       {
@@ -100,6 +102,7 @@
         gapDisplay: "+2.1s",
         intervalDisplay: "+0.7s",
         expectedSegmentDisplay: "30.0s",
+        elapsedSegmentDisplay: "12.8s",
         expectedType: "EXP"
       }
     ];
@@ -234,13 +237,18 @@
       const gapVal = (rank === 1) ? "LEADER" : rawGap;
       const expType = racer.expectedType || (racer.isFinished ? "FIN" : "EXP");
       const expVal = racer.expectedSegmentDisplay || "--";
-      const isExpBlank = (expVal === "--" || !expVal);
-      const expMarkup = isExpBlank
-        ? "--"
-        : `<span class="expected-tag interval-tag">${expType}</span>${escapeHtml(expVal)}`;
+      const elapsedVal = racer.elapsedSegmentDisplay || "--";
+
+      let expMarkup = "--";
+      if (racer.isFinished) {
+        expMarkup = `<span class="expected-tag interval-tag">FIN</span>${escapeHtml(expVal)}`;
+      } else if (expVal !== "--") {
+        expMarkup = `<span class="racer-elapsed">${escapeHtml(elapsedVal)}</span><span class="racer-slash">/</span><span class="expected-tag interval-tag">${expType}</span>${escapeHtml(expVal)}`;
+      }
+
       const gapTooltip = (rank === 1)
-        ? `Race Leader | Expected: ${expVal}`
-        : (gapVal === "--" ? `Split 1 in progress | Expected: ${expVal}` : `Leader Gap: ${gapVal} | Expected: ${expVal}`);
+        ? `Race Leader | Segment: ${elapsedVal} / ${expVal}`
+        : (gapVal === "--" ? `Split 1 in progress | Segment: ${elapsedVal} / ${expVal}` : `Leader Gap: ${gapVal} | Segment: ${elapsedVal} / ${expVal}`);
 
       // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition
       const effect = racer.lastSplitEffect;

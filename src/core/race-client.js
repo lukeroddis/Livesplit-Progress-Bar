@@ -374,13 +374,13 @@
               // First split: live incrementing delta starting from when aheadRunner split
               return Math.max(0, timeBNow - timeAAtSplit);
             } else {
-              // Subsequent split: previous completed split gap
+              // Subsequent split: previous completed split gap + time accumulating since aheadRunner split
               const prevA = splitsA[currentIdxB - 1];
               const prevB = splitsB[currentIdxB - 1];
               const prevGap = (typeof prevA === "number" && typeof prevB === "number")
                 ? Math.max(0, prevB - prevA)
                 : 0;
-              return Math.max(prevGap, timeBNow - timeAAtSplit);
+              return prevGap + Math.max(0, timeBNow - timeAAtSplit);
             }
           }
         }
@@ -401,7 +401,7 @@
           const lastB = countB > 0 ? splitsB[countB - 1] : 0;
           const lastA = countB > 0 && splitsA.length >= countB ? splitsA[countB - 1] : 0;
           const prevGap = Math.max(0, lastB - lastA);
-          return Math.max(prevGap, (runner.currentTimeSec || 0) - aheadRunner.finalTimeSec);
+          return prevGap + Math.max(0, (runner.currentTimeSec || 0) - aheadRunner.finalTimeSec);
         }
 
         return null;
@@ -410,16 +410,21 @@
       list.forEach((runner, idx) => {
         runner.rank = idx + 1;
 
-        // Calculate expected segment duration for current split (or total time if finished)
+        // Calculate expected segment duration and elapsed segment time for current split
         const sIdx = Math.max(0, runner.currentSplitIndex || 0);
+        let elapsedSegSec = 0;
         if (runner.isFinished) {
           runner.expectedType = "FIN";
           const finSec = typeof runner.finalTimeSec === "number" ? runner.finalTimeSec : (runner.currentTimeSec || 0);
           runner.expectedSegmentSec = finSec;
           runner.expectedSegmentDisplay = formatGapTime(finSec).replace(/^\+/, "");
+          elapsedSegSec = finSec;
         } else {
           runner.expectedType = "EXP";
           let segSec = 30.0;
+          let prevSplitTime = 0;
+          const normSplits = normalizeSplitTimes(runner.splitTimes);
+
           if (runner.checkpointTimes && runner.checkpointTimes.length > sIdx) {
             const prevT = sIdx > 0 ? (runner.checkpointTimes[sIdx - 1] || 0) : 0;
             segSec = Math.max(0.1, (runner.checkpointTimes[sIdx] || 0) - prevT);
@@ -433,9 +438,21 @@
             const nextT = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (prevT + 30);
             segSec = Math.max(0.1, nextT - prevT);
           }
+
+          if (sIdx > 0 && normSplits.length >= sIdx && typeof normSplits[sIdx - 1] === "number") {
+            prevSplitTime = normSplits[sIdx - 1];
+          } else if (sIdx > 0 && runner.checkpointTimes && typeof runner.checkpointTimes[sIdx - 1] === "number") {
+            prevSplitTime = runner.checkpointTimes[sIdx - 1];
+          } else if (sIdx > 0 && simulationCourseTargets && typeof simulationCourseTargets[sIdx - 1] === "number") {
+            prevSplitTime = simulationCourseTargets[sIdx - 1];
+          }
+
+          elapsedSegSec = Math.max(0, (runner.currentTimeSec || 0) - prevSplitTime);
           runner.expectedSegmentSec = segSec;
           runner.expectedSegmentDisplay = formatGapTime(segSec).replace(/^\+/, "");
         }
+        runner.elapsedSegmentSec = elapsedSegSec;
+        runner.elapsedSegmentDisplay = formatGapTime(elapsedSegSec).replace(/^\+/, "");
 
         if (idx === 0) {
           runner.gapToLeaderSec = 0;
@@ -847,9 +864,12 @@
         for (let k = 0; k < simulationCourseTargets.length; k++) {
           const prevT = k > 0 ? simulationCourseTargets[k - 1] : 0;
           const baseSegDur = Math.max(1, simulationCourseTargets[k] - prevT);
-          // Scale split variance relative to segment duration (up to +/- 3.5% of segment)
-          const jitterPercent = Math.sin((k + 1) * 1.7 + cfg.driftOffset) * 0.035;
-          const segDur = Math.max(0.5, baseSegDur * (cfg.paceFactor + jitterPercent));
+          // Substantial segment swing (-12% to +14%) reflecting mistakes, bad RNG, and gold splits:
+          const seed = Math.sin((k + 1) * 12.9898 + (cfg.driftOffset * 78.233)) * 43758.5453;
+          const pseudoRand = (seed - Math.floor(seed)) * 2.0 - 1.0; // range -1.0 to +1.0
+          const wave = Math.sin((k + 1) * 2.1 + cfg.driftOffset);
+          const swingPercent = (wave * 0.08) + (pseudoRand * 0.06);
+          const segDur = Math.max(0.5, baseSegDur * (cfg.paceFactor + swingPercent));
           cumTime += segDur;
           checkpointTimes.push(cumTime);
         }
