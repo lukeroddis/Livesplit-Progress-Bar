@@ -3,7 +3,7 @@
  * 
  * Manages the timing tower HUD component:
  * - Entrant standings sorted by race position (P1, P2, P3...)
- * - 60 FPS FLIP position reorder animations during overtakes
+ * - Instantaneous, compositor-driven slot position swapping during overtakes
  * - Dynamic leader gap (+X.Xs) and interval to car ahead (+Y.Ys)
  * - Click-to-mute individual competitor pins on the progress track
  * - Layout Mode preview generation and seamless component integration
@@ -41,6 +41,16 @@
     const m = Math.floor(sec / 60);
     const s = (sec % 60).toFixed(1);
     return `+${m}:${s.padStart(4, "0")}`;
+  }
+
+  /**
+   * Builds avatar HTML markup for an entrant.
+   */
+  function buildAvatarMarkup(avatar, isHost) {
+    if (avatar && (avatar.startsWith("http") || avatar.startsWith("data:"))) {
+      return `<img class="racer-avatar-img" src="${escapeHtml(avatar)}" alt="" />`;
+    }
+    return `<span class="racer-avatar-emoji">${escapeHtml(avatar || (isHost ? "👤" : "🏎️"))}</span>`;
   }
 
   /**
@@ -139,7 +149,7 @@
   }
 
   /**
-   * Renders the F1 timing tower with FLIP animations.
+   * Renders the F1 timing tower standings rows.
    * 
    * @param {Array} rankedEntrants - Sorted entrant list from RaceClient
    * @param {boolean} isSimulating - Whether simulation mode is active
@@ -196,9 +206,6 @@
     // Ensure entrants is strictly sorted by rank ascending (Rank 1 at slot 0, Rank 2 at slot 1, etc.)
     const entrants = [...rawEntrants].sort((a, b) => (a.rank || 0) - (b.rank || 0));
 
-    // Determine if any entrant changed rank position
-    const ranksChanged = entrants.some((r, idx) => prevRanks.get(r.userId) !== (r.rank || idx + 1));
-
     // Check if the current DOM order of elements matches the desired rank order
     const currentDomIds = Array.from(rowsEl.children).map(c => c.getAttribute("data-user-id"));
     const desiredDomIds = entrants.map(r => r.userId || "unknown");
@@ -206,7 +213,7 @@
       currentDomIds.every((id, i) => id === desiredDomIds[i]);
 
     // -------------------------------------------------------------
-    // Step 2: In-place update of rows and append in strict rank order
+    // In-place update of rows and append in strict rank order
     // -------------------------------------------------------------
     entrants.forEach((racer) => {
       const uId = racer.userId || "unknown";
@@ -214,6 +221,8 @@
       const isMuted = !!racer.isMuted;
       const rank = racer.rank || 1;
       const color = racer.color || (isHost ? "#38bdf8" : "#94a3b8");
+      const displayName = racer.username || (isHost ? "You" : "Runner");
+      const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
 
       const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
       const rawInt = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
@@ -229,12 +238,7 @@
         row.setAttribute("data-user-id", uId);
         row.style.setProperty("--racer-color", color);
 
-        const avatarMarkup = racer.avatar && (racer.avatar.startsWith("http") || racer.avatar.startsWith("data:"))
-          ? `<img class="racer-avatar-img" src="${racer.avatar}" alt="" />`
-          : `<span class="racer-avatar-emoji">${racer.avatar || (isHost ? "👤" : "🏎️")}</span>`;
-
-        const displayName = racer.username || (isHost ? "You" : "Runner");
-        const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
+        const avatarMarkup = buildAvatarMarkup(racer.avatar, isHost);
 
         row.innerHTML = `
           <div class="pos-badge pos-${rank <= 3 ? rank : 'other'}">${rank}</div>
@@ -253,7 +257,7 @@
         rowElementMap.set(uId, row);
         rowsEl.appendChild(row);
       } else {
-        // In-place property update: never wipe out running animations or overtake-flash class
+        // In-place property update: never wipe out running animations
         row.classList.toggle("is-host", isHost);
         row.classList.toggle("is-muted", isMuted);
         row.style.setProperty("--racer-color", color);
@@ -265,13 +269,11 @@
         }
 
         const nameEl = row.querySelector(".racer-name");
-        const displayName = racer.username || (isHost ? "You" : "Runner");
         if (nameEl && nameEl.textContent !== displayName) {
           nameEl.textContent = displayName;
         }
 
         const splitEl = row.querySelector(".racer-split");
-        const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
         if (splitEl && splitEl.textContent !== splitLabel) {
           splitEl.textContent = splitLabel;
         }
@@ -349,15 +351,6 @@
       });
     }
 
-    // Ensure zero residual inline transforms or offsets on all rows
-    rowElementMap.forEach((row) => {
-      if (row) {
-        if (row.style.transform) row.style.transform = "";
-        if (row.style.transition) row.style.transition = "";
-        if (row.style.zIndex) row.style.zIndex = "";
-      }
-    });
-
     // Update recorded ranks
     entrants.forEach((r, idx) => prevRanks.set(r.userId, r.rank || (idx + 1)));
 
@@ -375,7 +368,7 @@
     prevRanks.clear();
     rowElementMap.forEach((row) => {
       if (row) {
-        row.style.transition = "none";
+        row.style.transition = "";
         row.style.transform = "";
         row.style.zIndex = "";
         row.classList.remove("overtake-flash", "split-flash-gold", "split-flash-green", "split-flash-red");

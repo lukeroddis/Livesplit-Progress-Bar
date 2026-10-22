@@ -28,6 +28,46 @@
     "#14b8a6"  // Teal
   ];
 
+  // Preset virtual competitors for realistic simulation mode
+  const SIMULATED_COMPETITORS = [
+    {
+      id: "sim_speeddemon",
+      username: "SpeedDemon",
+      avatar: "⚡",
+      color: "#06b6d4",
+      paceFactor: 0.96, // Fast, aggressive pace
+      driftOffset: -1.8
+    },
+    {
+      id: "sim_apex",
+      username: "ApexRunner",
+      avatar: "🏎️",
+      color: "#f59e0b",
+      paceFactor: 1.00, // Neck-and-neck rival (frequent overtakes)
+      driftOffset: 0.2
+    },
+    {
+      id: "sim_shadow",
+      username: "ShadowPacer",
+      avatar: "👤",
+      color: "#a855f7",
+      paceFactor: 1.04, // Conservative steady runner
+      driftOffset: 2.5
+    }
+  ];
+
+  /**
+   * Safely loads the stored therun username from local storage.
+   */
+  function loadStoredUsername() {
+    try {
+      if (typeof localStorage !== "undefined") {
+        return (localStorage.getItem("therun_username") || "").trim();
+      }
+    } catch (_) {}
+    return "";
+  }
+
   /**
    * Factory to create an isolated Race Client instance.
    */
@@ -35,12 +75,7 @@
     let raceId = null;
     let ws = null;
     let heartbeatTimer = null;
-    let hostUsername = "";
-    try {
-      if (typeof localStorage !== "undefined") {
-        hostUsername = (localStorage.getItem("therun_username") || "").trim();
-      }
-    } catch (_) {}
+    let hostUsername = loadStoredUsername();
     let autoDetectUsername = hostUsername;
     let isSimulating = false;
     let simulationTimer = null;
@@ -472,14 +507,10 @@
         ws = null;
       }
       raceId = null;
-      try {
-        if (typeof localStorage !== "undefined") {
-          const stored = (localStorage.getItem("therun_username") || "").trim();
-          if (stored) {
-            hostUsername = stored;
-          }
-        }
-      } catch (_) {}
+      const stored = loadStoredUsername();
+      if (stored) {
+        hostUsername = stored;
+      }
       hostState.username = hostUsername || "You";
       hostState.isHost = true;
       hostState.color = "#38bdf8";
@@ -597,44 +628,10 @@
         activeComparisonTimes = comparisonTimes;
       }
 
-      const count = activeSplitsList.length;
-
-      // Create 3 simulated competitors with distinct personalities and paces
-      const simConfigs = [
-        {
-          id: "sim_speeddemon",
-          username: "SpeedDemon",
-          avatar: "⚡",
-          color: "#06b6d4",
-          paceFactor: 0.96, // Fast, aggressive pace
-          driftOffset: -1.8
-        },
-        {
-          id: "sim_apex",
-          username: "ApexRunner",
-          avatar: "🏎️",
-          color: "#f59e0b",
-          paceFactor: 1.00, // Neck-and-neck rival (frequent overtakes)
-          driftOffset: 0.2
-        },
-        {
-          id: "sim_shadow",
-          username: "ShadowPacer",
-          avatar: "👤",
-          color: "#a855f7",
-          paceFactor: 1.04, // Conservative steady runner
-          driftOffset: 2.5
-        }
-      ];
-
-      try {
-        if (typeof localStorage !== "undefined") {
-          const stored = (localStorage.getItem("therun_username") || "").trim();
-          if (stored) {
-            hostUsername = stored;
-          }
-        }
-      } catch (_) {}
+      const stored = loadStoredUsername();
+      if (stored) {
+        hostUsername = stored;
+      }
       hostState.username = hostUsername || "You";
       hostState.isHost = true;
       hostState.color = "#38bdf8";
@@ -642,7 +639,7 @@
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
 
-      simConfigs.forEach((cfg) => {
+      SIMULATED_COMPETITORS.forEach((cfg) => {
         entrants.set(cfg.id, {
           userId: cfg.id,
           username: cfg.username,
@@ -663,6 +660,19 @@
       notifyListeners("race_connected", { raceId, isSimulated: true });
 
       let simVirtualSec = hostState.currentTimeSec || 0;
+
+      function advanceVirtualHost(baseSec, compList) {
+        simVirtualSec = baseSec + 0.05;
+        const curIdx = Math.floor(simVirtualSec / 30);
+        let hostFlash = null;
+        if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
+          hostFlash = { type: "green", timestamp: Date.now() };
+        }
+        const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
+        updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList, hostFlash, false);
+        tickSimulatedCompetitors(simVirtualSec, compList);
+      }
+
       simulationTimer = setInterval(() => {
         if (!isSimulating) return;
         const compList = (comparisonTimes && comparisonTimes.length > 0)
@@ -676,28 +686,10 @@
             // LiveSplit is actively driving the run: keep competitors synchronized to host run time
             tickSimulatedCompetitors(hostState.currentTimeSec, compList);
           } else {
-            // Standalone / offline simulation: advance virtual time smoothly
-            simVirtualSec = Math.max(simVirtualSec, hostState.currentTimeSec) + 0.05;
-            const curIdx = Math.floor(simVirtualSec / 30);
-            let hostFlash = null;
-            if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
-              hostFlash = { type: "green", timestamp: Date.now() };
-            }
-            const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
-            updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList, hostFlash, false);
-            tickSimulatedCompetitors(simVirtualSec, compList);
+            advanceVirtualHost(Math.max(simVirtualSec, hostState.currentTimeSec), compList);
           }
         } else {
-          // Standalone / offline simulation without LiveSplit: advance virtual time
-          simVirtualSec += 0.05;
-          const curIdx = Math.floor(simVirtualSec / 30);
-          let hostFlash = null;
-          if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
-            hostFlash = { type: "green", timestamp: Date.now() };
-          }
-          const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
-          updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList, hostFlash, false);
-          tickSimulatedCompetitors(simVirtualSec, compList);
+          advanceVirtualHost(simVirtualSec, compList);
         }
         notifyListeners("entrant_updated", null);
         if (typeof window !== "undefined" && typeof window.updateGhostRunner === "function") {

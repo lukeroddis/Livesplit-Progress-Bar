@@ -1920,9 +1920,15 @@ function getOrCreateGhostMarker(ghostInfo) {
   return marker;
 }
 
+const raceMarkerMap = new Map();
+
 function getOrCreateRaceMarker(racer) {
   const markerId = `ghost-marker-race-${racer.userId}`;
-  let marker = document.getElementById(markerId);
+  let marker = raceMarkerMap.get(markerId);
+  if (!marker || !document.contains(marker)) {
+    marker = document.getElementById(markerId);
+    if (marker) raceMarkerMap.set(markerId, marker);
+  }
   const track = document.getElementById("track");
   if (!track) return null;
 
@@ -1942,6 +1948,7 @@ function getOrCreateRaceMarker(racer) {
       <div class="racer-tag">${racer.username || ""}</div>
     `;
     track.appendChild(marker);
+    raceMarkerMap.set(markerId, marker);
   } else {
     if (!track.contains(marker)) {
       track.appendChild(marker);
@@ -1950,10 +1957,27 @@ function getOrCreateRaceMarker(racer) {
     const wrap = marker.querySelector(".racer-avatar-wrap");
     if (wrap) wrap.innerHTML = avatarHtml;
     const tag = marker.querySelector(".racer-tag");
-    if (tag) tag.textContent = racer.username || "";
+    if (tag && tag.textContent !== (racer.username || "")) {
+      tag.textContent = racer.username || "";
+    }
   }
   knownGhostMarkers.add(marker);
   return marker;
+}
+
+function refreshLeaderboard() {
+  if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
+    const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+    const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
+    const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
+    const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
+    window.LiveSplitLeaderboard.renderLeaderboard(
+      rc ? rc.getRankedEntrants() : [],
+      isSim,
+      isConn,
+      isEditMode
+    );
+  }
 }
 
 function hideAllGhostMarkers() {
@@ -1985,15 +2009,7 @@ function updateGhostRunner(currentSec) {
     hideAllGhostMarkers();
     if (edgeLeft) edgeLeft.style.display = "none";
     if (edgeRight) edgeRight.style.display = "none";
-    if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
-      const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
-      window.LiveSplitLeaderboard.renderLeaderboard(
-        rc ? rc.getRankedEntrants() : [],
-        isSim,
-        isConn,
-        isEditMode
-      );
-    }
+    refreshLeaderboard();
     return;
   }
 
@@ -2146,6 +2162,15 @@ function updateGhostRunner(currentSec) {
   });
 
   // 2. Render live race competitors (therun.gg / racetime.gg / simulation)
+  function getCompetitorTrackRef(sc) {
+    const s = Math.max(0, sc || 0);
+    const idx = Math.floor(s);
+    const rat = Math.max(0, Math.min(1.0, s - idx));
+    const tP = idx > 0 ? (comparisonTimes[idx - 1] || (idx * 30)) : 0;
+    const tN = (idx < comparisonTimes.length) ? (comparisonTimes[idx] || ((idx + 1) * 30)) : (tP + 30);
+    return tP + rat * (tN - tP);
+  }
+
   raceEntrants.forEach((racer) => {
     let segIdx = Math.floor(racer.score || 0);
     let ratio = (racer.score || 0) - segIdx;
@@ -2167,16 +2192,6 @@ function updateGhostRunner(currentSec) {
 
     const hostScore = Math.max(0, currentIndex) + runnerSegProgress;
     const isAhead = (hostScore >= (racer.score || 0));
-
-    // Calculate course reference times for track delta parity
-    function getCompetitorTrackRef(sc) {
-      const s = Math.max(0, sc || 0);
-      const idx = Math.floor(s);
-      const rat = Math.max(0, Math.min(1.0, s - idx));
-      const tP = idx > 0 ? (comparisonTimes[idx - 1] || (idx * 30)) : 0;
-      const tN = (idx < comparisonTimes.length) ? (comparisonTimes[idx] || ((idx + 1) * 30)) : (tP + 30);
-      return tP + rat * (tN - tP);
-    }
 
     const hostCourseSec = getCompetitorTrackRef(hostScore);
     const racerCourseSec = racer.isFinished && typeof racer.finalTimeSec === "number"
@@ -2270,15 +2285,7 @@ function updateGhostRunner(currentSec) {
   }
 
   // 3. Render F1 Dynamic Leaderboard
-  if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
-    const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
-    window.LiveSplitLeaderboard.renderLeaderboard(
-      rc ? rc.getRankedEntrants() : [],
-      isSim,
-      isConn,
-      isEditMode
-    );
-  }
+  refreshLeaderboard();
 }
 
 function updateGhostBadge() {
@@ -3555,17 +3562,7 @@ function initOverlay() {
           window.hudLayout.saveLayout();
           window.hudLayout.applyComponentLayout("leaderboard");
           syncLeaderboardBtn();
-
-          const isSim = raceClient ? (typeof raceClient.isSimulating === "function" ? raceClient.isSimulating() : !!raceClient.isSimulating) : false;
-          const isConn = raceClient ? (typeof raceClient.isConnected === "function" ? raceClient.isConnected() : !!raceClient.isConnected) : false;
-          if (window.LiveSplitLeaderboard) {
-            window.LiveSplitLeaderboard.renderLeaderboard(
-              raceClient ? raceClient.getRankedEntrants() : [],
-              isSim,
-              isConn,
-              window.hudLayout.isEditMode ? window.hudLayout.isEditMode() : false
-            );
-          }
+          refreshLeaderboard();
         }
       }
     });
@@ -3601,17 +3598,7 @@ function initOverlay() {
         }
 
         // Re-render leaderboard immediately if visible
-        if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
-          const isSim = raceClient ? (typeof raceClient.isSimulating === "function" ? raceClient.isSimulating() : !!raceClient.isSimulating) : false;
-          const isConn = raceClient ? (typeof raceClient.isConnected === "function" ? raceClient.isConnected() : !!raceClient.isConnected) : false;
-          const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
-          window.LiveSplitLeaderboard.renderLeaderboard(
-            raceClient ? raceClient.getRankedEntrants() : [],
-            isSim,
-            isConn,
-            isEditMode
-          );
-        }
+        refreshLeaderboard();
       });
     }
 
