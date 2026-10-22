@@ -625,6 +625,73 @@
         }
       });
 
+      // -------------------------------------------------------------
+      // Fastest Segment Crown Calculation (Leader's previous completed split)
+      // -------------------------------------------------------------
+      let crownUserId = null;
+      let crownSegmentName = "";
+      let crownSegmentTime = null;
+
+      if (leader && !leader.isDNF) {
+        const totalCourseSplits = activeSplitsList.length > 0 ? activeSplitsList.length : 8;
+        const leaderSplitIdx = leader.isFinished
+          ? (totalCourseSplits - 1)
+          : (leader.currentSplitIndex || 0);
+        // The split in contention: whichever split the leader is on, it is the previous split
+        const targetSplitIdx = leader.isFinished ? leaderSplitIdx : (leaderSplitIdx - 1);
+
+        if (targetSplitIdx >= 0) {
+          let fastestSegSec = Infinity;
+          let fastestUserId = null;
+
+          list.forEach((racer) => {
+            if (racer.isDNF) return;
+            const hasCompletedTarget = (racer.isFinished || ((racer.currentSplitIndex || 0) > targetSplitIdx));
+            if (!hasCompletedTarget) return;
+
+            const splits = normalizeSplitTimes(racer.splitTimes);
+            const tSplit = splits[targetSplitIdx];
+            if (typeof tSplit !== "number" || isNaN(tSplit) || tSplit <= 0) return;
+
+            let tPrev = 0;
+            if (targetSplitIdx > 0) {
+              if (typeof splits[targetSplitIdx - 1] === "number" && splits[targetSplitIdx - 1] > 0) {
+                tPrev = splits[targetSplitIdx - 1];
+              } else if (racer.checkpointTimes && typeof racer.checkpointTimes[targetSplitIdx - 1] === "number") {
+                tPrev = racer.checkpointTimes[targetSplitIdx - 1];
+              } else if (simulationCourseTargets && typeof simulationCourseTargets[targetSplitIdx - 1] === "number") {
+                tPrev = simulationCourseTargets[targetSplitIdx - 1];
+              }
+            }
+
+            const segDuration = tSplit - tPrev;
+            if (segDuration > 0 && segDuration < fastestSegSec - 0.001) {
+              fastestSegSec = segDuration;
+              fastestUserId = racer.userId;
+            }
+          });
+
+          if (fastestUserId) {
+            crownUserId = fastestUserId;
+            crownSegmentTime = fastestSegSec;
+            crownSegmentName = (activeSplitsList && activeSplitsList[targetSplitIdx])
+              ? activeSplitsList[targetSplitIdx]
+              : `Split ${targetSplitIdx + 1}`;
+          }
+        }
+      }
+
+      list.forEach((runner) => {
+        runner.hasCrown = (crownUserId !== null && runner.userId === crownUserId);
+        if (runner.hasCrown) {
+          runner.crownSegmentName = crownSegmentName;
+          runner.crownSegmentTime = crownSegmentTime;
+        } else {
+          runner.crownSegmentName = null;
+          runner.crownSegmentTime = null;
+        }
+      });
+
       return list;
     }
 
@@ -1325,6 +1392,9 @@
       hostState.dnfTimeSec = null;
       hostState.splitTimes = [];
       hostState.lastSplitEffect = null;
+      hostState.hasCrown = false;
+      hostState.crownSegmentName = null;
+      hostState.crownSegmentTime = null;
 
       entrants.forEach((racer) => {
         if (racer.isHost) {
@@ -1340,6 +1410,9 @@
           racer.isDNF = false;
           racer.dnfTimeSec = null;
           racer.lastSplitEffect = null;
+          racer.hasCrown = false;
+          racer.crownSegmentName = null;
+          racer.crownSegmentTime = null;
         }
       });
 

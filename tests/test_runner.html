@@ -1851,6 +1851,73 @@
 
         rc.stopSimulation();
       });
+
+      it("Fastest Segment Crown appears on leader upon splitting, transfers to anyone with faster segment, and advances to next split", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2", "Split 3", "Finished"], [30, 60, 90, 120]);
+
+        // At start (Split 0), no one has completed a split: no crown
+        let list = rc.getRankedEntrants();
+        assert(!list.some(r => r.hasCrown), "No crown before first split");
+
+        // 1. Leader (Host) splits on Split 1 at 28.0s: Leader gets the crown!
+        rc.updateHostProgress(28.0, 1, [28.0], [30, 60, 90, 120], "Split 2");
+        list = rc.getRankedEntrants();
+        const host = list.find(r => r.isHost);
+        assertEqual(host.hasCrown, true, "Leader receives crown immediately upon splitting Split 1");
+        assertEqual(host.crownSegmentName, "Split 1", "Crown is for Split 1");
+        assertEqual(host.crownSegmentTime, 28.0, "Crown segment time is 28.0s");
+
+        // Render in leaderboard and verify DOM
+        window.LiveSplit.Leaderboard.renderLeaderboard(list, true, false, false);
+        let hostRow = document.querySelector(`.leaderboard-row[data-user-id="${host.userId}"]`);
+        let hostCrown = hostRow.querySelector(".racer-crown");
+        assert(hostCrown && hostCrown.classList.contains("is-active"), "Leader row displays active crown in DOM");
+
+        // 2. Competitor A splits on Split 1 with 26.5s (faster than leader's 28.0s)
+        const compA = list.find(r => !r.isHost);
+        compA.currentSplitIndex = 1;
+        compA.splitTimes = [26.5];
+
+        list = rc.getRankedEntrants();
+        const updatedHost = list.find(r => r.isHost);
+        const updatedCompA = list.find(r => r.userId === compA.userId);
+        assertEqual(updatedHost.hasCrown, false, "Leader loses crown to faster competitor");
+        assertEqual(updatedCompA.hasCrown, true, "Competitor with faster segment claims the crown");
+        assertEqual(updatedCompA.crownSegmentTime, 26.5, "Crown displays faster segment time 26.5s");
+
+        // Render and verify DOM transfer
+        window.LiveSplit.Leaderboard.renderLeaderboard(list, true, false, false);
+        hostCrown = hostRow.querySelector(".racer-crown");
+        const compARow = document.querySelector(`.leaderboard-row[data-user-id="${compA.userId}"]`);
+        const compACrown = compARow.querySelector(".racer-crown");
+        assert(!hostCrown.classList.contains("is-active"), "Previous holder crown is no longer active");
+        assert(compACrown && compACrown.classList.contains("is-active"), "New fastest runner crown is active");
+
+        // 3. Competitor B splits on Split 1 with 29.0s (slower): crown stays on Competitor A
+        const compB = list.find(r => !r.isHost && r.userId !== compA.userId);
+        if (compB) {
+          compB.currentSplitIndex = 1;
+          compB.splitTimes = [29.0];
+          list = rc.getRankedEntrants();
+          const checkCompA = list.find(r => r.userId === compA.userId);
+          const checkCompB = list.find(r => r.userId === compB.userId);
+          assertEqual(checkCompA.hasCrown, true, "Competitor A retains crown over slower competitor B");
+          assertEqual(checkCompB.hasCrown, false, "Competitor B does not receive crown");
+        }
+
+        // 4. Leader splits on Split 2 at 57.0s (segment = 57.0 - 28.0 = 29.0s)
+        // Split in contention advances to Split 2! Leader is the first to complete Split 2, so leader re-claims crown for Split 2!
+        rc.updateHostProgress(57.0, 2, [28.0, 57.0], [30, 60, 90, 120], "Split 3");
+        list = rc.getRankedEntrants();
+        const leaderSplit2 = list.find(r => r.isHost);
+        assertEqual(leaderSplit2.hasCrown, true, "Leader claims crown for Split 2 upon splitting");
+        assertEqual(leaderSplit2.crownSegmentName, "Split 2", "Target split advanced to Split 2");
+        assertEqual(leaderSplit2.crownSegmentTime, 29.0, "Crown records segment time on Split 2");
+
+        rc.stopSimulation();
+        window.LiveSplit.Leaderboard.reset();
+      });
     });
 
     // --- RENDER RESULTS ---

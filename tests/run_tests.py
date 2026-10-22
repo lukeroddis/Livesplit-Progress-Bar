@@ -2478,6 +2478,10 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "simVirtualSec" in race_code, "race-client.js must track and reset simVirtualSec"
     assert "pbCheckpointTimes" in race_code, "race-client.js must generate pbCheckpointTimes for competitors"
     assert "isSecondResetWithDNF" in overlay_js, "overlay.js must handle double reset to clear DNF"
+    assert ".racer-crown" in css, "style.css must style .racer-crown"
+    assert "@keyframes crown-pop" in css, "style.css must define @keyframes crown-pop"
+    assert "racer.hasCrown" in leaderboard_code, "leaderboard.js must render fastest segment crown"
+    assert "crownUserId" in race_code, "race-client.js must calculate crownUserId for leader previous split"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 

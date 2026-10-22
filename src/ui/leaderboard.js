@@ -68,6 +68,9 @@
         rank: 1,
         isHost: false,
         isMuted: false,
+        hasCrown: true,
+        crownSegmentName: "Split 2",
+        crownSegmentTime: 27.4,
         currentSplitName: "Split 3",
         gapDisplay: "LEADER",
         intervalDisplay: "--",
@@ -282,6 +285,11 @@
         }
       }
 
+      const hasCrown = !!racer.hasCrown;
+      const crownTooltip = hasCrown
+        ? `👑 Fastest Segment on ${racer.crownSegmentName || 'split'}: ${typeof racer.crownSegmentTime === 'number' ? racer.crownSegmentTime.toFixed(1) + 's' : (racer.crownSegmentTime || '--')} (${displayName})`
+        : "";
+
       const rowTitle = isDnf
         ? `${displayName} did not finish (DNF)`
         : (isHost
@@ -301,7 +309,10 @@
         row.innerHTML = `
           <div class="pos-badge ${posClass}">${rank}</div>
           <div class="racer-accent-bar"></div>
-          <div class="racer-avatar-badge">${avatarMarkup}</div>
+          <div class="racer-avatar-container">
+            <div class="racer-avatar-badge">${avatarMarkup}</div>
+            <span class="racer-crown${hasCrown ? ' is-active' : ''}" title="${escapeHtml(crownTooltip)}">👑</span>
+          </div>
           <div class="racer-name-block">
             <span class="racer-name">${escapeHtml(displayName)}</span>
             <span class="${splitClass}">${escapeHtml(displayedSplit)}</span>
@@ -327,6 +338,33 @@
         if (posBadge) {
           posBadge.textContent = rank;
           posBadge.className = `pos-badge ${posClass}`;
+        }
+
+        let crownEl = row.querySelector(".racer-crown");
+        if (!crownEl) {
+          const avatarBadge = row.querySelector(".racer-avatar-badge");
+          if (avatarBadge) {
+            let container = row.querySelector(".racer-avatar-container");
+            if (!container) {
+              container = document.createElement("div");
+              container.className = "racer-avatar-container";
+              avatarBadge.parentNode.insertBefore(container, avatarBadge);
+              container.appendChild(avatarBadge);
+            }
+            crownEl = document.createElement("span");
+            crownEl.className = "racer-crown";
+            crownEl.textContent = "👑";
+            container.appendChild(crownEl);
+          }
+        }
+        if (crownEl) {
+          const wasActive = crownEl.classList.contains("is-active");
+          if (hasCrown !== wasActive) {
+            crownEl.classList.toggle("is-active", hasCrown);
+          }
+          if (hasCrown && crownTooltip && crownEl.title !== crownTooltip) {
+            crownEl.title = crownTooltip;
+          }
         }
 
         const nameEl = row.querySelector(".racer-name");
@@ -425,6 +463,11 @@
         row.style.animationDelay = "";
         row.classList.remove("overtake-flash", "split-flash-gold", "split-flash-green", "split-flash-red");
         delete row.dataset.lastEffectTime;
+        const crownEl = row.querySelector(".racer-crown");
+        if (crownEl) {
+          crownEl.classList.remove("is-active");
+          crownEl.title = "";
+        }
         const splitEl = row.querySelector(".racer-split");
         if (splitEl) {
           splitEl.className = "racer-split";
