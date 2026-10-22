@@ -41,6 +41,7 @@
     let activeSplitsList = [];
     let activeComparisonTimes = [];
     const lastKnownRanks = new Map();
+    let lastExternalHostUpdate = 0;
 
     // Entrants map: userId -> Entrant Object
     const entrants = new Map();
@@ -211,7 +212,10 @@
     /**
      * Updates the host runner's in-run progress.
      */
-    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = [], splitFlash = null) {
+    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = [], splitFlash = null, isExternal = true) {
+      if (isExternal) {
+        lastExternalHostUpdate = Date.now();
+      }
       if (Array.isArray(splitsList) && splitsList.length > 0) {
         activeSplitsList = splitsList;
       }
@@ -541,22 +545,42 @@
 
       notifyListeners("race_connected", { raceId, isSimulated: true });
 
-      let simVirtualSec = 0;
+      let simVirtualSec = hostState.currentTimeSec || 0;
       simulationTimer = setInterval(() => {
         if (!isSimulating) return;
         const compList = (comparisonTimes && comparisonTimes.length > 0)
           ? comparisonTimes
           : [30, 60, 90, 120, 150, 180, 210, 240];
 
+        const isExternalHostRunning = hostState.currentTimeSec > 0 && (Date.now() - lastExternalHostUpdate < 1500);
+
         if (hostState.currentTimeSec > 0) {
-          // LiveSplit is driving the run: keep competitors synchronized to host run time
-          tickSimulatedCompetitors(hostState.currentTimeSec, compList);
+          if (isExternalHostRunning && lastExternalHostUpdate > 0) {
+            // LiveSplit is actively driving the run: keep competitors synchronized to host run time
+            tickSimulatedCompetitors(hostState.currentTimeSec, compList);
+          } else {
+            // Standalone / offline simulation: advance virtual time smoothly
+            simVirtualSec = Math.max(simVirtualSec, hostState.currentTimeSec) + 0.05;
+            const curIdx = Math.floor(simVirtualSec / 30);
+            let hostFlash = null;
+            if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
+              hostFlash = { type: "green", timestamp: Date.now() };
+            }
+            const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
+            updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList, hostFlash, false);
+            tickSimulatedCompetitors(simVirtualSec, compList);
+          }
         } else {
           // Standalone / offline simulation without LiveSplit: advance virtual time
           simVirtualSec += 0.05;
           const curIdx = Math.floor(simVirtualSec / 30);
+          let hostFlash = null;
+          if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
+            hostFlash = { type: "green", timestamp: Date.now() };
+          }
           const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
-          updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList);
+          updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList, hostFlash, false);
+          tickSimulatedCompetitors(simVirtualSec, compList);
         }
         notifyListeners("entrant_updated", null);
         if (typeof window !== "undefined" && typeof window.updateGhostRunner === "function") {
@@ -670,6 +694,7 @@
     }
 
     function reset() {
+      lastExternalHostUpdate = 0;
       hostState.currentTimeSec = 0;
       hostState.currentSplitIndex = 0;
       hostState.currentSplitName = "Start";

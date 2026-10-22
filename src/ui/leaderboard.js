@@ -322,14 +322,9 @@
       });
     }
 
-    // Ensure zero residual transforms, animations, or inline offsets on all rows
+    // Ensure zero residual inline transforms or offsets on all rows
     rowElementMap.forEach((row) => {
       if (row) {
-        if (typeof row.getAnimations === "function") {
-          try {
-            row.getAnimations().forEach((anim) => anim.cancel());
-          } catch (_) {}
-        }
         if (row.style.transform) row.style.transform = "";
         if (row.style.transition) row.style.transition = "";
         if (row.style.zIndex) row.style.zIndex = "";

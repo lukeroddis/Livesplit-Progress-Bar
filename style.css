@@ -2754,7 +2754,7 @@ body.edit-mode .settings-menu-panel {
   padding: 5px 8px;
   box-sizing: border-box;
   transform: none !important;
-  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.2s ease;
   position: relative;
   overflow: hidden;
 }
@@ -2789,17 +2789,26 @@ body.edit-mode .settings-menu-panel {
 
 /* Split Completion Tile Glow Pulses (Gold / Green / Red) */
 .leaderboard-row.split-flash-gold {
+  border-color: #facc15;
+  background: rgba(250, 204, 21, 0.32);
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.75), inset 0 0 10px rgba(250, 204, 21, 0.25);
   animation: split-pulse-gold 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.leaderboard-row.split-flash-gold .racer-split {
+  color: #facc15 !important;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.8);
 }
 
 @keyframes split-pulse-gold {
   0% {
-    background: rgba(250, 204, 21, 0.32);
+    background: rgba(250, 204, 21, 0.38);
     border-color: #facc15;
-    box-shadow: 0 0 16px rgba(250, 204, 21, 0.7), inset 0 0 8px rgba(250, 204, 21, 0.25);
+    box-shadow: 0 0 18px rgba(250, 204, 21, 0.8), inset 0 0 10px rgba(250, 204, 21, 0.3);
   }
-  35% {
-    background: rgba(250, 204, 21, 0.20);
+  40% {
+    background: rgba(250, 204, 21, 0.22);
     border-color: rgba(250, 204, 21, 0.75);
     box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
   }
@@ -2811,17 +2820,26 @@ body.edit-mode .settings-menu-panel {
 }
 
 .leaderboard-row.is-host.split-flash-gold {
+  border-color: #facc15;
+  background: rgba(250, 204, 21, 0.35);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.85), inset 0 0 12px rgba(250, 204, 21, 0.35);
   animation: split-pulse-gold-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.leaderboard-row.is-host.split-flash-gold .racer-split {
+  color: #facc15 !important;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.8);
 }
 
 @keyframes split-pulse-gold-host {
   0% {
-    background: rgba(250, 204, 21, 0.35);
+    background: rgba(250, 204, 21, 0.40);
     border-color: #facc15;
-    box-shadow: 0 0 18px rgba(250, 204, 21, 0.75), inset 0 0 10px rgba(250, 204, 21, 0.3);
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.85), inset 0 0 12px rgba(250, 204, 21, 0.35);
   }
-  35% {
-    background: rgba(250, 204, 21, 0.22);
+  40% {
+    background: rgba(250, 204, 21, 0.25);
     border-color: rgba(250, 204, 21, 0.85);
     box-shadow: 0 0 14px rgba(250, 204, 21, 0.5);
   }
@@ -2833,17 +2851,26 @@ body.edit-mode .settings-menu-panel {
 }
 
 .leaderboard-row.split-flash-green {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.32);
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.75), inset 0 0 10px rgba(34, 197, 94, 0.22);
   animation: split-pulse-green 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.leaderboard-row.split-flash-green .racer-split {
+  color: #4ade80 !important;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
 }
 
 @keyframes split-pulse-green {
   0% {
-    background: rgba(34, 197, 94, 0.32);
+    background: rgba(34, 197, 94, 0.38);
     border-color: #22c55e;
-    box-shadow: 0 0 16px rgba(34, 197, 94, 0.65), inset 0 0 8px rgba(34, 197, 94, 0.2);
+    box-shadow: 0 0 18px rgba(34, 197, 94, 0.8), inset 0 0 10px rgba(34, 197, 94, 0.25);
   }
-  35% {
-    background: rgba(34, 197, 94, 0.18);
+  40% {
+    background: rgba(34, 197, 94, 0.20);
     border-color: rgba(34, 197, 94, 0.75);
     box-shadow: 0 0 11px rgba(34, 197, 94, 0.4);
   }
@@ -2855,17 +2882,26 @@ body.edit-mode .settings-menu-panel {
 }
 
 .leaderboard-row.is-host.split-flash-green {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.35);
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.8), inset 0 0 12px rgba(34, 197, 94, 0.28);
   animation: split-pulse-green-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.leaderboard-row.is-host.split-flash-green .racer-split {
+  color: #4ade80 !important;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
 }
 
 @keyframes split-pulse-green-host {
   0% {
-    background: rgba(34, 197, 94, 0.35);
+    background: rgba(34, 197, 94, 0.40);
     border-color: #22c55e;
-    box-shadow: 0 0 18px rgba(34, 197, 94, 0.7), inset 0 0 10px rgba(34, 197, 94, 0.25);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.85), inset 0 0 12px rgba(34, 197, 94, 0.3);
   }
-  35% {
-    background: rgba(34, 197, 94, 0.22);
+  40% {
+    background: rgba(34, 197, 94, 0.24);
     border-color: rgba(34, 197, 94, 0.8);
     box-shadow: 0 0 12px rgba(34, 197, 94, 0.45);
   }
@@ -2877,17 +2913,26 @@ body.edit-mode .settings-menu-panel {
 }
 
 .leaderboard-row.split-flash-red {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.32);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.75), inset 0 0 10px rgba(239, 68, 68, 0.22);
   animation: split-pulse-red 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.leaderboard-row.split-flash-red .racer-split {
+  color: #f87171 !important;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(248, 113, 113, 0.8);
 }
 
 @keyframes split-pulse-red {
   0% {
-    background: rgba(239, 68, 68, 0.32);
+    background: rgba(239, 68, 68, 0.38);
     border-color: #ef4444;
-    box-shadow: 0 0 16px rgba(239, 68, 68, 0.65), inset 0 0 8px rgba(239, 68, 68, 0.2);
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.8), inset 0 0 10px rgba(239, 68, 68, 0.25);
   }
-  35% {
-    background: rgba(239, 68, 68, 0.18);
+  40% {
+    background: rgba(239, 68, 68, 0.20);
     border-color: rgba(239, 68, 68, 0.75);
     box-shadow: 0 0 11px rgba(239, 68, 68, 0.4);
   }
@@ -2899,17 +2944,26 @@ body.edit-mode .settings-menu-panel {
 }
 
 .leaderboard-row.is-host.split-flash-red {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.8), inset 0 0 12px rgba(239, 68, 68, 0.28);
   animation: split-pulse-red-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.leaderboard-row.is-host.split-flash-red .racer-split {
+  color: #f87171 !important;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(248, 113, 113, 0.8);
 }
 
 @keyframes split-pulse-red-host {
   0% {
-    background: rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.40);
     border-color: #ef4444;
-    box-shadow: 0 0 18px rgba(239, 68, 68, 0.7), inset 0 0 10px rgba(239, 68, 68, 0.25);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.85), inset 0 0 12px rgba(239, 68, 68, 0.3);
   }
-  35% {
-    background: rgba(239, 68, 68, 0.22);
+  40% {
+    background: rgba(239, 68, 68, 0.24);
     border-color: rgba(239, 68, 68, 0.8);
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
   }
@@ -3011,6 +3065,7 @@ body.edit-mode .settings-menu-panel {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.4s ease, text-shadow 0.4s ease;
 }
 
 .racer-gap-col {

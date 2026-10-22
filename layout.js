@@ -607,7 +607,9 @@
   }
 
   function setTrackOrientation(orient) {
+    if (!currentTrackStyle) currentTrackStyle = loadSavedTrackStyle();
     if (!currentTrackStyle) return;
+    if (!layoutState) layoutState = loadSavedLayout();
     const newOrient = (orient === "vertical") ? "vertical" : "horizontal";
     currentTrackStyle.orientation = newOrient;
 
@@ -2473,8 +2475,8 @@
 
   // Export layout helpers globally if needed
   window.hudLayout = {
-    getState: () => layoutState,
-    getTrackStyle: () => currentTrackStyle,
+    getState: () => layoutState || (layoutState = loadSavedLayout()),
+    getTrackStyle: () => currentTrackStyle || (currentTrackStyle = loadSavedTrackStyle()),
     openTrackModal,
     closeTrackModal,
     resetTrackStyle,

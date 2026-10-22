@@ -660,11 +660,13 @@ function formatDeltaLive(raw) {
   return { text: outputText, isAhead, signedSeconds };
 }
 
-function sanitizeComparisonTimes(times, fallbackTimes) {
+function sanitizeComparisonTimes(times, fallbackTimes, targetLen = null) {
   if (!times || !Array.isArray(times) || times.length === 0) {
     return fallbackTimes && Array.isArray(fallbackTimes) ? [...fallbackTimes] : [];
   }
-  const len = splitsList.length > 0 ? splitsList.length : times.length;
+  const len = targetLen !== null 
+    ? targetLen 
+    : (fallbackTimes && fallbackTimes.length > times.length ? fallbackTimes.length : times.length);
   const result = new Array(len);
   let lastVal = 0;
 
@@ -2532,8 +2534,14 @@ function handleUndoSplit(newIdx, oldIdx) {
 
 function detectTimingMethodFromComp(splitIdx, compSec) {
   if (splitIdx < 0 || compSec === null || compSec <= 0) return null;
-  const gtSec = (comparisonTimesGT && splitIdx < comparisonTimesGT.length) ? comparisonTimesGT[splitIdx] : null;
-  const rtSec = (comparisonTimesRT && splitIdx < comparisonTimesRT.length) ? comparisonTimesRT[splitIdx] : null;
+  const gtArr = (typeof window !== "undefined" && Array.isArray(window.comparisonTimesGT) && window.comparisonTimesGT.length > 0)
+    ? window.comparisonTimesGT
+    : comparisonTimesGT;
+  const rtArr = (typeof window !== "undefined" && Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0)
+    ? window.comparisonTimesRT
+    : comparisonTimesRT;
+  const gtSec = (gtArr && splitIdx < gtArr.length) ? gtArr[splitIdx] : null;
+  const rtSec = (rtArr && splitIdx < rtArr.length) ? rtArr[splitIdx] : null;
   if (gtSec !== null && rtSec !== null && Math.abs(gtSec - rtSec) > 1.0) {
     const diffGT = Math.abs(compSec - gtSec);
     const diffRT = Math.abs(compSec - rtSec);
@@ -2954,11 +2962,12 @@ async function pollLoop() {
       }
 
       if (idx >= 0 && currentTotalSec !== null) {
-        if (window.LiveSplitRaceClient) {
+        const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+        if (rc && typeof rc.updateHostProgress === "function") {
           const hostSplitName = (currentIndex < 0)
             ? "Start"
             : (currentIndex < splitsList.length ? splitsList[currentIndex] : "Finished");
-          window.LiveSplitRaceClient.updateHostProgress(
+          rc.updateHostProgress(
             currentTotalSec,
             currentIndex,
             completedSplitTimes,
@@ -3261,7 +3270,7 @@ function setupTrackScrollInteractions() {
     if (isEdit) return;
 
     // Ignore wheel if cursor is over interactive cards/modals/inputs/dropdowns
-    if (e.target.closest("#footer-bar, .modal-backdrop, .layout-toolbar, .settings-profile-dropdown-wrap, input, textarea, select")) {
+    if (e.target && typeof e.target.closest === "function" && e.target.closest("#footer-bar, .modal-backdrop, .layout-toolbar, .settings-profile-dropdown-wrap, input, textarea, select")) {
       return;
     }
 
