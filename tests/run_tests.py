@@ -2436,6 +2436,8 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert ".ghost-marker:hover .racer-tag" in css, "style.css must reveal tooltip on hovering any ghost marker"
     assert '<div class="racer-tag">${ghostInfo.name' in overlay_js, "overlay.js getOrCreateGhostMarker must inject tooltip racer-tag with ghostInfo.name"
     assert "configuredPinSize + 2" in overlay_js, "overlay.js must ensure zero pinhead overlap by spacing pinheads at least configuredPinSize + 2"
+    assert "getClusterClampedCenter" in overlay_js, "overlay.js must use iterative cluster merging to prevent multi-cluster badge collapse"
+    assert "getClusterFirstBadge(cB) - getClusterLastBadge(cA)" in overlay_js, "overlay.js must merge overlapping cluster badge bounds"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 

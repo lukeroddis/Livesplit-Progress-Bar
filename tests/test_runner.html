@@ -1249,6 +1249,31 @@
         }
         rc.stopSimulation();
       });
+
+      it("prevents cluster collapse by maintaining zero overlap between all pinheads across multiple groups", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Forest", "Cave", "Castle"], [30, 60, 90]);
+        if (typeof window.updateGhostRunner === "function") {
+          window.updateGhostRunner(5.0);
+          const pins = Array.from(document.querySelectorAll(".ghost-marker"))
+            .filter(m => m.style.display !== "none" && m.id !== "ghost-marker");
+          if (pins.length >= 2) {
+            // Compute visual badge X coordinates: base transform X + splay X
+            const badgeXs = pins.map(p => {
+              const transformMatch = p.style.transform.match(/translateX\(([\d.-]+)px\)/);
+              const baseCoord = transformMatch ? parseFloat(transformMatch[1]) : 0;
+              const splayVal = parseFloat(p.style.getPropertyValue("--ghost-splay-x")) || 0;
+              return baseCoord + splayVal;
+            }).sort((a, b) => a - b);
+
+            for (let i = 0; i < badgeXs.length - 1; i++) {
+              const dist = badgeXs[i + 1] - badgeXs[i];
+              assert(dist >= 20, `Adjacent pinheads must not collapse: dist ${dist.toFixed(1)} >= 20px`);
+            }
+          }
+        }
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---

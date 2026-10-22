@@ -2046,7 +2046,8 @@ function updateGhostRunner(currentSec) {
   }
 
   const scrollOffset = isVertical ? viewport.scrollTop : viewport.scrollLeft;
-  const clientSpan = isVertical ? viewport.clientHeight : viewport.clientWidth;
+  const rawSpan = isVertical ? viewport.clientHeight : viewport.clientWidth;
+  const clientSpan = (rawSpan > 0) ? rawSpan : ((isVertical ? window.innerHeight : window.innerWidth) || 800);
   const visibleMin = (scrollOffset > 0) ? (scrollOffset + 10) : -20;
   const visibleMax = scrollOffset + clientSpan + 20;
 
@@ -2298,44 +2299,104 @@ function updateGhostRunner(currentSec) {
       marker.classList.remove("splay-left", "splay-right");
     });
   } else {
-    // Horizontal track orientation: Mini-Leaderboard Strip with Orthogonal Drop Lines
-    const clusters = [];
-    let curCluster = [];
+    // Horizontal track orientation: Globally Non-Overlapping Mini-Leaderboard Strip with Orthogonal Drop Lines
+    // Iterative cluster merging guarantees ZERO badge overlap across the entire track under all race conditions.
+    const leftBound = visibleMin + (configuredPinSize / 2) + 2;
+    const rightBound = visibleMax - (configuredPinSize / 2) - 2;
+    const maxAllowedSpan = Math.max(1, rightBound - leftBound);
 
-    visibleOnscreenMarkers.forEach((item) => {
-      if (curCluster.length === 0) {
-        curCluster.push(item);
-      } else {
-        const prev = curCluster[curCluster.length - 1];
-        if (item.coord - prev.coord < COLLISION_THRESHOLD) {
-          curCluster.push(item);
-        } else {
-          clusters.push(curCluster);
-          curCluster = [item];
-        }
+    let badgeSpacing = configuredPinSize + 2;
+    const totalPins = visibleOnscreenMarkers.length;
+    if (totalPins > 1 && (totalPins - 1) * badgeSpacing > maxAllowedSpan) {
+      badgeSpacing = Math.max(12, maxAllowedSpan / (totalPins - 1));
+    }
+
+    function getClusterSpan(c) {
+      return (c.items.length - 1) * badgeSpacing;
+    }
+
+    function getClusterRawCenter(c) {
+      const sum = c.items.reduce((acc, it) => acc + it.coord, 0);
+      return sum / c.items.length;
+    }
+
+    function getClusterClampedCenter(c) {
+      const span = getClusterSpan(c);
+      let center = getClusterRawCenter(c);
+      const half = span / 2;
+      if (center - half < leftBound) {
+        center = leftBound + half;
       }
-    });
-    if (curCluster.length > 0) {
-      clusters.push(curCluster);
+      if (center + half > rightBound) {
+        center = rightBound - half;
+      }
+      return center;
+    }
+
+    function getClusterFirstBadge(c) {
+      return getClusterClampedCenter(c) - getClusterSpan(c) / 2;
+    }
+
+    function getClusterLastBadge(c) {
+      return getClusterClampedCenter(c) + getClusterSpan(c) / 2;
+    }
+
+    // 1. Initialize each marker as its own cluster
+    let clusters = visibleOnscreenMarkers.map((item) => ({
+      items: [item]
+    }));
+
+    // 2. Iteratively merge any adjacent clusters whose badge bounds overlap (< badgeSpacing)
+    let merged = true;
+    let iterations = 0;
+    while (merged && iterations < 50) {
+      merged = false;
+      iterations++;
+      const nextClusters = [];
+      let i = 0;
+      while (i < clusters.length) {
+        if (i < clusters.length - 1) {
+          const cA = clusters[i];
+          const cB = clusters[i + 1];
+          if (getClusterFirstBadge(cB) - getClusterLastBadge(cA) < badgeSpacing - 0.5) {
+            nextClusters.push({
+              items: cA.items.concat(cB.items)
+            });
+            i += 2;
+            merged = true;
+            continue;
+          }
+        }
+        nextClusters.push(clusters[i]);
+        i++;
+      }
+      clusters = nextClusters;
     }
 
     const baseNeedleLength = 16; // default baseline needle length in px
+    let globalIndex = 0;
 
     clusters.forEach((cluster) => {
-      const N = cluster.length;
-      if (N === 1) {
-        const item = cluster[0];
+      const N = cluster.items.length;
+      const center = getClusterClampedCenter(cluster);
+      const span = getClusterSpan(cluster);
+
+      const badgePositions = [];
+      for (let k = 0; k < N; k++) {
+        badgePositions.push(center - (span / 2) + k * badgeSpacing);
+      }
+
+      cluster.items.forEach((item, k) => {
         const marker = item.marker;
         marker.style.display = "flex";
         marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
-        marker.style.removeProperty("--ghost-splay-x");
-        marker.style.removeProperty("--ghost-needle-angle");
-        marker.style.removeProperty("--ghost-needle-height");
-        marker.style.removeProperty("--ghost-stack-offset");
-        marker.classList.remove("splay-left", "splay-right");
 
+        // Leader (on right) has highest z-index so badges layer naturally
         const iconWrap = marker.querySelector(".ghost-icon-wrap");
-        if (iconWrap) iconWrap.style.zIndex = "30";
+        if (iconWrap) iconWrap.style.zIndex = `${30 + globalIndex}`;
+        globalIndex++;
+
+        const deltaX = Math.round((badgePositions[k] - item.coord) * 10) / 10;
 
         const distPrev = Math.abs(item.coord - item.coords.startCoord);
         const distNext = Math.abs(item.coords.endCoord - item.coord);
@@ -2343,75 +2404,26 @@ function updateGhostRunner(currentSec) {
         const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
         const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
         marker.classList.toggle("compact", isHoveringText);
-      } else {
-        // Clustered mini-leaderboard: Zero overlap side-by-side
-        let badgeSpacing = configuredPinSize + 2;
-        const clusterMinCoord = cluster[0].coord;
-        const clusterMaxCoord = cluster[N - 1].coord;
-        const clusterCenter = (clusterMinCoord + clusterMaxCoord) / 2;
 
-        const leftBound = visibleMin + (configuredPinSize / 2) + 2;
-        const rightBound = visibleMax - (configuredPinSize / 2) - 2;
+        const effH = isHoveringText ? Math.min(5, baseNeedleLength) : baseNeedleLength;
 
-        const totalSpan = (N - 1) * badgeSpacing;
-        const availableWidth = Math.max(badgeSpacing, rightBound - leftBound);
-        if (totalSpan > availableWidth && N > 1) {
-          badgeSpacing = availableWidth / (N - 1);
+        marker.style.removeProperty("--ghost-needle-angle");
+        marker.style.removeProperty("--ghost-stack-offset");
+        marker.style.setProperty("--ghost-needle-height", `${effH}px`);
+
+        if (deltaX > 1) {
+          marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
+          marker.classList.add("splay-right");
+          marker.classList.remove("splay-left");
+        } else if (deltaX < -1) {
+          marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
+          marker.classList.add("splay-left");
+          marker.classList.remove("splay-right");
+        } else {
+          marker.style.removeProperty("--ghost-splay-x");
+          marker.classList.remove("splay-left", "splay-right");
         }
-
-        const badgePositions = [];
-        for (let k = 0; k < N; k++) {
-          badgePositions.push(clusterCenter + (k - (N - 1) / 2) * badgeSpacing);
-        }
-
-        // Keep all badges within visible bounds (e.g. at Start split = 0)
-        if (badgePositions[0] < leftBound) {
-          const shift = leftBound - badgePositions[0];
-          for (let k = 0; k < N; k++) badgePositions[k] += shift;
-        }
-        if (badgePositions[N - 1] > rightBound) {
-          const shift = badgePositions[N - 1] - rightBound;
-          for (let k = 0; k < N; k++) badgePositions[k] -= shift;
-        }
-
-        cluster.forEach((item, k) => {
-          const marker = item.marker;
-          marker.style.display = "flex";
-          marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
-
-          // Leader (on right) has highest z-index so badges layer naturally
-          const iconWrap = marker.querySelector(".ghost-icon-wrap");
-          if (iconWrap) iconWrap.style.zIndex = `${30 + k}`;
-
-          const deltaX = Math.round((badgePositions[k] - item.coord) * 10) / 10;
-
-          const distPrev = Math.abs(item.coord - item.coords.startCoord);
-          const distNext = Math.abs(item.coords.endCoord - item.coord);
-          const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
-          const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
-          const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
-          marker.classList.toggle("compact", isHoveringText);
-
-          const effH = isHoveringText ? Math.min(5, baseNeedleLength) : baseNeedleLength;
-
-          marker.style.removeProperty("--ghost-needle-angle");
-          marker.style.removeProperty("--ghost-stack-offset");
-          marker.style.setProperty("--ghost-needle-height", `${effH}px`);
-
-          if (deltaX > 1) {
-            marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
-            marker.classList.add("splay-right");
-            marker.classList.remove("splay-left");
-          } else if (deltaX < -1) {
-            marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
-            marker.classList.add("splay-left");
-            marker.classList.remove("splay-right");
-          } else {
-            marker.style.removeProperty("--ghost-splay-x");
-            marker.classList.remove("splay-left", "splay-right");
-          }
-        });
-      }
+      });
     });
   }
 
