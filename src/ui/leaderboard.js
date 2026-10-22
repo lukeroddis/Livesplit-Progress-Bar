@@ -13,8 +13,6 @@
   "use strict";
 
   const rowElementMap = new Map();
-  // Map of userId -> previous rank (1, 2, 3...)
-  const prevRanks = new Map();
   let isMuteListenerAttached = false;
 
   /**
@@ -28,19 +26,6 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
-  }
-
-  /**
-   * Formats gap or interval in seconds into F1 timing string.
-   */
-  function formatGapSec(sec) {
-    if (sec === null || sec === undefined || isNaN(sec)) return "--";
-    if (sec < 60) {
-      return `+${sec.toFixed(1)}s`;
-    }
-    const m = Math.floor(sec / 60);
-    const s = (sec % 60).toFixed(1);
-    return `+${m}:${s.padStart(4, "0")}`;
   }
 
   /**
@@ -440,9 +425,6 @@
       });
     }
 
-    // Update recorded ranks
-    entrants.forEach((r, idx) => prevRanks.set(r.userId, r.rank || (idx + 1)));
-
     // Clean up rows of racers who left
     const activeIds = new Set(entrants.map(r => r.userId));
     rowElementMap.forEach((row, uId) => {
@@ -454,7 +436,6 @@
   }
 
   function reset() {
-    prevRanks.clear();
     rowElementMap.forEach((row) => {
       if (row) {
         row.style.transition = "";

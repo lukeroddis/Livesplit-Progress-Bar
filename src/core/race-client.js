@@ -412,6 +412,82 @@
     }
 
     /**
+     * Calculates the milestone-based gap between two competitors.
+     * Evaluated against checkpoint split times rather than interpolated curve approximations.
+     */
+    function calculateMilestoneGap(runner, aheadRunner) {
+      if (!runner || !aheadRunner) return null;
+
+      // Both runners finished: final delta between their finish times
+      if (runner.isFinished && aheadRunner.isFinished) {
+        const timeB = typeof runner.finalTimeSec === "number" ? runner.finalTimeSec : (runner.currentTimeSec || 0);
+        const timeA = typeof aheadRunner.finalTimeSec === "number" ? aheadRunner.finalTimeSec : (aheadRunner.currentTimeSec || 0);
+        return Math.max(0, timeB - timeA);
+      }
+
+      const splitsB = normalizeSplitTimes(runner.splitTimes);
+      const splitsA = normalizeSplitTimes(aheadRunner.splitTimes);
+
+      const countB = splitsB.length;
+      const countA = splitsA.length;
+
+      // On the first split, before anyone splits, it is blank for everyone
+      if (countA === 0 && countB === 0) {
+        if ((aheadRunner.currentSplitIndex || 0) === 0 && (runner.currentSplitIndex || 0) === 0 && !aheadRunner.isFinished && !runner.isFinished) {
+          return null;
+        }
+        return Math.max(0, getCourseRefTime(aheadRunner) - getCourseRefTime(runner));
+      }
+
+      const currentIdxB = Math.max(0, runner.currentSplitIndex || 0);
+
+      // If aheadRunner has completed split currentIdxB (countA > currentIdxB),
+      // but runner has NOT completed split currentIdxB yet (countB <= currentIdxB):
+      // The delta starts at the last completed split gap, and increments upwards as runner's
+      // time exceeds aheadRunner's split milestone.
+      if (countA > currentIdxB && countB <= currentIdxB) {
+        const timeAAtSplit = splitsA[currentIdxB];
+        const timeBNow = runner.currentTimeSec || 0;
+
+        if (typeof timeAAtSplit === "number") {
+          if (currentIdxB === 0) {
+            // First split: live incrementing delta starting from when aheadRunner split
+            return Math.max(0, timeBNow - timeAAtSplit);
+          } else {
+            // Subsequent split: previous completed split gap + time accumulating since aheadRunner split
+            const prevA = splitsA[currentIdxB - 1];
+            const prevB = splitsB[currentIdxB - 1];
+            const prevGap = (typeof prevA === "number" && typeof prevB === "number")
+              ? Math.max(0, prevB - prevA)
+              : 0;
+            return prevGap + Math.max(0, timeBNow - timeAAtSplit);
+          }
+        }
+      }
+
+      // Both runners have completed split currentIdxB (or last common split):
+      // Fixed gap based on the last completed split milestone
+      const lastCommonIdx = Math.min(countA, countB) - 1;
+      if (lastCommonIdx >= 0) {
+        const timeA = splitsA[lastCommonIdx];
+        const timeB = splitsB[lastCommonIdx];
+        if (typeof timeA === "number" && typeof timeB === "number") {
+          return Math.max(0, timeB - timeA);
+        }
+      }
+
+      // If aheadRunner has finished but runner hasn't reached final split yet
+      if (aheadRunner.isFinished && typeof aheadRunner.finalTimeSec === "number") {
+        const lastB = countB > 0 ? splitsB[countB - 1] : 0;
+        const lastA = countB > 0 && splitsA.length >= countB ? splitsA[countB - 1] : 0;
+        const prevGap = Math.max(0, lastB - lastA);
+        return prevGap + Math.max(0, (runner.currentTimeSec || 0) - aheadRunner.finalTimeSec);
+      }
+
+      return null;
+    }
+
+    /**
      * Returns all entrants (host + competitors), sorted into F1 standings order.
      */
     function getRankedEntrants() {
@@ -441,13 +517,6 @@
         }
       }
 
-      // Sort criteria:
-      // 1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
-      // 2. Active runners ranked by continuous race score descending (further along split track)
-      // 3. Ties broken by currentTimeSec ascending
-      // Incumbency bonus (~0.012 per rank held, equivalent to ~0.36s of track time) provides
-      // realistic racing overtake stability so neck-and-neck competitors don't jitter or oscillate,
-      // while scalar scoring strictly preserves mathematical transitivity (zero Timsort cycles).
       // Leaderboard sorting rules:
       // 1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
       // 2. Active runners ranked by currentSplitIndex descending (highest milestone reached)
@@ -455,10 +524,6 @@
       //    occasion of splitting, NOT based on predicted mid-split interpolation curves.
       //    Ties are broken by comparing cumulative split times at the last completed split checkpoint!
       // 4. Stable rank fallback to prevent mid-split swapping or jitter.
-      list.forEach((r) => {
-        r._effectiveScore = r.score || 0;
-      });
-
       list.sort((a, b) => {
         if (a.isFinished && b.isFinished) {
           return (a.finalTimeSec || Infinity) - (b.finalTimeSec || Infinity);
@@ -525,78 +590,6 @@
 
       // Calculate leader gap and interval to competitor ahead based on checkpoint milestones
       const leader = list[0];
-
-      function calculateMilestoneGap(runner, aheadRunner) {
-        if (!runner || !aheadRunner) return null;
-
-        // Both runners finished: final delta between their finish times
-        if (runner.isFinished && aheadRunner.isFinished) {
-          const timeB = typeof runner.finalTimeSec === "number" ? runner.finalTimeSec : (runner.currentTimeSec || 0);
-          const timeA = typeof aheadRunner.finalTimeSec === "number" ? aheadRunner.finalTimeSec : (aheadRunner.currentTimeSec || 0);
-          return Math.max(0, timeB - timeA);
-        }
-
-        const splitsB = normalizeSplitTimes(runner.splitTimes);
-        const splitsA = normalizeSplitTimes(aheadRunner.splitTimes);
-
-        const countB = splitsB.length;
-        const countA = splitsA.length;
-
-        // On the first split, before anyone splits, it is blank for everyone
-        if (countA === 0 && countB === 0) {
-          if ((aheadRunner.currentSplitIndex || 0) === 0 && (runner.currentSplitIndex || 0) === 0 && !aheadRunner.isFinished && !runner.isFinished) {
-            return null;
-          }
-          return Math.max(0, getCourseRefTime(aheadRunner) - getCourseRefTime(runner));
-        }
-
-        const currentIdxB = Math.max(0, runner.currentSplitIndex || 0);
-
-        // If aheadRunner has completed split currentIdxB (countA > currentIdxB),
-        // but runner has NOT completed split currentIdxB yet (countB <= currentIdxB):
-        // The delta starts at the last completed split gap, and increments upwards as runner's
-        // time exceeds aheadRunner's split milestone.
-        if (countA > currentIdxB && countB <= currentIdxB) {
-          const timeAAtSplit = splitsA[currentIdxB];
-          const timeBNow = runner.currentTimeSec || 0;
-
-          if (typeof timeAAtSplit === "number") {
-            if (currentIdxB === 0) {
-              // First split: live incrementing delta starting from when aheadRunner split
-              return Math.max(0, timeBNow - timeAAtSplit);
-            } else {
-              // Subsequent split: previous completed split gap + time accumulating since aheadRunner split
-              const prevA = splitsA[currentIdxB - 1];
-              const prevB = splitsB[currentIdxB - 1];
-              const prevGap = (typeof prevA === "number" && typeof prevB === "number")
-                ? Math.max(0, prevB - prevA)
-                : 0;
-              return prevGap + Math.max(0, timeBNow - timeAAtSplit);
-            }
-          }
-        }
-
-        // Both runners have completed split currentIdxB (or last common split):
-        // Fixed gap based on the last completed split milestone
-        const lastCommonIdx = Math.min(countA, countB) - 1;
-        if (lastCommonIdx >= 0) {
-          const timeA = splitsA[lastCommonIdx];
-          const timeB = splitsB[lastCommonIdx];
-          if (typeof timeA === "number" && typeof timeB === "number") {
-            return Math.max(0, timeB - timeA);
-          }
-        }
-
-        // If aheadRunner has finished but runner hasn't reached final split yet
-        if (aheadRunner.isFinished && typeof aheadRunner.finalTimeSec === "number") {
-          const lastB = countB > 0 ? splitsB[countB - 1] : 0;
-          const lastA = countB > 0 && splitsA.length >= countB ? splitsA[countB - 1] : 0;
-          const prevGap = Math.max(0, lastB - lastA);
-          return prevGap + Math.max(0, (runner.currentTimeSec || 0) - aheadRunner.finalTimeSec);
-        }
-
-        return null;
-      }
 
       list.forEach((runner, idx) => {
         if (runner.isDNF) {

@@ -2328,35 +2328,18 @@ function updateGhostRunner(currentSec) {
       badgeSpacing = Math.max(12, maxAllowedSpan / (totalPins - 1));
     }
 
-    function getClusterSpan(c) {
-      return (c.items.length - 1) * badgeSpacing;
-    }
-
-    function getClusterRawCenter(c) {
-      const sum = c.items.reduce((acc, it) => acc + it.coord, 0);
-      return sum / c.items.length;
-    }
-
-    function getClusterClampedCenter(c) {
+    const getClusterSpan = (c) => (c.items.length - 1) * badgeSpacing;
+    const getClusterRawCenter = (c) => c.items.reduce((acc, it) => acc + it.coord, 0) / c.items.length;
+    const getClusterClampedCenter = (c) => {
       const span = getClusterSpan(c);
       let center = getClusterRawCenter(c);
       const half = span / 2;
-      if (center - half < leftBound) {
-        center = leftBound + half;
-      }
-      if (center + half > rightBound) {
-        center = rightBound - half;
-      }
+      if (center - half < leftBound) center = leftBound + half;
+      if (center + half > rightBound) center = rightBound - half;
       return center;
-    }
-
-    function getClusterFirstBadge(c) {
-      return getClusterClampedCenter(c) - getClusterSpan(c) / 2;
-    }
-
-    function getClusterLastBadge(c) {
-      return getClusterClampedCenter(c) + getClusterSpan(c) / 2;
-    }
+    };
+    const getClusterFirstBadge = (c) => getClusterClampedCenter(c) - getClusterSpan(c) / 2;
+    const getClusterLastBadge = (c) => getClusterClampedCenter(c) + getClusterSpan(c) / 2;
 
     // 1. Initialize each marker as its own cluster
     let clusters = visibleOnscreenMarkers.map((item) => ({
