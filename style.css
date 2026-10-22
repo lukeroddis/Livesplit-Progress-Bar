@@ -2371,30 +2371,31 @@ body.edit-mode .settings-menu-panel {
   line-height: 1;
   user-select: none;
   transform-origin: center center;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+  transform: translateX(var(--ghost-splay-x, 0px));
+  transition: box-shadow 0.25s ease;
 }
 
 .ghost-needle {
   position: absolute;
   top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+  left: calc(50% + var(--ghost-splay-x, 0px) - 1px);
   width: 2px;
-  height: calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px));
+  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
   background: #facc15;
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
   border-radius: 1px;
-  transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: top center;
+  transform-origin: 1px 0;
+  transform: rotate(var(--ghost-needle-angle, 0deg));
+  transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Compact / shrunk pin state when hovering over split text */
 .ghost-marker.compact .ghost-needle {
-  height: min(5px, var(--ghost-needle-length, 16px));
+  height: var(--ghost-needle-height, min(5px, var(--ghost-needle-length, 16px)));
 }
 
 .ghost-marker.compact .ghost-icon-wrap {
-  transform: scale(0.82);
+  transform: translateX(var(--ghost-splay-x, 0px)) scale(0.82);
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
 }
 
@@ -2618,7 +2619,7 @@ body.edit-mode .settings-menu-panel {
 .ghost-marker.race-competitor .racer-tag {
   position: absolute;
   bottom: 100%;
-  left: 50%;
+  left: calc(50% + var(--ghost-splay-x, 0px));
   transform: translateX(-50%) translateY(-4px);
   background: rgba(15, 23, 42, 0.92);
   backdrop-filter: blur(8px);

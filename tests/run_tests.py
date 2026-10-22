@@ -2417,6 +2417,10 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     # 9. Intelligent pin stacking assertions
     assert "--ghost-stack-offset" in css, "style.css must support dynamic --ghost-stack-offset"
     assert "--ghost-stack-offset" in overlay_js, "overlay.js must set --ghost-stack-offset for tiered stacking"
+    assert "--ghost-splay-x" in css, "style.css must support horizontal fan splay --ghost-splay-x"
+    assert "--ghost-splay-x" in overlay_js, "overlay.js must compute --ghost-splay-x for horizontal fan stacking"
+    assert "--ghost-needle-angle" in css, "style.css must support angled needle rotation --ghost-needle-angle"
+    assert "--ghost-needle-angle" in overlay_js, "overlay.js must compute --ghost-needle-angle"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 

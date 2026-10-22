@@ -1985,11 +1985,17 @@ function hideAllGhostMarkers() {
   if (staticMarker) {
     staticMarker.style.display = "none";
     staticMarker.style.removeProperty("--ghost-stack-offset");
+    staticMarker.style.removeProperty("--ghost-splay-x");
+    staticMarker.style.removeProperty("--ghost-needle-angle");
+    staticMarker.style.removeProperty("--ghost-needle-height");
   }
   knownGhostMarkers.forEach((m) => {
     if (m) {
       m.style.display = "none";
       m.style.removeProperty("--ghost-stack-offset");
+      m.style.removeProperty("--ghost-splay-x");
+      m.style.removeProperty("--ghost-needle-angle");
+      m.style.removeProperty("--ghost-needle-height");
     }
   });
 }
@@ -2149,10 +2155,16 @@ function updateGhostRunner(currentSec) {
     if (ghostCoord < visibleMin) {
       marker.style.display = "none";
       marker.style.removeProperty("--ghost-stack-offset");
+      marker.style.removeProperty("--ghost-splay-x");
+      marker.style.removeProperty("--ghost-needle-angle");
+      marker.style.removeProperty("--ghost-needle-height");
       leftOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
     } else if (ghostCoord > visibleMax) {
       marker.style.display = "none";
       marker.style.removeProperty("--ghost-stack-offset");
+      marker.style.removeProperty("--ghost-splay-x");
+      marker.style.removeProperty("--ghost-needle-angle");
+      marker.style.removeProperty("--ghost-needle-height");
       rightOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
     } else {
       visibleOnscreenMarkers.push({
@@ -2207,6 +2219,9 @@ function updateGhostRunner(currentSec) {
     if (ghostCoord < visibleMin) {
       marker.style.display = "none";
       marker.style.removeProperty("--ghost-stack-offset");
+      marker.style.removeProperty("--ghost-splay-x");
+      marker.style.removeProperty("--ghost-needle-angle");
+      marker.style.removeProperty("--ghost-needle-height");
       leftOffscreenGhosts.push({
         ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
         deltaStr,
@@ -2215,6 +2230,9 @@ function updateGhostRunner(currentSec) {
     } else if (ghostCoord > visibleMax) {
       marker.style.display = "none";
       marker.style.removeProperty("--ghost-stack-offset");
+      marker.style.removeProperty("--ghost-splay-x");
+      marker.style.removeProperty("--ghost-needle-angle");
+      marker.style.removeProperty("--ghost-needle-height");
       rightOffscreenGhosts.push({
         ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
         deltaStr,
@@ -2229,48 +2247,149 @@ function updateGhostRunner(currentSec) {
     }
   });
 
-  // 3. Intelligent Tiered Stacking for Colliding / Overlapping Pins
-  // Pins within 24px of each other are elevated to higher tiers so badges never occlude
+  // 3. Intelligent Horizontal Fan / Splay with Angled Needles for Overlapping Pins
+  // Pins within 24px spread horizontally so badges never overlap or hit the ceiling,
+  // with needles angling directly down to each runner's exact coordinate on the track.
   const COLLISION_THRESHOLD = 24; // px
-  visibleOnscreenMarkers.sort((a, b) => a.coord - b.coord);
 
-  const activeTiers = []; // tierIndex -> last occupied coordinate
-
-  visibleOnscreenMarkers.forEach((item) => {
-    let tier = 0;
-    while (activeTiers[tier] !== undefined && (item.coord - activeTiers[tier]) < COLLISION_THRESHOLD) {
-      tier++;
+  visibleOnscreenMarkers.sort((a, b) => {
+    if (Math.abs(a.coord - b.coord) > 0.001) {
+      return a.coord - b.coord;
     }
-    tier = Math.min(tier, 2); // Cap at 3 tiers (0, 1, 2)
-    activeTiers[tier] = item.coord;
+    const idA = a.marker.id || "";
+    const idB = b.marker.id || "";
+    return idA.localeCompare(idB);
+  });
 
-    const marker = item.marker;
-    marker.style.display = "flex";
+  if (isVertical) {
+    // In vertical track orientation, tier pins horizontally to the right
+    const activeTiers = [];
+    visibleOnscreenMarkers.forEach((item) => {
+      let tier = 0;
+      while (activeTiers[tier] !== undefined && (item.coord - activeTiers[tier]) < COLLISION_THRESHOLD) {
+        tier++;
+      }
+      tier = Math.min(tier, 2);
+      activeTiers[tier] = item.coord;
 
-    if (isVertical) {
+      const marker = item.marker;
+      marker.style.display = "flex";
       const offsetX = tier * 28;
       marker.style.transform = `translateY(${item.coord}px) translateY(-50%) translateX(calc(-50% + ${offsetX}px))`;
       marker.style.zIndex = `${20 + tier}`;
       marker.style.removeProperty("--ghost-stack-offset");
-    } else {
-      const tierStep = 24; // px per tier
-      const stackOffset = tier * tierStep;
-      if (stackOffset > 0) {
-        marker.style.setProperty("--ghost-stack-offset", `${stackOffset}px`);
-      } else {
-        marker.style.removeProperty("--ghost-stack-offset");
-      }
-      marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
-      marker.style.zIndex = `${25 + tier}`;
+      marker.style.removeProperty("--ghost-splay-x");
+      marker.style.removeProperty("--ghost-needle-angle");
+      marker.style.removeProperty("--ghost-needle-height");
+    });
+  } else {
+    // Horizontal track orientation: Horizontal Fan-Out / Angled Needles
+    const clusters = [];
+    let curCluster = [];
 
-      const distPrev = Math.abs(item.coord - item.coords.startCoord);
-      const distNext = Math.abs(item.coords.endCoord - item.coord);
-      const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
-      const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
-      const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
-      marker.classList.toggle("compact", tier === 0 && isHoveringText);
+    visibleOnscreenMarkers.forEach((item) => {
+      if (curCluster.length === 0) {
+        curCluster.push(item);
+      } else {
+        const prev = curCluster[curCluster.length - 1];
+        if (item.coord - prev.coord < COLLISION_THRESHOLD) {
+          curCluster.push(item);
+        } else {
+          clusters.push(curCluster);
+          curCluster = [item];
+        }
+      }
+    });
+    if (curCluster.length > 0) {
+      clusters.push(curCluster);
     }
-  });
+
+    const badgeSpacing = 24; // px spacing between badge centers in fan
+    const baseNeedleLength = 16; // default baseline needle length in px
+
+    clusters.forEach((cluster) => {
+      const N = cluster.length;
+      if (N === 1) {
+        const item = cluster[0];
+        const marker = item.marker;
+        marker.style.display = "flex";
+        marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
+        marker.style.zIndex = "20";
+        marker.style.removeProperty("--ghost-splay-x");
+        marker.style.removeProperty("--ghost-needle-angle");
+        marker.style.removeProperty("--ghost-needle-height");
+        marker.style.removeProperty("--ghost-stack-offset");
+
+        const distPrev = Math.abs(item.coord - item.coords.startCoord);
+        const distNext = Math.abs(item.coords.endCoord - item.coord);
+        const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
+        const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
+        const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
+        marker.classList.toggle("compact", isHoveringText);
+      } else {
+        const clusterMinCoord = cluster[0].coord;
+        const clusterMaxCoord = cluster[N - 1].coord;
+        const clusterCenter = (clusterMinCoord + clusterMaxCoord) / 2;
+
+        const badgePositions = [];
+        for (let k = 0; k < N; k++) {
+          badgePositions.push(clusterCenter + (k - (N - 1) / 2) * badgeSpacing);
+        }
+
+        // Keep all badges within visible bounds (e.g. at Start split = 0)
+        const leftBound = visibleMin + 14;
+        const rightBound = visibleMax - 14;
+        if (badgePositions[0] < leftBound) {
+          const shift = leftBound - badgePositions[0];
+          for (let k = 0; k < N; k++) badgePositions[k] += shift;
+        } else if (badgePositions[N - 1] > rightBound) {
+          const shift = badgePositions[N - 1] - rightBound;
+          for (let k = 0; k < N; k++) badgePositions[k] -= shift;
+        }
+
+        cluster.forEach((item, k) => {
+          const marker = item.marker;
+          marker.style.display = "flex";
+          marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
+          marker.style.zIndex = `${25 + k}`;
+
+          const deltaX = Math.round((badgePositions[k] - item.coord) * 10) / 10;
+
+          const distPrev = Math.abs(item.coord - item.coords.startCoord);
+          const distNext = Math.abs(item.coords.endCoord - item.coord);
+          const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
+          const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
+          const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
+          marker.classList.toggle("compact", isHoveringText);
+
+          const effH = isHoveringText ? Math.min(5, baseNeedleLength) : baseNeedleLength;
+          // Subtle alternating stagger for visual layering depth without hitting ceiling
+          const staggerY = (k % 2 === 1) ? 3 : 0;
+          const totalH = effH + staggerY;
+
+          const angleRad = Math.atan2(-deltaX, totalH);
+          const angleDeg = Math.round((angleRad * (180 / Math.PI)) * 10) / 10;
+          const needleLen = Math.round(Math.sqrt(deltaX * deltaX + totalH * totalH) * 10) / 10;
+
+          if (Math.abs(deltaX) > 0.5) {
+            marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
+            marker.style.setProperty("--ghost-needle-angle", `${angleDeg}deg`);
+            marker.style.setProperty("--ghost-needle-height", `${needleLen}px`);
+            if (staggerY > 0) {
+              marker.style.setProperty("--ghost-stack-offset", `${staggerY}px`);
+            } else {
+              marker.style.removeProperty("--ghost-stack-offset");
+            }
+          } else {
+            marker.style.removeProperty("--ghost-splay-x");
+            marker.style.removeProperty("--ghost-needle-angle");
+            marker.style.removeProperty("--ghost-needle-height");
+            marker.style.removeProperty("--ghost-stack-offset");
+          }
+        });
+      }
+    });
+  }
 
   // Hide static template marker and any marker not in rendered set
   const staticMarker = document.getElementById("ghost-marker");
