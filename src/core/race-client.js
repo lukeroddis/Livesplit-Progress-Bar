@@ -29,78 +29,81 @@
   ];
 
   // Preset virtual competitors for realistic simulation mode (9 competitors + 1 host = 10 racers total)
+  // Balanced around Host as median pace (P5/P6): 4 faster rivals ahead (-0.5% to -5.0%), 5 rivals behind (+0.8% to +6.5%)
+  // Over a 3.5h run, this produces the requested +/- 10 min spread; over a 15m run, it scales adaptively to +/- 45-60s.
   const SIMULATED_COMPETITORS = [
     {
       id: "sim_speeddemon",
       username: "SpeedDemon",
       avatar: "⚡",
       color: "#06b6d4",
-      paceFactor: 0.96, // Fast, aggressive pace
+      paceFactor: 0.950, // P1 contender (-5.0% pace, ~10.2m ahead in 3.5h)
       driftOffset: -1.8
-    },
-    {
-      id: "sim_apex",
-      username: "ApexRunner",
-      avatar: "🏎️",
-      color: "#f59e0b",
-      paceFactor: 1.00, // Neck-and-neck rival (frequent overtakes)
-      driftOffset: 0.2
-    },
-    {
-      id: "sim_shadow",
-      username: "ShadowPacer",
-      avatar: "👤",
-      color: "#a855f7",
-      paceFactor: 1.04, // Conservative steady runner
-      driftOffset: 2.5
     },
     {
       id: "sim_turboblaze",
       username: "TurboBlaze",
       avatar: "🔥",
       color: "#ef4444",
-      paceFactor: 0.98, // Fast starter
+      paceFactor: 0.965, // P2 contender (-3.5% pace, ~7.1m ahead in 3.5h)
       driftOffset: -0.9
-    },
-    {
-      id: "sim_echoglide",
-      username: "EchoGlide",
-      avatar: "🌀",
-      color: "#3b82f6",
-      paceFactor: 1.02, // Consistent pacer
-      driftOffset: 1.4
     },
     {
       id: "sim_pixelknight",
       username: "PixelKnight",
       avatar: "🛡️",
       color: "#10b981",
-      paceFactor: 0.99, // Tactical contender
+      paceFactor: 0.980, // P3 contender (-2.0% pace, ~4.1m ahead in 3.5h)
       driftOffset: -0.4
     },
     {
-      id: "sim_novashift",
-      username: "NovaShift",
-      avatar: "✨",
-      color: "#ec4899",
-      paceFactor: 1.05, // Late-run charger
-      driftOffset: 3.1
+      id: "sim_apex",
+      username: "ApexRunner",
+      avatar: "🏎️",
+      color: "#f59e0b",
+      paceFactor: 0.995, // Direct rival (-0.5% pace, ~1.0m ahead in 3.5h)
+      driftOffset: 0.2
     },
+    // [Host / You: 1.000 baseline (Average pace)]
     {
       id: "sim_frostbyte",
       username: "FrostByte",
       avatar: "❄️",
       color: "#38bdf8",
-      paceFactor: 1.01, // Tight pack runner
+      paceFactor: 1.008, // Close pursuer (+0.8% pace, ~1.6m behind in 3.5h)
       driftOffset: 0.8
+    },
+    {
+      id: "sim_echoglide",
+      username: "EchoGlide",
+      avatar: "🌀",
+      color: "#3b82f6",
+      paceFactor: 1.020, // Midfield chaser (+2.0% pace, ~4.1m behind in 3.5h)
+      driftOffset: 1.4
     },
     {
       id: "sim_vipersprint",
       username: "ViperSprint",
       avatar: "🐍",
       color: "#84cc16",
-      paceFactor: 1.03, // Dynamic overtaker
+      paceFactor: 1.035, // Dynamic overtaker (+3.5% pace, ~7.1m behind in 3.5h)
       driftOffset: -2.3
+    },
+    {
+      id: "sim_shadow",
+      username: "ShadowPacer",
+      avatar: "👤",
+      color: "#a855f7",
+      paceFactor: 1.050, // Conservative pacer (+5.0% pace, ~10.2m behind in 3.5h)
+      driftOffset: 2.5
+    },
+    {
+      id: "sim_novashift",
+      username: "NovaShift",
+      avatar: "✨",
+      color: "#ec4899",
+      paceFactor: 1.065, // Late charger (+6.5% pace, ~13.2m behind in 3.5h)
+      driftOffset: 3.1
     }
   ];
 
@@ -844,8 +847,9 @@
         for (let k = 0; k < simulationCourseTargets.length; k++) {
           const prevT = k > 0 ? simulationCourseTargets[k - 1] : 0;
           const baseSegDur = Math.max(1, simulationCourseTargets[k] - prevT);
-          const splitJitter = Math.sin((k + 1) * 1.7 + cfg.driftOffset) * 0.75;
-          const segDur = Math.max(1, (baseSegDur * cfg.paceFactor) + splitJitter);
+          // Scale split variance relative to segment duration (up to +/- 3.5% of segment)
+          const jitterPercent = Math.sin((k + 1) * 1.7 + cfg.driftOffset) * 0.035;
+          const segDur = Math.max(0.5, baseSegDur * (cfg.paceFactor + jitterPercent));
           cumTime += segDur;
           checkpointTimes.push(cumTime);
         }
@@ -876,7 +880,15 @@
 
       function advanceVirtualHost(baseSec) {
         simVirtualSec = baseSec + 0.05;
-        const curIdx = Math.floor(simVirtualSec / 30);
+        let curIdx = 0;
+        for (let i = 0; i < simulationCourseTargets.length; i++) {
+          if (simVirtualSec < simulationCourseTargets[i]) {
+            curIdx = i;
+            break;
+          }
+          curIdx = i + 1;
+        }
+        curIdx = Math.min(curIdx, simulationCourseTargets.length);
         let hostFlash = null;
         if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
           if (!Array.isArray(hostState.splitTimes)) hostState.splitTimes = [];

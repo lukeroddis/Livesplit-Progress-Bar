@@ -1162,6 +1162,33 @@
         rc.stopSimulation();
       });
 
+      it("Adaptive game-agnostic pacing centers the pack on the host with faster and slower rivals", () => {
+        const rc = window.LiveSplit.RaceClient;
+        // Test with a 3.5 hour course (12,240s) similar to FFX Cutscene Remover
+        rc.startSimulation(
+          ["Split 1", "Split 2", "Split 3", "Final"],
+          [3000, 6000, 9000, 12240]
+        );
+
+        const entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 10, "10 racers total (9 rivals + 1 host)");
+
+        const speedDemon = entrants.find(e => e.userId === "sim_speeddemon");
+        const shadow = entrants.find(e => e.userId === "sim_shadow");
+
+        // SpeedDemon final checkpoint should be ~5% faster than 12240s (~612s / ~10.2m ahead)
+        const sdFinal = speedDemon.checkpointTimes[3];
+        assert(sdFinal < 12240, "SpeedDemon is faster than baseline");
+        assert(12240 - sdFinal > 500 && 12240 - sdFinal < 750, `SpeedDemon gap is ~10 min ahead (${Math.round(12240 - sdFinal)}s)`);
+
+        // ShadowPacer final checkpoint should be ~5% slower than 12240s (~612s / ~10.2m behind)
+        const shadowFinal = shadow.checkpointTimes[3];
+        assert(shadowFinal > 12240, "ShadowPacer is slower than baseline");
+        assert(shadowFinal - 12240 > 500 && shadowFinal - 12240 < 750, `ShadowPacer gap is ~10 min behind (${Math.round(shadowFinal - 12240)}s)`);
+
+        rc.stopSimulation();
+      });
+
       it("Reset cleanly clears simulation state and leaderboard transforms", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
