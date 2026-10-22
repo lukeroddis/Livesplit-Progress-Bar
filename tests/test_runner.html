@@ -1163,6 +1163,57 @@
 
         rc.stopSimulation();
       });
+
+      it("Leaderboard highlights host tile without 'YOU' pill and displays entered username", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.setHostUsername("SpeedyLuke");
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+
+        const entrants = rc.getRankedEntrants();
+        const hostEntrant = entrants.find(e => e.isHost);
+        assert(hostEntrant, "Host entrant exists");
+        assertEqual(hostEntrant.username, "SpeedyLuke", "Host entrant adopts configured username");
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
+
+        const hostRow = document.querySelector(`.leaderboard-row[data-user-id="${hostEntrant.userId}"]`);
+        assert(hostRow, "Host row rendered");
+        assert(hostRow.classList.contains("is-host"), "Host row receives .is-host highlighted styling");
+
+        const nameEl = hostRow.querySelector(".racer-name");
+        assert(nameEl, "Name element exists");
+        assertEqual(nameEl.textContent.trim(), "SpeedyLuke", "Displays actual entered username instead of hardcoded 'You'");
+
+        const hostPills = document.querySelectorAll("#leaderboard-rows .host-pill");
+        assertEqual(hostPills.length, 0, "No 'YOU' pills rendered anywhere in the leaderboard");
+
+        rc.stopSimulation();
+      });
+
+      it("Leaderboard simulation defaults host username to 'You' when none is specified, without 'YOU' pill", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.setHostUsername("");
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+
+        const entrants = rc.getRankedEntrants();
+        const hostEntrant = entrants.find(e => e.isHost);
+        assert(hostEntrant, "Host entrant exists");
+        assertEqual(hostEntrant.username, "You", "Host entrant defaults to 'You' when none specified");
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
+
+        const hostRow = document.querySelector(`.leaderboard-row[data-user-id="${hostEntrant.userId}"]`);
+        assert(hostRow, "Host row rendered");
+        assert(hostRow.classList.contains("is-host"), "Host row is highlighted");
+
+        const nameEl = hostRow.querySelector(".racer-name");
+        assertEqual(nameEl.textContent.trim(), "You", "Name label says 'You'");
+
+        const hostPills = document.querySelectorAll("#leaderboard-rows .host-pill");
+        assertEqual(hostPills.length, 0, "No 'YOU' pill rendered");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---

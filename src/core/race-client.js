@@ -35,7 +35,13 @@
     let raceId = null;
     let ws = null;
     let heartbeatTimer = null;
-    let autoDetectUsername = "";
+    let hostUsername = "";
+    try {
+      if (typeof localStorage !== "undefined") {
+        hostUsername = (localStorage.getItem("therun_username") || "").trim();
+      }
+    } catch (_) {}
+    let autoDetectUsername = hostUsername;
     let isSimulating = false;
     let simulationTimer = null;
     let activeSplitsList = [];
@@ -52,7 +58,7 @@
     // Local host runner state
     let hostState = {
       userId: "you",
-      username: "You",
+      username: hostUsername || "You",
       isHost: true,
       avatar: "",
       color: "#38bdf8",
@@ -65,6 +71,37 @@
       score: 0,
       isMuted: false
     };
+
+    function setHostUsername(name) {
+      hostUsername = (name || "").trim();
+      autoDetectUsername = hostUsername;
+      hostState.username = hostUsername || "You";
+
+      if (isSimulating) {
+        const hostEntrant = entrants.get(hostState.userId);
+        if (hostEntrant) {
+          hostEntrant.username = hostState.username;
+        }
+      } else {
+        // In live race, update isHost on entrants matching hostUsername
+        entrants.forEach((entrant) => {
+          const isMatch = !!(hostUsername && (
+            String(entrant.username || "").trim().toLowerCase() === hostUsername.toLowerCase() ||
+            String(entrant.userId || "").trim().toLowerCase() === hostUsername.toLowerCase()
+          ));
+          entrant.isHost = isMatch;
+          if (isMatch) {
+            entrant.color = "#38bdf8";
+          }
+        });
+      }
+
+      notifyListeners("entrants_update", null);
+    }
+
+    function getHostUsername() {
+      return hostUsername;
+    }
 
     function notifyListeners(eventType, payload) {
       listeners.forEach((fn) => {
@@ -105,10 +142,30 @@
      * Returns all entrants (host + competitors), sorted into F1 standings order.
      */
     function getRankedEntrants() {
-      const list = Array.from(entrants.values());
-      // Ensure host is in the list
-      if (!entrants.has(hostState.userId)) {
-        list.push(hostState);
+      let list = Array.from(entrants.values());
+
+      if (isSimulating) {
+        // In simulation mode, ensure host runner is present
+        if (!list.some(r => r.userId === hostState.userId)) {
+          list.push(hostState);
+        }
+      } else if (ws !== null || (raceId && raceId !== "sim_cup_2026")) {
+        // In live race:
+        // If user has not set a username in settings, display the race entrants with NO host runner
+        if (!hostUsername) {
+          list = list.filter(r => r.userId !== hostState.userId);
+        } else {
+          // If user HAS set a username in settings, check if one of the live race entrants matched
+          const hasMatched = list.some(r => r.isHost && r.userId !== hostState.userId);
+          if (hasMatched) {
+            list = list.filter(r => r.userId !== hostState.userId);
+          }
+        }
+      } else {
+        // Idle/preview state: ensure host is in the list
+        if (!list.some(r => r.userId === hostState.userId)) {
+          list.push(hostState);
+        }
       }
 
       // Sort criteria:
@@ -293,6 +350,22 @@
       // In simulation mode, update simulated competitors synchronously
       if (isSimulating) {
         tickSimulatedCompetitors(currentSec, comparisonTimes);
+      } else if (hostUsername) {
+        entrants.forEach((racer) => {
+          if (racer.isHost && racer.userId !== hostState.userId) {
+            racer.currentTimeSec = hostState.currentTimeSec;
+            racer.currentSplitIndex = hostState.currentSplitIndex;
+            racer.currentSplitName = hostState.currentSplitName;
+            racer.score = hostState.score;
+            if (hostState.lastSplitEffect) {
+              racer.lastSplitEffect = hostState.lastSplitEffect;
+            }
+            if (hostState.isFinished) {
+              racer.isFinished = true;
+              racer.finalTimeSec = hostState.finalTimeSec;
+            }
+          }
+        });
       }
 
       notifyListeners("progress_update", { runnerId: hostState.userId });
@@ -399,6 +472,18 @@
         ws = null;
       }
       raceId = null;
+      try {
+        if (typeof localStorage !== "undefined") {
+          const stored = (localStorage.getItem("therun_username") || "").trim();
+          if (stored) {
+            hostUsername = stored;
+          }
+        }
+      } catch (_) {}
+      hostState.username = hostUsername || "You";
+      hostState.isHost = true;
+      hostState.color = "#38bdf8";
+
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
       notifyListeners("race_disconnected", null);
@@ -420,15 +505,22 @@
 
     function updateEntrantFromTelemetry(data) {
       const uId = data.userId || data.login || data.user || `racer_${entrants.size + 1}`;
-      if (uId === hostState.userId || uId.toLowerCase() === autoDetectUsername.toLowerCase()) {
-        return; // Host runner handled locally
+      if (uId === hostState.userId) {
+        return; // Standalone host state handled locally
       }
+
+      const rawName = data.user || data.username || data.login || uId;
+      const isMatchedHost = !!(hostUsername && (
+        String(rawName).trim().toLowerCase() === hostUsername.toLowerCase() ||
+        String(uId).trim().toLowerCase() === hostUsername.toLowerCase()
+      ));
 
       const existing = entrants.get(uId) || {
         userId: uId,
-        username: data.user || data.username || uId,
+        username: rawName,
         avatar: data.picture || data.avatar || "",
-        color: RACER_PALETTE[entrants.size % RACER_PALETTE.length],
+        color: isMatchedHost ? "#38bdf8" : RACER_PALETTE[entrants.size % RACER_PALETTE.length],
+        isHost: isMatchedHost,
         currentSplitIndex: 0,
         currentSplitName: "",
         currentTimeSec: 0,
@@ -437,6 +529,12 @@
         score: 0,
         isMuted: false
       };
+
+      existing.username = rawName;
+      existing.isHost = isMatchedHost;
+      if (isMatchedHost) {
+        existing.color = "#38bdf8";
+      }
 
       if (typeof data.currentSplitIndex === "number") {
         if (data.currentSplitIndex > existing.currentSplitIndex) {
@@ -528,6 +626,18 @@
           driftOffset: 2.5
         }
       ];
+
+      try {
+        if (typeof localStorage !== "undefined") {
+          const stored = (localStorage.getItem("therun_username") || "").trim();
+          if (stored) {
+            hostUsername = stored;
+          }
+        }
+      } catch (_) {}
+      hostState.username = hostUsername || "You";
+      hostState.isHost = true;
+      hostState.color = "#38bdf8";
 
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
@@ -735,6 +845,7 @@
     return {
       init(opts = {}) {
         if (opts.username) {
+          setHostUsername(opts.username);
           startAutoDetect(opts.username);
         }
       },
@@ -743,6 +854,8 @@
       disconnectFromRace,
       startAutoDetect,
       stopAutoDetect,
+      setHostUsername,
+      getHostUsername,
       startSimulation,
       stopSimulation,
       isSimulating: () => isSimulating,

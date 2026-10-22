@@ -3572,11 +3572,14 @@ function initOverlay() {
   }
 
   if (raceClient) {
-    const savedUsername = localStorage.getItem("therun_username") || "";
+    const savedUsername = (localStorage.getItem("therun_username") || "").trim();
     if (therunUserInp && savedUsername) {
       therunUserInp.value = savedUsername;
     }
     if (savedUsername) {
+      if (typeof raceClient.setHostUsername === "function") {
+        raceClient.setHostUsername(savedUsername);
+      }
       raceClient.startAutoDetect(savedUsername);
     }
 
@@ -3584,6 +3587,9 @@ function initOverlay() {
       therunSaveBtn.addEventListener("click", () => {
         const val = (therunUserInp ? therunUserInp.value : "").trim();
         localStorage.setItem("therun_username", val);
+        if (raceClient && typeof raceClient.setHostUsername === "function") {
+          raceClient.setHostUsername(val);
+        }
         if (val) {
           raceClient.startAutoDetect(val);
           therunSaveBtn.textContent = "✓ Saved";
@@ -3592,6 +3598,19 @@ function initOverlay() {
           raceClient.stopAutoDetect();
           therunSaveBtn.textContent = "Cleared";
           setTimeout(() => { therunSaveBtn.textContent = "✓ Save"; }, 1500);
+        }
+
+        // Re-render leaderboard immediately if visible
+        if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
+          const isSim = raceClient ? (typeof raceClient.isSimulating === "function" ? raceClient.isSimulating() : !!raceClient.isSimulating) : false;
+          const isConn = raceClient ? (typeof raceClient.isConnected === "function" ? raceClient.isConnected() : !!raceClient.isConnected) : false;
+          const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
+          window.LiveSplitLeaderboard.renderLeaderboard(
+            raceClient ? raceClient.getRankedEntrants() : [],
+            isSim,
+            isConn,
+            isEditMode
+          );
         }
       });
     }

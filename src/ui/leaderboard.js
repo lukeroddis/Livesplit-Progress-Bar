@@ -47,6 +47,8 @@
    * Returns fallback preview entrants for Edit Mode when not in a race.
    */
   function getPreviewEntrants() {
+    const savedName = (typeof localStorage !== "undefined" && localStorage.getItem("therun_username")) || "";
+    const hostDisplayName = savedName.trim() || "You";
     return [
       {
         userId: "prev_speeddemon",
@@ -62,7 +64,7 @@
       },
       {
         userId: "you",
-        username: "You",
+        username: hostDisplayName,
         avatar: "",
         color: "#38bdf8",
         rank: 2,
@@ -231,7 +233,7 @@
           ? `<img class="racer-avatar-img" src="${racer.avatar}" alt="" />`
           : `<span class="racer-avatar-emoji">${racer.avatar || (isHost ? "👤" : "🏎️")}</span>`;
 
-        const displayName = isHost ? "You" : racer.username;
+        const displayName = racer.username || (isHost ? "You" : "Runner");
         const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
 
         row.innerHTML = `
@@ -239,7 +241,7 @@
           <div class="racer-accent-bar"></div>
           <div class="racer-avatar-badge">${avatarMarkup}</div>
           <div class="racer-name-block">
-            <span class="racer-name">${escapeHtml(displayName)}${isHost ? '<span class="host-pill">YOU</span>' : ''}</span>
+            <span class="racer-name">${escapeHtml(displayName)}</span>
             <span class="racer-split">${escapeHtml(splitLabel)}</span>
           </div>
           <div class="racer-gap-col" title="${escapeHtml(gapTooltip)}">
@@ -260,6 +262,12 @@
         if (posBadge) {
           posBadge.textContent = rank;
           posBadge.className = `pos-badge pos-${rank <= 3 ? rank : 'other'}`;
+        }
+
+        const nameEl = row.querySelector(".racer-name");
+        const displayName = racer.username || (isHost ? "You" : "Runner");
+        if (nameEl && nameEl.textContent !== displayName) {
+          nameEl.textContent = displayName;
         }
 
         const splitEl = row.querySelector(".racer-split");
@@ -285,7 +293,26 @@
         }
 
         const muteBtn = row.querySelector(".racer-mute-btn");
-        if (muteBtn) {
+        const muteSpacer = row.querySelector(".racer-mute-spacer");
+        if (isHost && muteBtn) {
+          muteBtn.remove();
+          if (!muteSpacer) {
+            const spacer = document.createElement("div");
+            spacer.className = "racer-mute-spacer";
+            row.appendChild(spacer);
+          }
+        } else if (!isHost && muteSpacer) {
+          muteSpacer.remove();
+          if (!muteBtn) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "racer-mute-btn";
+            btn.setAttribute("data-mute-user", uId);
+            btn.title = isMuted ? "Unmute pin on track" : "Mute pin on track";
+            btn.textContent = isMuted ? "🔇" : "👁️";
+            row.appendChild(btn);
+          }
+        } else if (muteBtn) {
           const expectedIcon = isMuted ? "🔇" : "👁️";
           if (muteBtn.textContent !== expectedIcon) {
             muteBtn.textContent = expectedIcon;

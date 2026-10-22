@@ -2405,6 +2405,14 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     with open(os.path.join(ROOT_DIR, "src", "core", "race-client.js"), "r", encoding="utf-8") as rf:
         race_code = rf.read()
     assert "if (hostState.currentTimeSec > 0)" in race_code, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
+    assert "setHostUsername" in race_code, "race-client.js must export setHostUsername"
+    assert "getHostUsername" in race_code, "race-client.js must export getHostUsername"
+
+    # 8. User tile styling & no 'YOU' tag rule
+    with open(os.path.join(ROOT_DIR, "src", "ui", "leaderboard.js"), "r", encoding="utf-8") as lf:
+        leaderboard_code = lf.read()
+    assert '<span class="host-pill">' not in leaderboard_code, "leaderboard.js must never render host-pill tag (implied by highlighted tile)"
+    assert 'const displayName = racer.username || (isHost ? "You" : "Runner");' in leaderboard_code, "leaderboard.js must resolve entrant username rather than overriding to 'You'"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
