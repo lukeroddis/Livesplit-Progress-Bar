@@ -293,6 +293,24 @@
           }
         }
       }
+
+      // Split completion glow pulse (Gold / Green / Red)
+      const effect = racer.lastSplitEffect;
+      const effectAge = effect ? (Date.now() - (effect.timestamp || 0)) : Infinity;
+      const isEffectActive = effect && effect.type && effectAge >= 0 && effectAge < 2000;
+      const targetClass = isEffectActive ? `split-flash-${effect.type}` : null;
+      const lastAppliedEffectTime = row.dataset.lastEffectTime;
+
+      if (isEffectActive && String(effect.timestamp) !== lastAppliedEffectTime) {
+        // Trigger / re-trigger CSS keyframe glow animation
+        row.classList.remove("split-flash-gold", "split-flash-green", "split-flash-red");
+        void row.offsetWidth;
+        row.classList.add(targetClass);
+        row.dataset.lastEffectTime = String(effect.timestamp);
+      } else if (!isEffectActive && (row.classList.contains("split-flash-gold") || row.classList.contains("split-flash-green") || row.classList.contains("split-flash-red"))) {
+        row.classList.remove("split-flash-gold", "split-flash-green", "split-flash-red");
+        delete row.dataset.lastEffectTime;
+      }
     });
 
     // Reorder DOM child nodes only when the physical slot order has actually changed.
@@ -338,7 +356,8 @@
         row.style.transition = "none";
         row.style.transform = "";
         row.style.zIndex = "";
-        row.classList.remove("overtake-flash");
+        row.classList.remove("overtake-flash", "split-flash-gold", "split-flash-green", "split-flash-red");
+        delete row.dataset.lastEffectTime;
       }
     });
   }

@@ -2787,6 +2787,139 @@ body.edit-mode .settings-menu-panel {
   }
 }
 
+/* Split Completion Tile Glow Pulses (Gold / Green / Red) */
+.leaderboard-row.split-flash-gold {
+  animation: split-pulse-gold 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes split-pulse-gold {
+  0% {
+    background: rgba(250, 204, 21, 0.32);
+    border-color: #facc15;
+    box-shadow: 0 0 16px rgba(250, 204, 21, 0.7), inset 0 0 8px rgba(250, 204, 21, 0.25);
+  }
+  35% {
+    background: rgba(250, 204, 21, 0.20);
+    border-color: rgba(250, 204, 21, 0.75);
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+  }
+  100% {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(148, 163, 184, 0.12);
+    box-shadow: none;
+  }
+}
+
+.leaderboard-row.is-host.split-flash-gold {
+  animation: split-pulse-gold-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes split-pulse-gold-host {
+  0% {
+    background: rgba(250, 204, 21, 0.35);
+    border-color: #facc15;
+    box-shadow: 0 0 18px rgba(250, 204, 21, 0.75), inset 0 0 10px rgba(250, 204, 21, 0.3);
+  }
+  35% {
+    background: rgba(250, 204, 21, 0.22);
+    border-color: rgba(250, 204, 21, 0.85);
+    box-shadow: 0 0 14px rgba(250, 204, 21, 0.5);
+  }
+  100% {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+  }
+}
+
+.leaderboard-row.split-flash-green {
+  animation: split-pulse-green 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes split-pulse-green {
+  0% {
+    background: rgba(34, 197, 94, 0.32);
+    border-color: #22c55e;
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.65), inset 0 0 8px rgba(34, 197, 94, 0.2);
+  }
+  35% {
+    background: rgba(34, 197, 94, 0.18);
+    border-color: rgba(34, 197, 94, 0.75);
+    box-shadow: 0 0 11px rgba(34, 197, 94, 0.4);
+  }
+  100% {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(148, 163, 184, 0.12);
+    box-shadow: none;
+  }
+}
+
+.leaderboard-row.is-host.split-flash-green {
+  animation: split-pulse-green-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes split-pulse-green-host {
+  0% {
+    background: rgba(34, 197, 94, 0.35);
+    border-color: #22c55e;
+    box-shadow: 0 0 18px rgba(34, 197, 94, 0.7), inset 0 0 10px rgba(34, 197, 94, 0.25);
+  }
+  35% {
+    background: rgba(34, 197, 94, 0.22);
+    border-color: rgba(34, 197, 94, 0.8);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.45);
+  }
+  100% {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+  }
+}
+
+.leaderboard-row.split-flash-red {
+  animation: split-pulse-red 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes split-pulse-red {
+  0% {
+    background: rgba(239, 68, 68, 0.32);
+    border-color: #ef4444;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.65), inset 0 0 8px rgba(239, 68, 68, 0.2);
+  }
+  35% {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.75);
+    box-shadow: 0 0 11px rgba(239, 68, 68, 0.4);
+  }
+  100% {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(148, 163, 184, 0.12);
+    box-shadow: none;
+  }
+}
+
+.leaderboard-row.is-host.split-flash-red {
+  animation: split-pulse-red-host 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes split-pulse-red-host {
+  0% {
+    background: rgba(239, 68, 68, 0.35);
+    border-color: #ef4444;
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.7), inset 0 0 10px rgba(239, 68, 68, 0.25);
+  }
+  35% {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: rgba(239, 68, 68, 0.8);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
+  }
+  100% {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+  }
+}
+
 .pos-badge {
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 11px;

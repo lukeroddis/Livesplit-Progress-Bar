@@ -211,7 +211,7 @@
     /**
      * Updates the host runner's in-run progress.
      */
-    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = []) {
+    function updateHostProgress(currentSec, currentIndex, completedSplitTimes = [], comparisonTimes = [], currentSplitName = "", splitsList = [], splitFlash = null) {
       if (Array.isArray(splitsList) && splitsList.length > 0) {
         activeSplitsList = splitsList;
       }
@@ -221,6 +221,15 @@
       hostState.currentTimeSec = Math.max(0, currentSec || 0);
       hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
       hostState.splitTimes = completedSplitTimes;
+
+      if (splitFlash && splitFlash.type) {
+        hostState.lastSplitEffect = {
+          type: splitFlash.type,
+          timestamp: splitFlash.timestamp || Date.now()
+        };
+      } else if (hostState.lastSplitEffect && (Date.now() - (hostState.lastSplitEffect.timestamp || 0)) > 2200) {
+        hostState.lastSplitEffect = null;
+      }
 
       let hostSplitName = currentSplitName;
       if (!hostSplitName) {
@@ -419,6 +428,23 @@
       };
 
       if (typeof data.currentSplitIndex === "number") {
+        if (data.currentSplitIndex > existing.currentSplitIndex) {
+          // Completed a split! Determine split type from telemetry
+          let flashType = "green";
+          if (data.isGold === true || data.gold === true || data.split?.isGold === true) {
+            flashType = "gold";
+          } else if (typeof data.delta === "number") {
+            flashType = data.delta <= 0 ? "green" : "red";
+          } else if (typeof data.delta === "string") {
+            flashType = data.delta.trim().startsWith("+") ? "red" : "green";
+          } else if (data.gainedTime === false) {
+            flashType = "red";
+          }
+          existing.lastSplitEffect = {
+            type: flashType,
+            timestamp: Date.now()
+          };
+        }
         existing.currentSplitIndex = data.currentSplitIndex;
       }
       if (data.currentSplitName) {
@@ -597,6 +623,25 @@
           }
         }
 
+        if (sIdx > racer.currentSplitIndex) {
+          // Completed a split in simulation!
+          let flashType = "green";
+          // High pace / positive wave -> Gold split
+          if (wave > 1.2 || (racer.paceFactor >= 1.02 && wave > 0.3)) {
+            flashType = "gold";
+          } else if (wave < -0.6 || racer.paceFactor < 0.98) {
+            flashType = "red";
+          } else {
+            flashType = "green";
+          }
+          racer.lastSplitEffect = {
+            type: flashType,
+            timestamp: Date.now()
+          };
+        } else if (racer.lastSplitEffect && (Date.now() - (racer.lastSplitEffect.timestamp || 0)) > 2200) {
+          racer.lastSplitEffect = null;
+        }
+
         racer.currentSplitIndex = sIdx;
         racer.currentSplitName = (activeSplitsList && activeSplitsList[sIdx]) ? activeSplitsList[sIdx] : `Split ${sIdx + 1}`;
         racer.score = sIdx + sRatio;
@@ -632,6 +677,7 @@
       hostState.isFinished = false;
       hostState.finalTimeSec = null;
       hostState.splitTimes = [];
+      hostState.lastSplitEffect = null;
 
       entrants.forEach((racer) => {
         if (racer.isHost) {
@@ -643,6 +689,7 @@
           racer.score = 0;
           racer.isFinished = false;
           racer.finalTimeSec = null;
+          racer.lastSplitEffect = null;
         }
       });
 

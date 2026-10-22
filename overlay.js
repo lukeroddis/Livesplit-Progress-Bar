@@ -2605,6 +2605,7 @@ function connect() {
 }
 
 let pollTick = 0;
+let pendingHostSplitFlash = null;
 
 async function pollLoop() {
   while (ws && ws.readyState === WebSocket.OPEN) {
@@ -2669,6 +2670,7 @@ async function pollLoop() {
         lastSplitRecordedSec = 0;
         previousDeltaSeconds = 0;
         lastElapsedSec = 0;
+        pendingHostSplitFlash = null;
 
         const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
         if (rc && typeof rc.reset === "function") {
@@ -2915,6 +2917,17 @@ async function pollLoop() {
           setDeltaDisplay(prevIdx, displayDelta, stateClass, splitTimeSec);
           saveInRunState();
 
+          // Trigger leaderboard split flash glow for host
+          let flashType = "green";
+          if (stateClass === "gold") {
+            flashType = "gold";
+          } else if (stateClass.includes("losing")) {
+            flashType = "red";
+          } else if (stateClass.includes("gaining") || displayDelta.isAhead) {
+            flashType = "green";
+          }
+          pendingHostSplitFlash = { type: flashType, timestamp: Date.now() };
+
           // Query target comparison time once for the next newly active split
           if (idx < splitsList.length) {
             const rawNextComp = await sendCommand("getcomparisonsplittime");
@@ -2951,8 +2964,10 @@ async function pollLoop() {
             completedSplitTimes,
             comparisonTimes,
             hostSplitName,
-            splitsList
+            splitsList,
+            pendingHostSplitFlash
           );
+          pendingHostSplitFlash = null;
         }
         updateLiveSegmentProgress(currentTotalSec);
         updateGhostRunner(currentTotalSec);

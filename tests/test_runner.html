@@ -1101,6 +1101,36 @@
         rc.stopSimulation();
         assert(!threw, "updateGhostRunner does not throw error during simulation");
       });
+
+      it("Split completion triggers tile glow pulse (Gold / Green / Red) and clears cleanly", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
+
+        const splitEntrants = [
+          { userId: "sim_gold", username: "GoldRacer", rank: 1, lastSplitEffect: { type: "gold", timestamp: Date.now() }, color: "#facc15" },
+          { userId: "sim_green", username: "GreenRacer", rank: 2, lastSplitEffect: { type: "green", timestamp: Date.now() }, color: "#22c55e" },
+          { userId: "sim_red", username: "RedRacer", rank: 3, lastSplitEffect: { type: "red", timestamp: Date.now() }, color: "#ef4444" },
+          { userId: "you", username: "You", rank: 4, isHost: true, color: "#38bdf8" }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(splitEntrants, true, false, false);
+        const rowGold = document.querySelector('.leaderboard-row[data-user-id="sim_gold"]');
+        const rowGreen = document.querySelector('.leaderboard-row[data-user-id="sim_green"]');
+        const rowRed = document.querySelector('.leaderboard-row[data-user-id="sim_red"]');
+        const rowYou = document.querySelector('.leaderboard-row[data-user-id="you"]');
+
+        assert(rowGold && rowGold.classList.contains("split-flash-gold"), "Gold split entrant receives split-flash-gold class");
+        assert(rowGreen && rowGreen.classList.contains("split-flash-green"), "Green split entrant receives split-flash-green class");
+        assert(rowRed && rowRed.classList.contains("split-flash-red"), "Red split entrant receives split-flash-red class");
+        assert(rowYou && !rowYou.classList.contains("split-flash-gold"), "Unaffected entrant does not receive split flash class");
+
+        window.LiveSplit.Leaderboard.reset();
+        assert(!rowGold.classList.contains("split-flash-gold"), "Leaderboard reset clears split-flash-gold class");
+        assert(!rowGreen.classList.contains("split-flash-green"), "Leaderboard reset clears split-flash-green class");
+        assert(!rowRed.classList.contains("split-flash-red"), "Leaderboard reset clears split-flash-red class");
+
+        rc.stopSimulation();
+      });
     });
 
     // --- RENDER RESULTS ---
