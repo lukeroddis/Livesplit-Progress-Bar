@@ -958,30 +958,98 @@
         rc.stopSimulation();
       });
 
-      it("Mute button toggles entrant muted state and leaderboard row persists", () => {
+      it("Double click on leaderboard tile toggles muted state with no mute icon", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.startSimulation(["Split 1", "Split 2"], [30, 60]);
         const entrants = rc.getRankedEntrants();
         const rival = entrants.find(e => !e.isHost);
 
         assertEqual(rival.isMuted, false);
-        rc.toggleEntrantMuted(rival.userId);
-        assertEqual(rival.isMuted, true);
-
         window.LiveSplit.Leaderboard.renderLeaderboard(rc.getRankedEntrants(), true, false, false);
         const row = document.querySelector(`.leaderboard-row[data-user-id="${rival.userId}"]`);
         assert(row, "row exists");
+
+        // Verify NO mute button icon exists on the tile
+        const btn = row.querySelector(".racer-mute-btn");
+        assert(!btn, "no mute button icon exists on tile");
+
+        // Simulate user double clicking tile to hide/mute
+        row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        assertEqual(rival.isMuted, true, "double click sets rival to muted");
         assert(row.classList.contains("is-muted"), "row has is-muted class");
 
-        const btn = row.querySelector(".racer-mute-btn");
-        assert(btn, "mute button exists");
-        assertEqual(btn.textContent, "🔇");
-
-        // Simulate user clicking un-mute button
-        btn.click();
-        assertEqual(rival.isMuted, false);
+        // Simulate user double clicking again to un-hide/unmute
+        row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        assertEqual(rival.isMuted, false, "second double click un-mutes rival");
         assert(!row.classList.contains("is-muted"), "row is un-muted");
-        assertEqual(btn.textContent, "👁️");
+
+        rc.stopSimulation();
+      });
+
+      it("Checkpoint-based fixed leader gap and interval to ahead timing model", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.startSimulation(["World 1", "World 2", "World 3"], [30, 60, 90]);
+
+        // Phase 1: On Split 1 before anyone splits, gap is blank for everyone
+        let entrants = rc.getRankedEntrants();
+        assertEqual(entrants[0].gapDisplay, "LEADER");
+        assertEqual(entrants[0].intervalDisplay, "--");
+        assertEqual(entrants[1].gapDisplay, "--", "P2 gap is blank before anyone splits");
+        assertEqual(entrants[1].intervalDisplay, "--", "P2 interval is blank before anyone splits");
+
+        // Phase 2: Leader splits on split 0 at 28.0s, competitor is at 29.5s on split 0
+        const leader = entrants[0];
+        const competitor = entrants[1];
+        leader.currentSplitIndex = 1;
+        leader.splitTimes = [28.0];
+        leader.currentTimeSec = 29.5;
+
+        competitor.currentSplitIndex = 0;
+        competitor.splitTimes = [];
+        competitor.currentTimeSec = 29.5;
+
+        entrants = rc.getRankedEntrants();
+        assertEqual(entrants[0].userId, leader.userId);
+        assertEqual(entrants[0].gapDisplay, "LEADER");
+        // Competitor's delta starts incrementing up live: 29.5 - 28.0 = +1.5s
+        assertEqual(entrants[1].gapDisplay, "+1.5s", "Delta starts incrementing live once leader splits");
+        assertEqual(entrants[1].intervalDisplay, "+1.5s");
+
+        // Phase 3: Competitor now splits on split 0 at 31.0s (31.0 - 28.0 = +3.0s)
+        competitor.currentSplitIndex = 1;
+        competitor.splitTimes = [31.0];
+        competitor.currentTimeSec = 31.0;
+
+        entrants = rc.getRankedEntrants();
+        assertEqual(entrants[1].gapDisplay, "+3.0s", "Gap locks into fixed gap based on last split");
+
+        // Both are running split 1: gap remains fixed even as competitor advances to 45.0s
+        leader.currentTimeSec = 45.0;
+        competitor.currentTimeSec = 45.0;
+        entrants = rc.getRankedEntrants();
+        assertEqual(entrants[1].gapDisplay, "+3.0s", "Gap remains fixed while on pace during split 1");
+
+        // Phase 4: Leader splits on split 1 at 58.0s, competitor still running split 1 at 65.0s
+        leader.currentSplitIndex = 2;
+        leader.splitTimes = [28.0, 58.0];
+        leader.currentTimeSec = 65.0;
+
+        competitor.currentSplitIndex = 1;
+        competitor.splitTimes = [31.0];
+        competitor.currentTimeSec = 65.0;
+
+        entrants = rc.getRankedEntrants();
+        // Competitor took 65.0s, leader was at 58.0s at split 1 -> delta increments to 65.0 - 58.0 = +7.0s
+        assertEqual(entrants[1].gapDisplay, "+7.0s", "Delta increments when leader splits and competitor takes longer");
+
+        // Phase 5: Leader gets TWO splits ahead (completed split 2 at 88.0s), competitor still on split 1 at 95.0s
+        leader.currentSplitIndex = 3;
+        leader.splitTimes = [28.0, 58.0, 88.0];
+        competitor.currentTimeSec = 95.0;
+
+        entrants = rc.getRankedEntrants();
+        // Competitor on split 1: 95.0 - 58.0 = +37.0s
+        assertEqual(entrants[1].gapDisplay, "+37.0s", "Appropriately tracks deficit when leader is two splits ahead");
 
         rc.stopSimulation();
       });

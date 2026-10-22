@@ -2818,6 +2818,8 @@ body.edit-mode .settings-menu-panel {
   transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.2s ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  user-select: none;
 }
 
 .leaderboard-row.is-host {
@@ -2827,8 +2829,9 @@ body.edit-mode .settings-menu-panel {
 }
 
 .leaderboard-row.is-muted {
-  opacity: 0.42;
-  filter: grayscale(0.5);
+  opacity: 0.38;
+  filter: grayscale(0.7);
+  border-style: dashed;
 }
 
 .leaderboard-row.overtake-flash {
@@ -3134,7 +3137,6 @@ body.edit-mode .settings-menu-panel {
   align-items: flex-end;
   flex-shrink: 0;
   min-width: 52px;
-  padding-right: 12px;
 }
 
 .racer-gap {
@@ -3166,43 +3168,4 @@ body.edit-mode .settings-menu-panel {
   color: #64748b;
   letter-spacing: 0.04em;
   opacity: 0.75;
-}
-
-.racer-mute-btn {
-  position: absolute;
-  top: 3px;
-  right: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-  font-size: 10px;
-  color: #94a3b8;
-  opacity: 0.25;
-  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 3px;
-  z-index: 2;
-}
-
-.racer-mute-btn:hover {
-  opacity: 0.85;
-  transform: scale(1.15);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.leaderboard-row.is-muted .racer-mute-btn {
-  opacity: 0.6;
-  color: #f87171;
-}
-
-.leaderboard-row.is-muted .racer-mute-btn:hover {
-  opacity: 1;
-}
-
-.racer-mute-spacer {
-  display: none;
 }

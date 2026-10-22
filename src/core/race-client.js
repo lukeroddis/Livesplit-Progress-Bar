@@ -295,14 +295,80 @@
 
       list.forEach((r, idx) => lastKnownRanks.set(r.userId, idx + 1));
 
-      // Calculate leader gap and interval to competitor ahead based on track course reference time
-      const comp = (activeComparisonTimes && activeComparisonTimes.length > 0)
-        ? activeComparisonTimes
-        : [30, 60, 90, 120, 150, 180, 210, 240];
-      const finalTargetSec = comp[comp.length - 1] || (comp.length * 30);
-
+      // Calculate leader gap and interval to competitor ahead based on checkpoint milestones
       const leader = list[0];
-      const leaderRefTime = leader ? getCourseRefTime(leader) : 0;
+
+      function calculateMilestoneGap(runner, aheadRunner) {
+        if (!runner || !aheadRunner) return null;
+
+        // Both runners finished: final delta between their finish times
+        if (runner.isFinished && aheadRunner.isFinished) {
+          const timeB = typeof runner.finalTimeSec === "number" ? runner.finalTimeSec : (runner.currentTimeSec || 0);
+          const timeA = typeof aheadRunner.finalTimeSec === "number" ? aheadRunner.finalTimeSec : (aheadRunner.currentTimeSec || 0);
+          return Math.max(0, timeB - timeA);
+        }
+
+        const splitsB = Array.isArray(runner.splitTimes) ? runner.splitTimes : [];
+        const splitsA = Array.isArray(aheadRunner.splitTimes) ? aheadRunner.splitTimes : [];
+
+        const countB = splitsB.length;
+        const countA = splitsA.length;
+
+        // On the first split, before anyone splits, it is blank for everyone
+        if (countA === 0 && countB === 0) {
+          if ((aheadRunner.currentSplitIndex || 0) === 0 && (runner.currentSplitIndex || 0) === 0 && !aheadRunner.isFinished && !runner.isFinished) {
+            return null;
+          }
+          return Math.max(0, getCourseRefTime(aheadRunner) - getCourseRefTime(runner));
+        }
+
+        const currentIdxB = Math.max(0, runner.currentSplitIndex || 0);
+
+        // If aheadRunner has completed split currentIdxB (countA > currentIdxB),
+        // but runner has NOT completed split currentIdxB yet (countB <= currentIdxB):
+        // The delta starts at the last completed split gap, and increments upwards as runner's
+        // time exceeds aheadRunner's split milestone.
+        if (countA > currentIdxB && countB <= currentIdxB) {
+          const timeAAtSplit = splitsA[currentIdxB];
+          const timeBNow = runner.currentTimeSec || 0;
+
+          if (typeof timeAAtSplit === "number") {
+            if (currentIdxB === 0) {
+              // First split: live incrementing delta starting from when aheadRunner split
+              return Math.max(0, timeBNow - timeAAtSplit);
+            } else {
+              // Subsequent split: previous completed split gap
+              const prevA = splitsA[currentIdxB - 1];
+              const prevB = splitsB[currentIdxB - 1];
+              const prevGap = (typeof prevA === "number" && typeof prevB === "number")
+                ? Math.max(0, prevB - prevA)
+                : 0;
+              return Math.max(prevGap, timeBNow - timeAAtSplit);
+            }
+          }
+        }
+
+        // Both runners have completed split currentIdxB (or last common split):
+        // Fixed gap based on the last completed split milestone
+        const lastCommonIdx = Math.min(countA, countB) - 1;
+        if (lastCommonIdx >= 0) {
+          const timeA = splitsA[lastCommonIdx];
+          const timeB = splitsB[lastCommonIdx];
+          if (typeof timeA === "number" && typeof timeB === "number") {
+            return Math.max(0, timeB - timeA);
+          }
+        }
+
+        // If aheadRunner has finished but runner hasn't reached final split yet
+        if (aheadRunner.isFinished && typeof aheadRunner.finalTimeSec === "number") {
+          const lastB = countB > 0 ? splitsB[countB - 1] : 0;
+          const lastA = countB > 0 && splitsA.length >= countB ? splitsA[countB - 1] : 0;
+          const prevGap = Math.max(0, lastB - lastA);
+          return Math.max(prevGap, (runner.currentTimeSec || 0) - aheadRunner.finalTimeSec);
+        }
+
+        return null;
+      }
 
       list.forEach((runner, idx) => {
         runner.rank = idx + 1;
@@ -313,33 +379,24 @@
           runner.gapDisplay = "LEADER";
           runner.intervalDisplay = "--";
         } else {
-          const runnerRefTime = getCourseRefTime(runner);
           const aheadRunner = list[idx - 1];
-          const aheadRefTime = getCourseRefTime(aheadRunner);
-
-          let gap = 0;
-          if (runner.isFinished && leader.isFinished) {
-            gap = Math.max(0, runner.finalTimeSec - leader.finalTimeSec);
-          } else if (!runner.isFinished && leader.isFinished) {
-            gap = Math.max(0, (finalTargetSec - runnerRefTime) + Math.max(0, leader.finalTimeSec - finalTargetSec));
-          } else {
-            gap = Math.max(0, leaderRefTime - runnerRefTime);
-          }
-
-          let interval = 0;
-          if (runner.isFinished && aheadRunner.isFinished) {
-            interval = Math.max(0, runner.finalTimeSec - aheadRunner.finalTimeSec);
-          } else if (!runner.isFinished && aheadRunner.isFinished) {
-            interval = Math.max(0, (finalTargetSec - runnerRefTime) + Math.max(0, aheadRunner.finalTimeSec - finalTargetSec));
-          } else {
-            interval = Math.max(0, aheadRefTime - runnerRefTime);
-          }
+          const gap = calculateMilestoneGap(runner, leader);
+          const interval = calculateMilestoneGap(runner, aheadRunner);
 
           runner.gapToLeaderSec = gap;
           runner.intervalSec = interval;
 
-          runner.gapDisplay = `+${formatGapTime(gap)}`;
-          runner.intervalDisplay = `+${formatGapTime(interval)}`;
+          if (gap !== null) {
+            runner.gapDisplay = `+${formatGapTime(gap)}`;
+          } else {
+            runner.gapDisplay = "--";
+          }
+
+          if (interval !== null) {
+            runner.intervalDisplay = `+${formatGapTime(interval)}`;
+          } else {
+            runner.intervalDisplay = "--";
+          }
         }
       });
 
@@ -698,6 +755,14 @@
       hostState.username = hostUsername || "You";
       hostState.isHost = true;
       hostState.color = "#38bdf8";
+      hostState.currentTimeSec = 0;
+      hostState.currentSplitIndex = 0;
+      hostState.currentSplitName = activeSplitsList[0] || "Split 1";
+      hostState.splitTimes = [];
+      hostState.isFinished = false;
+      hostState.finalTimeSec = null;
+      hostState.score = 0;
+      hostState.lastSplitEffect = null;
 
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
@@ -713,6 +778,7 @@
           currentSplitIndex: 0,
           currentSplitName: activeSplitsList[0] || "Split 1",
           currentTimeSec: 0,
+          splitTimes: [],
           isFinished: false,
           finalTimeSec: null,
           score: 0,
@@ -729,6 +795,10 @@
         const curIdx = Math.floor(simVirtualSec / 30);
         let hostFlash = null;
         if (curIdx > hostState.currentSplitIndex && hostState.currentSplitIndex >= 0) {
+          if (!Array.isArray(hostState.splitTimes)) hostState.splitTimes = [];
+          for (let k = hostState.currentSplitIndex; k < curIdx; k++) {
+            hostState.splitTimes[k] = (compList && compList[k]) || ((k + 1) * 30);
+          }
           const prevSplitName = hostState.currentSplitName
             || (activeSplitsList && activeSplitsList[hostState.currentSplitIndex])
             || `Split ${hostState.currentSplitIndex + 1}`;
@@ -743,7 +813,7 @@
           };
         }
         const sName = (activeSplitsList && activeSplitsList[curIdx]) ? activeSplitsList[curIdx] : `Split ${curIdx + 1}`;
-        updateHostProgress(simVirtualSec, curIdx, [], compList, sName, activeSplitsList, hostFlash, false);
+        updateHostProgress(simVirtualSec, curIdx, hostState.splitTimes, compList, sName, activeSplitsList, hostFlash, false);
         tickSimulatedCompetitors(simVirtualSec, compList);
       }
 
@@ -780,6 +850,14 @@
       if (isSimulating) {
         isSimulating = false;
         raceId = null;
+        hostState.currentTimeSec = 0;
+        hostState.currentSplitIndex = 0;
+        hostState.currentSplitName = "Start";
+        hostState.splitTimes = [];
+        hostState.isFinished = false;
+        hostState.finalTimeSec = null;
+        hostState.score = 0;
+        hostState.lastSplitEffect = null;
         entrants.clear();
         entrants.set(hostState.userId, Object.assign({}, hostState));
         notifyListeners("race_disconnected", null);
@@ -809,6 +887,11 @@
         // Check if finished
         if (simSec >= finalTarget) {
           racer.isFinished = true;
+          if (!Array.isArray(racer.splitTimes)) racer.splitTimes = [];
+          for (let k = racer.currentSplitIndex; k < totalSplits; k++) {
+            const targetSec = effectiveComp[k] || ((k + 1) * 30);
+            racer.splitTimes[k] = Math.max(1, targetSec / (racer.paceFactor || 1.0));
+          }
           racer.currentSplitIndex = totalSplits - 1;
           racer.currentSplitName = (activeSplitsList && activeSplitsList[totalSplits - 1]) ? activeSplitsList[totalSplits - 1] : "Finished";
           racer.finalTimeSec = racer.finalTimeSec || simSec;
@@ -831,6 +914,11 @@
         }
 
         if (sIdx > racer.currentSplitIndex) {
+          if (!Array.isArray(racer.splitTimes)) racer.splitTimes = [];
+          for (let k = racer.currentSplitIndex; k < sIdx; k++) {
+            const targetSec = effectiveComp[k] || ((k + 1) * 30);
+            racer.splitTimes[k] = Math.max(1, targetSec / (racer.paceFactor || 1.0));
+          }
           // Completed a split in simulation!
           let flashType = "green";
           // High pace / positive wave -> Gold split
@@ -902,6 +990,7 @@
           racer.currentTimeSec = 0;
           racer.currentSplitIndex = 0;
           racer.currentSplitName = activeSplitsList[0] || "Split 1";
+          racer.splitTimes = [];
           racer.score = 0;
           racer.isFinished = false;
           racer.finalTimeSec = null;

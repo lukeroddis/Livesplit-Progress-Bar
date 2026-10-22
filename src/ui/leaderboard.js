@@ -107,26 +107,26 @@
   }
 
   /**
-   * Initializes click event delegation for competitor mute buttons.
+   * Initializes double-click listener on leaderboard rows to hide/show runner pin on track.
    */
-  function initMuteListener(containerEl) {
+  function initTileDoubleClickListener(containerEl) {
     if (isMuteListenerAttached || !containerEl) return;
 
-    function handleMuteAction(e) {
-      const btn = e.target.closest(".racer-mute-btn");
-      if (!btn) return;
-      e.stopPropagation();
-      e.preventDefault();
+    function handleTileDoubleClick(e) {
+      const row = e.target.closest(".leaderboard-row");
+      if (!row) return;
 
-      const userId = btn.getAttribute("data-mute-user");
+      // Don't mute/hide the host runner
+      if (row.classList.contains("is-host")) return;
+
+      const userId = row.getAttribute("data-user-id");
       if (!userId) return;
 
       const rc = getRaceClient();
       if (rc && typeof rc.toggleEntrantMuted === "function") {
         const isNowMuted = rc.toggleEntrantMuted(userId);
-        btn.innerHTML = isNowMuted ? "🔇" : "👁️";
-        btn.title = isNowMuted ? "Unmute pin on track" : "Mute pin on track";
-        btn.closest(".leaderboard-row")?.classList.toggle("is-muted", isNowMuted);
+        row.classList.toggle("is-muted", isNowMuted);
+        row.title = isNowMuted ? "Double-click to show runner pin on track" : "Double-click to hide runner pin on track";
 
         // Immediately update track pin display
         const marker = document.getElementById(`ghost-marker-race-${userId}`);
@@ -144,7 +144,7 @@
       }
     }
 
-    containerEl.addEventListener("click", handleMuteAction);
+    containerEl.addEventListener("dblclick", handleTileDoubleClick);
     isMuteListenerAttached = true;
   }
 
@@ -163,7 +163,7 @@
 
     if (!compEl || !rowsEl) return;
 
-    initMuteListener(rowsEl);
+    initTileDoubleClickListener(rowsEl);
 
     const isSim = typeof isSimulating === "function" ? isSimulating() : !!isSimulating;
     const isConn = typeof isConnected === "function" ? isConnected() : !!isConnected;
@@ -224,12 +224,15 @@
       const displayName = racer.username || (isHost ? "You" : "Runner");
       const splitLabel = racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`);
 
-      const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : formatGapSec(racer.gapToLeaderSec));
-      const rawInt = racer.intervalDisplay || (rank === 1 ? "--" : formatGapSec(racer.intervalSec));
+      const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : "--");
+      const rawInt = racer.intervalDisplay || (rank === 1 ? "--" : "--");
       const gapVal = (rank === 1) ? "LEADER" : rawGap;
-      const cleanInt = (rank === 1) ? "--" : rawInt.replace(/^\+/, "");
-      const intMarkup = (rank === 1) ? "--" : `<span class="interval-tag">INT</span>+${escapeHtml(cleanInt)}`;
-      const gapTooltip = (rank === 1) ? "Race Leader" : `Leader Gap: ${gapVal} | Interval to Ahead: +${cleanInt}`;
+      const isIntBlank = (rank === 1 || rawInt === "--" || !rawInt);
+      const cleanInt = isIntBlank ? "--" : rawInt.replace(/^\+/, "");
+      const intMarkup = isIntBlank ? "--" : `<span class="interval-tag">INT</span>+${escapeHtml(cleanInt)}`;
+      const gapTooltip = (rank === 1)
+        ? "Race Leader"
+        : (gapVal === "--" ? "Split 1 in progress" : `Leader Gap: ${gapVal} | Interval to Ahead: ${isIntBlank ? "--" : `+${cleanInt}`}`);
 
       // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition
       const effect = racer.lastSplitEffect;
@@ -252,11 +255,16 @@
         }
       }
 
+      const rowTitle = isHost
+        ? "Your race progress"
+        : (isMuted ? "Double-click to show runner pin on track" : "Double-click to hide runner pin on track");
+
       let row = rowElementMap.get(uId);
       if (!row || !rowsEl.contains(row)) {
         row = document.createElement("div");
         row.className = `leaderboard-row${isHost ? " is-host" : ""}${isMuted ? " is-muted" : ""}`;
         row.setAttribute("data-user-id", uId);
+        row.title = rowTitle;
         row.style.setProperty("--racer-color", color);
 
         const avatarMarkup = buildAvatarMarkup(racer.avatar, isHost);
@@ -273,7 +281,6 @@
             <span class="racer-gap${rank === 1 ? ' is-leader' : ''}">${gapVal}</span>
             <span class="racer-interval">${intMarkup}</span>
           </div>
-          ${!isHost ? `<button type="button" class="racer-mute-btn" data-mute-user="${uId}" title="${isMuted ? 'Unmute pin on track' : 'Mute pin on track'}">${isMuted ? '🔇' : '👁️'}</button>` : '<div class="racer-mute-spacer"></div>'}
         `;
         rowElementMap.set(uId, row);
         rowsEl.appendChild(row);
@@ -281,6 +288,9 @@
         // In-place property update: never wipe out running animations
         row.classList.toggle("is-host", isHost);
         row.classList.toggle("is-muted", isMuted);
+        if (row.title !== rowTitle) {
+          row.title = rowTitle;
+        }
         row.style.setProperty("--racer-color", color);
 
         const posBadge = row.querySelector(".pos-badge");
@@ -318,34 +328,6 @@
         const gapCol = row.querySelector(".racer-gap-col");
         if (gapCol && gapCol.title !== gapTooltip) {
           gapCol.title = gapTooltip;
-        }
-
-        const muteBtn = row.querySelector(".racer-mute-btn");
-        const muteSpacer = row.querySelector(".racer-mute-spacer");
-        if (isHost && muteBtn) {
-          muteBtn.remove();
-          if (!muteSpacer) {
-            const spacer = document.createElement("div");
-            spacer.className = "racer-mute-spacer";
-            row.appendChild(spacer);
-          }
-        } else if (!isHost && muteSpacer) {
-          muteSpacer.remove();
-          if (!muteBtn) {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "racer-mute-btn";
-            btn.setAttribute("data-mute-user", uId);
-            btn.title = isMuted ? "Unmute pin on track" : "Mute pin on track";
-            btn.textContent = isMuted ? "🔇" : "👁️";
-            row.appendChild(btn);
-          }
-        } else if (muteBtn) {
-          const expectedIcon = isMuted ? "🔇" : "👁️";
-          if (muteBtn.textContent !== expectedIcon) {
-            muteBtn.textContent = expectedIcon;
-            muteBtn.title = isMuted ? "Unmute pin on track" : "Mute pin on track";
-          }
         }
       }
 
