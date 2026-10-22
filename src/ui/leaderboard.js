@@ -404,7 +404,28 @@
     // Reorder DOM child nodes only when the physical slot order has actually changed.
     // Targeted reconciliation ensures rows that did not move are NEVER detached,
     // which prevents ongoing CSS animations from restarting or flickering!
+    // FLIP (First, Last, Invert, Play) provides silky-smooth sliding transitions when ranks swap.
     if (!domOrderMatches) {
+      // 1. FIRST: Record visual positions of existing rows prior to DOM rearrangement
+      const prevTops = new Map();
+      rowElementMap.forEach((row, uId) => {
+        if (row && row.isConnected) {
+          prevTops.set(uId, row.getBoundingClientRect().top);
+        }
+      });
+
+      // Clear any previous swap transforms so layout positions can be accurately measured
+      rowElementMap.forEach((row) => {
+        if (row.classList.contains("is-swapping")) {
+          row.classList.remove("is-swapping");
+          row.style.removeProperty("transform");
+          row.style.removeProperty("transition");
+          row.style.removeProperty("z-index");
+          row.style.removeProperty("--swap-y");
+        }
+      });
+
+      // 2. LAST: Targeted DOM reconciliation to slot elements into their new positions
       let currentChild = rowsEl.firstElementChild;
       entrants.forEach((racer) => {
         const row = rowElementMap.get(racer.userId);
@@ -423,6 +444,55 @@
           }
         }
       });
+
+      // 3. INVERT: Measure new layout positions, calculate deltas, and counter-transform
+      const movingRows = [];
+      entrants.forEach((racer) => {
+        const row = rowElementMap.get(racer.userId);
+        if (!row || !row.isConnected) return;
+        const oldTop = prevTops.get(racer.userId);
+        if (oldTop === undefined) return;
+        const newTop = row.getBoundingClientRect().top;
+        const dy = oldTop - newTop;
+
+        // Sub-pixel shifts within 0.5px are ignored to prevent micro-jitter
+        if (Math.abs(dy) > 0.5) {
+          row.style.setProperty("transition", "none", "important");
+          row.style.setProperty("transform", `translateY(${dy}px)`, "important");
+          row.style.setProperty("--swap-y", `${dy}px`);
+          // Elevate climbing overtaker (moving upwards, dy > 0) above descending rows
+          row.style.zIndex = dy > 0 ? "4" : "2";
+          movingRows.push({ row, dy });
+        }
+      });
+
+      // 4. PLAY: Animate smoothly to new positions on next animation frame
+      if (movingRows.length > 0) {
+        // Force layout flush so browser locks the inverted starting transform
+        void rowsEl.offsetHeight;
+
+        const raf = (typeof requestAnimationFrame === "function") ? requestAnimationFrame : (cb) => setTimeout(cb, 16);
+        raf(() => {
+          movingRows.forEach(({ row }) => {
+            row.classList.add("is-swapping");
+            row.style.setProperty("transition", "transform 0.4s cubic-bezier(0.2, 0, 0, 1)", "important");
+            row.style.setProperty("transform", "translateY(0px)", "important");
+            row.style.setProperty("--swap-y", "0px");
+
+            const cleanup = (e) => {
+              if (e && e.propertyName && e.propertyName !== "transform") return;
+              row.removeEventListener("transitionend", cleanup);
+              row.classList.remove("is-swapping");
+              row.style.removeProperty("transform");
+              row.style.removeProperty("transition");
+              row.style.removeProperty("z-index");
+              row.style.removeProperty("--swap-y");
+            };
+            row.addEventListener("transitionend", cleanup, { once: true });
+            setTimeout(cleanup, 450);
+          });
+        });
+      }
     }
 
     // Clean up rows of racers who left
@@ -438,6 +508,11 @@
   function reset() {
     rowElementMap.forEach((row) => {
       if (row) {
+        row.classList.remove("is-swapping");
+        row.style.removeProperty("transform");
+        row.style.removeProperty("transition");
+        row.style.removeProperty("z-index");
+        row.style.removeProperty("--swap-y");
         row.style.transition = "";
         row.style.transform = "";
         row.style.zIndex = "";

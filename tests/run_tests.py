@@ -2413,6 +2413,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         leaderboard_code = lf.read()
     assert '<span class="host-pill">' not in leaderboard_code, "leaderboard.js must never render host-pill tag (implied by highlighted tile)"
     assert 'const displayName = racer.username || (isHost ? "You" : "Runner");' in leaderboard_code, "leaderboard.js must resolve entrant username rather than overriding to 'You'"
+    assert ".leaderboard-row.is-swapping" in css, "style.css must style .leaderboard-row.is-swapping"
+    assert "is-swapping" in leaderboard_code, "leaderboard.js must support FLIP is-swapping animation class"
+    assert "prevTops" in leaderboard_code, "leaderboard.js must record initial positions for FLIP animation"
 
     # 9. Intelligent pin stacking & mini-leaderboard assertions
     assert "--ghost-stack-offset" in css, "style.css must support dynamic --ghost-stack-offset"

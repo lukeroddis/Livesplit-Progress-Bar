@@ -2822,6 +2822,13 @@ body.edit-mode .settings-menu-panel {
   user-select: none;
 }
 
+.leaderboard-row.is-swapping {
+  transform: translateY(var(--swap-y, 0px)) !important;
+  transition: transform 0.4s cubic-bezier(0.2, 0, 0, 1) !important;
+  z-index: 2;
+  will-change: transform;
+}
+
 .leaderboard-row.is-host {
   background: rgba(56, 189, 248, 0.12);
   border-color: rgba(56, 189, 248, 0.4);

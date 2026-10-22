@@ -1804,6 +1804,61 @@
         window.LiveSplit.Leaderboard.reset();
       });
 
+      it("Leaderboard FLIP animation smoothly transitions swapped tiles with translateY transforms and elevated z-index", () => {
+        // Step 1: Initial render with two racers
+        const initialEntrants = [
+          { userId: "racer_a", username: "RacerA", rank: 1, gapDisplay: "LEADER", color: "#38bdf8" },
+          { userId: "racer_b", username: "RacerB", rank: 2, gapDisplay: "+5.0s", color: "#facc15" }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(initialEntrants, true, false, false);
+        const rowA = document.querySelector('.leaderboard-row[data-user-id="racer_a"]');
+        const rowB = document.querySelector('.leaderboard-row[data-user-id="racer_b"]');
+        assert(rowA && rowB, "Both rows rendered into DOM");
+
+        // Dynamic mock getBoundingClientRect based on DOM slot index in #leaderboard-rows
+        function getMockRect(row) {
+          const idx = row.parentNode ? Array.from(row.parentNode.children).indexOf(row) : 0;
+          const top = 100 + idx * 40;
+          return { top, bottom: top + 35, height: 35, left: 0, right: 200, width: 200 };
+        }
+        rowA.getBoundingClientRect = () => getMockRect(rowA);
+        rowB.getBoundingClientRect = () => getMockRect(rowB);
+
+        // Step 2: Racer B overtakes Racer A (ranks swap)
+        const swappedEntrants = [
+          { userId: "racer_b", username: "RacerB", rank: 1, gapDisplay: "LEADER", color: "#facc15" },
+          { userId: "racer_a", username: "RacerA", rank: 2, gapDisplay: "+2.0s", color: "#38bdf8" }
+        ];
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(swappedEntrants, true, false, false);
+
+        // Step 3: Validate FLIP Invert transform state
+        // Racer B was at 140, now at 100 -> dy = 140 - 100 = 40px
+        assertEqual(rowB.style.getPropertyValue("--swap-y"), "40px", "Racer B --swap-y offset is 40px");
+        assert(rowB.style.transform.includes("translateY(40px)"), "Racer B inverted transform translateY(40px)");
+        assertEqual(rowB.style.zIndex, "4", "Racer B (overtaker climbing up) has elevated z-index 4");
+
+        // Racer A was at 100, now at 140 -> dy = 100 - 140 = -40px
+        assertEqual(rowA.style.getPropertyValue("--swap-y"), "-40px", "Racer A --swap-y offset is -40px");
+        assert(rowA.style.transform.includes("translateY(-40px)"), "Racer A inverted transform translateY(-40px)");
+        assertEqual(rowA.style.zIndex, "2", "Racer A has descending z-index 2");
+
+        // Validate DOM order was updated synchronously
+        const rows = document.querySelectorAll("#leaderboard-rows .leaderboard-row");
+        assertEqual(rows[0].getAttribute("data-user-id"), "racer_b", "Racer B is slot 0 in DOM");
+        assertEqual(rows[1].getAttribute("data-user-id"), "racer_a", "Racer A is slot 1 in DOM");
+
+        // Step 4: Validate clean reset
+        window.LiveSplit.Leaderboard.reset();
+        assertEqual(rowA.style.transform, "", "Racer A transform cleared on reset");
+        assertEqual(rowB.style.transform, "", "Racer B transform cleared on reset");
+        assertEqual(rowA.style.zIndex, "", "Racer A zIndex cleared on reset");
+        assertEqual(rowB.style.zIndex, "", "Racer B zIndex cleared on reset");
+        assert(!rowA.classList.contains("is-swapping"), "Racer A is-swapping class removed");
+        assert(!rowB.classList.contains("is-swapping"), "Racer B is-swapping class removed");
+      });
+
       it("RaceClient handleUndoSplit rewinds checkpoints, trims splitTimes, and resets finished state", () => {
         const rc = window.LiveSplit.RaceClient;
         assert(typeof rc.handleUndoSplit === "function", "RaceClient exports handleUndoSplit");
