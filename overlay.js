@@ -2080,7 +2080,10 @@ function updateGhostRunner(currentSec) {
   const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
   const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
   const isRaceActive = isSim || isConn;
-  const raceEntrants = isRaceActive ? rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted) : [];
+  const areRacePinsOn = rc && typeof rc.areRacePinsVisible === "function" ? rc.areRacePinsVisible() : true;
+  const raceEntrants = (isRaceActive && areRacePinsOn)
+    ? rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted)
+    : [];
 
   if ((activeList.length === 0 && raceEntrants.length === 0) || currentSec === null || currentSec < 0 || splitsList.length === 0) {
     hideAllGhostMarkers();
@@ -3875,6 +3878,7 @@ function initOverlay() {
   const therunUserInp = document.getElementById("input-therun-username");
   const therunSaveBtn = document.getElementById("btn-save-therun-username");
   const btnToggleLeaderboard = document.getElementById("btn-toggle-leaderboard");
+  const btnToggleRacePins = document.getElementById("btn-toggle-race-pins");
 
   if (btnToggleLeaderboard) {
     const syncLeaderboardBtn = () => {
@@ -3906,37 +3910,183 @@ function initOverlay() {
     });
   }
 
+  if (btnToggleRacePins && raceClient) {
+    const syncRacePinsBtn = () => {
+      const isVis = typeof raceClient.areRacePinsVisible === "function" ? raceClient.areRacePinsVisible() : true;
+      btnToggleRacePins.textContent = isVis ? "Pins: ON" : "Pins: OFF";
+      btnToggleRacePins.style.color = isVis ? "#38bdf8" : "rgba(148, 163, 184, 0.9)";
+    };
+    syncRacePinsBtn();
+
+    btnToggleRacePins.addEventListener("click", () => {
+      if (typeof raceClient.toggleRacePinsVisible === "function") {
+        raceClient.toggleRacePinsVisible();
+      }
+      syncRacePinsBtn();
+      updateGhostRunner(lastElapsedSec);
+    });
+  }
+
   if (raceClient) {
-    const savedUsername = (localStorage.getItem("therun_username") || "").trim();
+    let connectCooldownInterval = null;
+
+    const clearConnectCooldownUI = () => {
+      if (connectCooldownInterval) {
+        clearInterval(connectCooldownInterval);
+        connectCooldownInterval = null;
+      }
+    };
+
+    const syncConnectBtnState = () => {
+      if (!therunSaveBtn) return;
+      const isConn = typeof raceClient.isConnected === "function" && raceClient.isConnected();
+      if (isConn) {
+        clearConnectCooldownUI();
+        therunSaveBtn.disabled = false;
+        therunSaveBtn.textContent = "✓ Connected";
+        therunSaveBtn.style.color = "#4ade80";
+      } else if (!connectCooldownInterval) {
+        therunSaveBtn.disabled = false;
+        therunSaveBtn.textContent = "Connect";
+        therunSaveBtn.style.color = "";
+      }
+    };
+
+    const startCooldownCountdownUI = (durationMs = 5000, prefix = "No Race") => {
+      if (!therunSaveBtn) return;
+      clearConnectCooldownUI();
+      const endMs = Date.now() + durationMs;
+      therunSaveBtn.disabled = true;
+      therunSaveBtn.style.color = "#f59e0b";
+      const updateTick = () => {
+        const remSec = Math.ceil(Math.max(0, endMs - Date.now()) / 1000);
+        if (remSec <= 0) {
+          clearConnectCooldownUI();
+          syncConnectBtnState();
+        } else {
+          therunSaveBtn.textContent = `${prefix} (${remSec}s)`;
+        }
+      };
+      updateTick();
+      connectCooldownInterval = setInterval(updateTick, 250);
+    };
+
+    const isValidUsernameInput = (v) => {
+      if (!v || typeof v !== "string") return false;
+      const s = v.trim();
+      return s.length > 0 && s.length <= 50 && /^[a-zA-Z0-9_-]+$/.test(s);
+    };
+
+    const rawSavedUsername = (localStorage.getItem("therun_username") || "").trim();
+    const savedUsername = isValidUsernameInput(rawSavedUsername) ? rawSavedUsername : "";
+    if (rawSavedUsername && !savedUsername) {
+      localStorage.removeItem("therun_username");
+    }
     if (therunUserInp && savedUsername) {
       therunUserInp.value = savedUsername;
     }
-    if (savedUsername) {
-      if (typeof raceClient.setHostUsername === "function") {
-        raceClient.setHostUsername(savedUsername);
-      }
-      raceClient.startAutoDetect(savedUsername);
+    if (savedUsername && typeof raceClient.setHostUsername === "function") {
+      // Populate host username locally without firing background HTTP requests on startup
+      raceClient.setHostUsername(savedUsername);
     }
 
-    if (therunSaveBtn) {
-      therunSaveBtn.addEventListener("click", () => {
-        const val = (therunUserInp ? therunUserInp.value : "").trim();
-        localStorage.setItem("therun_username", val);
-        if (raceClient && typeof raceClient.setHostUsername === "function") {
-          raceClient.setHostUsername(val);
+    if (therunUserInp) {
+      therunUserInp.addEventListener("input", () => {
+        const val = therunUserInp.value.trim();
+        if (!val || isValidUsernameInput(val)) {
+          localStorage.setItem("therun_username", val);
+          if (typeof raceClient.setHostUsername === "function") {
+            raceClient.setHostUsername(val);
+          }
+          refreshLeaderboard();
         }
-        if (val) {
-          raceClient.startAutoDetect(val);
-          therunSaveBtn.textContent = "✓ Saved";
-          setTimeout(() => { therunSaveBtn.textContent = "✓ Save"; }, 1500);
-        } else {
-          raceClient.stopAutoDetect();
-          therunSaveBtn.textContent = "Cleared";
-          setTimeout(() => { therunSaveBtn.textContent = "✓ Save"; }, 1500);
-        }
+      });
+    }
 
-        // Re-render leaderboard immediately if visible
+    const handleManualRaceConnect = async () => {
+      if (!raceClient) return;
+
+      // If already connected to a live race, clicking disconnects cleanly (0 network traffic)
+      if (typeof raceClient.isConnected === "function" && raceClient.isConnected()) {
+        raceClient.disconnectFromRace();
+        syncConnectBtnState();
         refreshLeaderboard();
+        return;
+      }
+
+      const val = (therunUserInp ? therunUserInp.value : "").trim();
+      if (!val) {
+        if (therunSaveBtn) {
+          therunSaveBtn.textContent = "Enter Name";
+          therunSaveBtn.style.color = "#f59e0b";
+          setTimeout(() => syncConnectBtnState(), 1500);
+        }
+        refreshLeaderboard();
+        return;
+      }
+
+      if (!isValidUsernameInput(val)) {
+        if (therunSaveBtn) {
+          therunSaveBtn.textContent = "Invalid Name";
+          therunSaveBtn.style.color = "#ef4444";
+          setTimeout(() => syncConnectBtnState(), 1500);
+        }
+        refreshLeaderboard();
+        return;
+      }
+
+      localStorage.setItem("therun_username", val);
+      if (typeof raceClient.setHostUsername === "function") {
+        raceClient.setHostUsername(val);
+      }
+
+      const remMs = typeof raceClient.getConnectCooldownRemainingMs === "function"
+        ? raceClient.getConnectCooldownRemainingMs()
+        : 0;
+      if (remMs > 0) {
+        startCooldownCountdownUI(remMs, "Wait");
+        return;
+      }
+
+      if (therunSaveBtn) {
+        therunSaveBtn.disabled = true;
+        therunSaveBtn.textContent = "Connecting...";
+        therunSaveBtn.style.color = "#38bdf8";
+      }
+
+      const result = typeof raceClient.pollUserStatus === "function"
+        ? await raceClient.pollUserStatus(val)
+        : await raceClient.startAutoDetect(val);
+
+      if ((result && result.status === "connected") || (typeof raceClient.isConnected === "function" && raceClient.isConnected())) {
+        syncConnectBtnState();
+      } else if (result && result.status === "cooldown") {
+        startCooldownCountdownUI(result.remainingMs || 5000, "Wait");
+      } else {
+        startCooldownCountdownUI((result && result.remainingMs) || 5000, "No Race");
+      }
+
+      refreshLeaderboard();
+    };
+
+    if (therunSaveBtn) {
+      therunSaveBtn.addEventListener("click", handleManualRaceConnect);
+    }
+    if (raceToggleBtn) {
+      raceToggleBtn.addEventListener("click", () => {
+        if (raceClient.isSimulating()) {
+          raceClient.stopSimulation();
+          if (raceSimBtn) {
+            raceSimBtn.textContent = "🧪 Test Race";
+            raceSimBtn.style.color = "#f59e0b";
+          }
+          raceToggleBtn.textContent = "Race: Off";
+          raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
+          refreshLeaderboard();
+          updateGhostRunner(lastElapsedSec);
+        } else {
+          handleManualRaceConnect();
+        }
       });
     }
 
@@ -3970,6 +4120,11 @@ function initOverlay() {
           raceToggleBtn.textContent = data && data.isSimulated ? "Race: Sim" : `Race: ${raceClient.getRaceId()}`;
           raceToggleBtn.style.color = "#4ade80";
         }
+        if (!data?.isSimulated && therunSaveBtn) {
+          therunSaveBtn.disabled = false;
+          therunSaveBtn.textContent = "✓ Connected";
+          therunSaveBtn.style.color = "#4ade80";
+        }
       } else if (event === "race_disconnected") {
         if (raceToggleBtn) {
           raceToggleBtn.textContent = "Race: Off";
@@ -3979,13 +4134,20 @@ function initOverlay() {
           raceSimBtn.textContent = "🧪 Test Race";
           raceSimBtn.style.color = "#f59e0b";
         }
+        if (therunSaveBtn && !therunSaveBtn.disabled) {
+          therunSaveBtn.textContent = "Connect";
+          therunSaveBtn.style.color = "";
+        }
       } else if (event === "entrant_mute_changed") {
         if (data && data.userId) {
           const marker = document.getElementById(`ghost-marker-race-${data.userId}`);
           if (marker) {
-            marker.style.display = data.isMuted ? "none" : "flex";
+            const globalPinsOn = typeof raceClient.areRacePinsVisible === "function" ? raceClient.areRacePinsVisible() : true;
+            marker.style.display = (data.isMuted || !globalPinsOn) ? "none" : "flex";
           }
         }
+      } else if (event === "race_pins_visibility_changed") {
+        updateGhostRunner(lastElapsedSec);
       }
     });
   }

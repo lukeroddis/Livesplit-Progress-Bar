@@ -108,12 +108,27 @@
   ];
 
   /**
+   * Validates that a string is a safe, strict username (alphanumeric, underscore, hyphen; no URLs or path/script chars).
+   */
+  function isValidUsername(str) {
+    if (!str || typeof str !== "string") return false;
+    const s = str.trim();
+    if (!s || s.length > 50) return false;
+    return /^[a-zA-Z0-9_-]+$/.test(s);
+  }
+
+  /**
    * Safely loads the stored therun username from local storage.
    */
   function loadStoredUsername() {
     try {
       if (typeof localStorage !== "undefined") {
-        return (localStorage.getItem("therun_username") || "").trim();
+        const val = (localStorage.getItem("therun_username") || "").trim();
+        if (!isValidUsername(val)) {
+          if (val) localStorage.removeItem("therun_username");
+          return "";
+        }
+        return val;
       }
     } catch (_) {}
     return "";
@@ -123,9 +138,20 @@
    * Factory to create an isolated Race Client instance.
    */
   function createRaceClient() {
+    const CONNECT_COOLDOWN_MS = 5000;
     let raceId = null;
     let ws = null;
     let heartbeatTimer = null;
+    let lastConnectAttemptMs = 0;
+    let isConnectInFlight = false;
+    let racePinsVisible = (function () {
+      try {
+        if (typeof localStorage !== "undefined") {
+          return localStorage.getItem("livesplit_race_pins_visible") !== "false";
+        }
+      } catch (_) {}
+      return true;
+    })();
     let hostUsername = loadStoredUsername();
     let autoDetectUsername = hostUsername;
     let currentTimingMethod = "GameTime";
@@ -304,8 +330,14 @@
     }
 
     function setHostUsername(name) {
-      hostUsername = (name || "").trim();
-      autoDetectUsername = hostUsername;
+      const cleaned = (name || "").trim();
+      if (cleaned && !isValidUsername(cleaned)) {
+        // Reject URLs or invalid characters; preserve existing valid username
+        hostUsername = loadStoredUsername();
+      } else {
+        hostUsername = cleaned;
+        autoDetectUsername = hostUsername;
+      }
       hostState.username = hostUsername || "You";
 
       if (isSimulating) {
@@ -1135,17 +1167,26 @@
     }
 
     // ============================================================
-    // ZERO-CLICK THERUN.GG AUTO-DETECTION HEARTBEAT
+    // SINGLE-SHOT THERUN.GG RACE LOOKUP WITH 5S COOLDOWN GUARD
     // ============================================================
 
+    function getConnectCooldownRemainingMs() {
+      if (lastConnectAttemptMs <= 0) return 0;
+      return Math.max(0, CONNECT_COOLDOWN_MS - (Date.now() - lastConnectAttemptMs));
+    }
+
+    function resetConnectCooldown() {
+      lastConnectAttemptMs = 0;
+      isConnectInFlight = false;
+    }
+
     function startAutoDetect(username) {
-      if (!username || typeof username !== "string") return;
+      if (!username || typeof username !== "string") return Promise.resolve({ status: "idle" });
       autoDetectUsername = username.trim();
       stopAutoDetect();
 
-      // Immediately poll once, then schedule recurring heartbeat
-      pollUserStatus();
-      heartbeatTimer = setInterval(pollUserStatus, 7000);
+      // Single-shot lookup (no recurring background polling loop)
+      return pollUserStatus(autoDetectUsername);
     }
 
     function stopAutoDetect() {
@@ -1155,12 +1196,33 @@
       }
     }
 
-    async function pollUserStatus() {
-      if (!autoDetectUsername || isSimulating) return;
+    async function pollUserStatus(usernameOverride, ignoreCooldown = false) {
+      const targetUser = (typeof usernameOverride === "string" ? usernameOverride : (autoDetectUsername || hostUsername || "")).trim();
+      if (!targetUser || isSimulating) {
+        return { status: "idle", remainingMs: 0 };
+      }
+      if (!isValidUsername(targetUser)) {
+        return { status: "invalid_username", remainingMs: 0 };
+      }
+      autoDetectUsername = targetUser;
+
+      if (isConnectInFlight) {
+        return { status: "in_flight", remainingMs: getConnectCooldownRemainingMs() };
+      }
+
+      const cooldownRem = getConnectCooldownRemainingMs();
+      if (!ignoreCooldown && cooldownRem > 0) {
+        return { status: "cooldown", remainingMs: cooldownRem };
+      }
+
+      isConnectInFlight = true;
+      lastConnectAttemptMs = Date.now();
 
       try {
-        const res = await fetch(`${THERUN_LIVE_API}/${encodeURIComponent(autoDetectUsername)}`);
-        if (!res.ok) return;
+        const res = await fetch(`${THERUN_LIVE_API}/${encodeURIComponent(targetUser)}`);
+        if (!res.ok) {
+          return { status: "error", remainingMs: CONNECT_COOLDOWN_MS };
+        }
 
         const data = await res.json();
         if (data && data.raceId) {
@@ -1168,13 +1230,18 @@
             console.log(`[RaceClient] Detected raceId from therun.gg: ${data.raceId} (reconnecting=${!ws || ws.readyState !== WebSocket.OPEN})`);
             connectToRace(data.raceId);
           }
+          return { status: "connected", raceId: data.raceId, remainingMs: 0 };
         } else if (raceId && !data?.raceId) {
           // Runner left race or race concluded
           console.log("[RaceClient] Race status cleared on therun.gg. Disconnecting.");
           disconnectFromRace();
         }
+        return { status: "no_race", remainingMs: CONNECT_COOLDOWN_MS };
       } catch (err) {
         // Silent network failure guard (offline / rate limit)
+        return { status: "error", remainingMs: CONNECT_COOLDOWN_MS };
+      } finally {
+        isConnectInFlight = false;
       }
     }
 
@@ -1846,6 +1913,25 @@
       return false;
     }
 
+    function areRacePinsVisible() {
+      return !!racePinsVisible;
+    }
+
+    function setRacePinsVisible(visible) {
+      racePinsVisible = !!visible;
+      try {
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem("livesplit_race_pins_visible", racePinsVisible ? "true" : "false");
+        }
+      } catch (_) {}
+      notifyListeners("race_pins_visibility_changed", { visible: racePinsVisible });
+      return racePinsVisible;
+    }
+
+    function toggleRacePinsVisible() {
+      return setRacePinsVisible(!racePinsVisible);
+    }
+
     function reset() {
       lastExternalHostUpdate = 0;
       simVirtualSec = 0;
@@ -1915,7 +2001,6 @@
       init(opts = {}) {
         if (opts.username) {
           setHostUsername(opts.username);
-          startAutoDetect(opts.username);
         }
       },
       parseRaceId,
@@ -1923,6 +2008,9 @@
       disconnectFromRace,
       startAutoDetect,
       stopAutoDetect,
+      pollUserStatus,
+      getConnectCooldownRemainingMs,
+      resetConnectCooldown,
       setHostUsername,
       getHostUsername,
       getHostState: () => Object.assign({}, hostState),
@@ -1942,6 +2030,9 @@
       getRankedEntrants,
       setEntrantMuted,
       toggleEntrantMuted,
+      areRacePinsVisible,
+      setRacePinsVisible,
+      toggleRacePinsVisible,
       reset,
       subscribe(fn) {
         listeners.add(fn);

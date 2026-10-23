@@ -101,6 +101,11 @@
     <span id="leaderboard-status-badge"></span>
     <input type="checkbox" id="cb-toggle-leaderboard">
     <button id="btn-toggle-leaderboard"></button>
+    <button id="btn-toggle-race-pins"></button>
+    <button id="race-toggle-badge"></button>
+    <button id="race-sim-badge"></button>
+    <input type="text" id="input-therun-username">
+    <button id="btn-save-therun-username"></button>
     <span id="gold-toggle-badge"></span>
     <span id="timing-method-badge"></span>
     <span id="comparison-badge"></span>
@@ -2768,6 +2773,93 @@
         assert(leaderRibbon.title.includes("1:10:00"), `Ribbon tooltip formats 4200s segment as 1:10:00, got: ${leaderRibbon.title}`);
 
         window.LiveSplit.Leaderboard.reset();
+      });
+
+      it("Global Race Pins toggle (Pins: ON / OFF) overrides track pin visibility while preserving individual entrant mutes", () => {
+        const rc = window.LiveSplit.RaceClient.createRaceClient();
+        assertEqual(typeof rc.areRacePinsVisible, "function", "RaceClient exports areRacePinsVisible");
+        assertEqual(typeof rc.setRacePinsVisible, "function", "RaceClient exports setRacePinsVisible");
+        assertEqual(typeof rc.toggleRacePinsVisible, "function", "RaceClient exports toggleRacePinsVisible");
+
+        rc.setRacePinsVisible(true);
+        assertEqual(rc.areRacePinsVisible(), true, "Race pins default to visible");
+
+        rc.handleRaceMessage([
+          { userId: "r_pin_1", username: "RacerOne", currentSplitIndex: 1, currentTime: 25000, splitTimes: [25.0] },
+          { userId: "r_pin_2", username: "RacerTwo", currentSplitIndex: 1, currentTime: 27000, splitTimes: [27.0] },
+          { userId: "r_pin_3", username: "RacerThree", currentSplitIndex: 1, currentTime: 29000, splitTimes: [29.0] }
+        ]);
+
+        // Individually mute RacerTwo on the leaderboard
+        rc.setEntrantMuted("r_pin_2", true);
+        let list = rc.getRankedEntrants();
+        assertEqual(list.find(r => r.userId === "r_pin_1").isMuted, false);
+        assertEqual(list.find(r => r.userId === "r_pin_2").isMuted, true, "RacerTwo is individually muted");
+        assertEqual(list.find(r => r.userId === "r_pin_3").isMuted, false);
+
+        // Sweep toggle ALL race pins OFF globally
+        const afterOff = rc.toggleRacePinsVisible();
+        assertEqual(afterOff, false, "toggleRacePinsVisible turns global pins OFF");
+        assertEqual(rc.areRacePinsVisible(), false);
+
+        // Verify individual mute state on RacerTwo is still preserved while global pins are OFF
+        list = rc.getRankedEntrants();
+        assertEqual(list.find(r => r.userId === "r_pin_1").isMuted, false, "RacerOne remains individually unmuted");
+        assertEqual(list.find(r => r.userId === "r_pin_2").isMuted, true, "RacerTwo individual mute is remembered");
+        assertEqual(list.find(r => r.userId === "r_pin_3").isMuted, false, "RacerThree remains individually unmuted");
+
+        // Sweep toggle race pins back ON globally
+        const afterOn = rc.toggleRacePinsVisible();
+        assertEqual(afterOn, true, "toggleRacePinsVisible turns global pins back ON");
+        const visibleTrackCompetitors = rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted && rc.areRacePinsVisible());
+        assertEqual(visibleTrackCompetitors.length, 2, "Only the 2 individually unmuted competitors render when global pins are turned back ON");
+        assert(!visibleTrackCompetitors.some(e => e.userId === "r_pin_2"), "Individually muted RacerTwo stays hidden");
+      });
+
+      it("Single-shot manual race connect enforces 5s cooldown guard against spam clicking", () => {
+        const rc = window.LiveSplit.RaceClient.createRaceClient();
+        assertEqual(typeof rc.getConnectCooldownRemainingMs, "function", "RaceClient exports getConnectCooldownRemainingMs");
+        assertEqual(typeof rc.resetConnectCooldown, "function", "RaceClient exports resetConnectCooldown");
+
+        rc.resetConnectCooldown();
+        assertEqual(rc.getConnectCooldownRemainingMs(), 0, "Cooldown is initially 0ms");
+
+        // Mock fetch to count outgoing HTTP calls
+        const origFetch = window.fetch;
+        let fetchCount = 0;
+        window.fetch = () => {
+          fetchCount++;
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ raceId: null })
+          });
+        };
+
+        try {
+          rc.pollUserStatus("TestRunner");
+          assertEqual(fetchCount, 1, "First click sends exactly 1 HTTP request");
+          assert(rc.getConnectCooldownRemainingMs() > 4000, "5s cooldown is immediately active");
+
+          // Immediate second click within 5s must be blocked by in-flight / cooldown guard without calling fetch!
+          rc.pollUserStatus("TestRunner");
+          assertEqual(fetchCount, 1, "Spam click within 5s cooldown sends 0 additional HTTP requests");
+
+          rc.resetConnectCooldown();
+          assertEqual(rc.getConnectCooldownRemainingMs(), 0, "resetConnectCooldown clears cooldown");
+        } finally {
+          window.fetch = origFetch;
+        }
+      });
+
+      it("Pasting a race URL never overwrites the host runner username with the URL", () => {
+        const rc = window.LiveSplit.RaceClient.createRaceClient();
+        rc.setHostUsername("SpeedRunnerLuke");
+        assertEqual(rc.getHostUsername(), "SpeedRunnerLuke");
+
+        // Passing a race URL to setHostUsername must not overwrite the host's display name
+        rc.setHostUsername("https://therun.gg/races/tzsm");
+        const hostEntrant = rc.getRankedEntrants().find(r => r.isHost);
+        assert(hostEntrant.username !== "https://therun.gg/races/tzsm", "Host username is never set to a race URL");
       });
     });
 

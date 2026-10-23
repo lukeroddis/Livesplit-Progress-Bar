@@ -72,8 +72,9 @@
    * Returns fallback preview entrants for Edit Mode when not in a race.
    */
   function getPreviewEntrants() {
-    const savedName = (typeof localStorage !== "undefined" && localStorage.getItem("therun_username")) || "";
-    const hostDisplayName = savedName.trim() || "You";
+    const savedName = ((typeof localStorage !== "undefined" && localStorage.getItem("therun_username")) || "").trim();
+    const isUrl = savedName.includes("://") || savedName.includes("/");
+    const hostDisplayName = (!isUrl && savedName) ? savedName : "You";
     return [
       {
         userId: "prev_speeddemon",
@@ -170,10 +171,11 @@
         row.classList.toggle("is-muted", isNowMuted);
         row.title = isNowMuted ? "Double-click to show runner pin on track" : "Double-click to hide runner pin on track";
 
-        // Immediately update track pin display
+        // Immediately update track pin display (respecting global race pins toggle)
         const marker = document.getElementById(`ghost-marker-race-${userId}`);
         if (marker) {
-          marker.style.display = isNowMuted ? "none" : "flex";
+          const globalPinsOn = typeof rc.areRacePinsVisible === "function" ? rc.areRacePinsVisible() : true;
+          marker.style.display = (isNowMuted || !globalPinsOn) ? "none" : "flex";
         }
 
         // Refresh track pins immediately
@@ -289,6 +291,9 @@
         deltaTooltip = `Dropped ${Math.abs(posDelta)} ${Math.abs(posDelta) === 1 ? "place" : "places"}`;
       }
       const color = racer.color || (isHost ? "#38bdf8" : "#94a3b8");
+      if (racer.username && (String(racer.username).includes("://") || String(racer.username).includes("therun.gg/"))) {
+        racer.username = "";
+      }
       const displayName = racer.username || (isHost ? "You" : "Runner");
       const splitLabel = isDnf ? "DNF" : (racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`));
 

@@ -210,13 +210,14 @@
       <div class="settings-section" id="section-race-mode">
         <div class="settings-section-header">LIVE RACE TELEMETRY</div>
         <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to toggle Live Race connection">Race: Off</button>
+          <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
           <button type="button" class="settings-tile-btn" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
           <button type="button" class="settings-tile-btn" id="btn-toggle-leaderboard" style="color: #38bdf8;" title="Click to toggle Live Standings Tower visibility">Standings: ON</button>
+          <button type="button" class="settings-tile-btn" id="btn-toggle-race-pins" style="color: #38bdf8;" title="Click to show/hide all competitor pins on the progress track (individual leaderboard mutes are preserved)">Pins: ON</button>
         </div>
         <div class="settings-profile-bar" style="margin-top: 6px;">
-          <input type="text" id="input-therun-username" class="settings-profile-input" placeholder="therun.gg username (auto-detect)" title="Enter your therun.gg username to automatically detect when you enter a live race">
-          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Save username for zero-click race detection">✓ Save</button>
+          <input type="text" id="input-therun-username" class="settings-profile-input" placeholder="therun.gg username" title="Enter your therun.gg username and click Connect to join your active race">
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to your active therun.gg race (single-shot check with 5s cooldown)">Connect</button>
         </div>
       </div>
 
