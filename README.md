@@ -2,8 +2,8 @@
 
 <p align="center">
   <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml"><img src="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Test Suite"></a>
-  <a href="tests/run_tests.py"><img src="https://img.shields.io/badge/tests-104%20passed-brightgreen.svg" alt="Tests"></a>
-  <a href="tests/run_tests.py"><img src="https://img.shields.io/badge/coverage-46.4%25-green.svg" alt="Coverage"></a>
+  <a href="tests/run_tests.py"><img src="https://img.shields.io/badge/tests-116%20passed-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/run_tests.py"><img src="https://img.shields.io/badge/coverage-52.6%25-green.svg" alt="Coverage"></a>
   <a href="https://obsproject.com/"><img src="https://img.shields.io/badge/OBS%20Studio-Compatible-purple.svg" alt="OBS Studio Compatible"></a>
   <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/releases"><img src="https://img.shields.io/github/v/release/lukeroddis/Livesplit-Progress-Bar?color=blue&logo=github" alt="Release"></a>
   <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/issues"><img src="https://img.shields.io/github/issues/lukeroddis/Livesplit-Progress-Bar?color=orange" alt="Issues"></a>
