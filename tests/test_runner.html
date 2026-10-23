@@ -192,6 +192,7 @@
       suites.push(currentSuite);
       fn();
     }
+    const suite = describe;
 
     function it(name, testFn) {
       try {
@@ -552,6 +553,7 @@
         assertEqual(window.getCurrentTimingMethod(), "GameTime");
       });
       it("supports clicking trigger pill to latch menu open (pressed down) and clicking again or close button to dismiss", () => {
+        if (typeof window.initOverlay === "function") window.initOverlay();
         const wrap = document.getElementById("quick-settings-wrap");
         const pill = document.getElementById("settings-trigger-pill");
         const closeBtn = document.getElementById("btn-close-settings");

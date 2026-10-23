@@ -9,6 +9,11 @@ import os
 import re
 import math
 import json
+import shutil
+import socket
+import subprocess
+import urllib.request
+import asyncio
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -2504,6 +2509,297 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
 
+
+def find_chrome():
+    candidates = [
+        os.environ.get("CHROME_BIN"),
+        shutil.which("google-chrome"),
+        shutil.which("google-chrome-stable"),
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
+        shutil.which("chrome"),
+        shutil.which("msedge"),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ]
+    for c in candidates:
+        if c and os.path.isfile(c):
+            return c
+    return None
+
+
+def find_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
+
+
+def calculate_file_line_coverage(file_path, script_coverage):
+    if not os.path.isfile(file_path):
+        return None
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    
+    lines = content.splitlines(keepends=True)
+    if not lines:
+        return 0, 0, 0.0
+    
+    executed_bytes = [0] * len(content)
+    
+    for func in script_coverage.get("functions", []):
+        for r in func.get("ranges", []):
+            start = max(0, min(r.get("startOffset", 0), len(content)))
+            end = max(0, min(r.get("endOffset", 0), len(content)))
+            count = r.get("count", 0)
+            val = 1 if count > 0 else 0
+            for i in range(start, end):
+                executed_bytes[i] = val
+
+    offset = 0
+    covered_lines = 0
+    executable_lines = 0
+    for line in lines:
+        line_len = len(line)
+        line_text = line.strip()
+        if (line_text and not line_text.startswith("//") 
+            and not line_text.startswith("/*") 
+            and not line_text.startswith("*")
+            and line_text not in ["{", "}", "};", "});", "})();"]):
+            executable_lines += 1
+            if any(executed_bytes[offset + k] for k in range(line_len) if not line[k].isspace()):
+                covered_lines += 1
+        offset += line_len
+        
+    pct = (covered_lines / executable_lines * 100) if executable_lines > 0 else 100.0
+    return executable_lines, covered_lines, pct
+
+
+async def _run_browser_cdp_async(chrome_bin, test_url):
+    import websockets
+    port = find_free_port()
+    proc = subprocess.Popen([
+        chrome_bin,
+        "--headless=new",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        f"--remote-debugging-port={port}",
+        "--remote-debugging-address=127.0.0.1",
+        "about:blank"
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    try:
+        ws_url = None
+        for _ in range(40):
+            await asyncio.sleep(0.1)
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as resp:
+                    targets = json.loads(resp.read().decode())
+                if targets:
+                    page = next((t for t in targets if t.get("type") == "page"), None)
+                    if page and "webSocketDebuggerUrl" in page:
+                        ws_url = page["webSocketDebuggerUrl"]
+                        break
+            except Exception:
+                pass
+        
+        if not ws_url:
+            raise RuntimeError(f"Could not connect to Chrome debugging port {port}")
+            
+        async with websockets.connect(ws_url) as ws:
+            msg_id = 1
+            async def send_cmd(method, params=None):
+                nonlocal msg_id
+                cid = msg_id
+                msg_id += 1
+                await ws.send(json.dumps({"id": cid, "method": method, "params": params or {}}))
+                while True:
+                    res = json.loads(await ws.recv())
+                    if res.get("id") == cid:
+                        return res.get("result", {})
+
+            await send_cmd("Profiler.enable")
+            await send_cmd("Profiler.startPreciseCoverage", {"callCount": True, "detailed": True})
+            await send_cmd("Page.enable")
+            await send_cmd("Page.navigate", {"url": test_url})
+            
+            badge_text = ""
+            for _ in range(60):
+                await asyncio.sleep(0.1)
+                eval_res = await send_cmd("Runtime.evaluate", {
+                    "expression": "document.getElementById('total-badge') ? document.getElementById('total-badge').innerText : ''"
+                })
+                val = eval_res.get("result", {}).get("value", "")
+                if "PASSED" in val or "FAILED" in val:
+                    badge_text = val
+                    break
+            
+            cov_res = await send_cmd("Profiler.takePreciseCoverage")
+            await send_cmd("Profiler.stopPreciseCoverage")
+            
+            return badge_text, cov_res.get("result", [])
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=2)
+        except Exception:
+            proc.kill()
+
+
+def run_browser_tests_and_coverage(python_test_count=35):
+    """Run in-browser DOM test suite via headless Chrome and measure V8 code coverage."""
+    chrome_bin = find_chrome()
+    if not chrome_bin:
+        print("⚠️ Chrome/Chromium browser not found; skipping in-browser DOM unit tests.")
+        return None
+
+    test_html = os.path.join(ROOT_DIR, "tests", "test_runner.html")
+    test_url = "file:///" + os.path.abspath(test_html).replace(chr(92), "/")
+
+    badge_text = ""
+    records = []
+
+    # Check if websockets is available for precise V8 coverage
+    has_websockets = False
+    try:
+        import websockets
+        has_websockets = True
+    except ImportError:
+        pass
+
+    if has_websockets:
+        try:
+            badge_text, records = asyncio.run(_run_browser_cdp_async(chrome_bin, test_url))
+        except Exception as e:
+            print(f"⚠️ CDP coverage collection encountered error: {e}, falling back to --dump-dom")
+            has_websockets = False
+
+    if not has_websockets:
+        # Fallback to direct dump-dom execution
+        proc = subprocess.run([
+            chrome_bin,
+            "--headless=new",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--dump-dom",
+            test_url
+        ], capture_output=True, text=True, errors="replace")
+        out = proc.stdout or ""
+        m = re.search(r'id="total-badge"[^>]*>([^<]+)<', out)
+        badge_text = m.group(1).strip() if m else "Unknown"
+
+    # Assert browser tests passed
+    if "FAILED" in badge_text or "❌" in badge_text:
+        raise AssertionError(f"In-browser test runner failed: {badge_text}")
+    if "PASSED" not in badge_text:
+        raise AssertionError(f"In-browser test runner did not complete: {badge_text}")
+
+    # Parse browser test count
+    m_count = re.search(r'(\d+)\s+TESTS PASSED', badge_text)
+    browser_test_count = int(m_count.group(1)) if m_count else 0
+    total_checks = python_test_count + browser_test_count
+
+    print(f"✓ In-browser unit tests passed ({badge_text}).")
+
+    coverage_data = []
+    total_exec = 0
+    total_cov = 0
+
+    if records:
+        target_files = [
+            "overlay.js",
+            "layout.js",
+            os.path.join("src", "core", "time-utils.js"),
+            os.path.join("src", "core", "split-engine.js"),
+            os.path.join("src", "core", "ghost-math.js"),
+            os.path.join("src", "core", "storage.js"),
+            os.path.join("src", "core", "livesplit-client.js"),
+            os.path.join("src", "core", "race-client.js"),
+            os.path.join("src", "ui", "layout-engine.js"),
+            os.path.join("src", "ui", "track-renderer.js"),
+            os.path.join("src", "ui", "interactions.js"),
+            os.path.join("src", "ui", "leaderboard.js")
+        ]
+
+        for tf in target_files:
+            full_path = os.path.join(ROOT_DIR, tf)
+            if not os.path.isfile(full_path):
+                continue
+            base_name = os.path.basename(tf)
+            rec = next((r for r in records if os.path.basename(r.get("url", "")) == base_name), None)
+            if rec:
+                res = calculate_file_line_coverage(full_path, rec)
+                if res:
+                    exec_l, cov_l, pct = res
+                    total_exec += exec_l
+                    total_cov += cov_l
+                    coverage_data.append({
+                        "file": tf.replace("\\", "/"),
+                        "exec_lines": exec_l,
+                        "cov_lines": cov_l,
+                        "pct": pct
+                    })
+
+    overall_pct = (total_cov / total_exec * 100) if total_exec > 0 else 0.0
+
+    # Print unified terminal summary
+    print("\n" + "=" * 66)
+    print("           Unified Test Suite & Coverage Report")
+    print("=" * 66)
+    print(f" ✓ Python Architecture Checks:  {python_test_count:3d} / {python_test_count:3d} (100% Passed)")
+    print(f" ✓ Browser DOM & Unit Tests:   {browser_test_count:3d} / {browser_test_count:3d} (100% Passed)")
+    print(f" ----------------------------------------------------------------")
+    print(f" Total Unified Test Checks:   {total_checks:3d} / {total_checks:3d} (100% Green)")
+
+    if coverage_data:
+        print("-" * 66)
+        print(f" {'File':<30} {'Lines':>8} {'Covered':>9} {'Coverage':>10}")
+        print("-" * 66)
+        for cd in coverage_data:
+            print(f" {cd['file']:<30} {cd['exec_lines']:8d} {cd['cov_lines']:9d} {cd['pct']:9.1f}%")
+        print("-" * 66)
+        print(f" {'Total Project JavaScript':<30} {total_exec:8d} {total_cov:9d} {overall_pct:9.1f}%")
+    print("=" * 66)
+
+    # Write GitHub Actions Step Summary if in CI
+    step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary_path:
+        try:
+            with open(step_summary_path, "a", encoding="utf-8") as f:
+                f.write("\n## 🧪 LiveSplit Minimal Overlay — Test & Coverage Summary\n\n")
+                f.write("| Metric | Status | Details |\n")
+                f.write("| :--- | :---: | :--- |\n")
+                f.write(f"| **Python Architecture Checks** | ✅ **Passed** | {python_test_count} / {python_test_count} Suites Passed |\n")
+                f.write(f"| **In-Browser DOM Unit Tests** | ✅ **Passed** | {browser_test_count} / {browser_test_count} Tests Passed |\n")
+                f.write(f"| **Total Test Checks** | ✅ **100% Green** | **{total_checks} Checks Passed (0 Failed)** |\n")
+                if coverage_data:
+                    f.write(f"| **Overall JavaScript Coverage** | 📊 **{overall_pct:.1f}%** | {total_cov:,} / {total_exec:,} Executable Lines |\n")
+                f.write("\n")
+
+                if coverage_data:
+                    f.write("### 📂 JavaScript Coverage Breakdown\n\n")
+                    f.write("| File | Executable Lines | Covered Lines | Coverage | Progress |\n")
+                    f.write("| :--- | :---: | :---: | :---: | :--- |\n")
+                    for cd in coverage_data:
+                        bars = int(round(cd['pct'] / 10))
+                        bar_str = "🟩" * bars + "⬜" * (10 - bars)
+                        f.write(f"| `{cd['file']}` | {cd['exec_lines']:,} | {cd['cov_lines']:,} | {cd['pct']:.1f}% | `{bar_str}` |\n")
+                    f.write("\n")
+                    f.write(f"> **Verdict**: All {total_checks} test checks passed with **{overall_pct:.1f}%** line coverage.\n")
+        except Exception as e:
+            print(f"Notice: Could not write GITHUB_STEP_SUMMARY: {e}")
+
+    return {
+        "python_tests": python_test_count,
+        "browser_tests": browser_test_count,
+        "total_checks": total_checks,
+        "coverage_pct": overall_pct
+    }
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -2546,6 +2842,7 @@ def main():
         test_race_client_and_simulation_engine()
         test_track_orientation_and_split_density_reflow()
         test_live_race_ghost_pins_and_f1_leaderboard()
+        run_browser_tests_and_coverage(python_test_count=37)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
