@@ -773,7 +773,8 @@
       let targetSegmentName = "";
 
       if (leader && !leader.isDNF) {
-        const totalCourseSplits = activeSplitsList.length > 0 ? activeSplitsList.length : 8;
+        const leaderSplitsLen = normalizeSplitTimes(leader.splitTimes).length;
+        const totalCourseSplits = activeSplitsList.length > 0 ? activeSplitsList.length : (leaderSplitsLen > 0 ? leaderSplitsLen : 8);
         const leaderSplitIdx = leader.isFinished
           ? (totalCourseSplits - 1)
           : (leader.currentSplitIndex || 0);
@@ -957,12 +958,21 @@
 
     function formatGapTime(sec) {
       if (sec === null || sec === undefined || isNaN(sec)) return "--";
-      if (sec < 60) {
-        return `${sec.toFixed(1)}s`;
+      const clamped = Math.max(0, sec);
+      const totalSec = Math.floor(clamped);
+      if (totalSec < 60) {
+        const subMin = Math.min(59.9, Math.round(clamped * 10) / 10);
+        return `${subMin.toFixed(1)}s`;
       }
-      const m = Math.floor(sec / 60);
-      const s = (sec % 60).toFixed(1);
-      return `${m}:${s.padStart(4, "0")}`;
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      const sPad = s < 10 ? `0${s}` : `${s}`;
+      if (h > 0) {
+        const mPad = m < 10 ? `0${m}` : `${m}`;
+        return `${h}:${mPad}:${sPad}`;
+      }
+      return `${m}:${sPad}`;
     }
 
     /**

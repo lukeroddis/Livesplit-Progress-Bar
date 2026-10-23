@@ -266,10 +266,12 @@
       it("formats ahead deltas with minus sign", () => {
         assertEqual(window.formatDeltaSeconds(-1.5), "-1.5");
         assertEqual(window.formatDeltaSeconds(-65.2), "-1:05");
+        assertEqual(window.formatDeltaSeconds(-3665.2), "-1:01:05");
       });
       it("formats behind deltas with plus sign", () => {
         assertEqual(window.formatDeltaSeconds(12.3), "+12.3");
         assertEqual(window.formatDeltaSeconds(125.0), "+2:05");
+        assertEqual(window.formatDeltaSeconds(4200.0), "+1:10:00");
       });
     });
 
@@ -309,6 +311,14 @@
         const res = window.formatDeltaLive("+1:20.5");
         assertEqual(res.isAhead, false);
         assertEqual(res.text, "+1:20");
+      });
+      it("formats live deltas past one hour as H:MM:SS", () => {
+        const res = window.formatDeltaLive("+1:10:00.5");
+        assertEqual(res.isAhead, false);
+        assertEqual(res.text, "+1:10:00");
+        const aheadRes = window.formatDeltaLive("-2:05:09.0");
+        assertEqual(aheadRes.isAhead, true);
+        assertEqual(aheadRes.text, "-2:05:09");
       });
     });
 
@@ -1276,6 +1286,8 @@
         assertEqual(tu.formatDeltaSeconds(-65.2), "-1:05");
         assertEqual(tu.formatDeltaSeconds(12.3), "+12.3");
         assertEqual(tu.formatDeltaSeconds(125.0), "+2:05");
+        assertEqual(tu.formatDeltaSeconds(4200.0), "+1:10:00");
+        assertEqual(tu.formatDeltaSeconds(-3665.0), "-1:01:05");
       });
     });
 
@@ -2713,6 +2725,49 @@
         });
         list = rc.getRankedEntrants();
         assertEqual(list.find(r => r.userId === "r_b").positionDelta, -2, "RunnerB maintains -2 after completing Split 2 in P4");
+      });
+
+      it("Leaderboard formats multi-hour gaps, segment times, final times, and ribbon tooltips as H:MM:SS", () => {
+        const rc = window.LiveSplit.RaceClient.createRaceClient();
+        rc.setHostUsername("MarathonHost");
+        rc.handleRaceMessage([
+          {
+            userId: "r_hour_leader",
+            username: "MarathonLeader",
+            currentSplitIndex: 2,
+            currentTime: 7800000,
+            splitTimes: [3600.0, 7800.0],
+            isFinished: true
+          },
+          {
+            userId: "r_hour_chaser",
+            username: "MarathonChaser",
+            currentSplitIndex: 1,
+            currentTime: 7800000,
+            splitTimes: [7800.0],
+            splits: [
+              { splitTime: 7800000 },
+              { predictedSingleTime: 4200000 }
+            ]
+          }
+        ]);
+
+        const list = rc.getRankedEntrants();
+        const leader = list.find(r => r.userId === "r_hour_leader");
+        const chaser = list.find(r => r.userId === "r_hour_chaser");
+
+        // Leader finished in 7800s (2h 10m 00s)
+        assertEqual(leader.expectedSegmentDisplay, "2:10:00", "Final time 7800s formats as 2:10:00 instead of 130:00");
+        // Chaser completed Split 1 in 7800s vs Leader's 3600s -> 4200s (70m) gap -> +1:10:00
+        assertEqual(chaser.gapDisplay, "+1:10:00", "70-minute gap (4200s) formats as +1:10:00 instead of +70:00");
+        assertEqual(chaser.expectedSegmentDisplay, "1:10:00", "Expected 4200s segment formats as 1:10:00");
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(list, false, true, false);
+        const leaderRow = document.querySelector('.leaderboard-row[data-user-id="r_hour_leader"]');
+        const leaderRibbon = leaderRow.querySelector(".racer-ribbon");
+        assert(leaderRibbon.title.includes("1:10:00"), `Ribbon tooltip formats 4200s segment as 1:10:00, got: ${leaderRibbon.title}`);
+
+        window.LiveSplit.Leaderboard.reset();
       });
     });
 

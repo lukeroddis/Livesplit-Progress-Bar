@@ -624,11 +624,15 @@ function formatDeltaSeconds(signedSec) {
 
   const totalSec = Math.floor(abs);
   const frac = Math.floor((abs - totalSec) * 10);
-  const m = Math.floor(totalSec / 60);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  const sPad = (s < 10 && m > 0) ? `0${s}` : `${s}`;
+  const sPad = (s < 10 && (h > 0 || m > 0)) ? `0${s}` : `${s}`;
 
-  if (m > 0) {
+  if (h > 0) {
+    const mPad = m < 10 ? `0${m}` : `${m}`;
+    return `${sign}${h}:${mPad}:${sPad}`;
+  } else if (m > 0) {
     return `${sign}${m}:${sPad}`;
   } else {
     return `${sign}${sPad}.${frac}`;
@@ -644,6 +648,16 @@ function formatDeltaLive(raw) {
 
   let cleaned = trimmed.replace(/^[-+−\u2212]/, "").trim();
 
+  let days = 0;
+  if (cleaned.includes(".")) {
+    const firstDot = cleaned.indexOf(".");
+    const firstColon = cleaned.indexOf(":");
+    if (firstColon !== -1 && firstDot < firstColon) {
+      days = parseInt(cleaned.slice(0, firstDot), 10) || 0;
+      cleaned = cleaned.slice(firstDot + 1);
+    }
+  }
+
   let decPart = "";
   let fracSec = 0;
   if (cleaned.includes(".")) {
@@ -656,10 +670,10 @@ function formatDeltaLive(raw) {
   const timeUnits = cleaned.split(":").map(p => parseInt(p, 10));
   if (timeUnits.some(isNaN)) return null;
 
-  let totalSec = 0;
-  if (timeUnits.length === 3) totalSec = timeUnits[0] * 3600 + timeUnits[1] * 60 + timeUnits[2];
-  else if (timeUnits.length === 2) totalSec = timeUnits[0] * 60 + timeUnits[1];
-  else if (timeUnits.length === 1) totalSec = timeUnits[0];
+  let totalSec = days * 86400;
+  if (timeUnits.length === 3) totalSec += timeUnits[0] * 3600 + timeUnits[1] * 60 + timeUnits[2];
+  else if (timeUnits.length === 2) totalSec += timeUnits[0] * 60 + timeUnits[1];
+  else if (timeUnits.length === 1) totalSec += timeUnits[0];
 
   const signedSeconds = isAhead ? -(totalSec + fracSec) : (totalSec + fracSec);
 
@@ -667,12 +681,16 @@ function formatDeltaLive(raw) {
     return { text: "±0.0", isAhead: false, signedSeconds: 0 };
   }
 
-  const m = Math.floor(totalSec / 60);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  const secFormatted = (s < 10 && m > 0) ? `0${s}` : `${s}`;
+  const secFormatted = (s < 10 && (h > 0 || m > 0)) ? `0${s}` : `${s}`;
 
   let outputText = "";
-  if (m > 0) {
+  if (h > 0) {
+    const minFormatted = m < 10 ? `0${m}` : `${m}`;
+    outputText = `${sign}${h}:${minFormatted}:${secFormatted}`;
+  } else if (m > 0) {
     outputText = `${sign}${m}:${secFormatted}`;
   } else {
     outputText = `${sign}${secFormatted}${decPart || ".0"}`;

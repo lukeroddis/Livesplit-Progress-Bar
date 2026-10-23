@@ -29,6 +29,28 @@
   }
 
   /**
+   * Formats segment duration seconds for ribbon tooltips ("27.4s", "1:05", "1:10:00").
+   */
+  function formatSegmentDuration(sec) {
+    if (typeof sec !== "number" || isNaN(sec)) return sec || "--";
+    const clamped = Math.max(0, sec);
+    const totalSec = Math.floor(clamped);
+    if (totalSec < 60) {
+      const subMin = Math.min(59.9, Math.round(clamped * 10) / 10);
+      return `${subMin.toFixed(1)}s`;
+    }
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const sPad = s < 10 ? `0${s}` : `${s}`;
+    if (h > 0) {
+      const mPad = m < 10 ? `0${m}` : `${m}`;
+      return `${h}:${mPad}:${sPad}`;
+    }
+    return `${m}:${sPad}`;
+  }
+
+  /**
    * Builds avatar HTML markup for an entrant.
    */
   function buildAvatarMarkup(avatar, isHost) {
@@ -315,9 +337,12 @@
 
       const ribbonTier = (!isDnf && (racer.segmentRibbon || (racer.hasCrown ? "gold" : null))) || null;
       const ribbonSegName = racer.ribbonSegmentName || racer.crownSegmentName || "split";
-      const ribbonSegTime = typeof racer.ribbonSegmentTime === "number"
-        ? `${racer.ribbonSegmentTime.toFixed(1)}s`
-        : (typeof racer.crownSegmentTime === "number" ? `${racer.crownSegmentTime.toFixed(1)}s` : (racer.ribbonSegmentTime || racer.crownSegmentTime || "--"));
+      const rawRibbonSec = typeof racer.ribbonSegmentTime === "number"
+        ? racer.ribbonSegmentTime
+        : (typeof racer.crownSegmentTime === "number" ? racer.crownSegmentTime : null);
+      const ribbonSegTime = rawRibbonSec !== null
+        ? formatSegmentDuration(rawRibbonSec)
+        : (racer.ribbonSegmentTime || racer.crownSegmentTime || "--");
       const ribbonLabels = {
         gold: "🥇 1st Fastest Segment",
         silver: "🥈 2nd Fastest Segment",

@@ -315,9 +315,13 @@ def format_delta_seconds(signed_sec):
         return "±0.0"
     total_sec = math.floor(abs_sec)
     frac = math.floor((abs_sec - total_sec) * 10)
-    m = total_sec // 60
+    h = total_sec // 3600
+    m = (total_sec % 3600) // 60
     s = total_sec % 60
-    s_pad = f"0{s}" if (s < 10 and m > 0) else f"{s}"
+    s_pad = f"0{s}" if (s < 10 and (h > 0 or m > 0)) else f"{s}"
+    if h > 0:
+        m_pad = f"0{m}" if m < 10 else f"{m}"
+        return f"{sign}{h}:{m_pad}:{s_pad}"
     if m > 0:
         return f"{sign}{m}:{s_pad}"
     return f"{sign}{s_pad}.{frac}"
@@ -436,6 +440,8 @@ def test_format_delta_unit():
     assert format_delta_seconds(12.3) == "+12.3"
     assert format_delta_seconds(-65.2) == "-1:05"
     assert format_delta_seconds(125.0) == "+2:05"
+    assert format_delta_seconds(4200.0) == "+1:10:00"
+    assert format_delta_seconds(-3665.2) == "-1:01:05"
     print("✓ format_delta_seconds unit tests passed.")
 
 
