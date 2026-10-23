@@ -2322,6 +2322,9 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
         chrome_bin,
         "--headless=new",
         "--disable-gpu",
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
         f"--remote-debugging-port={port}",
         "about:blank"
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -2418,6 +2421,8 @@ def run_browser_tests_and_coverage(python_test_count=35):
             chrome_bin,
             "--headless=new",
             "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
             "--dump-dom",
             test_url
         ], capture_output=True, text=True, errors="replace")
