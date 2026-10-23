@@ -32,10 +32,18 @@
    * Builds avatar HTML markup for an entrant.
    */
   function buildAvatarMarkup(avatar, isHost) {
-    if (avatar && (avatar.startsWith("http") || avatar.startsWith("data:"))) {
-      return `<img class="racer-avatar-img" src="${escapeHtml(avatar)}" alt="" />`;
+    const raw = typeof avatar === "string" ? avatar : "";
+    const isSafeImg = (
+      raw.startsWith("https://") ||
+      raw.startsWith("http://") ||
+      raw.startsWith("data:image/")
+    );
+    if (isSafeImg) {
+      return `<img class="racer-avatar-img" src="${escapeHtml(raw)}" alt="" />`;
     }
-    return `<span class="racer-avatar-emoji">${escapeHtml(avatar || (isHost ? "👤" : "🏎️"))}</span>`;
+    const isLikelyUrl = raw.includes(":") || raw.includes("/");
+    const fallback = isLikelyUrl ? (isHost ? "👤" : "🏎️") : (raw || (isHost ? "👤" : "🏎️"));
+    return `<span class="racer-avatar-emoji">${escapeHtml(fallback)}</span>`;
   }
 
   /**

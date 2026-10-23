@@ -450,7 +450,7 @@ function showComparisonToast(compName) {
     document.body.appendChild(toast);
   }
   toast.style.display = "";
-  toast.innerHTML = `<span style="color: #38bdf8;">⚖️ Comparison:</span> <span>${compName}</span>`;
+  toast.innerHTML = `<span style="color: #38bdf8;">⚖️ Comparison:</span> <span>${escapeHtml(compName)}</span>`;
   toast.classList.add("show");
   if (comparisonToastTimer) clearTimeout(comparisonToastTimer);
   comparisonToastTimer = setTimeout(() => {
@@ -496,6 +496,16 @@ function timeStringToSeconds(tStr) {
     return null;
   }
   return isNaN(sec) ? null : days * 86400 + sec;
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function formatTimerDisplay(rawTime) {
@@ -1916,9 +1926,9 @@ function getOrCreateGhostMarker(ghostInfo) {
     marker.id = markerId;
     marker.className = `ghost-marker ghost-theme-${ghostInfo.id}`;
     marker.innerHTML = `
-      <div class="ghost-icon-wrap"><span class="ghost-icon">${ghostInfo.icon}</span></div>
+      <div class="ghost-icon-wrap"><span class="ghost-icon">${escapeHtml(ghostInfo.icon || "🏎️")}</span></div>
       <div class="ghost-needle"></div>
-      <div class="racer-tag">${ghostInfo.name || ""}</div>
+      <div class="racer-tag">${ghostInfo.name ? escapeHtml(ghostInfo.name) : ""}</div>
     `;
     track.appendChild(marker);
   } else {
@@ -1953,9 +1963,19 @@ function getOrCreateRaceMarker(racer) {
   if (!track) return null;
 
   const color = racer.color || "#38bdf8";
-  const avatarHtml = racer.avatar && (racer.avatar.startsWith("http") || racer.avatar.startsWith("data:"))
-    ? `<img class="racer-avatar-img" src="${racer.avatar}" alt="" />`
-    : `<span class="ghost-icon racer-avatar">${racer.avatar || "🏎️"}</span>`;
+  const rawAvatar = racer.avatar || "";
+  const isSafeImg = typeof rawAvatar === "string" && (
+    rawAvatar.startsWith("https://") ||
+    rawAvatar.startsWith("http://") ||
+    rawAvatar.startsWith("data:image/")
+  );
+  const isLikelyUrl = typeof rawAvatar === "string" && (
+    rawAvatar.includes(":") || rawAvatar.includes("/")
+  );
+  const fallbackIcon = rawAvatar && !isLikelyUrl ? rawAvatar : "🏎️";
+  const avatarHtml = isSafeImg
+    ? `<img class="racer-avatar-img" src="${escapeHtml(rawAvatar)}" alt="" />`
+    : `<span class="ghost-icon racer-avatar">${escapeHtml(fallbackIcon)}</span>`;
 
   if (!marker) {
     marker = document.createElement("div");
@@ -1965,7 +1985,7 @@ function getOrCreateRaceMarker(racer) {
     marker.innerHTML = `
       <div class="ghost-icon-wrap racer-avatar-wrap">${avatarHtml}</div>
       <div class="ghost-needle racer-needle"></div>
-      <div class="racer-tag">${racer.username || ""}</div>
+      <div class="racer-tag">${escapeHtml(racer.username || "")}</div>
     `;
     track.appendChild(marker);
     raceMarkerMap.set(markerId, marker);

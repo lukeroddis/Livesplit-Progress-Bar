@@ -2493,6 +2493,14 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "rc.setTimingMethod" in overlay_js, "overlay.js applyActiveTimingMethod must notify rc.setTimingMethod"
     assert "completedSplitTimesGT" in overlay_js, "overlay.js must track completedSplitTimesGT"
 
+    # 13. Security sanitization, TDZ prevention, and WebSocket self-healing checks
+    assert "function escapeHtml" in overlay_js, "overlay.js must define escapeHtml for XSS defense"
+    assert "escapeHtml(racer.username" in overlay_js, "overlay.js getOrCreateRaceMarker must escape racer.username"
+    assert 'rawAvatar.startsWith("https://")' in overlay_js, "overlay.js getOrCreateRaceMarker must validate avatar URL protocols"
+    assert "let hostSplitName = currentSplitName;" in race_code, "race-client.js updateHostProgress must declare hostSplitName"
+    assert race_code.index("let hostSplitName = currentSplitName;") < race_code.index("if (splitFlash && splitFlash.type)"), "race-client.js updateHostProgress must declare hostSplitName before splitFlash to prevent TDZ ReferenceError"
+    assert "!ws || ws.readyState !== WebSocket.OPEN" in race_code, "race-client.js pollUserStatus must auto-reconnect if socket dropped on active raceId"
+
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 
 

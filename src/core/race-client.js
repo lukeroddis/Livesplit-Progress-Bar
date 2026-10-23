@@ -860,6 +860,20 @@
         hostState.splitTimes = normCompletedGT.length > 0 ? normCompletedGT : normCompletedRT;
       }
 
+      let hostSplitName = currentSplitName;
+      if (!hostSplitName) {
+        if (currentIndex < 0) {
+          hostSplitName = "Start";
+        } else if (activeSplitsList && activeSplitsList[currentIndex]) {
+          hostSplitName = activeSplitsList[currentIndex];
+        } else if (comparisonTimes && currentIndex >= comparisonTimes.length) {
+          hostSplitName = "Finished";
+        } else {
+          hostSplitName = `Split ${currentIndex + 1}`;
+        }
+      }
+      hostState.currentSplitName = hostSplitName;
+
       if (splitFlash && splitFlash.type) {
         const completedName = splitFlash.completedSplitName
           || hostState.currentSplitName
@@ -875,20 +889,6 @@
       } else if (hostState.lastSplitEffect && (Date.now() - (hostState.lastSplitEffect.timestamp || 0)) > 4200) {
         hostState.lastSplitEffect = null;
       }
-
-      let hostSplitName = currentSplitName;
-      if (!hostSplitName) {
-        if (currentIndex < 0) {
-          hostSplitName = "Start";
-        } else if (activeSplitsList && activeSplitsList[currentIndex]) {
-          hostSplitName = activeSplitsList[currentIndex];
-        } else if (comparisonTimes && currentIndex >= comparisonTimes.length) {
-          hostSplitName = "Finished";
-        } else {
-          hostSplitName = `Split ${currentIndex + 1}`;
-        }
-      }
-      hostState.currentSplitName = hostSplitName;
 
       // Calculate in-segment progress ratio
       let ratio = 0;
@@ -980,8 +980,8 @@
 
         const data = await res.json();
         if (data && data.raceId) {
-          if (raceId !== data.raceId) {
-            console.log(`[RaceClient] Detected raceId from therun.gg: ${data.raceId}`);
+          if (raceId !== data.raceId || !ws || ws.readyState !== WebSocket.OPEN) {
+            console.log(`[RaceClient] Detected raceId from therun.gg: ${data.raceId} (reconnecting=${!ws || ws.readyState !== WebSocket.OPEN})`);
             connectToRace(data.raceId);
           }
         } else if (raceId && !data?.raceId) {
@@ -1687,6 +1687,7 @@
       stopAutoDetect,
       setHostUsername,
       getHostUsername,
+      getHostState: () => Object.assign({}, hostState),
       setHostDNF,
       isHostDNF,
       handleUndoSplit,

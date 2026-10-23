@@ -2159,6 +2159,47 @@
 
         rc.stopSimulation();
       });
+
+      it("updateHostProgress gracefully handles splitFlash without newSplitName without throwing TDZ ReferenceError", () => {
+        const rc = window.LiveSplit.RaceClient;
+        let threwError = false;
+        try {
+          rc.updateHostProgress(
+            45.0, 1, [45.0], [50.0, 100.0], "Stage 2",
+            ["Stage 1", "Stage 2"],
+            { type: "gold", completedSplitName: "Stage 1" },
+            true, 45.0, [50.0, 100.0], [45.0], "RealTime"
+          );
+        } catch (e) {
+          threwError = true;
+        }
+        assertEqual(threwError, false, "updateHostProgress does not throw TDZ ReferenceError on splitFlash with omitted newSplitName");
+        const hostState = rc.getHostState();
+        assert(hostState.lastSplitEffect !== null, "Split effect is recorded");
+        assertEqual(hostState.lastSplitEffect.newSplitName, "Stage 2", "newSplitName correctly defaulted to hostSplitName");
+      });
+
+      it("XSS Sanitization: getOrCreateRaceMarker escapes malicious username and blocks unsafe avatar schemes", () => {
+        const maliciousRacer = {
+          userId: "hacker99",
+          username: "<script>alert(1)<" + "/script>pwned",
+          avatar: "javascript:alert('xss')",
+          color: "#ff0000"
+        };
+        const marker = getOrCreateRaceMarker(maliciousRacer);
+        assert(marker, "Race marker created");
+        const tag = marker.querySelector(".racer-tag");
+        assert(tag, "Racer tag exists");
+        assert(!tag.innerHTML.includes("<script>"), "Malicious script tag escaped in racer tag innerHTML");
+        assertEqual(tag.textContent, "<script>alert(1)</" + "script>pwned", "Text content matches escaped string");
+
+        const img = marker.querySelector("img.racer-avatar-img");
+        assert(!img, "javascript: scheme avatar rejected and not rendered as <img> tag");
+        const iconSpan = marker.querySelector(".racer-avatar");
+        assert(iconSpan, "Safe fallback racer-avatar icon rendered instead");
+        assert(!iconSpan.innerHTML.includes("javascript:"), "Malicious scheme not rendered executable");
+        marker.remove();
+      });
     });
 
     // --- RENDER RESULTS ---
