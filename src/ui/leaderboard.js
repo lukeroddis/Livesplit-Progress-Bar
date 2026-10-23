@@ -63,6 +63,9 @@
         positionDeltaDisplay: "-",
         isHost: false,
         isMuted: false,
+        segmentRibbon: "gold",
+        ribbonSegmentName: "Split 2",
+        ribbonSegmentTime: 27.4,
         hasCrown: true,
         crownSegmentName: "Split 2",
         crownSegmentTime: 27.4,
@@ -83,6 +86,9 @@
         positionDeltaDisplay: "+2",
         isHost: true,
         isMuted: false,
+        segmentRibbon: "silver",
+        ribbonSegmentName: "Split 2",
+        ribbonSegmentTime: 28.1,
         currentSplitName: "Split 2",
         gapDisplay: "+1.4s",
         intervalDisplay: "+1.4s",
@@ -100,6 +106,9 @@
         positionDeltaDisplay: "-1",
         isHost: false,
         isMuted: false,
+        segmentRibbon: "bronze",
+        ribbonSegmentName: "Split 2",
+        ribbonSegmentTime: 28.9,
         currentSplitName: "Split 2",
         gapDisplay: "+2.1s",
         intervalDisplay: "+0.7s",
@@ -304,10 +313,20 @@
         }
       }
 
-      const hasCrown = !!racer.hasCrown;
-      const crownTooltip = hasCrown
-        ? `👑 Fastest Segment on ${racer.crownSegmentName || 'split'}: ${typeof racer.crownSegmentTime === 'number' ? racer.crownSegmentTime.toFixed(1) + 's' : (racer.crownSegmentTime || '--')} (${displayName})`
+      const ribbonTier = (!isDnf && (racer.segmentRibbon || (racer.hasCrown ? "gold" : null))) || null;
+      const ribbonSegName = racer.ribbonSegmentName || racer.crownSegmentName || "split";
+      const ribbonSegTime = typeof racer.ribbonSegmentTime === "number"
+        ? `${racer.ribbonSegmentTime.toFixed(1)}s`
+        : (typeof racer.crownSegmentTime === "number" ? `${racer.crownSegmentTime.toFixed(1)}s` : (racer.ribbonSegmentTime || racer.crownSegmentTime || "--"));
+      const ribbonLabels = {
+        gold: "🥇 1st Fastest Segment",
+        silver: "🥈 2nd Fastest Segment",
+        bronze: "🥉 3rd Fastest Segment"
+      };
+      const ribbonTooltip = ribbonTier && ribbonLabels[ribbonTier]
+        ? `${ribbonLabels[ribbonTier]} on ${ribbonSegName}: ${ribbonSegTime} (${displayName})`
         : "";
+      const ribbonClass = ribbonTier ? `racer-ribbon is-active ribbon-${ribbonTier}` : "racer-ribbon";
 
       const rowTitle = isDnf
         ? `${displayName} did not finish (DNF)`
@@ -326,6 +345,7 @@
         const avatarMarkup = buildAvatarMarkup(racer.avatar, isHost);
 
         row.innerHTML = `
+          <div class="${ribbonClass}" title="${escapeHtml(ribbonTooltip)}"></div>
           <div class="pos-col">
             <div class="pos-badge ${posClass}">${rank}</div>
             <span class="${deltaClass}" title="${escapeHtml(deltaTooltip)}">${escapeHtml(deltaText)}</span>
@@ -333,7 +353,6 @@
           <div class="racer-accent-bar"></div>
           <div class="racer-avatar-container">
             <div class="racer-avatar-badge">${avatarMarkup}</div>
-            <span class="racer-crown${hasCrown ? ' is-active' : ''}" title="${escapeHtml(crownTooltip)}">👑</span>
           </div>
           <div class="racer-name-block">
             <span class="racer-name">${escapeHtml(displayName)}</span>
@@ -379,31 +398,17 @@
           }
         }
 
-        let crownEl = row.querySelector(".racer-crown");
-        if (!crownEl) {
-          const avatarBadge = row.querySelector(".racer-avatar-badge");
-          if (avatarBadge) {
-            let container = row.querySelector(".racer-avatar-container");
-            if (!container) {
-              container = document.createElement("div");
-              container.className = "racer-avatar-container";
-              avatarBadge.parentNode.insertBefore(container, avatarBadge);
-              container.appendChild(avatarBadge);
-            }
-            crownEl = document.createElement("span");
-            crownEl.className = "racer-crown";
-            crownEl.textContent = "👑";
-            container.appendChild(crownEl);
-          }
+        let ribbonEl = row.querySelector(".racer-ribbon");
+        if (!ribbonEl) {
+          ribbonEl = document.createElement("div");
+          ribbonEl.className = "racer-ribbon";
+          row.insertBefore(ribbonEl, row.firstChild);
         }
-        if (crownEl) {
-          const wasActive = crownEl.classList.contains("is-active");
-          if (hasCrown !== wasActive) {
-            crownEl.classList.toggle("is-active", hasCrown);
-          }
-          if (hasCrown && crownTooltip && crownEl.title !== crownTooltip) {
-            crownEl.title = crownTooltip;
-          }
+        if (ribbonEl.className !== ribbonClass) {
+          ribbonEl.className = ribbonClass;
+        }
+        if (ribbonEl.title !== ribbonTooltip) {
+          ribbonEl.title = ribbonTooltip;
         }
 
         const nameEl = row.querySelector(".racer-name");
@@ -573,10 +578,10 @@
         row.style.animationDelay = "";
         row.classList.remove("overtake-flash", "split-flash-gold", "split-flash-green", "split-flash-red");
         delete row.dataset.lastEffectTime;
-        const crownEl = row.querySelector(".racer-crown");
-        if (crownEl) {
-          crownEl.classList.remove("is-active");
-          crownEl.title = "";
+        const ribbonEl = row.querySelector(".racer-ribbon");
+        if (ribbonEl) {
+          ribbonEl.className = "racer-ribbon";
+          ribbonEl.title = "";
         }
         const splitEl = row.querySelector(".racer-split");
         if (splitEl) {

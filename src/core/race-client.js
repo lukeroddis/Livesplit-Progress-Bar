@@ -767,11 +767,10 @@
       });
 
       // -------------------------------------------------------------
-      // Fastest Segment Crown Calculation (Leader's previous completed split)
+      // Fastest Segment Ribbons (Gold / Silver / Bronze on Leader's previous completed split)
       // -------------------------------------------------------------
-      let crownUserId = null;
-      let crownSegmentName = "";
-      let crownSegmentTime = null;
+      const ribbonAwards = new Map(); // userId -> { tier: "gold"|"silver"|"bronze", segDuration }
+      let targetSegmentName = "";
 
       if (leader && !leader.isDNF) {
         const totalCourseSplits = activeSplitsList.length > 0 ? activeSplitsList.length : 8;
@@ -782,8 +781,11 @@
         const targetSplitIdx = leader.isFinished ? leaderSplitIdx : (leaderSplitIdx - 1);
 
         if (targetSplitIdx >= 0) {
-          let fastestSegSec = Infinity;
-          let fastestUserId = null;
+          targetSegmentName = (activeSplitsList && activeSplitsList[targetSplitIdx])
+            ? activeSplitsList[targetSplitIdx]
+            : `Split ${targetSplitIdx + 1}`;
+
+          const segmentContenders = [];
 
           list.forEach((racer) => {
             if (racer.isDNF) return;
@@ -809,31 +811,40 @@
             }
 
             const segDuration = tSplit - tPrev;
-            if (segDuration > 0 && segDuration < fastestSegSec - 0.001) {
-              fastestSegSec = segDuration;
-              fastestUserId = racer.userId;
+            if (segDuration > 0) {
+              segmentContenders.push({
+                userId: racer.userId,
+                segDuration,
+                rank: typeof racer.rank === "number" ? racer.rank : 9999
+              });
             }
           });
 
-          if (fastestUserId) {
-            crownUserId = fastestUserId;
-            crownSegmentTime = fastestSegSec;
-            crownSegmentName = (activeSplitsList && activeSplitsList[targetSplitIdx])
-              ? activeSplitsList[targetSplitIdx]
-              : `Split ${targetSplitIdx + 1}`;
+          segmentContenders.sort((a, b) => {
+            const diff = a.segDuration - b.segDuration;
+            if (Math.abs(diff) > 0.001) return diff;
+            return a.rank - b.rank;
+          });
+
+          const tiers = ["gold", "silver", "bronze"];
+          for (let i = 0; i < Math.min(3, segmentContenders.length); i++) {
+            ribbonAwards.set(segmentContenders[i].userId, {
+              tier: tiers[i],
+              segDuration: segmentContenders[i].segDuration
+            });
           }
         }
       }
 
       list.forEach((runner) => {
-        runner.hasCrown = (crownUserId !== null && runner.userId === crownUserId);
-        if (runner.hasCrown) {
-          runner.crownSegmentName = crownSegmentName;
-          runner.crownSegmentTime = crownSegmentTime;
-        } else {
-          runner.crownSegmentName = null;
-          runner.crownSegmentTime = null;
-        }
+        const award = ribbonAwards.get(runner.userId) || null;
+        runner.segmentRibbon = award ? award.tier : null;
+        runner.ribbonSegmentName = award ? targetSegmentName : null;
+        runner.ribbonSegmentTime = award ? award.segDuration : null;
+
+        runner.hasCrown = (runner.segmentRibbon === "gold");
+        runner.crownSegmentName = runner.hasCrown ? targetSegmentName : null;
+        runner.crownSegmentTime = runner.hasCrown ? award.segDuration : null;
       });
 
       // -------------------------------------------------------------
@@ -1224,8 +1235,6 @@
 
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
-      lastKnownRanks.clear();
-      checkpointRankHistory.clear();
       lastKnownRanks.clear();
       checkpointRankHistory.clear();
       notifyListeners("race_disconnected", null);
@@ -1849,6 +1858,9 @@
       hostState.hasCrown = false;
       hostState.crownSegmentName = null;
       hostState.crownSegmentTime = null;
+      hostState.segmentRibbon = null;
+      hostState.ribbonSegmentName = null;
+      hostState.ribbonSegmentTime = null;
       hostState.positionDelta = 0;
       hostState.positionDeltaDisplay = "-";
 
@@ -1873,6 +1885,9 @@
           racer.hasCrown = false;
           racer.crownSegmentName = null;
           racer.crownSegmentTime = null;
+          racer.segmentRibbon = null;
+          racer.ribbonSegmentName = null;
+          racer.ribbonSegmentTime = null;
           racer.positionDelta = 0;
           racer.positionDeltaDisplay = "-";
         }
