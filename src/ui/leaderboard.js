@@ -241,9 +241,10 @@
         expMarkup = `<span class="racer-elapsed">${escapeHtml(elapsedVal)}</span><span class="racer-slash">/</span><span class="expected-tag interval-tag">${expType}</span>${escapeHtml(expVal)}`;
       }
 
+      const expSource = racer.hasStatisticalPrediction ? "therun.gg prediction" : "PB segment";
       const gapTooltip = (rank === 1)
-        ? `Race Leader | Segment: ${elapsedVal} / ${expVal}`
-        : (gapVal === "--" ? `Split 1 in progress | Segment: ${elapsedVal} / ${expVal}` : `Leader Gap: ${gapVal} | Segment: ${elapsedVal} / ${expVal}`);
+        ? `Race Leader | Segment: ${elapsedVal} / ${expVal} (${expSource})`
+        : (gapVal === "--" ? `Split 1 in progress | Segment: ${elapsedVal} / ${expVal} (${expSource})` : `Leader Gap: ${gapVal} | Segment: ${elapsedVal} / ${expVal} (${expSource})`);
 
       // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition (4 seconds total)
       const effect = racer.lastSplitEffect;

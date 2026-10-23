@@ -1859,6 +1859,82 @@
         assert(!rowB.classList.contains("is-swapping"), "Racer B is-swapping class removed");
       });
 
+      it("RaceClient dynamically prioritizes therun.gg predictedSingleTime and statistical models over PB for expected segment duration", () => {
+        const rc = window.LiveSplit.RaceClient;
+        assert(typeof rc.handleRaceMessage === "function", "RaceClient exports handleRaceMessage");
+
+        const telemetryPayload = {
+          userId: "racer_stat_pro",
+          username: "StatPro",
+          currentSplitIndex: 1,
+          currentSplitName: "Stage 2",
+          currentTime: 50000, // 50.0s (15s into Stage 2)
+          splits: [
+            {
+              name: "Stage 1",
+              splitTime: 35000, // 35.0s
+              pbSplitTime: 40000
+            },
+            {
+              name: "Stage 2",
+              splitTime: null,
+              pbSplitTime: 85000, // PB segment would be 85 - 40 = 45s
+              predictedSingleTime: 24500, // therun.gg statistical prediction is 24.5s
+              single: {
+                averageTime: "26000",
+                stdDev: "1800"
+              },
+              comparisons: {
+                "Personal Best": 85000,
+                "Balanced PB": 78000
+              }
+            }
+          ],
+          monteCarloPrediction: {
+            bestEstimate: 120000,
+            confidenceInterval: { lower: 115000, upper: 125000 }
+          }
+        };
+
+        rc.handleRaceMessage(telemetryPayload);
+        let ranked = rc.getRankedEntrants();
+        let statRunner = ranked.find(r => r.userId === "racer_stat_pro");
+
+        assert(statRunner, "StatPro entrant exists in ranked list");
+        assertEqual(statRunner.hasStatisticalPrediction, true, "hasStatisticalPrediction is true");
+        assertEqual(statRunner.expectedSegmentSec, 24.5, "expectedSegmentSec uses predictedSingleTime (24.5s)");
+        assertEqual(statRunner.expectedSegmentDisplay, "24.5s", "expectedSegmentDisplay is 24.5s");
+
+        // Verify dead-reckoned in-segment progress score:
+        // elapsed = 50s - 35s = 15s. ratio = 15s / 24.5s = ~0.6122. score = 1 + 0.6122
+        const expectedScore = 1 + (15 / 24.5);
+        assert(Math.abs(statRunner.score - expectedScore) < 0.01, "score uses statistical prediction duration ratio");
+
+        // Test Priority 2: Fallback to rolling averageTime if predictedSingleTime is absent
+        delete statRunner.splits[1].predictedSingleTime;
+        ranked = rc.getRankedEntrants();
+        statRunner = ranked.find(r => r.userId === "racer_stat_pro");
+        assertEqual(statRunner.hasStatisticalPrediction, true, "hasStatisticalPrediction is true for averageTime");
+        assertEqual(statRunner.expectedSegmentSec, 26.0, "expectedSegmentSec falls back to rolling averageTime (26.0s)");
+
+        // Test Priority 3: Fallback to Balanced PB if averageTime is absent
+        delete statRunner.splits[1].single;
+        ranked = rc.getRankedEntrants();
+        statRunner = ranked.find(r => r.userId === "racer_stat_pro");
+        assertEqual(statRunner.hasStatisticalPrediction, true, "hasStatisticalPrediction is true for Balanced PB");
+        assertEqual(statRunner.expectedSegmentSec, 78.0, "expectedSegmentSec falls back to Balanced PB (78s)");
+
+        // Test Priority 4: Fallback to active PB if splits array is cleared
+        delete statRunner.splits;
+        statRunner.pbCheckpointTimes = [40, 85];
+        ranked = rc.getRankedEntrants();
+        statRunner = ranked.find(r => r.userId === "racer_stat_pro");
+        assertEqual(statRunner.hasStatisticalPrediction, false, "hasStatisticalPrediction is false for standard PB");
+        assertEqual(statRunner.expectedSegmentSec, 45.0, "expectedSegmentSec falls back to standard PB (85 - 40 = 45s)");
+
+        rc.disconnectFromRace();
+      });
+
       it("RaceClient handleUndoSplit rewinds checkpoints, trims splitTimes, and resets finished state", () => {
         const rc = window.LiveSplit.RaceClient;
         assert(typeof rc.handleUndoSplit === "function", "RaceClient exports handleUndoSplit");

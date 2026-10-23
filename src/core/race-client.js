@@ -628,21 +628,53 @@
             ? (runner.pbCheckpointTimesRT || runner.pbCheckpointTimes)
             : (runner.pbCheckpointTimesGT || runner.pbCheckpointTimes);
 
-          if (activePb && activePb.length > sIdx) {
+          // Check if runner has therun.gg statistical model prediction for this split segment
+          const splitObj = (Array.isArray(runner.splits) && runner.splits[sIdx]) ? runner.splits[sIdx] : null;
+          let predictedSegSec = null;
+          if (splitObj) {
+            // Priority 1: therun.gg statistical model / machine learning single split prediction
+            if (typeof splitObj.predictedSingleTime === "number" && splitObj.predictedSingleTime > 0) {
+              predictedSegSec = splitObj.predictedSingleTime > 500 ? (splitObj.predictedSingleTime / 1000) : splitObj.predictedSingleTime;
+            }
+            // Priority 2: therun.gg historical rolling window average segment duration
+            else if (splitObj.single && splitObj.single.averageTime && parseFloat(splitObj.single.averageTime) > 0) {
+              const avgMs = parseFloat(splitObj.single.averageTime);
+              predictedSegSec = avgMs > 500 ? (avgMs / 1000) : avgMs;
+            }
+            // Priority 3: Balanced PB comparison segment difference
+            else if (splitObj.comparisons && typeof splitObj.comparisons["Balanced PB"] === "number") {
+              const bPb = splitObj.comparisons["Balanced PB"];
+              const prevBPb = (sIdx > 0 && runner.splits[sIdx - 1]?.comparisons?.["Balanced PB"]) || 0;
+              const diffMs = bPb - prevBPb;
+              if (diffMs > 0) {
+                predictedSegSec = diffMs > 500 ? (diffMs / 1000) : diffMs;
+              }
+            }
+          }
+
+          if (predictedSegSec !== null && predictedSegSec > 0.05) {
+            segSec = predictedSegSec;
+            runner.hasStatisticalPrediction = true;
+          } else if (activePb && activePb.length > sIdx) {
             const prevPb = sIdx > 0 ? (activePb[sIdx - 1] || 0) : 0;
             segSec = Math.max(0.1, (activePb[sIdx] || 0) - prevPb);
+            runner.hasStatisticalPrediction = false;
           } else {
             const comp = getActiveComparisonTargets();
             const prevT = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
             const nextT = (sIdx < comp.length) ? (comp[sIdx] || ((sIdx + 1) * 30)) : (prevT + 30);
             const pace = typeof runner.paceFactor === "number" ? runner.paceFactor : 1.0;
             segSec = Math.max(0.1, (nextT - prevT) * pace);
+            runner.hasStatisticalPrediction = false;
           }
 
           if (sIdx > 0 && normSplits.length >= sIdx && typeof normSplits[sIdx - 1] === "number") {
             prevSplitTime = normSplits[sIdx - 1];
           } else if (sIdx > 0 && runner.checkpointTimes && typeof runner.checkpointTimes[sIdx - 1] === "number") {
             prevSplitTime = runner.checkpointTimes[sIdx - 1];
+          } else if (sIdx > 0 && Array.isArray(runner.splits) && runner.splits[sIdx - 1] && typeof runner.splits[sIdx - 1].splitTime === "number") {
+            const st = runner.splits[sIdx - 1].splitTime;
+            prevSplitTime = st > 500 ? (st / 1000) : st;
           } else if (sIdx > 0 && simulationCourseTargets && typeof simulationCourseTargets[sIdx - 1] === "number") {
             prevSplitTime = simulationCourseTargets[sIdx - 1];
           }
@@ -1112,11 +1144,21 @@
       }
       if (typeof data.currentTime === "number") {
         // therun.gg transmits milliseconds
-        existing.currentTimeSec = data.currentTime > 50000 ? (data.currentTime / 1000) : data.currentTime;
+        existing.currentTimeSec = data.currentTime > 500 ? (data.currentTime / 1000) : data.currentTime;
       }
       if (data.picture) {
         existing.avatar = data.picture;
       }
+      if (Array.isArray(data.splits)) {
+        existing.splits = data.splits;
+      }
+      if (data.monteCarloPrediction) {
+        existing.monteCarloPrediction = data.monteCarloPrediction;
+      }
+      if (typeof data.currentPrediction === "number") {
+        existing.currentPrediction = data.currentPrediction > 500 ? (data.currentPrediction / 1000) : data.currentPrediction;
+      }
+
       const isDnf = data.isDNF === true ||
                     data.dnf === true ||
                     data.forfeited === true ||
@@ -1134,8 +1176,37 @@
         existing.finalTimeSec = existing.currentTimeSec;
       }
 
-      // Simple score estimation for live competitor: split index + 0.5 (or progress if available)
-      existing.score = existing.currentSplitIndex + (data.runPercentage ? (data.runPercentage / 100) : 0.5);
+      // High-precision dead-reckoning progress calculation using predicted single duration or PB
+      let ratio = data.runPercentage ? (data.runPercentage / 100) : 0;
+      if (!data.runPercentage && typeof data.currentTime === "number" && !existing.isFinished && !existing.isDNF) {
+        const curSec = existing.currentTimeSec || 0;
+        const curIdx = existing.currentSplitIndex || 0;
+        let prevTimeSec = 0;
+        const prevSplit = (curIdx > 0 && Array.isArray(existing.splits) && existing.splits[curIdx - 1]) ? existing.splits[curIdx - 1] : null;
+        if (prevSplit && typeof prevSplit.splitTime === "number") {
+          prevTimeSec = prevSplit.splitTime > 500 ? (prevSplit.splitTime / 1000) : prevSplit.splitTime;
+        } else if (prevSplit && typeof prevSplit.pbSplitTime === "number") {
+          prevTimeSec = prevSplit.pbSplitTime > 500 ? (prevSplit.pbSplitTime / 1000) : prevSplit.pbSplitTime;
+        }
+
+        const elapsedInSeg = Math.max(0, curSec - prevTimeSec);
+        const curSplit = (Array.isArray(existing.splits) && existing.splits[curIdx]) ? existing.splits[curIdx] : null;
+        let expectedDur = 30.0;
+        if (curSplit && typeof curSplit.predictedSingleTime === "number" && curSplit.predictedSingleTime > 0) {
+          expectedDur = curSplit.predictedSingleTime > 500 ? (curSplit.predictedSingleTime / 1000) : curSplit.predictedSingleTime;
+        } else if (curSplit && curSplit.single && parseFloat(curSplit.single.averageTime) > 0) {
+          const avg = parseFloat(curSplit.single.averageTime);
+          expectedDur = avg > 500 ? (avg / 1000) : avg;
+        } else if (curSplit && typeof curSplit.pbSplitTime === "number") {
+          const pbCur = curSplit.pbSplitTime > 500 ? (curSplit.pbSplitTime / 1000) : curSplit.pbSplitTime;
+          expectedDur = Math.max(0.5, pbCur - prevTimeSec);
+        }
+        ratio = Math.max(0, Math.min(0.99, elapsedInSeg / Math.max(0.5, expectedDur)));
+      }
+
+      existing.score = existing.isFinished
+        ? (activeSplitsList ? activeSplitsList.length : existing.currentSplitIndex + 1)
+        : existing.currentSplitIndex + (data.runPercentage ? (data.runPercentage / 100) : (ratio > 0 ? ratio : 0.5));
 
       entrants.set(uId, existing);
     }
@@ -1628,6 +1699,7 @@
       isConnected: () => ws !== null && ws.readyState === WebSocket.OPEN,
       getRaceId: () => raceId,
       updateHostProgress,
+      handleRaceMessage,
       getRankedEntrants,
       setEntrantMuted,
       toggleEntrantMuted,

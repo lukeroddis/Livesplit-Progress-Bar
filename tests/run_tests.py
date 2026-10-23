@@ -2416,6 +2416,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert ".leaderboard-row.is-swapping" in css, "style.css must style .leaderboard-row.is-swapping"
     assert "is-swapping" in leaderboard_code, "leaderboard.js must support FLIP is-swapping animation class"
     assert "prevTops" in leaderboard_code, "leaderboard.js must record initial positions for FLIP animation"
+    assert "predictedSingleTime" in race_code, "race-client.js must support therun.gg predictedSingleTime"
+    assert "monteCarloPrediction" in race_code, "race-client.js must store monteCarloPrediction from therun.gg telemetry"
+    assert "hasStatisticalPrediction" in race_code, "race-client.js must track hasStatisticalPrediction flag"
 
     # 9. Intelligent pin stacking & mini-leaderboard assertions
     assert "--ghost-stack-offset" in css, "style.css must support dynamic --ghost-stack-offset"
