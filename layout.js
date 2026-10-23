@@ -600,7 +600,7 @@
   }
 
   function setTrackOrientation(orient) {
-    if (!currentTrackStyle) return;
+    if (!currentTrackStyle) currentTrackStyle = loadSavedTrackStyle();
     const newOrient = (orient === "vertical") ? "vertical" : "horizontal";
     currentTrackStyle.orientation = newOrient;
 
@@ -1161,7 +1161,8 @@
   function applyComponentLayout(compId) {
     const el = document.getElementById(`hud-comp-${compId}`);
     if (!el) return;
-    const state = layoutState[compId];
+    if (!layoutState) layoutState = loadSavedLayout();
+    const state = layoutState ? layoutState[compId] : null;
     if (!state) return;
 
     const w = window.innerWidth || 1920;
@@ -2458,7 +2459,10 @@
   // Export layout helpers globally if needed
   window.hudLayout = {
     getState: () => layoutState,
-    getTrackStyle: () => currentTrackStyle,
+    getTrackStyle: () => {
+      if (!currentTrackStyle) currentTrackStyle = loadSavedTrackStyle();
+      return currentTrackStyle;
+    },
     openTrackModal,
     closeTrackModal,
     resetTrackStyle,

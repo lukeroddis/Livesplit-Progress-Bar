@@ -2394,8 +2394,14 @@ function handleUndoSplit(newIdx, oldIdx) {
 
 function detectTimingMethodFromComp(splitIdx, compSec) {
   if (splitIdx < 0 || compSec === null || compSec <= 0) return null;
-  const gtSec = (comparisonTimesGT && splitIdx < comparisonTimesGT.length) ? comparisonTimesGT[splitIdx] : null;
-  const rtSec = (comparisonTimesRT && splitIdx < comparisonTimesRT.length) ? comparisonTimesRT[splitIdx] : null;
+  const gtArr = (typeof window !== "undefined" && Array.isArray(window.comparisonTimesGT) && window.comparisonTimesGT.length > 0)
+    ? window.comparisonTimesGT
+    : comparisonTimesGT;
+  const rtArr = (typeof window !== "undefined" && Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0)
+    ? window.comparisonTimesRT
+    : comparisonTimesRT;
+  const gtSec = (gtArr && splitIdx < gtArr.length) ? gtArr[splitIdx] : null;
+  const rtSec = (rtArr && splitIdx < rtArr.length) ? rtArr[splitIdx] : null;
   if (gtSec !== null && rtSec !== null && Math.abs(gtSec - rtSec) > 1.0) {
     const diffGT = Math.abs(compSec - gtSec);
     const diffRT = Math.abs(compSec - rtSec);
