@@ -254,3 +254,39 @@ Instead, place the attribution statement directly within the commit body:
 🤖 Generated with Antigravity (Google DeepMind)
 Reviewed, tested, and approved by Luke.
 ```
+
+---
+
+## 7. Future Refactoring & Modularisation Roadmap
+
+To keep the overlay modular, maintainable, and high-performing as new race and telemetry features are added, the following modularisation opportunities have been identified for future implementation:
+
+### 1. Extract Race Track Markers ([`src/ui/race-track-markers.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/race-track-markers.js))
+* **Current State**: [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) has grown to ~4,100 lines. The competitor marker management logic (`getOrCreateRaceMarker`, `removeDanglingRaceMarkers`, and `updateGhostRunnerMarkers`) is currently embedded directly in the main animation loop of [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js).
+* **Target Architecture**: Move track marker lifecycle management into a dedicated `src/ui/race-track-markers.js` module, mirroring the design of [`src/ui/leaderboard.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/leaderboard.js).
+* **Benefits**:
+  * Isolates competitor DOM creation, needle clustering math, off-screen edge pill indicators, and CSS custom property (`--racer-color`, `--ghost-pin-size`) updates.
+  * Reduces [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) by ~300 lines.
+  * Enables independent unit testing of marker DOM caching and lifecycle management.
+
+### 2. Shared DOM Sanitization & Security Utility ([`src/utils/dom-utils.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/utils/dom-utils.js))
+* **Current State**: `escapeHtml` and avatar protocol verification (`https://`, `http://`, `data:image/`) are duplicated across [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) and [`src/ui/leaderboard.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/leaderboard.js).
+* **Target Architecture**: Consolidate HTML entity escaping, safe URL scheme validation, and XSS sanitization helpers into a zero-dependency shared utility module (e.g. `src/utils/dom-utils.js` or `src/core/security.js`).
+* **Benefits**:
+  * DRY (Don't Repeat Yourself) security enforcement across all UI components and HUD badges.
+  * Single audit point for input sanitization against malicious competitor usernames, split titles, and remote avatar assets.
+
+### 3. Decouple Simulation Engine ([`src/core/race-simulation.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-simulation.js))
+* **Current State**: Local offline race simulation (`startSimulation`, `tickSimulatedCompetitors`, `stopSimulation`) resides inside [`src/core/race-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-client.js) (~1,700 lines). While sharing local state was convenient during initial development, it mixes network protocol logic with virtual simulation mechanics.
+* **Target Architecture**: Extract the simulated competitor generator, pacing curves, and virtual clock ticks into `src/core/race-simulation.js`. The simulation engine can plug into `RaceClient` as a data source adapter that emits synthetic messages identical to therun.gg/racetime.gg WebSocket events.
+* **Benefits**:
+  * Keeps [`src/core/race-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-client.js) strictly focused on live WebSocket communication, message parsing, and F1 interval math (< 1,200 lines).
+  * Simplifies unit testing of network reconnects and auto-detection without having to initialize simulation state machines.
+
+### 4. Modularize Overlay UI Sub-Controllers
+* **Current State**: [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) still contains timer milestone formatters (`formatTimerDisplay`), comparison toast managers (`showComparisonToast`), and global keyboard listener bindings.
+* **Target Architecture**: Progressively decompose secondary sub-controllers into `src/ui/` modules:
+  * `src/ui/toast-manager.js`: HUD comparison and alert toast notifications.
+  * `src/ui/timer-display.js`: Timer formatting and milestone styling.
+* **Benefits**: Leaves [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) as a lightweight coordination shell (< 1,500 lines) that simply wires together domain modules and schedules the 60 FPS animation frame.
+
