@@ -872,6 +872,385 @@
       });
     });
 
+
+    describe("Split Engine: LiveSplit.SplitEngine Core Methods", () => {
+      const se = window.LiveSplit.SplitEngine;
+
+      it("getShortComparisonName returns compact aliases and truncates long custom names", () => {
+        assertEqual(se.getShortComparisonName("Personal Best"), "PB");
+        assertEqual(se.getShortComparisonName("Best Segments"), "Best Segs");
+        assertEqual(se.getShortComparisonName("Average Segments"), "Average");
+        assertEqual(se.getShortComparisonName("Worst Segments"), "Worst");
+        assertEqual(se.getShortComparisonName("Short"), "Short");
+        assertEqual(se.getShortComparisonName("Very Long Custom Comparison Name"), "Very Long…");
+        assertEqual(se.getShortComparisonName(""), "");
+        assertEqual(se.getShortComparisonName(null), "");
+      });
+
+      it("normalizeComparisonName handles aliases, whitespace, custom known lists, and nulls", () => {
+        assertEqual(se.normalizeComparisonName(""), null);
+        assertEqual(se.normalizeComparisonName("-"), null);
+        assertEqual(se.normalizeComparisonName("  "), null);
+        assertEqual(se.normalizeComparisonName(null), null);
+
+        assertEqual(se.normalizeComparisonName("pb"), "Personal Best");
+        assertEqual(se.normalizeComparisonName("PB"), "Personal Best");
+        assertEqual(se.normalizeComparisonName("best segments"), "Best Segments");
+        assertEqual(se.normalizeComparisonName("sum of best"), "Best Segments");
+        assertEqual(se.normalizeComparisonName("average"), "Average Segments");
+        assertEqual(se.normalizeComparisonName("worst segments"), "Worst Segments");
+
+        // Custom list match
+        const customList = ["Community Gold", "Balanced PB"];
+        assertEqual(se.normalizeComparisonName("community gold", customList), "Community Gold");
+        assertEqual(se.normalizeComparisonName("balanced pb", customList), "Balanced PB");
+        assertEqual(se.normalizeComparisonName("Unknown Custom", customList), "Unknown Custom");
+      });
+
+      it("sanitizeComparisonTimes bridges holes from fallback and forward-fills gaps", () => {
+        // Empty / null inputs
+        assertEqual(se.sanitizeComparisonTimes(null), []);
+        assertEqual(se.sanitizeComparisonTimes([], [10, 20]), [10, 20]);
+
+        // Gap bridging with fallbackTimes
+        const raw = [10.0, null, 35.0, null];
+        const fb = [12.0, 22.0, 32.0, 42.0];
+        const res = se.sanitizeComparisonTimes(raw, fb);
+        assertEqual(res[0], 10.0);
+        assertEqual(res[1], 22.0); // Filled from fallback fb[1]
+        assertEqual(res[2], 35.0);
+        assertEqual(res[3], 42.0); // Filled from fallback fb[3]
+
+        // Forward-fill without fallback
+        const noFb = [15.0, null, null];
+        const resNoFb = se.sanitizeComparisonTimes(noFb, null, 3);
+        assertEqual(resNoFb[0], 15.0);
+        assertEqual(resNoFb[1], 15.0);
+        assertEqual(resNoFb[2], 15.0);
+      });
+
+      it("computeHistoricalCurves maintains monotonic Best <= Average <= Worst ordering", () => {
+        const count = 3;
+        const bestGT = [10.0, 15.0, 20.0];
+        const bestRT = [12.0, 18.0, 25.0];
+        const histGT = [[10.0, 12.0], [15.0, 17.0], [20.0, 22.0]];
+        const histRT = [[12.0, 14.0], [18.0, 20.0], [25.0, 27.0]];
+        const pbGT = [11.0, 27.0, 48.0];
+        const pbRT = [13.0, 32.0, 58.0];
+
+        const curves = se.computeHistoricalCurves(count, bestGT, bestRT, histGT, histRT, pbGT, pbRT);
+        assertEqual(curves.bestGT.length, 3);
+        assertEqual(curves.avgGT.length, 3);
+        assertEqual(curves.worstGT.length, 3);
+
+        for (let i = 0; i < count; i++) {
+          assert(curves.bestGT[i] <= curves.avgGT[i], `Best GT <= Avg GT at split ${i}`);
+          assert(curves.avgGT[i] <= curves.worstGT[i], `Avg GT <= Worst GT at split ${i}`);
+          assert(curves.bestRT[i] <= curves.avgRT[i], `Best RT <= Avg RT at split ${i}`);
+          assert(curves.avgRT[i] <= curves.worstRT[i], `Avg RT <= Worst RT at split ${i}`);
+        }
+      });
+
+      it("parseLssXml parses Speedrun XML, segment history, custom comparisons, and curve generation", () => {
+        const sampleXml = `<?xml version="1.0" encoding="UTF-8"?>
+<Run version="1.7.0">
+  <GameName>Super Mario 64</GameName>
+  <CategoryName>16 Star</CategoryName>
+  <Comparisons>
+    <Comparison>World Record</Comparison>
+  </Comparisons>
+  <Segments>
+    <Segment>
+      <Name>Bowser 1</Name>
+      <SplitTimes>
+        <SplitTime name="Personal Best">
+          <RealTime>00:03:15.50</RealTime>
+          <GameTime>00:03:10.20</GameTime>
+        </SplitTime>
+        <SplitTime name="World Record">
+          <RealTime>00:03:05.00</RealTime>
+          <GameTime>00:03:00.00</GameTime>
+        </SplitTime>
+      </SplitTimes>
+      <BestSegmentTime>
+        <RealTime>00:03:12.00</RealTime>
+        <GameTime>00:03:08.00</GameTime>
+      </BestSegmentTime>
+      <SegmentHistory>
+        <Time id="1">
+          <RealTime>00:03:09.50</RealTime>
+          <GameTime>00:03:05.10</GameTime>
+        </Time>
+      </SegmentHistory>
+    </Segment>
+    <Segment>
+      <Name>Mips</Name>
+      <SplitTimes>
+        <SplitTime name="Personal Best">
+          <RealTime>00:08:30.00</RealTime>
+          <GameTime>00:08:15.00</GameTime>
+        </SplitTime>
+      </SplitTimes>
+      <BestSegmentTime>
+        <RealTime>00:05:10.00</RealTime>
+        <GameTime>00:05:00.00</GameTime>
+      </BestSegmentTime>
+      <SegmentHistory>
+        <Time id="1">
+          <RealTime>00:05:08.00</RealTime>
+          <GameTime>00:04:58.00</GameTime>
+        </Time>
+      </SegmentHistory>
+    </Segment>
+  </Segments>
+</Run>`;
+
+        const parsed = se.parseLssXml(sampleXml);
+        assert(parsed !== null, "parseLssXml successfully parsed valid XML");
+        assertEqual(parsed.game, "Super Mario 64");
+        assertEqual(parsed.category, "16 Star");
+        assertEqual(parsed.splitsList, ["Bowser 1", "Mips"]);
+
+        // Personal Best times
+        assertEqual(parsed.comparisonTimesGT.length, 2);
+        assertEqual(parsed.comparisonTimesRT.length, 2);
+        assertEqual(parsed.comparisonTimesGT[0], 190.2); // 3m 10.2s = 190.2s
+        assertEqual(parsed.comparisonTimesRT[0], 195.5); // 3m 15.5s = 195.5s
+
+        // Segment history gold split override: 3:05.10 (185.1s) is faster than BestSegmentTime 3:08.00 (188.0s)
+        assertEqual(parsed.bestSegmentTimesGT[0], 185.1);
+
+        // Custom comparison World Record
+        assert(parsed.comparisonsList.includes("World Record"), "World Record registered in comparisonsList");
+        assertEqual(parsed.comparisonsDataGT["World Record"][0], 180.0); // 3m 00s = 180s
+
+        // Has game time detection
+        assertEqual(parsed.hasAnyGameTime, true);
+
+        // Invalid XML inputs
+        assertEqual(se.parseLssXml(""), null);
+        assertEqual(se.parseLssXml(null), null);
+        assertEqual(se.parseLssXml("<Run><Segments></Segments></Run>"), null);
+      });
+
+      it("detectTimingMethodFromComp infers timing method based on split duration match", () => {
+        const compGT = [100.0, 200.0];
+        const compRT = [140.0, 280.0];
+
+        // compSec matches Game Time
+        assertEqual(se.detectTimingMethodFromComp(0, 100.2, compGT, compRT), "GameTime");
+
+        // compSec matches Real Time
+        assertEqual(se.detectTimingMethodFromComp(0, 139.8, compGT, compRT), "RealTime");
+
+        // Null / invalid inputs
+        assertEqual(se.detectTimingMethodFromComp(-1, 100.0, compGT, compRT), null);
+        assertEqual(se.detectTimingMethodFromComp(0, null, compGT, compRT), null);
+        assertEqual(se.detectTimingMethodFromComp(0, 0, compGT, compRT), null);
+      });
+    });
+
+    describe("Ghost Math: LiveSplit.GhostMath Core Methods", () => {
+      const gm = window.LiveSplit.GhostMath;
+
+      it("calculateGhostProgress computes split segment index and in-segment progress ratio", () => {
+        const times = [30.0, 60.0, 90.0];
+
+        // 1. Ghost at run start
+        let p = gm.calculateGhostProgress(0, times);
+        assertEqual(p.segIdx, 0);
+        assertEqual(p.ratio, 0);
+        assertEqual(p.isFinished, false);
+
+        // 2. Ghost midway through Split 1 (15s elapsed out of 30s target)
+        p = gm.calculateGhostProgress(15.0, times);
+        assertEqual(p.segIdx, 0);
+        assert(Math.abs(p.ratio - 0.5) < 0.001, "Ratio is 0.5 at 15s");
+        assertEqual(p.isFinished, false);
+
+        // 3. Ghost midway through Split 2 (45s elapsed between 30s and 60s target)
+        p = gm.calculateGhostProgress(45.0, times);
+        assertEqual(p.segIdx, 1);
+        assert(Math.abs(p.ratio - 0.5) < 0.001, "Ratio is 0.5 at 45s");
+        assertEqual(p.isFinished, false);
+
+        // 4. Ghost has crossed finish line (100s elapsed with final target at 90s)
+        p = gm.calculateGhostProgress(100.0, times);
+        assertEqual(p.segIdx, 2);
+        assertEqual(p.ratio, 1.0);
+        assertEqual(p.isFinished, true);
+
+        // 5. Edge cases: null or empty times array
+        p = gm.calculateGhostProgress(10.0, null);
+        assertEqual(p.ratio, 0);
+        assertEqual(p.isFinished, false);
+
+        p = gm.calculateGhostProgress(10.0, []);
+        assertEqual(p.ratio, 0);
+        assertEqual(p.isFinished, false);
+
+        p = gm.calculateGhostProgress(10.0, [null, 0, -5]);
+        assertEqual(p.ratio, 0);
+        assertEqual(p.isFinished, false);
+      });
+
+      it("getGhostComparisonInfo handles WR, PB, Best, Average, Worst, and timescale defenses", () => {
+        const compDataGT = {
+          "Personal Best": [50.0, 100.0],
+          "Best Segments": [40.0, 80.0],
+          "Average Segments": [55.0, 110.0],
+          "Worst Segments": [70.0, 140.0],
+          "World Record": [45.0, 90.0]
+        };
+        const compDataRT = {
+          "Personal Best": [70.0, 140.0],
+          "Best Segments": [55.0, 110.0],
+          "Average Segments": [75.0, 150.0],
+          "Worst Segments": [95.0, 190.0],
+          "World Record": [60.0, 120.0]
+        };
+        const compTimesGT = [50.0, 100.0];
+        const compTimesRT = [70.0, 140.0];
+
+        // 1. Off returns null
+        assertEqual(gm.getGhostComparisonInfo("off"), null);
+        assertEqual(gm.getGhostComparisonInfo(null), null);
+
+        // 2. PB returns Personal Best info
+        const pbInfo = gm.getGhostComparisonInfo("pb", "GameTime", compDataGT, compDataRT, compTimesGT, compTimesRT);
+        assertEqual(pbInfo.id, "pb");
+        assertEqual(pbInfo.icon, "🥈");
+        assertEqual(pbInfo.times[0], 50.0);
+
+        // 3. Best Segments info
+        const bestInfo = gm.getGhostComparisonInfo("best", "GameTime", compDataGT, compDataRT, compTimesGT, compTimesRT);
+        assertEqual(bestInfo.id, "best");
+        assertEqual(bestInfo.icon, "⭐");
+        assertEqual(bestInfo.times[0], 40.0);
+
+        // 4. Average Segments info
+        const avgInfo = gm.getGhostComparisonInfo("average", "GameTime", compDataGT, compDataRT, compTimesGT, compTimesRT);
+        assertEqual(avgInfo.id, "average");
+        assertEqual(avgInfo.icon, "📊");
+        assertEqual(avgInfo.times[0], 55.0);
+
+        // 5. Worst Segments info
+        const worstInfo = gm.getGhostComparisonInfo("worst", "GameTime", compDataGT, compDataRT, compTimesGT, compTimesRT);
+        assertEqual(worstInfo.id, "worst");
+        assertEqual(worstInfo.icon, "🐢");
+        assertEqual(worstInfo.times[0], 70.0);
+
+        // 6. World Record match
+        const wrInfo = gm.getGhostComparisonInfo("wr", "GameTime", compDataGT, compDataRT, compTimesGT, compTimesRT);
+        assertEqual(wrInfo.id, "wr");
+        assertEqual(wrInfo.icon, "🏆");
+        assertEqual(wrInfo.times[0], 45.0);
+
+        // 7. Timescale mismatch defense:
+        // Suppose active timing method is RealTime (target ~70s), but WR was only recorded under GameTime (45s).
+        // Candidate times are tested against fallbackTimes (70s): ratio difference triggers switch to valid times!
+        const mismatchedGT = { "World Record": [200.0, 400.0] }; // Mismatched large numbers
+        const matchingRT = { "World Record": [72.0, 144.0] };
+        const defended = gm.getGhostComparisonInfo("wr", "RealTime", mismatchedGT, matchingRT, compTimesGT, compTimesRT);
+        assertEqual(defended.times[0], 72.0); // Selected matchingRT thanks to timescale defense!
+      });
+      it("getGhostComparisonInfo handles fallback to Best Segments or PB and custom alt fallback", () => {
+        // WR with no WR key: falls back to Best Segments if present
+        const noWrCompGT = {
+          "Best Segments": [35.0, 70.0],
+          "Personal Best": [40.0, 80.0]
+        };
+        const fbGT = [40.0, 80.0];
+        const resBest = gm.getGhostComparisonInfo("wr", "GameTime", noWrCompGT, {}, fbGT, []);
+        assertEqual(resBest.id, "wr");
+        assertEqual(resBest.name, "Best Segments (WR Fallback)");
+        assertEqual(resBest.times[0], 35.0);
+
+        // WR with no WR and no Best Segments: falls back to Personal Best
+        const onlyPbGT = {
+          "Personal Best": [42.0, 84.0]
+        };
+        const resPb = gm.getGhostComparisonInfo("wr", "GameTime", onlyPbGT, {}, fbGT, []);
+        assertEqual(resPb.id, "wr");
+        assertEqual(resPb.name, "Personal Best");
+        assertEqual(resPb.times[0], 42.0);
+
+        // Custom comparison present only in altData
+        const mainData = {};
+        const altData = { "Community Goal": [60.0, 120.0] };
+        const resAlt = gm.getGhostComparisonInfo("Community Goal", "GameTime", mainData, altData, fbGT, []);
+        assert(resAlt !== null, "Found in altData");
+        assertEqual(resAlt.name, "Community Goal");
+        assertEqual(resAlt.times[0], 60.0);
+
+        // Custom comparison in mainData with timescale mismatch defense triggering altData
+        const customMainBad = { "My Rival": [300.0, 600.0] };
+        const customAltGood = { "My Rival": [42.0, 84.0] };
+        const resCustomDefense = gm.getGhostComparisonInfo("My Rival", "GameTime", customMainBad, customAltGood, fbGT, []);
+        assertEqual(resCustomDefense.name, "My Rival");
+        assertEqual(resCustomDefense.times[0], 42.0);
+
+        // Custom comparison in mainData without timescale defense needed
+        const customMainGood = { "My Rival": [41.0, 82.0] };
+        const resCustomNormal = gm.getGhostComparisonInfo("My Rival", "GameTime", customMainGood, customAltGood, fbGT, []);
+        assertEqual(resCustomNormal.times[0], 41.0);
+
+        // Unknown custom comparison not in either dataset
+        const resUnknown = gm.getGhostComparisonInfo("NonExistent", "GameTime", mainData, altData, fbGT, []);
+        assertEqual(resUnknown, null);
+      });
+    });
+
+    describe("Time Utils: LiveSplit.Time Core Methods", () => {
+      const tu = window.LiveSplit.Time;
+
+      it("timeStringToSeconds parses days, hours, minutes, seconds, milliseconds, and edge cases", () => {
+        assertEqual(tu.timeStringToSeconds("45.2"), 45.2);
+        assertEqual(tu.timeStringToSeconds("01:23.45"), 83.45);
+        assertEqual(tu.timeStringToSeconds("1:02:03.5"), 3723.5);
+        // Days format: 1.02:03:04 (1 day + 2h 3m 4s = 86400 + 7200 + 180 + 4 = 93784s)
+        assertEqual(tu.timeStringToSeconds("1.02:03:04"), 93784.0);
+
+        // Null / empty / dash
+        assertEqual(tu.timeStringToSeconds(""), null);
+        assertEqual(tu.timeStringToSeconds("-"), null);
+        assertEqual(tu.timeStringToSeconds(null), null);
+        assertEqual(tu.timeStringToSeconds("invalid:time:format:extra"), null);
+      });
+
+      it("formatTimerDisplay formats numbers, negative times, days, and unicode minus", () => {
+        assertEqual(tu.formatTimerDisplay(0), "0.00");
+        assertEqual(tu.formatTimerDisplay(12.34), "12.34");
+        assertEqual(tu.formatTimerDisplay(65.5), "1:05.50");
+        assertEqual(tu.formatTimerDisplay(3665.12), "1:01:05.12");
+        assertEqual(tu.formatTimerDisplay(-12.34), "-12.34");
+        assertEqual(tu.formatTimerDisplay(-0.001), "0.00"); // Avoid -0.00
+
+        // String inputs
+        assertEqual(tu.formatTimerDisplay("12.34"), "12.34");
+        assertEqual(tu.formatTimerDisplay("−15.20"), "-15.20"); // Unicode minus
+        assertEqual(tu.formatTimerDisplay("1.02:03:04.56"), "26:03:04.56"); // Days converted to hours
+        assertEqual(tu.formatTimerDisplay("-"), "-");
+        assertEqual(tu.formatTimerDisplay(null), "0.00");
+      });
+
+      it("formatTargetTime and formatDeltaSeconds handle milestones, boundaries, and neutrality", () => {
+        assertEqual(tu.formatTargetTime(45), "0:45");
+        assertEqual(tu.formatTargetTime(75), "1:15");
+        assertEqual(tu.formatTargetTime(3665), "1:01:05");
+        assertEqual(tu.formatTargetTime(null), "");
+
+        assertEqual(tu.formatDeltaSeconds(0.0), "±0.0");
+        assertEqual(tu.formatDeltaSeconds(0.04), "±0.0");
+        assertEqual(tu.formatDeltaSeconds(-0.04), "±0.0");
+        assertEqual(tu.formatDeltaSeconds(-1.5), "-1.5");
+        assertEqual(tu.formatDeltaSeconds(-65.2), "-1:05");
+        assertEqual(tu.formatDeltaSeconds(12.3), "+12.3");
+        assertEqual(tu.formatDeltaSeconds(125.0), "+2:05");
+      });
+    });
+
+
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");
     suites.forEach((suite) => {
