@@ -2249,6 +2249,64 @@ def test_track_orientation_and_split_density_reflow():
 
 
 
+def test_intelligent_release_bump_detection():
+    """Verify intelligent release bump decision logic and file path classifications."""
+    script_path = os.path.join(ROOT_DIR, "scripts", "determine_bump.py")
+    assert os.path.isfile(script_path), "scripts/determine_bump.py must exist"
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("determine_bump", script_path)
+    db = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(db)
+
+    # 1. Non-runtime paths must not trigger runtime changes
+    non_runtime_cases = [
+        ["README.md"],
+        ["AGENT_GUIDE.md"],
+        ["tests/test_runner.html"],
+        ["tests/run_tests.py"],
+        [".github/workflows/ci.yml", ".github/workflows/release.yml"],
+        [".githooks/pre-push"],
+        [".gitignore", "LICENSE"],
+        ["docs/guide.md"],
+        ["README.md", "tests/test_runner.html", ".github/workflows/release.yml"]
+    ]
+    for case in non_runtime_cases:
+        assert db.has_runtime_changes(case) is False, f"Expected no runtime changes for: {case}"
+
+    # 2. Runtime paths must trigger runtime changes
+    runtime_cases = [
+        ["overlay.js"],
+        ["layout.js"],
+        ["index.html"],
+        ["style.css"],
+        ["src/core/split-engine.js"],
+        ["src/core/ghost-math.js"],
+        ["src/ui/track-renderer.js"],
+        ["assets/logo.png"],
+        ["schema/layout-schema-v1.json"],
+        ["README.md", "overlay.js"]
+    ]
+    for case in runtime_cases:
+        assert db.has_runtime_changes(case) is True, f"Expected runtime changes for: {case}"
+
+    # 3. Conventional Commit PR Title Regex
+    assert db.NON_RELEASE_TITLE_REGEX.match("test: comprehensive unit tests") is not None
+    assert db.NON_RELEASE_TITLE_REGEX.match("test(core): comprehensive unit tests") is not None
+    assert db.NON_RELEASE_TITLE_REGEX.match("docs: update README badges") is not None
+    assert db.NON_RELEASE_TITLE_REGEX.match("chore: cleanup temp files") is not None
+    assert db.NON_RELEASE_TITLE_REGEX.match("ci: update github action") is not None
+    assert db.NON_RELEASE_TITLE_REGEX.match("build: update dependencies") is not None
+    assert db.NON_RELEASE_TITLE_REGEX.match("style: format code") is not None
+
+    # Production release prefixes must NOT match non-release regex
+    assert db.NON_RELEASE_TITLE_REGEX.match("feat: live race ghosts") is None
+    assert db.NON_RELEASE_TITLE_REGEX.match("fix: pin stacking calculation") is None
+    assert db.NON_RELEASE_TITLE_REGEX.match("perf: optimize element caching") is None
+
+    print("✓ Intelligent release bump detection and file classifications passed.")
+
+
 def find_chrome():
     candidates = [
         os.environ.get("CHROME_BIN"),
@@ -2579,7 +2637,8 @@ def main():
         test_architectural_safeguards_and_bug_fixes()
         test_modular_architecture()
         test_track_orientation_and_split_density_reflow()
-        run_browser_tests_and_coverage(python_test_count=35)
+        test_intelligent_release_bump_detection()
+        run_browser_tests_and_coverage(python_test_count=36)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

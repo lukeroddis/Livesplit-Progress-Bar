@@ -47,25 +47,15 @@ jobs:
 
       - name: Determine Bump Type
         id: determine_bump
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BUMP: ${{ github.event.inputs.bump_type }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ' ') }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "BUMP_TYPE=${{ github.event.inputs.bump_type }}" >> $GITHUB_ENV
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            LABELS="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
-            if echo "$LABELS" | grep -q -E "skip-release|no-release"; then
-              echo "SKIP_RELEASE=true" >> $GITHUB_ENV
-              echo "BUMP_TYPE=none" >> $GITHUB_ENV
-              echo "skip-release label detected: Skipping release generation."
-            elif echo "$LABELS" | grep -q "major"; then
-              echo "BUMP_TYPE=major" >> $GITHUB_ENV
-            elif echo "$LABELS" | grep -q "minor"; then
-              echo "BUMP_TYPE=minor" >> $GITHUB_ENV
-            else
-              echo "BUMP_TYPE=patch" >> $GITHUB_ENV
-            fi
-          else
-            echo "BUMP_TYPE=none" >> $GITHUB_ENV
-          fi
+          python scripts/determine_bump.py
 
       - name: Bump Version & Tag
         id: bump
