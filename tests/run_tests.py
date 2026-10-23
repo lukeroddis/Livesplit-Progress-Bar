@@ -2326,6 +2326,7 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         f"--remote-debugging-port={port}",
+        "--remote-debugging-address=127.0.0.1",
         "about:blank"
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
@@ -2334,7 +2335,7 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
         for _ in range(40):
             await asyncio.sleep(0.1)
             try:
-                with urllib.request.urlopen(f"http://localhost:{port}/json") as resp:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as resp:
                     targets = json.loads(resp.read().decode())
                 if targets:
                     page = next((t for t in targets if t.get("type") == "page"), None)
