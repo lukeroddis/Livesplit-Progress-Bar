@@ -2202,6 +2202,122 @@
         assert(!iconSpan.innerHTML.includes("javascript:"), "Malicious scheme not rendered executable");
         marker.remove();
       });
+
+      it("Leaderboard renders stacked position column (.pos-col) with .pos-badge and .pos-delta (+N, -N, and '-')", () => {
+        const preview = window.LiveSplit.Leaderboard.getPreviewEntrants();
+        window.LiveSplit.Leaderboard.renderLeaderboard(preview, false, false, true);
+
+        const row1 = document.querySelector('.leaderboard-row[data-user-id="prev_speeddemon"]');
+        const row2 = document.querySelector('.leaderboard-row[data-user-id="you"]');
+        const row3 = document.querySelector('.leaderboard-row[data-user-id="prev_apex"]');
+        assert(row1 && row2 && row3, "All 3 preview rows exist");
+
+        const posCol1 = row1.querySelector(".pos-col");
+        assert(posCol1, "Row has .pos-col stacked position container");
+        assert(posCol1.querySelector(".pos-badge"), ".pos-col contains .pos-badge");
+        const delta1 = posCol1.querySelector(".pos-delta");
+        assert(delta1, ".pos-col contains .pos-delta");
+        assertEqual(delta1.textContent.trim(), "-", "Unchanged position renders '-'");
+        assert(delta1.classList.contains("delta-same"), "Unchanged position has .delta-same class");
+
+        const delta2 = row2.querySelector(".pos-col .pos-delta");
+        assertEqual(delta2.textContent.trim(), "▲+2", "Gained 2 places renders '▲+2'");
+        assert(delta2.classList.contains("delta-up"), "Gained places has .delta-up class");
+
+        const delta3 = row3.querySelector(".pos-col .pos-delta");
+        assertEqual(delta3.textContent.trim(), "▼-1", "Dropped 1 place renders '▼-1'");
+        assert(delta3.classList.contains("delta-down"), "Dropped places has .delta-down class");
+
+        window.LiveSplit.Leaderboard.reset();
+        assertEqual(delta2.textContent.trim(), "-", "Leaderboard.reset() resets .pos-delta text to '-'");
+        assert(delta2.classList.contains("delta-same"), "Leaderboard.reset() resets .pos-delta class to .delta-same");
+      });
+
+      it("Split-over-Split position delta with Live Overtake Awareness (Option B) and 2+ splits behind backmarker accuracy", () => {
+        const rc = window.LiveSplit.RaceClient.createRaceClient();
+        rc.setHostUsername("HostRunner");
+
+        // 4 racers start at Split 0 (running Split 1): no splits completed -> all deltas 0 ('-')
+        rc.handleRaceMessage([
+          { userId: "r_a", username: "RunnerA", currentSplitIndex: 0, currentTime: 10000 },
+          { userId: "r_b", username: "RunnerB", currentSplitIndex: 0, currentTime: 10000 },
+          { userId: "r_c", username: "RunnerC", currentSplitIndex: 0, currentTime: 10000 },
+          { userId: "r_d", username: "RunnerD", currentSplitIndex: 0, currentTime: 10000 }
+        ]);
+        let list = rc.getRankedEntrants();
+        assert(list.every(r => r.positionDelta === 0 && r.positionDeltaDisplay === "-"), "All racers show '-' before Split 1 completion");
+
+        // Complete Split 1 (checkpoint 0): establishes baseline Split 1 ranks:
+        // P1: RunnerA (25s), P2: RunnerB (27s), P3: RunnerC (29s), P4: RunnerD (31s)
+        rc.handleRaceMessage([
+          { userId: "r_a", username: "RunnerA", currentSplitIndex: 1, currentTime: 25000, splitTimes: [25.0] },
+          { userId: "r_b", username: "RunnerB", currentSplitIndex: 1, currentTime: 27000, splitTimes: [27.0] },
+          { userId: "r_c", username: "RunnerC", currentSplitIndex: 1, currentTime: 29000, splitTimes: [29.0] },
+          { userId: "r_d", username: "RunnerD", currentSplitIndex: 1, currentTime: 31000, splitTimes: [31.0] }
+        ]);
+        list = rc.getRankedEntrants();
+        assert(list.every(r => r.positionDelta === 0 && r.positionDeltaDisplay === "-"), "All racers show '-' upon establishing Split 1 baseline");
+
+        // Split 2 (checkpoint 1): RunnerC (was P3) splits FIRST at 52s!
+        // RunnerA (was P1) and RunnerB (was P2) are still in Split 2 (currentSplitIndex = 1) -> overtaken live!
+        rc.handleRaceMessage({
+          userId: "r_c", username: "RunnerC", currentSplitIndex: 2, currentTime: 52000, splitTimes: [29.0, 52.0]
+        });
+        list = rc.getRankedEntrants();
+        const cAfterSplit2 = list.find(r => r.userId === "r_c");
+        const aMidSplit2 = list.find(r => r.userId === "r_a");
+        const bMidSplit2 = list.find(r => r.userId === "r_b");
+        const dMidSplit2 = list.find(r => r.userId === "r_d");
+
+        assertEqual(cAfterSplit2.rank, 1, "RunnerC jumps to P1 upon completing Split 2 first");
+        assertEqual(cAfterSplit2.positionDelta, 2, "RunnerC shows +2 (climbed from P3 at Split 1 to P1 at Split 2)");
+        assertEqual(cAfterSplit2.positionDeltaDisplay, "+2", "RunnerC display is '+2'");
+
+        assertEqual(aMidSplit2.rank, 2, "RunnerA drops to P2 while still in Split 2");
+        assertEqual(aMidSplit2.positionDelta, -1, "Live Overtake Awareness: RunnerA immediately shows -1 when overtaken by RunnerC");
+        assertEqual(bMidSplit2.rank, 3, "RunnerB drops to P3 while still in Split 2");
+        assertEqual(bMidSplit2.positionDelta, -1, "Live Overtake Awareness: RunnerB immediately shows -1 when overtaken by RunnerC");
+        assertEqual(dMidSplit2.rank, 4, "RunnerD remains P4");
+        assertEqual(dMidSplit2.positionDelta, 0, "RunnerD was already P4 so delta remains 0");
+
+        // Now RunnerA completes Split 2 in 55s (2nd at Split 2), while RunnerB & RunnerD stay behind in Split 2!
+        rc.handleRaceMessage({
+          userId: "r_a", username: "RunnerA", currentSplitIndex: 2, currentTime: 55000, splitTimes: [25.0, 55.0]
+        });
+        list = rc.getRankedEntrants();
+        assertEqual(list.find(r => r.userId === "r_a").positionDelta, -1, "RunnerA maintains -1 upon completing Split 2 in P2");
+
+        // Leaders (RunnerC and RunnerA) now complete Split 3 (checkpoint 2) and enter Split 4 (currentSplitIndex = 3),
+        // putting them TWO SPLITS AHEAD of RunnerB and RunnerD (who are still stuck in Split 2, currentSplitIndex = 1)!
+        // RunnerC holds P1 at Split 3 (80s), RunnerA holds P2 at Split 3 (83s).
+        rc.handleRaceMessage([
+          { userId: "r_c", username: "RunnerC", currentSplitIndex: 3, currentTime: 80000, splitTimes: [29.0, 52.0, 80.0] },
+          { userId: "r_a", username: "RunnerA", currentSplitIndex: 3, currentTime: 83000, splitTimes: [25.0, 55.0, 83.0] }
+        ]);
+        list = rc.getRankedEntrants();
+        assertEqual(list.find(r => r.userId === "r_c").positionDelta, 0, "RunnerC held P1 from Split 2 to Split 3 -> delta resets to 0 ('-')");
+        assertEqual(list.find(r => r.userId === "r_a").positionDelta, 0, "RunnerA held P2 from Split 2 to Split 3 -> delta resets to 0 ('-')");
+
+        // Meanwhile, 2 splits behind the leaders, RunnerD (was P4 at Split 1) completes Split 2 (at 85s) BEFORE RunnerB (was P2 at Split 1)!
+        rc.handleRaceMessage({
+          userId: "r_d", username: "RunnerD", currentSplitIndex: 2, currentTime: 85000, splitTimes: [31.0, 85.0]
+        });
+        list = rc.getRankedEntrants();
+        const dBackmarker = list.find(r => r.userId === "r_d");
+        const bBackmarker = list.find(r => r.userId === "r_b");
+
+        assertEqual(dBackmarker.rank, 3, "RunnerD (2 splits behind leaders) climbs from P4 to P3 at Split 2");
+        assertEqual(dBackmarker.positionDelta, 1, "Backmarker RunnerD shows +1 at Split 2 despite leaders being 2 splits ahead");
+        assertEqual(bBackmarker.rank, 4, "RunnerB drops to P4 (overtaken by both RunnerC and RunnerD on Split 2)");
+        assertEqual(bBackmarker.positionDelta, -2, "RunnerB shows -2 (dropped from P2 at Split 1 to P4)");
+
+        // Finally RunnerB completes Split 2 at 90s in P4: delta remains -2
+        rc.handleRaceMessage({
+          userId: "r_b", username: "RunnerB", currentSplitIndex: 2, currentTime: 90000, splitTimes: [27.0, 90.0]
+        });
+        list = rc.getRankedEntrants();
+        assertEqual(list.find(r => r.userId === "r_b").positionDelta, -2, "RunnerB maintains -2 after completing Split 2 in P4");
+      });
     });
 
     // --- RENDER RESULTS ---

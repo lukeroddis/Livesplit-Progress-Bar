@@ -59,6 +59,8 @@
         avatar: "⚡",
         color: "#06b6d4",
         rank: 1,
+        positionDelta: 0,
+        positionDeltaDisplay: "-",
         isHost: false,
         isMuted: false,
         hasCrown: true,
@@ -77,6 +79,8 @@
         avatar: "",
         color: "#38bdf8",
         rank: 2,
+        positionDelta: 2,
+        positionDeltaDisplay: "+2",
         isHost: true,
         isMuted: false,
         currentSplitName: "Split 2",
@@ -92,6 +96,8 @@
         avatar: "🏎️",
         color: "#f59e0b",
         rank: 3,
+        positionDelta: -1,
+        positionDeltaDisplay: "-1",
         isHost: false,
         isMuted: false,
         currentSplitName: "Split 2",
@@ -232,6 +238,25 @@
       const isDnf = !!racer.isDNF;
       const rank = isDnf ? "DNF" : (racer.rank || 1);
       const posClass = isDnf ? "pos-dnf" : `pos-${(typeof rank === 'number' && rank <= 3) ? rank : 'other'}`;
+      const posDelta = (!isDnf && typeof racer.positionDelta === "number" && !isNaN(racer.positionDelta))
+        ? Math.trunc(racer.positionDelta)
+        : 0;
+      let deltaClass = "pos-delta delta-same";
+      let deltaText = "-";
+      let deltaTooltip = "No position change on last split";
+      if (isDnf) {
+        deltaClass = "pos-delta delta-dnf";
+        deltaText = "-";
+        deltaTooltip = "Did not finish";
+      } else if (posDelta > 0) {
+        deltaClass = "pos-delta delta-up";
+        deltaText = `▲+${posDelta}`;
+        deltaTooltip = `Moved up ${posDelta} ${posDelta === 1 ? "place" : "places"}`;
+      } else if (posDelta < 0) {
+        deltaClass = "pos-delta delta-down";
+        deltaText = `▼${posDelta}`;
+        deltaTooltip = `Dropped ${Math.abs(posDelta)} ${Math.abs(posDelta) === 1 ? "place" : "places"}`;
+      }
       const color = racer.color || (isHost ? "#38bdf8" : "#94a3b8");
       const displayName = racer.username || (isHost ? "You" : "Runner");
       const splitLabel = isDnf ? "DNF" : (racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`));
@@ -301,7 +326,10 @@
         const avatarMarkup = buildAvatarMarkup(racer.avatar, isHost);
 
         row.innerHTML = `
-          <div class="pos-badge ${posClass}">${rank}</div>
+          <div class="pos-col">
+            <div class="pos-badge ${posClass}">${rank}</div>
+            <span class="${deltaClass}" title="${escapeHtml(deltaTooltip)}">${escapeHtml(deltaText)}</span>
+          </div>
           <div class="racer-accent-bar"></div>
           <div class="racer-avatar-container">
             <div class="racer-avatar-badge">${avatarMarkup}</div>
@@ -330,8 +358,25 @@
 
         const posBadge = row.querySelector(".pos-badge");
         if (posBadge) {
-          posBadge.textContent = rank;
-          posBadge.className = `pos-badge ${posClass}`;
+          if (posBadge.textContent !== String(rank)) {
+            posBadge.textContent = rank;
+          }
+          if (posBadge.className !== `pos-badge ${posClass}`) {
+            posBadge.className = `pos-badge ${posClass}`;
+          }
+        }
+
+        const posDeltaEl = row.querySelector(".pos-delta");
+        if (posDeltaEl) {
+          if (posDeltaEl.textContent !== deltaText) {
+            posDeltaEl.textContent = deltaText;
+          }
+          if (posDeltaEl.className !== deltaClass) {
+            posDeltaEl.className = deltaClass;
+          }
+          if (posDeltaEl.title !== deltaTooltip) {
+            posDeltaEl.title = deltaTooltip;
+          }
         }
 
         let crownEl = row.querySelector(".racer-crown");
@@ -536,6 +581,12 @@
         const splitEl = row.querySelector(".racer-split");
         if (splitEl) {
           splitEl.className = "racer-split";
+        }
+        const posDeltaEl = row.querySelector(".pos-delta");
+        if (posDeltaEl) {
+          posDeltaEl.className = "pos-delta delta-same";
+          posDeltaEl.textContent = "-";
+          posDeltaEl.title = "";
         }
       }
     });

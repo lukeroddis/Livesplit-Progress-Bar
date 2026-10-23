@@ -137,6 +137,7 @@
     let simulationCourseTargets = [];
     let simulationCourseTargetsRT = [];
     const lastKnownRanks = new Map();
+    const checkpointRankHistory = new Map();
     let lastExternalHostUpdate = 0;
     let simVirtualSec = 0;
     let lastHostGameTimeSec = 0;
@@ -266,6 +267,18 @@
           if (Array.isArray(racer.splitTimes)) {
             racer.splitTimes = racer.splitTimes.slice(0, targetIdx);
           }
+        }
+      });
+
+      // Roll back checkpoint rank history for undone splits
+      checkpointRankHistory.forEach((histMap, c) => {
+        if (c >= targetIdx) {
+          histMap.delete(hostState.userId);
+          entrants.forEach((racer) => {
+            if (racer.isHost) {
+              histMap.delete(racer.userId);
+            }
+          });
         }
       });
 
@@ -484,6 +497,46 @@
         return prevGap + Math.max(0, (runner.currentTimeSec || 0) - aheadRunner.finalTimeSec);
       }
 
+      return null;
+    }
+
+    /**
+     * Returns the number of splits a runner has completed.
+     */
+    function getCompletedSplitCount(runner) {
+      if (!runner) return 0;
+      const normSplits = normalizeSplitTimes(runner.splitTimes);
+      const sIdx = Math.max(0, runner.currentSplitIndex || 0);
+      if (runner.isDNF) {
+        return Math.max(normSplits.length, sIdx);
+      }
+      if (runner.isFinished) {
+        if (normSplits.length > 0) return Math.max(normSplits.length, sIdx);
+        if (activeSplitsList && activeSplitsList.length > 0) return Math.max(activeSplitsList.length, sIdx);
+        return Math.max(1, sIdx);
+      }
+      return sIdx;
+    }
+
+    /**
+     * Returns the cumulative split time (in seconds) recorded by a runner at checkpoint index c.
+     */
+    function getSplitCheckpointTime(runner, c) {
+      if (!runner || c < 0) return null;
+      const normSplits = normalizeSplitTimes(runner.splitTimes);
+      if (typeof normSplits[c] === "number" && !isNaN(normSplits[c]) && normSplits[c] > 0) {
+        return normSplits[c];
+      }
+      if (Array.isArray(runner.splits) && runner.splits[c] && typeof runner.splits[c].splitTime === "number" && runner.splits[c].splitTime > 0) {
+        const st = runner.splits[c].splitTime;
+        return st > 500 ? (st / 1000) : st;
+      }
+      if (runner.isFinished && typeof runner.finalTimeSec === "number" && runner.finalTimeSec > 0) {
+        const totalCompleted = getCompletedSplitCount(runner);
+        if (c === totalCompleted - 1) {
+          return runner.finalTimeSec;
+        }
+      }
       return null;
     }
 
@@ -783,6 +836,111 @@
         }
       });
 
+      // -------------------------------------------------------------
+      // Split-over-Split Position Delta with Live Overtake Awareness
+      // -------------------------------------------------------------
+      let maxCompletedSplits = 0;
+      list.forEach((r) => {
+        const count = getCompletedSplitCount(r);
+        if (count > maxCompletedSplits) {
+          maxCompletedSplits = count;
+        }
+      });
+
+      // Prune stale checkpoint history above maxCompletedSplits
+      Array.from(checkpointRankHistory.keys()).forEach((c) => {
+        if (c >= maxCompletedSplits) {
+          checkpointRankHistory.delete(c);
+        }
+      });
+
+      for (let c = 0; c < maxCompletedSplits; c++) {
+        if (!checkpointRankHistory.has(c)) {
+          checkpointRankHistory.set(c, new Map());
+        }
+        const histMap = checkpointRankHistory.get(c);
+
+        // Remove entrants who have not completed checkpoint c (e.g. after undo split)
+        Array.from(histMap.keys()).forEach((uId) => {
+          const r = list.find(item => item.userId === uId);
+          if (!r || getCompletedSplitCount(r) <= c) {
+            histMap.delete(uId);
+          }
+        });
+
+        const completedAtC = list.filter(r => getCompletedSplitCount(r) > c);
+        completedAtC.sort((a, b) => {
+          const tA = getSplitCheckpointTime(a, c);
+          const tB = getSplitCheckpointTime(b, c);
+          if (tA !== null && tB !== null) {
+            const diff = tA - tB;
+            if (Math.abs(diff) > 0.001) return diff;
+          }
+          const prevOrderA = histMap.get(a.userId);
+          const prevOrderB = histMap.get(b.userId);
+          if (prevOrderA !== undefined && prevOrderB === undefined) return -1;
+          if (prevOrderA === undefined && prevOrderB !== undefined) return 1;
+          if (prevOrderA !== undefined && prevOrderB !== undefined && prevOrderA !== prevOrderB) {
+            return prevOrderA - prevOrderB;
+          }
+          const rankA = typeof a.rank === "number" ? a.rank : 9999;
+          const rankB = typeof b.rank === "number" ? b.rank : 9999;
+          return rankA - rankB;
+        });
+
+        completedAtC.forEach((r, idx) => {
+          histMap.set(r.userId, idx + 1);
+        });
+      }
+
+      list.forEach((runner) => {
+        if (runner.isDNF || typeof runner.rank !== "number") {
+          runner.positionDelta = 0;
+          runner.positionDeltaDisplay = "-";
+          return;
+        }
+
+        const completedCount = getCompletedSplitCount(runner);
+        let posDelta = 0;
+
+        if (completedCount === 0) {
+          // Split 1 in progress: baseline checkpoint not yet established
+          posDelta = 0;
+        } else if (completedCount === 1) {
+          // Completed Split 1 (checkpoint 0), currently running Split 2:
+          // Baseline is Split 1 rank; shows 0 unless overtaken mid-Split 2 (or promoted by DNF)
+          const rankAt0 = checkpointRankHistory.get(0)?.get(runner.userId) ?? runner.rank;
+          if (runner.rank !== rankAt0) {
+            posDelta = rankAt0 - runner.rank;
+          } else {
+            posDelta = 0;
+          }
+        } else {
+          // Completed Split 2+ (completedCount >= 2):
+          const prevSplitRank = checkpointRankHistory.get(completedCount - 2)?.get(runner.userId) ?? runner.rank;
+          const lastSplitRank = checkpointRankHistory.get(completedCount - 1)?.get(runner.userId) ?? runner.rank;
+
+          if (!runner.isFinished && runner.rank !== lastSplitRank) {
+            // Live Overtake Awareness (Option B):
+            // Another racer has already completed the current split ahead of this runner
+            // (or a runner ahead DNF'd), shifting this runner's live leaderboard position!
+            posDelta = lastSplitRank - runner.rank;
+          } else {
+            // Split-over-Split delta comparing the last completed split against the previous split
+            posDelta = prevSplitRank - lastSplitRank;
+          }
+        }
+
+        runner.positionDelta = posDelta;
+        if (posDelta > 0) {
+          runner.positionDeltaDisplay = `+${posDelta}`;
+        } else if (posDelta < 0) {
+          runner.positionDeltaDisplay = `${posDelta}`;
+        } else {
+          runner.positionDeltaDisplay = "-";
+        }
+      });
+
       return list;
     }
 
@@ -850,6 +1008,11 @@
         if (Array.isArray(hostState.splitTimes)) {
           hostState.splitTimes = hostState.splitTimes.slice(0, hostState.currentSplitIndex);
         }
+        checkpointRankHistory.forEach((histMap, c) => {
+          if (c >= hostState.currentSplitIndex) {
+            histMap.delete(hostState.userId);
+          }
+        });
       } else {
         hostState.currentSplitIndex = Math.max(0, currentIndex || 0);
       }
@@ -1061,6 +1224,10 @@
 
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
+      lastKnownRanks.clear();
+      checkpointRankHistory.clear();
+      lastKnownRanks.clear();
+      checkpointRankHistory.clear();
       notifyListeners("race_disconnected", null);
     }
 
@@ -1099,6 +1266,7 @@
         currentSplitIndex: 0,
         currentSplitName: "",
         currentTimeSec: 0,
+        splitTimes: [],
         isFinished: false,
         finalTimeSec: null,
         score: 0,
@@ -1109,6 +1277,17 @@
       existing.isHost = isMatchedHost;
       if (isMatchedHost) {
         existing.color = "#38bdf8";
+      }
+
+      if (typeof data.currentTime === "number") {
+        // therun.gg transmits milliseconds
+        existing.currentTimeSec = data.currentTime > 500 ? (data.currentTime / 1000) : data.currentTime;
+      } else if (typeof data.currentTimeSec === "number") {
+        existing.currentTimeSec = data.currentTimeSec;
+      }
+
+      if (Array.isArray(data.splitTimes)) {
+        existing.splitTimes = normalizeSplitTimes(data.splitTimes);
       }
 
       if (typeof data.currentSplitIndex === "number") {
@@ -1136,21 +1315,43 @@
             completedSplitName: prevSplitName,
             newSplitName: nextSplitName
           };
+          if (!Array.isArray(existing.splitTimes)) {
+            existing.splitTimes = [];
+          }
+          if (existing.currentTimeSec > 0 && existing.splitTimes[data.currentSplitIndex - 1] === undefined) {
+            existing.splitTimes[data.currentSplitIndex - 1] = existing.currentTimeSec;
+          }
+        } else if (data.currentSplitIndex < existing.currentSplitIndex) {
+          if (Array.isArray(existing.splitTimes)) {
+            existing.splitTimes = existing.splitTimes.slice(0, Math.max(0, data.currentSplitIndex));
+          }
+          checkpointRankHistory.forEach((histMap, c) => {
+            if (c >= data.currentSplitIndex) {
+              histMap.delete(uId);
+            }
+          });
         }
         existing.currentSplitIndex = data.currentSplitIndex;
       }
       if (data.currentSplitName) {
         existing.currentSplitName = data.currentSplitName;
       }
-      if (typeof data.currentTime === "number") {
-        // therun.gg transmits milliseconds
-        existing.currentTimeSec = data.currentTime > 500 ? (data.currentTime / 1000) : data.currentTime;
-      }
       if (data.picture) {
         existing.avatar = data.picture;
       }
       if (Array.isArray(data.splits)) {
         existing.splits = data.splits;
+        if (!Array.isArray(data.splitTimes)) {
+          const extracted = [];
+          data.splits.forEach((s, idx) => {
+            if (s && typeof s.splitTime === "number" && !isNaN(s.splitTime) && s.splitTime > 0) {
+              extracted[idx] = s.splitTime > 500 ? (s.splitTime / 1000) : s.splitTime;
+            }
+          });
+          if (extracted.length > 0) {
+            existing.splitTimes = extracted;
+          }
+        }
       }
       if (data.monteCarloPrediction) {
         existing.monteCarloPrediction = data.monteCarloPrediction;
@@ -1277,6 +1478,8 @@
 
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
+      lastKnownRanks.clear();
+      checkpointRankHistory.clear();
 
       const isRT = (currentTimingMethod === "RealTime");
 
@@ -1416,6 +1619,7 @@
           } else {
             // LiveSplit is at 0 (start line / reset): competitors stay cleanly at start line
             simVirtualSec = 0;
+            checkpointRankHistory.clear();
             entrants.forEach((racer) => {
               if (racer.isHost) return;
               racer.currentTimeSecGT = 0;
@@ -1430,6 +1634,8 @@
               racer.finalTimeSec = null;
               racer.score = 0;
               racer.lastSplitEffect = null;
+              racer.positionDelta = 0;
+              racer.positionDeltaDisplay = "-";
             });
           }
         } else {
@@ -1462,6 +1668,8 @@
         hostState.lastSplitEffect = null;
         entrants.clear();
         entrants.set(hostState.userId, Object.assign({}, hostState));
+        lastKnownRanks.clear();
+        checkpointRankHistory.clear();
         notifyListeners("race_disconnected", null);
       }
     }
@@ -1641,6 +1849,8 @@
       hostState.hasCrown = false;
       hostState.crownSegmentName = null;
       hostState.crownSegmentTime = null;
+      hostState.positionDelta = 0;
+      hostState.positionDeltaDisplay = "-";
 
       entrants.forEach((racer) => {
         if (racer.isHost) {
@@ -1663,10 +1873,13 @@
           racer.hasCrown = false;
           racer.crownSegmentName = null;
           racer.crownSegmentTime = null;
+          racer.positionDelta = 0;
+          racer.positionDeltaDisplay = "-";
         }
       });
 
       lastKnownRanks.clear();
+      checkpointRankHistory.clear();
       notifyListeners("race_reset", null);
       if (typeof window !== "undefined" && window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.reset === "function") {
         window.LiveSplitLeaderboard.reset();
