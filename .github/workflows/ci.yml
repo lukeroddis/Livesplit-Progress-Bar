@@ -20,11 +20,23 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
       - name: Install CI test dependencies
         run: |
           python -m pip install --upgrade pip
           pip install websockets
 
+      - name: Install Node dependencies
+        run: npm ci
+
       - name: Run Unified Test Suite & Code Coverage
         run: |
           python tests/run_tests.py
+
+      - name: Build single-file distribution
+        run: npm run build
