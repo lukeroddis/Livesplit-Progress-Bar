@@ -11,3 +11,7 @@ Desktop.ini
 # Python bytecode and cache
 __pycache__/
 *.py[cod]
+
+# Node dependencies and generated single-file build output
+node_modules/
+dist/
