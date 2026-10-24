@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 bump_version.py - Semantic Versioning Utility for LiveSplit Minimal Overlay
-Bumps version in package.json, overlay.js, and index.html synchronously.
+Bumps version in package.json, package-lock.json, overlay.js, and index.html
+synchronously.
 Usage: python scripts/bump_version.py [patch|minor|major|<specific_version>]
 """
 
@@ -9,6 +10,9 @@ import sys
 import os
 import json
 import re
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -44,7 +48,19 @@ def main():
         json.dump(pkg, f, indent=2)
         f.write("\n")
 
-    # 2. Update overlay.js
+    # 2. Keep the package-lock.json root version in sync when present
+    lock_path = os.path.join(ROOT_DIR, "package-lock.json")
+    if os.path.exists(lock_path):
+        with open(lock_path, "r", encoding="utf-8") as f:
+            lock = json.load(f)
+        lock["version"] = new_version
+        if isinstance(lock.get("packages"), dict) and "" in lock["packages"]:
+            lock["packages"][""]["version"] = new_version
+        with open(lock_path, "w", encoding="utf-8") as f:
+            json.dump(lock, f, indent=2)
+            f.write("\n")
+
+    # 3. Update overlay.js
     overlay_path = os.path.join(ROOT_DIR, "overlay.js")
     with open(overlay_path, "r", encoding="utf-8") as f:
         overlay_src = f.read()
@@ -56,7 +72,7 @@ def main():
     with open(overlay_path, "w", encoding="utf-8") as f:
         f.write(overlay_src)
 
-    # 3. Update index.html
+    # 4. Update index.html
     html_path = os.path.join(ROOT_DIR, "index.html")
     with open(html_path, "r", encoding="utf-8") as f:
         html_src = f.read()
@@ -68,7 +84,7 @@ def main():
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_src)
 
-    print(f"✓ Successfully synchronized v{new_version} across package.json, overlay.js, and index.html.")
+    print(f"✓ Successfully synchronized v{new_version} across package.json, package-lock.json, overlay.js, and index.html.")
 
 if __name__ == "__main__":
     main()
