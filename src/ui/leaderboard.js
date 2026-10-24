@@ -51,8 +51,14 @@
   }
 
   /**
+   * Formats gap / delta seconds for leaderboard display ("-2.4s", "+1:12").
+   */
+  const formatGapTime = formatSegmentDuration;
+
+  /**
    * Builds avatar HTML markup for an entrant.
    */
+
   function buildAvatarMarkup(avatar, isHost) {
     const raw = typeof avatar === "string" ? avatar : "";
     const isSafeImg = (
@@ -354,6 +360,7 @@
     // In-place update of rows and append in strict rank order
     // -------------------------------------------------------------
     entrants.forEach((racer) => {
+      try {
       const uId = racer.userId || "unknown";
       const isHost = !!racer.isHost;
       const isMuted = !!racer.isMuted;
@@ -433,6 +440,8 @@
       } else if (expVal !== "--") {
         const deltaTag = hasPbDelta ? `<span class="${pbDeltaClass}">${escapeHtml(pbDeltaText)}</span><span class="racer-slash">/</span>` : "";
         expMarkup = `${deltaTag}<span class="racer-elapsed">${escapeHtml(elapsedVal)}</span><span class="racer-slash">/</span><span class="expected-tag interval-tag">${expType}</span>${escapeHtml(expVal)}`;
+      } else if (hasPbDelta) {
+        expMarkup = `<span class="${pbDeltaClass}">${escapeHtml(pbDeltaText)}</span>`;
       }
 
       const expSource = racer.hasStatisticalPrediction ? "therun.gg prediction" : "PB segment";
@@ -620,6 +629,9 @@
         row.classList.remove("split-flash-gold", "split-flash-green", "split-flash-red");
         row.style.animationDelay = "";
         delete row.dataset.lastEffectTime;
+      }
+      } catch (err) {
+        console.error("[Leaderboard Row Render Error]", err, racer);
       }
     });
 

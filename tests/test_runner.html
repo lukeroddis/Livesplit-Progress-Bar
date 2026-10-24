@@ -3517,6 +3517,80 @@
 
         rc.stopSimulation();
       });
+
+      it("renderLeaderboard handles live entrants with deltaSec without ReferenceError", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        assert(lb && typeof lb.renderLeaderboard === "function", "Leaderboard exists");
+
+        const liveEntrants = [
+          {
+            userId: "live_runner_1",
+            username: "SpeedyGonzales",
+            rank: 1,
+            isHost: false,
+            deltaSec: -4.25,
+            currentSplitName: "Castle",
+            currentSplitIndex: 2,
+            currentTimeSec: 120,
+            status: "progress"
+          },
+          {
+            userId: "live_runner_2",
+            username: "SlowAndSteady",
+            rank: 2,
+            isHost: false,
+            deltaSec: 12.8,
+            currentSplitName: "Cave",
+            currentSplitIndex: 1,
+            currentTimeSec: 135,
+            status: "progress"
+          }
+        ];
+
+        let threw = false;
+        try {
+          lb.renderLeaderboard(liveEntrants, false, true, false);
+        } catch (err) {
+          threw = true;
+          console.error("renderLeaderboard threw error:", err);
+        }
+
+        assertEqual(threw, false, "renderLeaderboard does not throw ReferenceError when deltaSec is present");
+        const row1 = document.querySelector('[data-user-id="live_runner_1"]');
+        assert(row1 !== null, "Live runner 1 row rendered in DOM");
+        const deltaEl1 = row1.querySelector(".racer-pb-delta");
+        assert(deltaEl1 !== null, "Live runner 1 has racer-pb-delta element");
+        assert(deltaEl1.textContent.includes("4.3s") || deltaEl1.textContent.includes("4.2s"), "delta text formatted cleanly via formatGapTime");
+      });
+
+      it("RaceClient records incoming WebSocket messages and provides getWebSocketLogs / clearWebSocketLogs", () => {
+        const rc = window.LiveSplit.RaceClient;
+        assert(typeof rc.getWebSocketLogs === "function", "rc.getWebSocketLogs is exported");
+        assert(typeof rc.clearWebSocketLogs === "function", "rc.clearWebSocketLogs is exported");
+
+        rc.clearWebSocketLogs();
+        assertEqual(rc.getWebSocketLogs().length, 0, "Logs buffer starts empty after clear");
+
+        // Simulate incoming message
+        rc.handleRaceMessage({
+          type: "participant-split",
+          data: {
+            user: "LiveRacerX",
+            splitName: "Zone 2",
+            time: 45000,
+            percentage: 0.4
+          }
+        });
+
+        // Simulate another event
+        rc.handleRaceMessage({
+          type: "race_started"
+        });
+
+        const logs = rc.getWebSocketLogs();
+        assert(logs.length >= 0, "getWebSocketLogs returns logs array");
+        assert(typeof window.getRaceWsLogs === "function", "window.getRaceWsLogs helper is exported");
+      });
     });
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");

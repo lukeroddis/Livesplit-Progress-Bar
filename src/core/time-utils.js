@@ -251,6 +251,30 @@
     return { text: outputText, isAhead, signedSeconds };
   }
 
+  /**
+   * Formats a duration in seconds into a gap or interval string ("27.4s", "1:05", "1:10:00").
+   * @param {number} sec - Seconds
+   * @returns {string} Formatted gap string
+   */
+  function formatGapTime(sec) {
+    if (sec === null || sec === undefined || isNaN(sec)) return "--";
+    const clamped = Math.max(0, sec);
+    const totalSec = Math.floor(clamped);
+    if (totalSec < 60) {
+      const subMin = Math.min(59.9, Math.round(clamped * 10) / 10);
+      return `${subMin.toFixed(1)}s`;
+    }
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const sPad = s < 10 ? `0${s}` : `${s}`;
+    if (h > 0) {
+      const mPad = m < 10 ? `0${m}` : `${m}`;
+      return `${h}:${mPad}:${sPad}`;
+    }
+    return `${m}:${sPad}`;
+  }
+
   // Export to namespace and window
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.Time = {
@@ -258,7 +282,8 @@
     formatTimerDisplay,
     formatTargetTime,
     formatDeltaSeconds,
-    formatDeltaLive
+    formatDeltaLive,
+    formatGapTime
   };
 
   // Backward compatibility exports
@@ -267,4 +292,5 @@
   window.formatTargetTime = formatTargetTime;
   window.formatDeltaSeconds = formatDeltaSeconds;
   window.formatDeltaLive = formatDeltaLive;
+  window.formatGapTime = formatGapTime;
 })();

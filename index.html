@@ -218,6 +218,7 @@
         <div class="settings-profile-bar" style="margin-top: 6px;">
           <input type="text" id="input-therun-race-code" class="settings-profile-input" maxlength="16" placeholder="Race Code (e.g. q38y)" title="Enter the therun.gg race room code (e.g. q38y) and click Connect">
           <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to or disconnect from the therun.gg race room">Connect</button>
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-open-ws-logs" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.4);" title="View incoming WebSocket telemetry messages and copy debug logs">📜 WS Logs</button>
         </div>
       </div>
 
@@ -575,6 +576,34 @@
       <div class="track-modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
         <button class="toolbar-btn" id="btn-cancel-import">Cancel</button>
         <button class="toolbar-btn btn-primary" id="btn-apply-import-json">✓ Apply &amp; Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Race WebSocket Logs Modal -->
+  <div class="track-modal-backdrop" id="race-ws-logs-modal" style="display: none;">
+    <div class="track-modal-dialog" style="width: 580px; max-width: 95vw;">
+      <div class="track-modal-header">
+        <h3>📜 WebSocket Telemetry Logs</h3>
+        <button class="track-modal-close" id="btn-close-ws-logs-modal" title="Close">✕</button>
+      </div>
+      <div class="track-modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <div style="font-size: 12px; color: #94a3b8;">
+            Signals logged: <strong id="ws-logs-count" style="color: #38bdf8;">0</strong>
+            <span id="ws-logs-status" style="margin-left: 8px; color: #c084fc; font-weight: 500;">(Ready)</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" class="toolbar-btn" id="btn-clear-ws-logs" style="font-size: 11px; padding: 3px 8px;" title="Clear log buffer">🗑 Clear</button>
+            <button type="button" class="toolbar-btn btn-primary" id="btn-copy-ws-logs" style="font-size: 11px; padding: 3px 10px;" title="Copy all logged signals to clipboard as JSON">📋 Copy JSON</button>
+          </div>
+        </div>
+        <div id="ws-logs-container" style="width: 100%; height: 280px; background: rgba(15,23,42,0.95); color: #cbd5e1; font-family: monospace; font-size: 11px; padding: 8px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); overflow-y: auto; box-sizing: border-box;">
+          <div id="ws-logs-empty" style="color: #64748b; font-style: italic; text-align: center; margin-top: 50px;">No WebSocket signals logged yet.<br>Connect to a race room to capture live telemetry.</div>
+        </div>
+      </div>
+      <div class="track-modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="toolbar-btn" id="btn-close-ws-logs-footer">Close</button>
       </div>
     </div>
   </div>

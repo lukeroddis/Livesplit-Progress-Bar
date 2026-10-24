@@ -152,6 +152,36 @@
     const CONNECT_COOLDOWN_MS = 5000;
     let raceId = null;
     let ws = null;
+    const MAX_WS_DEBUG_LOGS = 150;
+    const wsDebugLogs = [];
+    let wsLogCounter = 0;
+
+    function recordWsLog(direction, type, data, raw) {
+      const entry = {
+        id: ++wsLogCounter,
+        time: new Date().toLocaleTimeString(),
+        timestamp: Date.now(),
+        direction: direction || "in",
+        type: type || "message",
+        user: (data && (data.user || data.username || (data.data && (data.data.user || data.data.username)))) || "",
+        data: data,
+        raw: raw || (typeof data === "string" ? data : JSON.stringify(data))
+      };
+      wsDebugLogs.unshift(entry);
+      if (wsDebugLogs.length > MAX_WS_DEBUG_LOGS) {
+        wsDebugLogs.pop();
+      }
+      try {
+        console.log(
+          `%c[TheRun WS ${direction.toUpperCase()}] %c${entry.time} %c[${entry.type}]`,
+          direction === "in" ? "color: #38bdf8; font-weight: bold;" : "color: #4ade80; font-weight: bold;",
+          "color: #94a3b8;",
+          "color: #c084fc; font-weight: 600;",
+          data
+        );
+      } catch (_) {}
+      notifyListeners("ws_log", entry);
+    }
     let heartbeatTimer = null;
     let lastConnectAttemptMs = 0;
     let isConnectInFlight = false;
@@ -1494,6 +1524,7 @@
           const json = await res.json();
           racePayload = (json && json.result !== undefined) ? json.result : json;
           if (racePayload) {
+            recordWsLog("in", "http_race_snapshot", racePayload);
             handleRaceMessage(racePayload);
           }
         }
@@ -1507,6 +1538,7 @@
             const pJson = await pRes.json();
             const partPayload = (pJson && pJson.result !== undefined) ? pJson.result : pJson;
             if (partPayload) {
+              recordWsLog("in", "http_participants_snapshot", partPayload);
               handleRaceMessage(partPayload);
             }
           }
@@ -1539,6 +1571,7 @@
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
+          recordWsLog("sys", "ws_connected", { raceId: cleanId, url: wsUrl });
           console.log(`[RaceClient] Connected to live race: ${cleanId}`);
           notifyListeners("race_connected", { raceId: cleanId });
         };
@@ -1546,13 +1579,17 @@
         ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
+            const msgType = (msg && (msg.type || (msg.data && msg.data.type) || "message")) || "message";
+            recordWsLog("in", msgType, msg, event.data);
             handleRaceMessage(msg);
           } catch (e) {
+            recordWsLog("sys", "parse_error", { error: String(e), raw: event.data }, event.data);
             console.warn("[RaceClient] Message parse error:", e);
           }
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
+          recordWsLog("sys", "ws_closed", { raceId: cleanId, code: event && event.code, reason: event && event.reason });
           console.log("[RaceClient] Race WebSocket closed");
           if (raceId === cleanId) {
             ws = null;
@@ -1560,6 +1597,7 @@
         };
 
         ws.onerror = (err) => {
+          recordWsLog("sys", "ws_error", { raceId: cleanId });
           console.warn("[RaceClient] WebSocket error:", err);
         };
 
@@ -1578,6 +1616,9 @@
     }
 
     function disconnectFromRace() {
+      if (raceId) {
+        recordWsLog("sys", "disconnected", { raceId });
+      }
       clearRunStartLookupTimers();
       setStandby(false);
       if (ws) {
@@ -2102,13 +2143,34 @@
           : ((live && typeof live.runPercentageSplits === "number")
             ? live.runPercentageSplits
             : (typeof data.runPercentage === "number" ? data.runPercentage : null)));
-      const normRunPct = rawRunPct !== null
+      let normRunPct = rawRunPct !== null
         ? (rawRunPct > 1 ? (rawRunPct / 100) : rawRunPct)
         : 0;
 
+      if (!normRunPct && live && typeof live.estimatedFinishTime === "number" && live.estimatedFinishTime > 0 && typeof live.currentTime === "number" && live.currentTime > 0) {
+        normRunPct = Math.min(0.999, live.currentTime / live.estimatedFinishTime);
+      }
+      if (existing.isFinished) {
+        normRunPct = 1.0;
+      }
+
+      const totalSplits = (live && typeof live.totalSplits === "number" && live.totalSplits > 0)
+        ? live.totalSplits
+        : ((Array.isArray(existing.splits) && existing.splits.length > 0) ? existing.splits.length : (Array.isArray(data.splits) ? data.splits.length : 0));
+      existing.totalSplits = totalSplits;
+      existing.runPercentage = normRunPct;
+
+      // Calculate within-split ratio for current split
+      let inSegRatio = null;
+      if (normRunPct > 0 && totalSplits > 0) {
+        const withinFromOverall = (normRunPct * totalSplits) - existing.currentSplitIndex;
+        if (withinFromOverall >= 0 && withinFromOverall <= 1.0) {
+          inSegRatio = withinFromOverall;
+        }
+      }
+
       // High-precision dead-reckoning progress calculation using predicted single duration or PB
-      let ratio = normRunPct;
-      if (!normRunPct && typeof rawCurrentTime === "number" && !existing.isFinished && !existing.isDNF) {
+      if (typeof rawCurrentTime === "number" && !existing.isFinished && !existing.isDNF) {
         const curSec = existing.currentTimeSec || 0;
         const curIdx = existing.currentSplitIndex || 0;
         let prevTimeSec = 0;
@@ -2131,12 +2193,23 @@
           const pbCur = curSplit.pbSplitTime > 500 ? (curSplit.pbSplitTime / 1000) : curSplit.pbSplitTime;
           expectedDur = Math.max(0.5, pbCur - prevTimeSec);
         }
-        ratio = Math.max(0, Math.min(0.99, elapsedInSeg / Math.max(0.5, expectedDur)));
+        const deadReckonRatio = Math.max(0, Math.min(0.99, elapsedInSeg / Math.max(0.5, expectedDur)));
+        if (inSegRatio === null || Math.abs(deadReckonRatio - inSegRatio) > 0.05) {
+          inSegRatio = deadReckonRatio;
+        }
+      }
+
+      if (inSegRatio === null) {
+        inSegRatio = 0.5;
       }
 
       existing.score = existing.isFinished
         ? (activeSplitsList ? activeSplitsList.length : existing.currentSplitIndex + 1)
-        : existing.currentSplitIndex + (normRunPct > 0 ? normRunPct : (ratio > 0 ? ratio : 0.5));
+        : existing.currentSplitIndex + inSegRatio;
+
+      if (existing.isDNF && existing.dnfScore === undefined) {
+        existing.dnfScore = existing.score;
+      }
 
       entrants.set(uId, existing);
     }
@@ -2865,6 +2938,11 @@
       areRacePinsVisible,
       setRacePinsVisible,
       toggleRacePinsVisible,
+      getWebSocketLogs: () => wsDebugLogs.slice(),
+      clearWebSocketLogs: () => {
+        wsDebugLogs.length = 0;
+        notifyListeners("ws_logs_cleared", null);
+      },
       reset,
       subscribe(fn) {
         listeners.add(fn);
@@ -2882,5 +2960,7 @@
   window.LiveSplit.RaceClient = defaultClient;
   window.createLiveSplitRaceClient = createRaceClient;
   window.LiveSplitRaceClient = defaultClient;
+  window.getRaceWsLogs = () => defaultClient.getWebSocketLogs();
+  window.clearRaceWsLogs = () => defaultClient.clearWebSocketLogs();
 
 })();

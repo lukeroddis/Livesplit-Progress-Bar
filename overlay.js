@@ -2255,13 +2255,26 @@ function updateGhostRunner(currentSec) {
   }
 
   raceEntrants.forEach((racer) => {
-    let segIdx = Math.floor(racer.score || 0);
-    let ratio = (racer.score || 0) - segIdx;
+    let segIdx = 0;
+    let ratio = 0;
+    const numSplits = splitsList.length;
+
     if (racer.isFinished) {
-      segIdx = splitsList.length - 1;
+      segIdx = numSplits - 1;
       ratio = 1.0;
+    } else if (racer.isDNF && typeof racer.dnfScore === "number") {
+      segIdx = Math.floor(racer.dnfScore);
+      ratio = racer.dnfScore - segIdx;
+    } else if (racer.totalSplits > 0 && racer.totalSplits !== numSplits && typeof racer.runPercentage === "number" && racer.runPercentage > 0) {
+      // Spectator mode / split count mismatch: map normalized run percentage across local progress bar
+      const mappedScore = Math.max(0, Math.min(numSplits - 0.001, racer.runPercentage * numSplits));
+      segIdx = Math.floor(mappedScore);
+      ratio = mappedScore - segIdx;
+    } else {
+      segIdx = Math.floor(racer.score || 0);
+      ratio = (racer.score || 0) - segIdx;
     }
-    segIdx = Math.max(0, Math.min(splitsList.length - 1, segIdx));
+    segIdx = Math.max(0, Math.min(numSplits - 1, segIdx));
     ratio = Math.max(0, Math.min(1.0, ratio));
 
     const coords = getSegmentCoords(segIdx);
@@ -4179,10 +4192,141 @@ function initOverlay() {
         updateGhostRunner(lastElapsedSec);
       } else if (event === "race_standby_changed") {
         syncConnectBtnState();
+      } else if (event === "ws_log") {
+        if (wsLogsModal && wsLogsModal.style.display !== "none" && wsLogsContainer) {
+          const emptyMsg = wsLogsContainer.querySelector("div");
+          if (emptyMsg && emptyMsg.textContent.includes("No WebSocket signals logged yet")) {
+            wsLogsContainer.innerHTML = "";
+          }
+          if (data) {
+            wsLogsContainer.insertBefore(renderWsLogEntry(data), wsLogsContainer.firstChild);
+          }
+          if (wsLogsCount) {
+            const cur = parseInt(wsLogsCount.textContent || "0", 10);
+            wsLogsCount.textContent = (cur + 1);
+          }
+        }
+      } else if (event === "ws_logs_cleared") {
+        if (wsLogsModal && wsLogsModal.style.display !== "none") {
+          renderAllWsLogs();
+        }
       }
     });
   }
-  // Latching pressed-down trigger pill and close button setup
+
+  // WebSocket Telemetry Logs Modal
+  const btnOpenWsLogs = document.getElementById("btn-open-ws-logs");
+  const wsLogsModal = document.getElementById("race-ws-logs-modal");
+  const btnCloseWsLogs = document.getElementById("btn-close-ws-logs-modal");
+  const btnCloseWsLogsFooter = document.getElementById("btn-close-ws-logs-footer");
+  const btnClearWsLogs = document.getElementById("btn-clear-ws-logs");
+  const btnCopyWsLogs = document.getElementById("btn-copy-ws-logs");
+  const wsLogsContainer = document.getElementById("ws-logs-container");
+  const wsLogsCount = document.getElementById("ws-logs-count");
+  const wsLogsStatus = document.getElementById("ws-logs-status");
+
+  function renderWsLogEntry(entry) {
+    const div = document.createElement("div");
+    div.className = "ws-log-item";
+    div.style.cssText = "border-bottom: 1px solid rgba(148,163,184,0.15); padding: 5px 0; margin-bottom: 4px;";
+
+    let typeColor = "#38bdf8";
+    if (entry.direction === "sys") typeColor = "#f59e0b";
+    else if (String(entry.type).includes("split") || String(entry.type).includes("start")) typeColor = "#4ade80";
+    else if (String(entry.type).includes("dnf") || String(entry.type).includes("error") || String(entry.type).includes("abandon")) typeColor = "#ef4444";
+    else if (String(entry.type).includes("ready")) typeColor = "#a855f7";
+
+    const userBadge = entry.user ? `<span style="background: rgba(56,189,248,0.15); color: #38bdf8; padding: 1px 5px; border-radius: 4px; font-size: 10px; margin-left: 6px;">${escapeHtml(entry.user)}</span>` : "";
+    const rawData = (typeof entry.data === "object" && entry.data !== null) ? JSON.stringify(entry.data) : String(entry.data || entry.raw || "");
+
+    div.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+        <div>
+          <span style="color: #64748b; font-size: 10px;">${escapeHtml(entry.time)}</span>
+          <span style="color: ${typeColor}; font-weight: 600; margin-left: 6px;">[${escapeHtml(entry.type)}]</span>
+          ${userBadge}
+        </div>
+        <span style="color: #64748b; font-size: 9px;">#${entry.id}</span>
+      </div>
+      <div style="color: #94a3b8; font-size: 10px; overflow-x: auto; max-height: 80px; white-space: pre-wrap; word-break: break-all;">${escapeHtml(rawData)}</div>
+    `;
+    return div;
+  }
+
+  function renderAllWsLogs() {
+    if (!wsLogsContainer || !raceClient) return;
+    const logs = typeof raceClient.getWebSocketLogs === "function" ? raceClient.getWebSocketLogs() : [];
+    if (wsLogsCount) wsLogsCount.textContent = logs.length;
+    if (wsLogsStatus) {
+      const isConn = typeof raceClient.isConnected === "function" && raceClient.isConnected();
+      const rId = typeof raceClient.getRaceId === "function" ? raceClient.getRaceId() : null;
+      wsLogsStatus.textContent = isConn ? `(Connected: ${rId})` : "(Disconnected)";
+      wsLogsStatus.style.color = isConn ? "#4ade80" : "#94a3b8";
+    }
+
+    wsLogsContainer.innerHTML = "";
+    if (logs.length === 0) {
+      wsLogsContainer.innerHTML = '<div style="color: #64748b; font-style: italic; text-align: center; margin-top: 50px;">No WebSocket signals logged yet.<br>Connect to a race room to capture live telemetry.</div>';
+      return;
+    }
+
+    logs.forEach(entry => {
+      wsLogsContainer.appendChild(renderWsLogEntry(entry));
+    });
+  }
+
+  if (btnOpenWsLogs && wsLogsModal) {
+    btnOpenWsLogs.addEventListener("click", () => {
+      renderAllWsLogs();
+      wsLogsModal.style.display = "flex";
+    });
+
+    const closeWsLogs = () => {
+      wsLogsModal.style.display = "none";
+    };
+    btnCloseWsLogs?.addEventListener("click", closeWsLogs);
+    btnCloseWsLogsFooter?.addEventListener("click", closeWsLogs);
+    wsLogsModal.addEventListener("click", (e) => {
+      if (e.target === wsLogsModal) closeWsLogs();
+    });
+
+    btnClearWsLogs?.addEventListener("click", () => {
+      if (raceClient && typeof raceClient.clearWebSocketLogs === "function") {
+        raceClient.clearWebSocketLogs();
+      }
+      renderAllWsLogs();
+    });
+
+    btnCopyWsLogs?.addEventListener("click", () => {
+      const logs = typeof raceClient?.getWebSocketLogs === "function" ? raceClient.getWebSocketLogs() : [];
+      const jsonStr = JSON.stringify(logs, null, 2);
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        navigator.clipboard.writeText(jsonStr).then(() => {
+          btnCopyWsLogs.textContent = "✓ Copied!";
+          setTimeout(() => { btnCopyWsLogs.textContent = "📋 Copy JSON"; }, 2000);
+        }).catch(() => fallbackCopy(jsonStr));
+      } else {
+        fallbackCopy(jsonStr);
+      }
+    });
+
+    function fallbackCopy(text) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        btnCopyWsLogs.textContent = "✓ Copied!";
+        setTimeout(() => { btnCopyWsLogs.textContent = "📋 Copy JSON"; }, 2000);
+      } catch (_) {}
+      document.body.removeChild(ta);
+    }
+  }
+
+    // Latching pressed-down trigger pill and close button setup
   const triggerPill = document.getElementById("settings-trigger-pill");
   const closeBtn = document.getElementById("btn-close-settings");
 
