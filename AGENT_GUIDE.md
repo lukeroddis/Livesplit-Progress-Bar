@@ -19,25 +19,23 @@
    - [index.html](index.html): Clean semantic structure, HUD components, and SVG icons.
    - [style.css](style.css): Glassmorphic HUD styles, typography, layout editor UI, and animations.
    - **`src/core/` Core Speedrun & Persistence Modules**:
-     - [storage.js](src/core/storage.js): safeStorage wrapper with in-memory fallback for sandboxed OBS CEF sources, state persistence, and centralized keys.
-     - [	ime-utils.js](src/core/time-utils.js): 	imeStringToSeconds, ormatTimerDisplay, ormatTargetTime, and ormatDeltaSeconds.
-     - [split-engine.js](src/core/split-engine.js): .lss XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
-     - [ghost-math.js](src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
-     - [livesplit-client.js](src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
-     - [
-ace-client.js](src/core/race-client.js): therun.gg/racetime.gg live telemetry bridge, F1-style continuous scoring, leader gap/interval calculations, and local simulated race engine.
-   - **src/ui/ Interface & Layout Modules**:
-     - [layout-engine.js](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
-     - [	rack-renderer.js](src/ui/track-renderer.js): Sliding window math, schematic breaks, and zero-allocation 60 FPS element caching.
-     - [interactions.js](src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
+     - [`storage.js`](src/core/storage.js): `safeStorage` wrapper with in-memory fallback for sandboxed OBS CEF sources, state persistence, and centralized keys.
+     - [`time-utils.js`](src/core/time-utils.js): `timeStringToSeconds`, `formatTimerDisplay`, `formatTargetTime`, and `formatDeltaSeconds`.
+     - [`split-engine.js`](src/core/split-engine.js): `.lss` XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
+     - [`ghost-math.js`](src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
+     - [`livesplit-client.js`](src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
+     - [race-client.js](src/core/race-client.js): therun.gg/racetime.gg live telemetry bridge, F1-style continuous scoring, leader gap/interval calculations, and local simulated race engine.
+   - **`src/ui/` Interface & Layout Modules**:
+     - [`layout-engine.js`](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
+     - [`track-renderer.js`](src/ui/track-renderer.js): Sliding window math, schematic breaks, and zero-allocation 60 FPS element caching.
+     - [`interactions.js`](src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
      - [leaderboard.js](src/ui/leaderboard.js): Live race F1 timing tower controller, 60 FPS FLIP overtake reorder animations, and entrant mute controls.
-   - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and window.hudLayout.
+   - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
    - [overlay.js](overlay.js): Application bootstrap, high-frequency render ticks, and LiveSplit Server WebSocket bridge.
-   - [ite.config.mjs](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for the module build entry and enables the single-file plugin.
-   - [src/build-entry.js](src/build-entry.js): Build-only entry that imports every source script in its original <script> order. It is not loaded when opening index.html directly.
-   - [scripts/verify-single-file.mjs](scripts/verify-single-file.mjs): Postbuild contract check for the generated dist/index.html; run automatically by 
-pm run build.
-   - dist/index.html: Generated, fully self-contained distribution file. It is git-ignored and attached to GitHub releases.
+   - [`vite.config.mjs`](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for the module build entry and enables the single-file plugin.
+   - [`src/build-entry.js`](src/build-entry.js): Build-only entry that imports every source script in its original `<script>` order. It is not loaded when opening `index.html` directly.
+   - [`scripts/verify-single-file.mjs`](scripts/verify-single-file.mjs): Postbuild contract check for the generated `dist/index.html`; run automatically by `npm run build`.
+   - `dist/index.html`: Generated, fully self-contained distribution file. It is git-ignored and attached to GitHub releases.
 
 ---
 
