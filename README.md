@@ -38,10 +38,26 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
    * **Older LiveSplit versions (v1.7.0 – v1.8.29)**: Right-click → **Edit Layout** → add **Control → LiveSplit Server**, then right-click → **Control → Start Server**.
    * *(Important: Select **WebSocket Server**, not TCP Server, as browser overlays communicate via WebSockets).*
 2. **Open the Overlay**:
-   * **In OBS Studio (Recommended)**: Add a **Browser Source** pointing to `index.html` (or your local web server), set resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
-   * **In Desktop Browser**: Open [index.html](index.html) in Chrome, Edge, or Firefox.
+   * Download the latest `livesplit-minimal-overlay-v*.html` from [Releases](https://github.com/lukeroddis/Livesplit-Progress-Bar/releases). The release is one fully self-contained HTML file; no server or companion files are required.
+   * **In OBS Studio (Recommended)**: Add a **Browser Source** pointing to the downloaded HTML file, set resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
+   * **In Desktop Browser**: Open the downloaded HTML file in Chrome, Edge, or Firefox.
 3. **Load Your Splits**:
    * Drag and drop your `.lss` splits file directly onto the window. Splits, targets, and history are cached locally.
+
+---
+
+## 🧑‍💻 Development
+
+Building from source requires Node.js `^20.19.0` or `>=22.12.0`; the test suite also requires Python 3.11.
+
+```bash
+npm ci
+npm run dev      # Vite dev server with live reload
+npm test         # Python + in-browser test suite
+npm run build    # → dist/index.html (single self-contained file)
+```
+
+The application source remains classic, dependency-free scripts. `vite.config.mjs` swaps the script tags for [src/build-entry.js](src/build-entry.js) during a build, and `vite-plugin-singlefile` inlines the resulting JS and CSS. The `postbuild` check ([scripts/verify-single-file.mjs](scripts/verify-single-file.mjs)) fails the build if `dist/` contains anything other than `index.html` or if the output references an external asset. The source [index.html](index.html) can still be opened directly for quick debugging, but the supported distribution is the built single file.
 
 ---
 
@@ -124,16 +140,20 @@ For multi-scene or automated OBS setups, configure sources instantly with query 
 
 ## 🧪 Testing & Code Stability
 
-The repository includes a comprehensive, zero-dependency automated test suite verifying data parsers, ghost interpolation, DOM consistency, and layout schema compatibility:
+The repository includes an automated test suite verifying data parsers, ghost interpolation, DOM consistency, and layout schema compatibility:
 
 ```bash
-# Run automated tests and static checkers
+# Run automated tests and static checkers (or: npm test)
 python tests/run_tests.py
+
+# Verify the single-file build contract
+npm run build
 ```
 
 * **In-Browser Test Runner**: Open [tests/test_runner.html](tests/test_runner.html) in any browser to inspect assertions visually with live status badges.
 * **Automated Pre-Push Hook**: Local tests run automatically before every `git push` via `.githooks/pre-push`.
-* **GitHub Actions CI**: Automated test runs on every push and pull request via `.github/workflows/ci.yml`.
+* **GitHub Actions CI**: Automated tests and the single-file build run on every push and pull request via [.github/workflows/ci.yml](.github/workflows/ci.yml).
+* **Release Build**: Releases publish a standalone `livesplit-minimal-overlay-<tag>.html` built and verified by CI.
 
 ---
 
