@@ -12,6 +12,7 @@ import json
 import shutil
 import socket
 import subprocess
+import tempfile
 import urllib.request
 import asyncio
 
@@ -2376,6 +2377,8 @@ def calculate_file_line_coverage(file_path, script_coverage):
 async def _run_browser_cdp_async(chrome_bin, test_url):
     import websockets
     port = find_free_port()
+    # Chrome 136+ ignores remote debugging when using the default data directory.
+    user_data_dir = tempfile.mkdtemp(prefix="livesplit-chrome-")
     proc = subprocess.Popen([
         chrome_bin,
         "--headless=new",
@@ -2383,6 +2386,9 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-default-browser-check",
+        f"--user-data-dir={user_data_dir}",
         f"--remote-debugging-port={port}",
         "--remote-debugging-address=127.0.0.1",
         "about:blank"
@@ -2390,10 +2396,10 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
     
     try:
         ws_url = None
-        for _ in range(40):
+        for _ in range(150):
             await asyncio.sleep(0.1)
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as resp:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/json", timeout=1) as resp:
                     targets = json.loads(resp.read().decode())
                 if targets:
                     page = next((t for t in targets if t.get("type") == "page"), None)
@@ -2444,6 +2450,7 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
             proc.wait(timeout=2)
         except Exception:
             proc.kill()
+        shutil.rmtree(user_data_dir, ignore_errors=True)
 
 
 def run_browser_tests_and_coverage(python_test_count=35):
