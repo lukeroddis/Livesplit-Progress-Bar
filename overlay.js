@@ -2929,24 +2929,51 @@ async function pollLoop() {
 
       // Reset transition (active run to reset, restarting from a later split, or repeated reset to clear DNF)
       if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0) || isSecondResetWithDNF) {
-        clearInRunState();
-        lockedDeltas = {};
-        completedSplitTimes = {};
-        completedSplitTimesRT = {};
-        completedSplitTimesGT = {};
-        lastSplitRecordedSec = 0;
-        previousDeltaSeconds = 0;
-        lastElapsedSec = 0;
-        pendingHostSplitFlash = null;
-        if (rc) {
-          if (typeof rc.setHostDNF === "function" && rc.isHostDNF()) {
+        if (isSecondResetWithDNF) {
+          // Second reset while DNF'd: cleanly clear DNF and completely reset the race client
+          clearInRunState();
+          lockedDeltas = {};
+          completedSplitTimes = {};
+          completedSplitTimesRT = {};
+          completedSplitTimesGT = {};
+          lastSplitRecordedSec = 0;
+          previousDeltaSeconds = 0;
+          lastElapsedSec = 0;
+          pendingHostSplitFlash = null;
+          if (typeof rc.setHostDNF === "function") {
             rc.setHostDNF(false);
           }
           if (typeof rc.reset === "function") {
             rc.reset();
           }
-        }
+        } else if (isSim && wasRunning && typeof rc.setHostDNF === "function" && !rc.isHostDNF()) {
+          // Reset during active simulation: Host forfeits / cancels their run (DNF)
+          // The rest of the simulated competitors continue racing so you can see DNF behavior on the leaderboard!
+          rc.setHostDNF(true);
+          clearInRunState();
+          lockedDeltas = {};
+          completedSplitTimes = {};
+          completedSplitTimesRT = {};
+          completedSplitTimesGT = {};
+          lastSplitRecordedSec = 0;
+          previousDeltaSeconds = 0;
+          lastElapsedSec = 0;
+          pendingHostSplitFlash = null;
+        } else {
+          clearInRunState();
+          lockedDeltas = {};
+          completedSplitTimes = {};
+          completedSplitTimesRT = {};
+          completedSplitTimesGT = {};
+          lastSplitRecordedSec = 0;
+          previousDeltaSeconds = 0;
+          lastElapsedSec = 0;
+          pendingHostSplitFlash = null;
 
+          if (rc && typeof rc.reset === "function") {
+            rc.reset();
+          }
+        }
         // Discard uncommitted in-run gold split segments by default upon reset
         const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
         if (discardOnReset && baselineBestSegmentTimesGT.length > 0) {
