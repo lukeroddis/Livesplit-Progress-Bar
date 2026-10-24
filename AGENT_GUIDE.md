@@ -7,27 +7,33 @@
 
 ## 1. Architectural Philosophy & Core Constraints
 
-1. **Zero-Build, Pure Client-Side Web Application**:
-   - **Rule**: Do **NOT** introduce Node.js build tools (Vite, Webpack, Babel, npm dependencies) as mandatory prerequisites to run or test the overlay.
-   - **Rationale**: The overlay is designed to run directly as a static file or local server in OBS Studio's CEF Browser Source and desktop browsers. It must run by opening [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html) directly.
+1. **Vite Build, Zero-Runtime-Dependency Web Application**:
+   - **Rule**: All runtime code must remain local and pure client-side. Vite and `vite-plugin-singlefile` are **devDependencies only**; do **not** add runtime npm dependencies, CDN imports, or remote asset URLs.
+   - **Distribution**: `npm run build` is the supported release path. It must produce exactly one fully self-contained `dist/index.html` with JavaScript and CSS inlined and no external or local asset references. The postbuild check ([`verify-single-file.mjs`](scripts/verify-single-file.mjs)) enforces this.
+   - **Rationale**: The released single file must run from `file://` in OBS Studio's CEF Browser Source and desktop browsers with no server or companion files.
+   - **Source shape**: Keep the application as classic scripts so the existing test runner and direct `file://` debugging continue to work. [`src/build-entry.js`](src/build-entry.js) imports them in `<script>` order; keep it synchronized when adding or removing source scripts.
 2. **Zero-Allocation 60 FPS Render Loop**:
    - Never allocate new DOM nodes or perform expensive querySelectors inside the 33ms animation tick (`requestAnimationFrame`).
    - Only modify `textContent` and `style` transforms on cached element references during live timing.
-3. **Modular Zero-Build Architecture**:
-   - [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html): Clean semantic structure, HUD components, and SVG icons.
-   - [style.css](file:///c:/Users/Luke/Livesplit-Progress-Bar/style.css): Glassmorphic HUD styles, typography, layout editor UI, and animations.
+3. **Modular Vite-Built Architecture**:
+   - [index.html](index.html): Clean semantic structure, HUD components, and SVG icons.
+   - [style.css](style.css): Glassmorphic HUD styles, typography, layout editor UI, and animations.
    - **`src/core/` Core Speedrun & Persistence Modules**:
-     - [`storage.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/storage.js): `safeStorage` wrapper with in-memory fallback for sandboxed OBS CEF sources, state persistence, and centralized keys.
-     - [`time-utils.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/time-utils.js): `timeStringToSeconds`, `formatTimerDisplay`, `formatTargetTime`, and `formatDeltaSeconds`.
-     - [`split-engine.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/split-engine.js): `.lss` XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
-     - [`ghost-math.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
-     - [`livesplit-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
+     - [`storage.js`](src/core/storage.js): `safeStorage` wrapper with in-memory fallback for sandboxed OBS CEF sources, state persistence, and centralized keys.
+     - [`time-utils.js`](src/core/time-utils.js): `timeStringToSeconds`, `formatTimerDisplay`, `formatTargetTime`, and `formatDeltaSeconds`.
+     - [`split-engine.js`](src/core/split-engine.js): `.lss` XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
+     - [`ghost-math.js`](src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
+     - [`livesplit-client.js`](src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
    - **`src/ui/` Interface & Layout Modules**:
-     - [`layout-engine.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
-     - [`track-renderer.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/track-renderer.js): Sliding window math, schematic breaks, and zero-allocation 60 FPS element caching.
-     - [`interactions.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
-   - [layout.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
-   - [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js): Application bootstrap, high-frequency render ticks, and LiveSplit Server WebSocket bridge.
+     - [`layout-engine.js`](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
+     - [`track-renderer.js`](src/ui/track-renderer.js): Sliding window math, schematic breaks, and zero-allocation 60 FPS element caching.
+     - [`interactions.js`](src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
+   - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
+   - [overlay.js](overlay.js): Application bootstrap, high-frequency render ticks, and LiveSplit Server WebSocket bridge.
+   - [`vite.config.mjs`](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for the module build entry and enables the single-file plugin.
+   - [`src/build-entry.js`](src/build-entry.js): Build-only entry that imports every source script in its original `<script>` order. It is not loaded when opening `index.html` directly.
+   - [`scripts/verify-single-file.mjs`](scripts/verify-single-file.mjs): Postbuild contract check for the generated `dist/index.html`; run automatically by `npm run build`.
+   - `dist/index.html`: Generated, fully self-contained distribution file. It is git-ignored and attached to GitHub releases.
 
 ---
 
@@ -224,17 +230,27 @@ Before committing any changes, you must ensure:
 
 1. **Automated Test Suite**:
    ```bash
-   python tests/run_tests.py
+   npm ci
+   npm test
    ```
    Must pass with **100% green**.
-2. **DOM Reference Validation**:
-   - Any new element added in [index.html](file:///c:/Users/Luke/Livesplit-Progress-Bar/index.html) must have a consistent `id`.
+2. **Single-File Build**:
+   ```bash
+   npm run build
+   ```
+   - `dist/` must contain only `index.html`.
+   - The postbuild check must report no external or local asset references and confirm JS/CSS are inlined.
+   - The built file must initialize when opened from `file://`.
+3. **DOM Reference Validation**:
+   - Any new element added in [index.html](index.html) must have a consistent `id`.
    - Any `document.getElementById` added in JS must match an ID in `index.html`.
-3. **Do Not Break Exported Helpers**:
-   - The following functions in [overlay.js](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) are exported on `window` for layout interop and test runners:
+4. **Do Not Break Exported Helpers**:
+   - The following functions in [overlay.js](overlay.js) are exported on `window` for layout interop and test runners:
      `timeStringToSeconds`, `formatTargetTime`, `formatDeltaSeconds`, `formatDeltaLive`, `normalizeComparisonName`, `getShortComparisonName`, `applyActiveComparison`, `cycleComparison`.
-4. **Git Pre-Push Hook**:
+5. **Git Pre-Push Hook**:
    - Repository uses `.githooks/pre-push`. Ensure `git config core.hooksPath .githooks` is active.
+
+> **Known test-suite limitations**: The browser runner exercises the real `SplitEngine`, `GhostMath`, and `Time` modules (added in #12), but `tests/run_tests.py` still reimplements several JavaScript algorithms in Python, and many checks assert source strings or regexes rather than behavior. The browser suite requires Chrome/Chromium; without `websockets` it falls back to `--dump-dom` and skips coverage. A Vitest/browser-test consolidation is future work; prefer behavior-level tests for new code.
 
 ---
 
