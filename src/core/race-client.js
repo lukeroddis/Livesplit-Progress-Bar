@@ -12,7 +12,8 @@
   "use strict";
 
   const THERUN_LIVE_API = "https://therun.gg/api/live";
-  const THERUN_WS_BASE = "wss://fh76djw1t9.execute-api.eu-west-1.amazonaws.com/prod?race=";
+  const THERUN_RACE_API = "https://races.therun.gg";
+  const THERUN_WS_BASE = "wss://ws.therun.gg?race=";
 
   // Preset colors for competitor pins and leaderboard
   const RACER_PALETTE = [
@@ -118,6 +119,16 @@
   }
 
   /**
+   * Validates that a string is a safe, strict therun.gg race room code (alphanumeric/underscore/hyphen; no URLs, slashes, or colons).
+   */
+  function isValidRaceCode(str) {
+    if (!str || typeof str !== "string") return false;
+    const s = str.trim();
+    if (s.length < 2 || s.length > 24) return false;
+    return /^[a-zA-Z0-9_-]+$/.test(s);
+  }
+
+  /**
    * Safely loads the stored therun username from local storage.
    */
   function loadStoredUsername() {
@@ -144,6 +155,10 @@
     let heartbeatTimer = null;
     let lastConnectAttemptMs = 0;
     let isConnectInFlight = false;
+    let isStandby = false;
+    let isSimStandby = false;
+    let pendingSimConfig = null;
+    let runStartLookupTimers = [];
     let racePinsVisible = (function () {
       try {
         if (typeof localStorage !== "undefined") {
@@ -152,8 +167,8 @@
       } catch (_) {}
       return true;
     })();
-    let hostUsername = loadStoredUsername();
-    let autoDetectUsername = hostUsername;
+    let hostUsername = "";
+    let autoDetectUsername = "";
     let currentTimingMethod = "GameTime";
     let isSimulating = false;
     let simulationTimer = null;
@@ -348,6 +363,12 @@
       } else {
         // In live race, update isHost on entrants matching hostUsername
         entrants.forEach((entrant) => {
+          if (entrant.userId === hostState.userId) {
+            entrant.username = hostState.username;
+            entrant.isHost = true;
+            entrant.color = "#38bdf8";
+            return;
+          }
           const isMatch = !!(hostUsername && (
             String(entrant.username || "").trim().toLowerCase() === hostUsername.toLowerCase() ||
             String(entrant.userId || "").trim().toLowerCase() === hostUsername.toLowerCase()
@@ -377,13 +398,13 @@
     }
 
     /**
-     * Normalizes a race identifier or URL (e.g. "https://therun.gg/races/f0ub" -> "f0ub")
+     * Validates and normalizes a strict race room code (e.g. "tzsm" or "f0ub"). Rejects URLs or unsafe strings.
      */
     function parseRaceId(input) {
       if (!input || typeof input !== "string") return null;
       const trimmed = input.trim();
-      const match = trimmed.match(/(?:therun\.gg\/races\/|racetime\.gg\/[^/]+\/)?([a-zA-Z0-9_-]+)\/?$/i);
-      return match ? match[1] : trimmed;
+      if (!isValidRaceCode(trimmed)) return null;
+      return trimmed;
     }
 
     function getActiveComparisonTargets() {
@@ -475,58 +496,63 @@
 
       const countB = splitsB.length;
       const countA = splitsA.length;
+      const curIdxA = Math.max(0, aheadRunner.currentSplitIndex || 0);
+      const curIdxB = Math.max(0, runner.currentSplitIndex || 0);
 
-      // On the first split, before anyone splits, it is blank for everyone
-      if (countA === 0 && countB === 0) {
-        if ((aheadRunner.currentSplitIndex || 0) === 0 && (runner.currentSplitIndex || 0) === 0 && !aheadRunner.isFinished && !runner.isFinished) {
-          return null;
-        }
-        return Math.max(0, getCourseRefTime(aheadRunner) - getCourseRefTime(runner));
-      }
-
-      const currentIdxB = Math.max(0, runner.currentSplitIndex || 0);
-
-      // If aheadRunner has completed split currentIdxB (countA > currentIdxB),
-      // but runner has NOT completed split currentIdxB yet (countB <= currentIdxB):
-      // The delta starts at the last completed split gap, and increments upwards as runner's
-      // time exceeds aheadRunner's split milestone.
-      if (countA > currentIdxB && countB <= currentIdxB) {
-        const timeAAtSplit = splitsA[currentIdxB];
+      // 1. If aheadRunner has completed a split that runner has not completed yet
+      if (countA > curIdxB && countB <= curIdxB) {
+        const timeAAtSplit = splitsA[curIdxB];
         const timeBNow = runner.currentTimeSec || 0;
 
         if (typeof timeAAtSplit === "number") {
-          if (currentIdxB === 0) {
-            // First split: live incrementing delta starting from when aheadRunner split
+          const prevA = curIdxB > 0 ? splitsA[curIdxB - 1] : 0;
+          const prevB = curIdxB > 0 ? (splitsB[curIdxB - 1] || prevA) : 0;
+          const prevGap = (typeof prevA === "number" && typeof prevB === "number")
+            ? Math.max(0, prevB - prevA)
+            : 0;
+          if (curIdxB === 0) {
             return Math.max(0, timeBNow - timeAAtSplit);
           } else {
-            // Subsequent split: previous completed split gap + time accumulating since aheadRunner split
-            const prevA = splitsA[currentIdxB - 1];
-            const prevB = splitsB[currentIdxB - 1];
-            const prevGap = (typeof prevA === "number" && typeof prevB === "number")
-              ? Math.max(0, prevB - prevA)
-              : 0;
             return prevGap + Math.max(0, timeBNow - timeAAtSplit);
           }
         }
       }
 
-      // Both runners have completed split currentIdxB (or last common split):
-      // Fixed gap based on the last completed split milestone
+      // 2. Both runners have completed split checkpoints: compare at last common split
       const lastCommonIdx = Math.min(countA, countB) - 1;
       if (lastCommonIdx >= 0) {
         const timeA = splitsA[lastCommonIdx];
         const timeB = splitsB[lastCommonIdx];
         if (typeof timeA === "number" && typeof timeB === "number") {
-          return Math.max(0, timeB - timeA);
+          const splitDiff = timeB - timeA;
+          // If aheadRunner has advanced to a higher split, add the elapsed time aheadRunner has been in the higher split
+          if (curIdxA > curIdxB) {
+            const timeSinceA = Math.max(0, (aheadRunner.currentTimeSec || 0) - timeA);
+            return Math.max(0, splitDiff + timeSinceA);
+          }
+          return Math.max(0, splitDiff);
         }
       }
 
-      // If aheadRunner has finished but runner hasn't reached final split yet
-      if (aheadRunner.isFinished && typeof aheadRunner.finalTimeSec === "number") {
-        const lastB = countB > 0 ? splitsB[countB - 1] : 0;
-        const lastA = countB > 0 && splitsA.length >= countB ? splitsA[countB - 1] : 0;
-        const prevGap = Math.max(0, lastB - lastA);
-        return prevGap + Math.max(0, (runner.currentTimeSec || 0) - aheadRunner.finalTimeSec);
+      // 3. Fallback: compare LiveSplit PB deltas from therun.gg telemetry if available
+      if (typeof runner.deltaSec === "number" && typeof aheadRunner.deltaSec === "number") {
+        return Math.max(0, runner.deltaSec - aheadRunner.deltaSec);
+      }
+
+      // 4. On first split before anyone splits:
+      if (countA === 0 && countB === 0) {
+        if (curIdxA === 0 && curIdxB === 0 && !aheadRunner.isFinished && !runner.isFinished) {
+          if (typeof runner.deltaSec === "number" && typeof aheadRunner.deltaSec === "number") {
+            return Math.max(0, runner.deltaSec - aheadRunner.deltaSec);
+          }
+          return null;
+        }
+        return Math.max(0, getCourseRefTime(aheadRunner) - getCourseRefTime(runner));
+      }
+
+      // 5. Fallback: compare current running times if both running
+      if (typeof runner.currentTimeSec === "number" && typeof aheadRunner.currentTimeSec === "number" && aheadRunner.currentTimeSec > 0) {
+        return Math.max(0, runner.currentTimeSec - aheadRunner.currentTimeSec);
       }
 
       return null;
@@ -584,17 +610,31 @@
           list.push(hostState);
         }
       } else if (ws !== null || (raceId && raceId !== "sim_cup_2026")) {
-        // In live race:
-        // If user has not set a username in settings, display the race entrants with NO host runner
-        if (!hostUsername) {
-          list = list.filter(r => r.userId !== hostState.userId);
-        } else {
-          // If user HAS set a username in settings, check if one of the live race entrants matched
-          const hasMatched = list.some(r => r.isHost && r.userId !== hostState.userId);
-          if (hasMatched) {
-            list = list.filter(r => r.userId !== hostState.userId);
+        // In live race: only display actual therun.gg race participants (never the synthetic local_host placeholder)
+        list = list.filter(r => r.userId !== hostState.userId);
+
+        // Advance live active runners smoothly with real wall clock time between websocket split packets
+        const nowMs = Date.now();
+        list.forEach((racer) => {
+          const isActivelyRacing = !racer.isFinished && !racer.isDNF &&
+            (racer.status === "started" || racer.status === "progress" || racer.status === "in_progress" ||
+             ((racer.currentTimeSec > 0 || racer.currentSplitIndex > 0) && racer.status !== "ready" && racer.status !== "joined"));
+          if (isActivelyRacing) {
+            if (racer.splitStartedAt && racer.splitStartedAt > 0) {
+              const startMs = racer.splitStartedAt > 1e11 ? racer.splitStartedAt : (racer.splitStartedAt * 1000);
+              const inSplitSec = Math.max(0, (nowMs - startMs) / 1000);
+              const baseT = (racer.currentSplitIndex > 0 && Array.isArray(racer.splitTimes) && typeof racer.splitTimes[racer.currentSplitIndex - 1] === "number")
+                ? racer.splitTimes[racer.currentSplitIndex - 1]
+                : (racer.reportedTimeSec || 0);
+              racer.currentTimeSec = Math.max(racer.reportedTimeSec || 0, baseT + inSplitSec);
+            } else if (racer.lastUpdateTimestamp && racer.lastUpdateTimestamp > 0) {
+              const elapsedSec = Math.max(0, (nowMs - racer.lastUpdateTimestamp) / 1000);
+              if (elapsedSec > 0 && elapsedSec < 7200) {
+                racer.currentTimeSec = (racer.reportedTimeSec || 0) + elapsedSec;
+              }
+            }
           }
-        }
+        });
       } else {
         // Idle/preview state: ensure host is in the list
         if (!list.some(r => r.userId === hostState.userId)) {
@@ -1175,9 +1215,49 @@
       return Math.max(0, CONNECT_COOLDOWN_MS - (Date.now() - lastConnectAttemptMs));
     }
 
+    function clearRunStartLookupTimers() {
+      if (runStartLookupTimers.length > 0) {
+        runStartLookupTimers.forEach((t) => clearTimeout(t));
+        runStartLookupTimers = [];
+      }
+    }
+
+    function setStandby(val) {
+      const next = !!val;
+      if (!next) {
+        isSimStandby = false;
+        pendingSimConfig = null;
+      }
+      if (isStandby !== next) {
+        isStandby = next;
+        notifyListeners("race_standby_changed", { isStandby, isSimStandby, username: autoDetectUsername || hostUsername });
+      }
+      return isStandby;
+    }
+
+    function armSimulationStandby(splitsList = [], comparisonTimes = [], comparisonTimesRT = []) {
+      clearRunStartLookupTimers();
+      if (isSimulating) {
+        stopSimulation();
+      }
+      if (ws) {
+        disconnectFromRace();
+      }
+      pendingSimConfig = {
+        splitsList: Array.isArray(splitsList) ? [...splitsList] : [],
+        comparisonTimes: Array.isArray(comparisonTimes) ? [...comparisonTimes] : [],
+        comparisonTimesRT: Array.isArray(comparisonTimesRT) ? [...comparisonTimesRT] : []
+      };
+      isSimStandby = true;
+      setStandby(true);
+      notifyListeners("race_standby_changed", { isStandby: true, isSimStandby: true });
+      return { status: "sim_standby", isStandby: true, isSimStandby: true };
+    }
+
     function resetConnectCooldown() {
       lastConnectAttemptMs = 0;
       isConnectInFlight = false;
+      clearRunStartLookupTimers();
     }
 
     function startAutoDetect(username) {
@@ -1190,6 +1270,8 @@
     }
 
     function stopAutoDetect() {
+      clearRunStartLookupTimers();
+      setStandby(false);
       if (heartbeatTimer) {
         clearInterval(heartbeatTimer);
         heartbeatTimer = null;
@@ -1216,7 +1298,9 @@
       }
 
       isConnectInFlight = true;
-      lastConnectAttemptMs = Date.now();
+      if (!ignoreCooldown) {
+        lastConnectAttemptMs = Date.now();
+      }
 
       try {
         const res = await fetch(`${THERUN_LIVE_API}/${encodeURIComponent(targetUser)}`);
@@ -1226,6 +1310,8 @@
 
         const data = await res.json();
         if (data && data.raceId) {
+          clearRunStartLookupTimers();
+          setStandby(false);
           if (raceId !== data.raceId || !ws || ws.readyState !== WebSocket.OPEN) {
             console.log(`[RaceClient] Detected raceId from therun.gg: ${data.raceId} (reconnecting=${!ws || ws.readyState !== WebSocket.OPEN})`);
             connectToRace(data.raceId);
@@ -1235,8 +1321,11 @@
           // Runner left race or race concluded
           console.log("[RaceClient] Race status cleared on therun.gg. Disconnecting.");
           disconnectFromRace();
+          return { status: "no_race", remainingMs: CONNECT_COOLDOWN_MS };
         }
-        return { status: "no_race", remainingMs: CONNECT_COOLDOWN_MS };
+        // Lobby Standby: user is not in an active race yet; arm standby for automatic lookup when LiveSplit timer starts
+        setStandby(true);
+        return { status: "no_race", isStandby: true, remainingMs: CONNECT_COOLDOWN_MS };
       } catch (err) {
         // Silent network failure guard (offline / rate limit)
         return { status: "error", remainingMs: CONNECT_COOLDOWN_MS };
@@ -1245,20 +1334,138 @@
       }
     }
 
+    /**
+     * Triggered when the local LiveSplit timer transitions from NotRunning (-1) to Running (0).
+     * Performs an event-driven single-shot lookup (plus one delayed retry if needed) so runners in a lobby
+     * never need to take their hands off the controller to click Connect after the countdown ends.
+     */
+    function handleHostRunStarted(opts = {}) {
+      if (isSimulating) return Promise.resolve({ status: "simulating" });
+      if (ws && ws.readyState === WebSocket.OPEN) return Promise.resolve({ status: "already_connected", raceId });
+
+      if (isSimStandby) {
+        clearRunStartLookupTimers();
+        const simDelayMs = typeof opts.initialDelayMs === "number" ? Math.max(0, opts.initialDelayMs) : 1800;
+        const launchSim = () => {
+          if (!isSimStandby) return { status: "cancelled" };
+          const cfg = pendingSimConfig || {};
+          startSimulation(cfg.splitsList || [], cfg.comparisonTimes || [], cfg.comparisonTimesRT || []);
+          return { status: "connected", raceId, isSimulated: true };
+        };
+        if (simDelayMs === 0) {
+          return Promise.resolve(launchSim());
+        }
+        return new Promise((resolve) => {
+          const tSim = setTimeout(() => {
+            resolve(launchSim());
+          }, simDelayMs);
+          runStartLookupTimers.push(tSim);
+        });
+      }
+
+      const targetUser = (autoDetectUsername || hostUsername || "").trim();
+      if (!isValidUsername(targetUser)) {
+        return Promise.resolve({ status: "idle" });
+      }
+
+      clearRunStartLookupTimers();
+      const initialDelayMs = typeof opts.initialDelayMs === "number" ? Math.max(0, opts.initialDelayMs) : 2000;
+      const retryDelayMs = typeof opts.retryDelayMs === "number" ? Math.max(0, opts.retryDelayMs) : 3500;
+
+      const executeLookupWithSingleRetry = async () => {
+        if (isSimulating || (ws && ws.readyState === WebSocket.OPEN)) {
+          return { status: "connected", raceId };
+        }
+        const firstRes = await pollUserStatus(targetUser, true);
+        if (firstRes && firstRes.status === "connected") {
+          return firstRes;
+        }
+        if (retryDelayMs <= 0) {
+          return firstRes;
+        }
+        return new Promise((resolve) => {
+          const t2 = setTimeout(async () => {
+            if (isSimulating || (ws && ws.readyState === WebSocket.OPEN)) {
+              resolve({ status: "connected", raceId });
+              return;
+            }
+            const secondRes = await pollUserStatus(targetUser, true);
+            resolve(secondRes);
+          }, retryDelayMs);
+          runStartLookupTimers.push(t2);
+        });
+      };
+
+      if (initialDelayMs === 0) {
+        return executeLookupWithSingleRetry();
+      }
+
+      return new Promise((resolve) => {
+        const t1 = setTimeout(async () => {
+          const res = await executeLookupWithSingleRetry();
+          resolve(res);
+        }, initialDelayMs);
+        runStartLookupTimers.push(t1);
+      });
+    }
+
     // ============================================================
     // WEBSOCKET RACE CONNECTION (therun.gg)
     // ============================================================
+
+    async function fetchRaceData(targetRaceId) {
+      const cleanId = parseRaceId(targetRaceId || raceId);
+      if (!cleanId || typeof fetch !== "function") return null;
+
+      try {
+        const raceUrl = `${THERUN_RACE_API}/${encodeURIComponent(cleanId)}`;
+        const res = await fetch(raceUrl);
+        if (raceId !== cleanId) return null;
+
+        let racePayload = null;
+        if (res && res.ok) {
+          const json = await res.json();
+          racePayload = (json && json.result !== undefined) ? json.result : json;
+          if (racePayload) {
+            handleRaceMessage(racePayload);
+          }
+        }
+
+        // Only fetch /participants separately if the main race payload didn't already include participants
+        if (!racePayload || !Array.isArray(racePayload.participants)) {
+          const partUrl = `${THERUN_RACE_API}/${encodeURIComponent(cleanId)}/participants`;
+          const pRes = await fetch(partUrl);
+          if (raceId !== cleanId) return racePayload;
+          if (pRes && pRes.ok) {
+            const pJson = await pRes.json();
+            const partPayload = (pJson && pJson.result !== undefined) ? pJson.result : pJson;
+            if (partPayload) {
+              handleRaceMessage(partPayload);
+            }
+          }
+        }
+
+        return racePayload;
+      } catch (err) {
+        console.warn("[RaceClient] Direct fetch failed (races.therun.gg omits CORS headers for browser fetch; active runs stream via WebSocket):", err);
+        return null;
+      }
+    }
 
     function connectToRace(targetRaceId) {
       const cleanId = parseRaceId(targetRaceId);
       if (!cleanId) return false;
 
-      if (raceId === cleanId && ws && ws.readyState === WebSocket.OPEN) {
+      if (raceId === cleanId && ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         return true;
       }
 
       disconnectFromRace();
       raceId = cleanId;
+      lastConnectAttemptMs = Date.now();
+
+      // Immediately fetch race snapshot and participants from the HTTP REST API (6nkfyze0o7)
+      fetchRaceData(cleanId);
 
       try {
         const wsUrl = `${THERUN_WS_BASE}${encodeURIComponent(cleanId)}`;
@@ -1280,21 +1487,28 @@
 
         ws.onclose = () => {
           console.log("[RaceClient] Race WebSocket closed");
-          notifyListeners("race_disconnected", { raceId: cleanId });
+          if (raceId === cleanId) {
+            ws = null;
+          }
         };
 
         ws.onerror = (err) => {
           console.warn("[RaceClient] WebSocket error:", err);
         };
 
+        notifyListeners("race_connected", { raceId: cleanId });
         return true;
       } catch (err) {
         console.error("[RaceClient] Failed to connect to race WebSocket:", err);
+        raceId = null;
+        ws = null;
         return false;
       }
     }
 
     function disconnectFromRace() {
+      clearRunStartLookupTimers();
+      setStandby(false);
       if (ws) {
         try {
           ws.close();
@@ -1302,10 +1516,6 @@
         ws = null;
       }
       raceId = null;
-      const stored = loadStoredUsername();
-      if (stored) {
-        hostUsername = stored;
-      }
       hostState.username = hostUsername || "You";
       hostState.isHost = true;
       hostState.color = "#38bdf8";
@@ -1320,33 +1530,61 @@
     function handleRaceMessage(msg) {
       if (!msg) return;
 
-      // Handle full entrants snapshot or incremental runner update
-      if (Array.isArray(msg.entrants) || Array.isArray(msg)) {
-        const list = Array.isArray(msg.entrants) ? msg.entrants : msg;
-        list.forEach(updateEntrantFromTelemetry);
-      } else if (msg.user || msg.username || msg.userId) {
-        updateEntrantFromTelemetry(msg);
+      // Ignore chat messages on the race websocket
+      if (msg.type === "message" || msg.type === "chat") return;
+
+      const payload = (msg.result !== undefined && msg.result !== null)
+        ? msg.result
+        : ((msg.data !== undefined && msg.data !== null) ? msg.data : msg);
+
+      if (!payload) return;
+
+      // Handle full entrants/participants snapshot or incremental runner update
+      if (Array.isArray(payload)) {
+        payload.forEach(updateEntrantFromTelemetry);
+      } else if (Array.isArray(payload.participants)) {
+        payload.participants.forEach(updateEntrantFromTelemetry);
+      } else if (Array.isArray(payload.entrants)) {
+        payload.entrants.forEach(updateEntrantFromTelemetry);
+      } else if (payload.participant && typeof payload.participant === "object") {
+        updateEntrantFromTelemetry(payload.participant);
+      } else if (payload.user || payload.username || payload.userId) {
+        updateEntrantFromTelemetry(payload);
       }
 
       notifyListeners("entrants_update", null);
     }
 
     function updateEntrantFromTelemetry(data) {
-      const uId = data.userId || data.login || data.user || `racer_${entrants.size + 1}`;
+      if (!data || typeof data !== "object") return;
+      const live = (data.liveData && typeof data.liveData === "object")
+        ? data.liveData
+        : ((data.run && typeof data.run === "object") ? data.run : null);
+
+      const uId = data.userId || data.login || data.user || (live && (live.userId || live.login || live.user)) || `racer_${entrants.size + 1}`;
       if (uId === hostState.userId) {
         return; // Standalone host state handled locally
       }
 
-      const rawName = data.user || data.username || data.login || uId;
+      const statusStr = String(data.status?.value || data.status || "").toLowerCase();
+      if (statusStr === "unjoined" || statusStr === "left" || statusStr === "removed") {
+        entrants.delete(uId);
+        lastKnownRanks.delete(uId);
+        return;
+      }
+
+      const rawName = data.user || data.username || data.login || (live && (live.user || live.username || live.login)) || uId;
       const isMatchedHost = !!(hostUsername && (
         String(rawName).trim().toLowerCase() === hostUsername.toLowerCase() ||
         String(uId).trim().toLowerCase() === hostUsername.toLowerCase()
       ));
 
+      const rawPic = data.picture || data.avatar || (live && (live.picture || live.avatar)) || "";
+
       const existing = entrants.get(uId) || {
         userId: uId,
         username: rawName,
-        avatar: data.picture || data.avatar || "",
+        avatar: rawPic,
         color: isMatchedHost ? "#38bdf8" : RACER_PALETTE[entrants.size % RACER_PALETTE.length],
         isHost: isMatchedHost,
         currentSplitIndex: 0,
@@ -1364,108 +1602,203 @@
       if (isMatchedHost) {
         existing.color = "#38bdf8";
       }
+      if (rawPic) {
+        existing.avatar = rawPic;
+      }
 
-      if (typeof data.currentTime === "number") {
+      const rawCurrentTime = (live && typeof live.currentTime === "number") ? live.currentTime : data.currentTime;
+      if (typeof rawCurrentTime === "number") {
         // therun.gg transmits milliseconds
-        existing.currentTimeSec = data.currentTime > 500 ? (data.currentTime / 1000) : data.currentTime;
+        existing.currentTimeSec = rawCurrentTime > 500 ? (rawCurrentTime / 1000) : rawCurrentTime;
       } else if (typeof data.currentTimeSec === "number") {
         existing.currentTimeSec = data.currentTimeSec;
       }
+      existing.reportedTimeSec = existing.currentTimeSec;
+      existing.lastUpdateTimestamp = Date.now();
 
-      if (Array.isArray(data.splitTimes)) {
-        existing.splitTimes = normalizeSplitTimes(data.splitTimes);
+      if (live && typeof live.splitStartedAt === "number" && live.splitStartedAt > 0) {
+        existing.splitStartedAt = live.splitStartedAt;
+      }
+      if (data.status) {
+        existing.status = String(data.status?.value || data.status || "").toLowerCase();
       }
 
-      if (typeof data.currentSplitIndex === "number") {
-        if (data.currentSplitIndex > existing.currentSplitIndex) {
+      const rawDelta = (live && live.delta !== undefined) ? live.delta : data.delta;
+      if (typeof rawDelta === "number") {
+        existing.delta = rawDelta;
+        existing.deltaSec = Math.abs(rawDelta) > 500 ? (rawDelta / 1000) : rawDelta;
+      } else if (typeof rawDelta === "string" && !isNaN(parseFloat(rawDelta))) {
+        const p = parseFloat(rawDelta);
+        existing.delta = p;
+        existing.deltaSec = Math.abs(p) > 500 ? (p / 1000) : p;
+      }
+
+      const rawSplitTimes = (live && Array.isArray(live.splitTimes)) ? live.splitTimes : data.splitTimes;
+      const rawSplitPreds = (live && Array.isArray(live.splitPredictions)) ? live.splitPredictions : data.splitPredictions;
+      if (Array.isArray(rawSplitTimes)) {
+        existing.splitTimes = normalizeSplitTimes(rawSplitTimes);
+      } else if (existing.isFinished && Array.isArray(rawSplitPreds) && rawSplitPreds.length > 0) {
+        // Finished race snapshot (like tzsm): splitPredictions contains final checkpoint times
+        const extracted = Array.isArray(existing.splitTimes) ? existing.splitTimes.slice() : [];
+        rawSplitPreds.forEach((sp) => {
+          if (sp && typeof sp.splitIndex === "number" && sp.splitIndex >= 1 && sp.currentTime !== undefined && sp.currentTime !== null) {
+            const t = Number(sp.currentTime);
+            if (!isNaN(t) && t > 0) {
+              extracted[sp.splitIndex - 1] = t > 500 ? (t / 1000) : t;
+            }
+          }
+        });
+        existing.splitTimes = extracted;
+      }
+
+      const rawSplitIdx = (live && typeof live.currentSplitIndex === "number")
+        ? live.currentSplitIndex
+        : data.currentSplitIndex;
+      const rawSplitName = (live && live.currentSplitName) || data.currentSplitName;
+      const rawIsGold = (live && (live.isGold === true || live.gold === true || live.split?.isGold === true)) ||
+        data.isGold === true || data.gold === true || data.split?.isGold === true;
+
+      if (typeof rawSplitIdx === "number" && rawSplitIdx >= 0) {
+        if (!Array.isArray(existing.splitTimes)) {
+          existing.splitTimes = [];
+        }
+        if (rawSplitIdx > existing.currentSplitIndex) {
           // Completed a split! Determine split type from telemetry
           let flashType = "green";
-          if (data.isGold === true || data.gold === true || data.split?.isGold === true) {
+          if (rawIsGold) {
             flashType = "gold";
-          } else if (typeof data.delta === "number") {
-            flashType = data.delta <= 0 ? "green" : "red";
-          } else if (typeof data.delta === "string") {
-            flashType = data.delta.trim().startsWith("+") ? "red" : "green";
-          } else if (data.gainedTime === false) {
+          } else if (typeof rawDelta === "number") {
+            flashType = rawDelta <= 0 ? "green" : "red";
+          } else if (typeof rawDelta === "string") {
+            flashType = rawDelta.trim().startsWith("+") ? "red" : "green";
+          } else if (data.gainedTime === false || (live && live.gainedTime === false)) {
             flashType = "red";
           }
           const prevSplitName = existing.currentSplitName
             || (activeSplitsList && activeSplitsList[existing.currentSplitIndex])
             || `Split ${existing.currentSplitIndex + 1}`;
-          const nextSplitName = data.currentSplitName
-            || (activeSplitsList && activeSplitsList[data.currentSplitIndex])
-            || `Split ${data.currentSplitIndex + 1}`;
+          const nextSplitName = rawSplitName
+            || (activeSplitsList && activeSplitsList[rawSplitIdx])
+            || `Split ${rawSplitIdx + 1}`;
           existing.lastSplitEffect = {
             type: flashType,
             timestamp: Date.now(),
             completedSplitName: prevSplitName,
             newSplitName: nextSplitName
           };
-          if (!Array.isArray(existing.splitTimes)) {
-            existing.splitTimes = [];
+          if (existing.currentTimeSec > 0) {
+            existing.splitTimes[rawSplitIdx - 1] = existing.currentTimeSec;
           }
-          if (existing.currentTimeSec > 0 && existing.splitTimes[data.currentSplitIndex - 1] === undefined) {
-            existing.splitTimes[data.currentSplitIndex - 1] = existing.currentTimeSec;
-          }
-        } else if (data.currentSplitIndex < existing.currentSplitIndex) {
+        } else if (rawSplitIdx < existing.currentSplitIndex) {
           if (Array.isArray(existing.splitTimes)) {
-            existing.splitTimes = existing.splitTimes.slice(0, Math.max(0, data.currentSplitIndex));
+            existing.splitTimes = existing.splitTimes.slice(0, Math.max(0, rawSplitIdx));
           }
           checkpointRankHistory.forEach((histMap, c) => {
-            if (c >= data.currentSplitIndex) {
+            if (c >= rawSplitIdx) {
               histMap.delete(uId);
             }
           });
         }
-        existing.currentSplitIndex = data.currentSplitIndex;
+        existing.currentSplitIndex = rawSplitIdx;
       }
-      if (data.currentSplitName) {
-        existing.currentSplitName = data.currentSplitName;
+
+      if (rawSplitName) {
+        existing.currentSplitName = rawSplitName;
+      } else if (!existing.currentSplitName && (statusStr === "ready" || statusStr === "joined")) {
+        existing.currentSplitName = statusStr === "ready" ? "Ready" : "Joined";
       }
-      if (data.picture) {
-        existing.avatar = data.picture;
-      }
-      if (Array.isArray(data.splits)) {
-        existing.splits = data.splits;
-        if (!Array.isArray(data.splitTimes)) {
+
+      const rawSplits = (live && (Array.isArray(live.splits) ? live.splits : (live.runData && Array.isArray(live.runData.splits) ? live.runData.splits : null)))
+        || (Array.isArray(data.splits) ? data.splits : null);
+      if (Array.isArray(rawSplits)) {
+        existing.splits = rawSplits;
+        if (!Array.isArray(rawSplitTimes) && (!Array.isArray(rawSplitPreds) || rawSplitPreds.length === 0)) {
           const extracted = [];
-          data.splits.forEach((s, idx) => {
+          rawSplits.forEach((s, idx) => {
             if (s && typeof s.splitTime === "number" && !isNaN(s.splitTime) && s.splitTime > 0) {
               extracted[idx] = s.splitTime > 500 ? (s.splitTime / 1000) : s.splitTime;
             }
           });
-          if (extracted.length > 0) {
+          if (extracted.length > 0 && (!Array.isArray(existing.splitTimes) || existing.splitTimes.length === 0 || existing.isFinished)) {
             existing.splitTimes = extracted;
           }
         }
       }
-      if (data.monteCarloPrediction) {
-        existing.monteCarloPrediction = data.monteCarloPrediction;
+
+      const rawMonteCarlo = (live && live.monteCarloPrediction) || data.monteCarloPrediction;
+      if (rawMonteCarlo) {
+        existing.monteCarloPrediction = rawMonteCarlo;
       }
-      if (typeof data.currentPrediction === "number") {
-        existing.currentPrediction = data.currentPrediction > 500 ? (data.currentPrediction / 1000) : data.currentPrediction;
+
+      const rawPred = (live && typeof live.currentPrediction === "number")
+        ? live.currentPrediction
+        : ((live && typeof live.estimatedFinishTime === "number")
+          ? live.estimatedFinishTime
+          : (typeof data.currentPrediction === "number"
+            ? data.currentPrediction
+            : (typeof data.estimatedFinishTime === "number" ? data.estimatedFinishTime : null)));
+      if (typeof rawPred === "number" && rawPred > 0) {
+        existing.currentPrediction = rawPred > 500 ? (rawPred / 1000) : rawPred;
       }
+      if (data.pb !== undefined && data.pb !== null && !isNaN(Number(data.pb)) && Number(data.pb) > 0) {
+        const pbVal = Number(data.pb);
+        existing.pbSec = pbVal > 500 ? (pbVal / 1000) : pbVal;
+      }
+
+      const rawFinalTime = (data.finalTime !== undefined && data.finalTime !== null && !isNaN(Number(data.finalTime)) && Number(data.finalTime) > 0)
+        ? Number(data.finalTime)
+        : ((live && typeof live.finalTime === "number" && live.finalTime > 0) ? live.finalTime : null);
 
       const isDnf = data.isDNF === true ||
                     data.dnf === true ||
                     data.forfeited === true ||
                     data.isForfeit === true ||
-                    String(data.status?.value || data.status || "").toLowerCase() === "forfeited" ||
-                    String(data.status?.value || data.status || "").toLowerCase() === "dnf" ||
-                    String(data.status?.value || data.status || "").toLowerCase() === "quit" ||
-                    (data.hasEnded === true && !data.isFinished && !existing.isFinished);
+                    data.disqualified === true ||
+                    statusStr === "forfeited" ||
+                    statusStr === "abandoned" ||
+                    statusStr === "dnf" ||
+                    statusStr === "quit" ||
+                    (data.hasEnded === true && !data.isFinished && !existing.isFinished && statusStr !== "finished" && statusStr !== "confirmed" && rawFinalTime === null);
+      const isFin = !isDnf && (
+        statusStr === "finished" ||
+        statusStr === "confirmed" ||
+        data.isFinished === true ||
+        (live && live.runFinished === true) ||
+        data.hasEnded === true ||
+        rawFinalTime !== null
+      );
+
       if (isDnf) {
         existing.isDNF = true;
+        existing.isFinished = false;
         if (!existing.dnfTimeSec) existing.dnfTimeSec = existing.currentTimeSec || 0;
         existing.currentSplitName = "DNF";
-      } else if (data.hasEnded || data.isFinished) {
+      } else if (isFin) {
         existing.isFinished = true;
-        existing.finalTimeSec = existing.currentTimeSec;
+        existing.isDNF = false;
+        if (rawFinalTime !== null) {
+          existing.finalTimeSec = rawFinalTime > 500 ? (rawFinalTime / 1000) : rawFinalTime;
+          existing.currentTimeSec = existing.finalTimeSec;
+        } else if (!existing.finalTimeSec) {
+          existing.finalTimeSec = existing.currentTimeSec;
+        }
+        existing.currentSplitName = "Finished";
       }
 
+      const rawRunPct = (live && typeof live.runPercentage === "number")
+        ? live.runPercentage
+        : ((live && typeof live.runPercentageTime === "number")
+          ? live.runPercentageTime
+          : ((live && typeof live.runPercentageSplits === "number")
+            ? live.runPercentageSplits
+            : (typeof data.runPercentage === "number" ? data.runPercentage : null)));
+      const normRunPct = rawRunPct !== null
+        ? (rawRunPct > 1 ? (rawRunPct / 100) : rawRunPct)
+        : 0;
+
       // High-precision dead-reckoning progress calculation using predicted single duration or PB
-      let ratio = data.runPercentage ? (data.runPercentage / 100) : 0;
-      if (!data.runPercentage && typeof data.currentTime === "number" && !existing.isFinished && !existing.isDNF) {
+      let ratio = normRunPct;
+      if (!normRunPct && typeof rawCurrentTime === "number" && !existing.isFinished && !existing.isDNF) {
         const curSec = existing.currentTimeSec || 0;
         const curIdx = existing.currentSplitIndex || 0;
         let prevTimeSec = 0;
@@ -1493,7 +1826,7 @@
 
       existing.score = existing.isFinished
         ? (activeSplitsList ? activeSplitsList.length : existing.currentSplitIndex + 1)
-        : existing.currentSplitIndex + (data.runPercentage ? (data.runPercentage / 100) : (ratio > 0 ? ratio : 0.5));
+        : existing.currentSplitIndex + (normRunPct > 0 ? normRunPct : (ratio > 0 ? ratio : 0.5));
 
       entrants.set(uId, existing);
     }
@@ -1506,13 +1839,18 @@
      * Starts realistic live race simulation with 3 virtual competitors.
      */
     function startSimulation(splitsList = [], comparisonTimes = [], comparisonTimesRT = []) {
+      clearRunStartLookupTimers();
+      setStandby(false);
       stopSimulation();
       isSimulating = true;
       raceId = "sim_cup_2026";
-      lastHostGameTimeSec = 0;
-      lastHostRealTimeSec = 0;
-      lastHostCompletedSplitsGT = [];
-      lastHostCompletedSplitsRT = [];
+      const preserveLiveHost = (lastExternalHostUpdate > 0 && hostState.currentTimeSec > 0);
+      if (!preserveLiveHost) {
+        lastHostGameTimeSec = 0;
+        lastHostRealTimeSec = 0;
+        lastHostCompletedSplitsGT = [];
+        lastHostCompletedSplitsRT = [];
+      }
 
       activeSplitsList = (Array.isArray(splitsList) && splitsList.length > 0)
         ? [...splitsList]
@@ -1551,15 +1889,17 @@
       hostState.username = hostUsername || "You";
       hostState.isHost = true;
       hostState.color = "#38bdf8";
-      hostState.currentTimeSec = 0;
-      hostState.currentSplitIndex = 0;
-      hostState.currentSplitName = activeSplitsList[0] || "Split 1";
-      hostState.splitTimes = [];
+      if (!preserveLiveHost) {
+        hostState.currentTimeSec = 0;
+        hostState.currentSplitIndex = 0;
+        hostState.currentSplitName = activeSplitsList[0] || "Split 1";
+        hostState.splitTimes = [];
+        hostState.score = 0;
+      }
       hostState.isFinished = false;
       hostState.finalTimeSec = null;
       hostState.isDNF = false;
       hostState.dnfTimeSec = null;
-      hostState.score = 0;
       hostState.lastSplitEffect = null;
 
       entrants.clear();
@@ -1638,6 +1978,11 @@
           lastSplitEffect: null
         });
       });
+
+      if (preserveLiveHost) {
+        const activeHostSec = isRT ? (lastHostRealTimeSec || hostState.currentTimeSec) : (lastHostGameTimeSec || hostState.currentTimeSec);
+        tickSimulatedCompetitors(activeHostSec, 0);
+      }
 
       notifyListeners("race_connected", { raceId, isSimulated: true });
 
@@ -1736,6 +2081,8 @@
     }
 
     function stopSimulation() {
+      clearRunStartLookupTimers();
+      setStandby(false);
       if (simulationTimer) {
         clearInterval(simulationTimer);
         simulationTimer = null;
@@ -2004,11 +2351,19 @@
         }
       },
       parseRaceId,
+      isValidRaceCode,
+      isValidUsername,
+      fetchRaceData,
       connectToRace,
       disconnectFromRace,
       startAutoDetect,
       stopAutoDetect,
       pollUserStatus,
+      handleHostRunStarted,
+      armSimulationStandby,
+      isStandby: () => isStandby,
+      isSimStandby: () => isSimStandby,
+      setStandby,
       getConnectCooldownRemainingMs,
       resetConnectCooldown,
       setHostUsername,
@@ -2023,7 +2378,7 @@
       startSimulation,
       stopSimulation,
       isSimulating: () => isSimulating,
-      isConnected: () => ws !== null && ws.readyState === WebSocket.OPEN,
+      isConnected: () => Boolean(raceId && !isSimulating),
       getRaceId: () => raceId,
       updateHostProgress,
       handleRaceMessage,

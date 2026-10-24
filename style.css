@@ -1845,6 +1845,20 @@ body.edit-mode .settings-menu-panel {
   background: rgba(30, 41, 59, 0.95);
 }
 
+.settings-tile-btn:disabled,
+.settings-tile-btn:disabled:hover,
+.settings-tile-btn:disabled:active,
+.settings-tile-btn.profile-btn.danger:disabled,
+.settings-tile-btn.profile-btn.danger:disabled:hover {
+  background: rgba(30, 41, 59, 0.35) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  color: #64748b !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.65;
+}
+
 /* Action Buttons (Bar Styles & Edit Layout) */
 .settings-actions-row {
   display: grid;
@@ -3364,4 +3378,58 @@ body.edit-mode .settings-menu-panel {
   color: #38bdf8;
   letter-spacing: 0.04em;
   opacity: 0.85;
+}
+
+.racer-pb-delta {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.racer-pb-delta.delta-ahead {
+  color: #22c55e;
+}
+
+.racer-pb-delta.delta-behind {
+  color: #ef4444;
+}
+
+/* Awaiting runner telemetry waiting banner in live race */
+.leaderboard-waiting-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
+  text-align: center;
+  gap: 3px;
+  margin: 4px 0;
+}
+
+.leaderboard-waiting-state .waiting-icon {
+  font-size: 16px;
+  animation: pulse-telemetry 2s infinite ease-in-out;
+}
+
+.leaderboard-waiting-state .waiting-title {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.leaderboard-waiting-state .waiting-subtext {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+@keyframes pulse-telemetry {
+  0%, 100% { opacity: 0.5; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
 }

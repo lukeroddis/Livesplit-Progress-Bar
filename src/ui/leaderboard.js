@@ -243,9 +243,9 @@
       }
     }
 
-    const rawEntrants = (isRaceActive && rankedEntrants.length > 0)
+    const rawEntrants = isRaceActive
       ? rankedEntrants
-      : getPreviewEntrants();
+      : (isEditMode ? getPreviewEntrants() : rankedEntrants);
 
     // Ensure entrants is strictly sorted by rank ascending (Rank 1 at slot 0, Rank 2 at slot 1, etc.)
     const entrants = [...rawEntrants].sort((a, b) => {
@@ -297,6 +297,14 @@
       const displayName = racer.username || (isHost ? "You" : "Runner");
       const splitLabel = isDnf ? "DNF" : (racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`));
 
+      const hasPbDelta = typeof racer.deltaSec === "number" && !isNaN(racer.deltaSec);
+      const pbDeltaText = hasPbDelta
+        ? (racer.deltaSec <= 0 ? `-${formatGapTime(Math.abs(racer.deltaSec))}` : `+${formatGapTime(racer.deltaSec)}`)
+        : "";
+      const pbDeltaClass = hasPbDelta
+        ? (racer.deltaSec <= 0 ? "racer-pb-delta delta-ahead" : "racer-pb-delta delta-behind")
+        : "";
+
       const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : "--");
       const gapVal = isDnf ? "DNF" : ((rank === 1) ? "LEADER" : rawGap);
       const expType = racer.expectedType || (racer.isFinished ? "FIN" : "EXP");
@@ -307,13 +315,15 @@
       if (racer.isFinished) {
         expMarkup = `<span class="expected-tag interval-tag">FIN</span>${escapeHtml(expVal)}`;
       } else if (expVal !== "--") {
-        expMarkup = `<span class="racer-elapsed">${escapeHtml(elapsedVal)}</span><span class="racer-slash">/</span><span class="expected-tag interval-tag">${expType}</span>${escapeHtml(expVal)}`;
+        const deltaTag = hasPbDelta ? `<span class="${pbDeltaClass}">${escapeHtml(pbDeltaText)}</span><span class="racer-slash">/</span>` : "";
+        expMarkup = `${deltaTag}<span class="racer-elapsed">${escapeHtml(elapsedVal)}</span><span class="racer-slash">/</span><span class="expected-tag interval-tag">${expType}</span>${escapeHtml(expVal)}`;
       }
 
       const expSource = racer.hasStatisticalPrediction ? "therun.gg prediction" : "PB segment";
+      const pbDeltaInfo = hasPbDelta ? ` | PB Delta: ${pbDeltaText}` : "";
       const gapTooltip = (rank === 1)
-        ? `Race Leader | Segment: ${elapsedVal} / ${expVal} (${expSource})`
-        : (gapVal === "--" ? `Split 1 in progress | Segment: ${elapsedVal} / ${expVal} (${expSource})` : `Leader Gap: ${gapVal} | Segment: ${elapsedVal} / ${expVal} (${expSource})`);
+        ? `Race Leader${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})`
+        : (gapVal === "--" ? `Split 1 in progress${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})` : `Leader Gap: ${gapVal}${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})`);
 
       // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition (4 seconds total)
       const effect = racer.lastSplitEffect;
@@ -592,6 +602,22 @@
         rowElementMap.delete(uId);
       }
     });
+
+    let waitingEl = rowsEl.querySelector(".leaderboard-waiting-state");
+    if (isConn && entrants.length === 0) {
+      if (!waitingEl) {
+        waitingEl = document.createElement("div");
+        waitingEl.className = "leaderboard-waiting-state";
+        waitingEl.innerHTML = `
+          <div class="waiting-icon">&#128225;</div>
+          <div class="waiting-title">Connected to Live Race</div>
+          <div class="waiting-subtext">Waiting for runner split telemetry...</div>
+        `;
+        rowsEl.appendChild(waitingEl);
+      }
+    } else if (waitingEl) {
+      waitingEl.remove();
+    }
   }
 
   function reset() {

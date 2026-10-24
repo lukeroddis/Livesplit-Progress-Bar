@@ -2512,6 +2512,12 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "let hostSplitName = currentSplitName;" in race_code, "race-client.js updateHostProgress must declare hostSplitName"
     assert race_code.index("let hostSplitName = currentSplitName;") < race_code.index("if (splitFlash && splitFlash.type)"), "race-client.js updateHostProgress must declare hostSplitName before splitFlash to prevent TDZ ReferenceError"
     assert "!ws || ws.readyState !== WebSocket.OPEN" in race_code, "race-client.js pollUserStatus must auto-reconnect if socket dropped on active raceId"
+    assert "function handleHostRunStarted" in race_code, "race-client.js must define handleHostRunStarted for event-driven lobby auto-connect"
+    assert "function armSimulationStandby" in race_code, "race-client.js must define armSimulationStandby for Simulation Race standby"
+    assert "rcStart.handleHostRunStarted" in overlay_js, "overlay.js must trigger handleHostRunStarted when local LiveSplit timer starts"
+    assert 'id="input-therun-race-code"' in html, "index.html must include #input-therun-race-code input"
+    assert "function isValidRaceCode" in race_code, "race-client.js must define isValidRaceCode"
+    assert ".settings-tile-btn:disabled" in css, "style.css must define greyed-out .settings-tile-btn:disabled styling"
 
     print("✓ Live Race competitor track pins, dead-reckoning parity, and F1 leaderboard tests passed.")
 

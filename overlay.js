@@ -3053,6 +3053,9 @@ async function pollLoop() {
             if (typeof rcStart.reset === "function") {
               rcStart.reset();
             }
+            if (typeof rcStart.handleHostRunStarted === "function") {
+              rcStart.handleHostRunStarted();
+            }
           }
 
           // Fetch target time for the first split from LiveSplit
@@ -3875,7 +3878,7 @@ function initOverlay() {
   const raceClient = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
   const raceToggleBtn = document.getElementById("race-toggle-badge");
   const raceSimBtn = document.getElementById("race-sim-badge");
-  const therunUserInp = document.getElementById("input-therun-username");
+  const therunRaceCodeInp = document.getElementById("input-therun-race-code");
   const therunSaveBtn = document.getElementById("btn-save-therun-username");
   const btnToggleLeaderboard = document.getElementById("btn-toggle-leaderboard");
   const btnToggleRacePins = document.getElementById("btn-toggle-race-pins");
@@ -3938,26 +3941,63 @@ function initOverlay() {
     };
 
     const syncConnectBtnState = () => {
-      if (!therunSaveBtn) return;
       const isConn = typeof raceClient.isConnected === "function" && raceClient.isConnected();
-      if (isConn) {
+      const isSim = typeof raceClient.isSimulating === "function" && raceClient.isSimulating();
+      const isStb = typeof raceClient.isStandby === "function" && raceClient.isStandby();
+      const isSimStb = typeof raceClient.isSimStandby === "function" && raceClient.isSimStandby();
+
+      if (raceSimBtn) {
+        if (isSim) {
+          raceSimBtn.textContent = "\uD83E\uDDEA Stop Sim";
+          raceSimBtn.style.color = "#ef4444";
+        } else if (isSimStb) {
+          raceSimBtn.textContent = "\u23F3 Sim Standby";
+          raceSimBtn.style.color = "#f59e0b";
+        } else {
+          raceSimBtn.textContent = "\uD83E\uDDEA Test Race";
+          raceSimBtn.style.color = "#f59e0b";
+        }
+      }
+
+      if (raceToggleBtn) {
+        if (isSim) {
+          raceToggleBtn.textContent = "Race: Sim";
+          raceToggleBtn.style.color = "#4ade80";
+        } else if (isConn) {
+          raceToggleBtn.textContent = `Race: ${raceClient.getRaceId()}`;
+          raceToggleBtn.style.color = "#4ade80";
+        } else if (isStb) {
+          raceToggleBtn.textContent = "Race: Standby";
+          raceToggleBtn.style.color = "#f59e0b";
+        } else {
+          raceToggleBtn.textContent = "Race: Off";
+          raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
+        }
+      }
+
+      if (!therunSaveBtn) return;
+      if (isConn || isSim || isStb) {
         clearConnectCooldownUI();
         therunSaveBtn.disabled = false;
-        therunSaveBtn.textContent = "✓ Connected";
-        therunSaveBtn.style.color = "#4ade80";
+        therunSaveBtn.textContent = "Disconnect";
+        therunSaveBtn.classList.add("danger");
+        therunSaveBtn.style.color = "#ef4444";
       } else if (!connectCooldownInterval) {
         therunSaveBtn.disabled = false;
         therunSaveBtn.textContent = "Connect";
+        therunSaveBtn.classList.remove("danger");
         therunSaveBtn.style.color = "";
       }
     };
 
-    const startCooldownCountdownUI = (durationMs = 5000, prefix = "No Race") => {
+    const startCooldownCountdownUI = (durationMs = 5000, prefix = "Wait") => {
       if (!therunSaveBtn) return;
       clearConnectCooldownUI();
       const endMs = Date.now() + durationMs;
       therunSaveBtn.disabled = true;
-      therunSaveBtn.style.color = "#f59e0b";
+      therunSaveBtn.classList.remove("danger");
+      therunSaveBtn.style.color = "";
+      syncConnectBtnState();
       const updateTick = () => {
         const remSec = Math.ceil(Math.max(0, endMs - Date.now()) / 1000);
         if (remSec <= 0) {
@@ -3971,53 +4011,48 @@ function initOverlay() {
       connectCooldownInterval = setInterval(updateTick, 250);
     };
 
-    const isValidUsernameInput = (v) => {
+    const isValidRaceCodeInput = (v) => {
       if (!v || typeof v !== "string") return false;
       const s = v.trim();
-      return s.length > 0 && s.length <= 50 && /^[a-zA-Z0-9_-]+$/.test(s);
+      return s.length >= 2 && s.length <= 24 && /^[a-zA-Z0-9_-]+$/.test(s);
     };
 
-    const rawSavedUsername = (localStorage.getItem("therun_username") || "").trim();
-    const savedUsername = isValidUsernameInput(rawSavedUsername) ? rawSavedUsername : "";
-    if (rawSavedUsername && !savedUsername) {
-      localStorage.removeItem("therun_username");
-    }
-    if (therunUserInp && savedUsername) {
-      therunUserInp.value = savedUsername;
-    }
-    if (savedUsername && typeof raceClient.setHostUsername === "function") {
-      // Populate host username locally without firing background HTTP requests on startup
-      raceClient.setHostUsername(savedUsername);
-    }
-
-    if (therunUserInp) {
-      therunUserInp.addEventListener("input", () => {
-        const val = therunUserInp.value.trim();
-        if (!val || isValidUsernameInput(val)) {
-          localStorage.setItem("therun_username", val);
-          if (typeof raceClient.setHostUsername === "function") {
-            raceClient.setHostUsername(val);
-          }
-          refreshLeaderboard();
-        }
-      });
-    }
+    const handleRaceDisconnect = () => {
+      if (!raceClient) return;
+      clearConnectCooldownUI();
+      if (typeof raceClient.resetConnectCooldown === "function") {
+        raceClient.resetConnectCooldown();
+      }
+      if (typeof raceClient.stopSimulation === "function" && raceClient.isSimulating()) {
+        raceClient.stopSimulation();
+      }
+      if (typeof raceClient.disconnectFromRace === "function") {
+        raceClient.disconnectFromRace();
+      }
+      if (typeof raceClient.setStandby === "function") {
+        raceClient.setStandby(false);
+      }
+      syncConnectBtnState();
+      refreshLeaderboard();
+      updateGhostRunner(lastElapsedSec);
+    };
 
     const handleManualRaceConnect = async () => {
       if (!raceClient) return;
 
-      // If already connected to a live race, clicking disconnects cleanly (0 network traffic)
-      if (typeof raceClient.isConnected === "function" && raceClient.isConnected()) {
-        raceClient.disconnectFromRace();
-        syncConnectBtnState();
-        refreshLeaderboard();
+      const isActiveOrStandby = raceClient.isSimulating() ||
+        (typeof raceClient.isConnected === "function" && raceClient.isConnected()) ||
+        (typeof raceClient.isStandby === "function" && raceClient.isStandby());
+
+      if (isActiveOrStandby) {
+        handleRaceDisconnect();
         return;
       }
 
-      const val = (therunUserInp ? therunUserInp.value : "").trim();
-      if (!val) {
+      const codeVal = (therunRaceCodeInp ? therunRaceCodeInp.value : "").trim();
+      if (!codeVal) {
         if (therunSaveBtn) {
-          therunSaveBtn.textContent = "Enter Name";
+          therunSaveBtn.textContent = "Enter Code";
           therunSaveBtn.style.color = "#f59e0b";
           setTimeout(() => syncConnectBtnState(), 1500);
         }
@@ -4025,19 +4060,14 @@ function initOverlay() {
         return;
       }
 
-      if (!isValidUsernameInput(val)) {
+      if (!isValidRaceCodeInput(codeVal)) {
         if (therunSaveBtn) {
-          therunSaveBtn.textContent = "Invalid Name";
+          therunSaveBtn.textContent = "Invalid Code";
           therunSaveBtn.style.color = "#ef4444";
           setTimeout(() => syncConnectBtnState(), 1500);
         }
         refreshLeaderboard();
         return;
-      }
-
-      localStorage.setItem("therun_username", val);
-      if (typeof raceClient.setHostUsername === "function") {
-        raceClient.setHostUsername(val);
       }
 
       const remMs = typeof raceClient.getConnectCooldownRemainingMs === "function"
@@ -4048,42 +4078,37 @@ function initOverlay() {
         return;
       }
 
-      if (therunSaveBtn) {
-        therunSaveBtn.disabled = true;
-        therunSaveBtn.textContent = "Connecting...";
-        therunSaveBtn.style.color = "#38bdf8";
-      }
-
-      const result = typeof raceClient.pollUserStatus === "function"
-        ? await raceClient.pollUserStatus(val)
-        : await raceClient.startAutoDetect(val);
-
-      if ((result && result.status === "connected") || (typeof raceClient.isConnected === "function" && raceClient.isConnected())) {
+      const ok = typeof raceClient.connectToRace === "function" && raceClient.connectToRace(codeVal);
+      if (ok) {
         syncConnectBtnState();
-      } else if (result && result.status === "cooldown") {
-        startCooldownCountdownUI(result.remainingMs || 5000, "Wait");
-      } else {
-        startCooldownCountdownUI((result && result.remainingMs) || 5000, "No Race");
+      } else if (therunSaveBtn) {
+        therunSaveBtn.textContent = "Invalid Code";
+        therunSaveBtn.style.color = "#ef4444";
+        setTimeout(() => syncConnectBtnState(), 1500);
       }
-
       refreshLeaderboard();
     };
+
+    if (therunRaceCodeInp) {
+      therunRaceCodeInp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleManualRaceConnect();
+        }
+      });
+    }
 
     if (therunSaveBtn) {
       therunSaveBtn.addEventListener("click", handleManualRaceConnect);
     }
+
     if (raceToggleBtn) {
       raceToggleBtn.addEventListener("click", () => {
-        if (raceClient.isSimulating()) {
-          raceClient.stopSimulation();
-          if (raceSimBtn) {
-            raceSimBtn.textContent = "🧪 Test Race";
-            raceSimBtn.style.color = "#f59e0b";
-          }
-          raceToggleBtn.textContent = "Race: Off";
-          raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
-          refreshLeaderboard();
-          updateGhostRunner(lastElapsedSec);
+        const isActiveOrStandby = raceClient.isSimulating() ||
+          (typeof raceClient.isConnected === "function" && raceClient.isConnected()) ||
+          (typeof raceClient.isStandby === "function" && raceClient.isStandby());
+        if (isActiveOrStandby) {
+          handleRaceDisconnect();
         } else {
           handleManualRaceConnect();
         }
@@ -4093,51 +4118,67 @@ function initOverlay() {
     if (raceSimBtn) {
       raceSimBtn.addEventListener("click", () => {
         if (raceClient.isSimulating()) {
-          raceClient.stopSimulation();
-          raceSimBtn.textContent = "🧪 Test Race";
-          raceSimBtn.style.color = "#f59e0b";
-          if (raceToggleBtn) {
-            raceToggleBtn.textContent = "Race: Off";
-            raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
-          }
+          handleRaceDisconnect();
         } else {
           const gtComparisons = (comparisonTimesGT && comparisonTimesGT.length > 0) ? comparisonTimesGT : comparisonTimes;
           const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : gtComparisons;
-          raceClient.startSimulation(splitsList, gtComparisons, rtComparisons);
-          raceSimBtn.textContent = "🧪 Stop Sim";
-          raceSimBtn.style.color = "#ef4444";
-          if (raceToggleBtn) {
-            raceToggleBtn.textContent = "Race: Sim";
-            raceToggleBtn.style.color = "#4ade80";
+          const isAlreadySimStandby = typeof raceClient.isSimStandby === "function" && raceClient.isSimStandby();
+          if (isAlreadySimStandby) {
+            // Clicking a second time while already in Sim Standby force-starts immediately (e.g. standalone browser without LiveSplit)
+            raceClient.startSimulation(splitsList, gtComparisons, rtComparisons);
+          } else if (typeof raceClient.armSimulationStandby === "function") {
+            raceClient.armSimulationStandby(splitsList, gtComparisons, rtComparisons);
+            // If local LiveSplit timer is already running mid-run, trigger the delayed connect automatically
+            if (currentIndex >= 0 && typeof raceClient.handleHostRunStarted === "function") {
+              raceClient.handleHostRunStarted();
+            }
+          } else {
+            raceClient.startSimulation(splitsList, gtComparisons, rtComparisons);
           }
+          syncConnectBtnState();
+          refreshLeaderboard();
         }
       });
     }
 
+    syncConnectBtnState();
+
+    let spectatorTickTimer = null;
+    const startSpectatorTick = () => {
+      if (spectatorTickTimer) return;
+      spectatorTickTimer = setInterval(() => {
+        const isConn = raceClient && typeof raceClient.isConnected === "function" && raceClient.isConnected();
+        if (!isConn) {
+          clearInterval(spectatorTickTimer);
+          spectatorTickTimer = null;
+          return;
+        }
+        refreshLeaderboard();
+      }, 100);
+    };
+    const stopSpectatorTick = () => {
+      if (spectatorTickTimer) {
+        clearInterval(spectatorTickTimer);
+        spectatorTickTimer = null;
+      }
+    };
+
+    if (typeof raceClient.isConnected === "function" && raceClient.isConnected()) {
+      startSpectatorTick();
+    }
+
     raceClient.subscribe((event, data) => {
       if (event === "race_connected") {
-        if (raceToggleBtn) {
-          raceToggleBtn.textContent = data && data.isSimulated ? "Race: Sim" : `Race: ${raceClient.getRaceId()}`;
-          raceToggleBtn.style.color = "#4ade80";
-        }
-        if (!data?.isSimulated && therunSaveBtn) {
-          therunSaveBtn.disabled = false;
-          therunSaveBtn.textContent = "✓ Connected";
-          therunSaveBtn.style.color = "#4ade80";
-        }
+        syncConnectBtnState();
+        startSpectatorTick();
+        refreshLeaderboard();
       } else if (event === "race_disconnected") {
-        if (raceToggleBtn) {
-          raceToggleBtn.textContent = "Race: Off";
-          raceToggleBtn.style.color = "rgba(148, 163, 184, 0.9)";
-        }
-        if (raceSimBtn) {
-          raceSimBtn.textContent = "🧪 Test Race";
-          raceSimBtn.style.color = "#f59e0b";
-        }
-        if (therunSaveBtn && !therunSaveBtn.disabled) {
-          therunSaveBtn.textContent = "Connect";
-          therunSaveBtn.style.color = "";
-        }
+        syncConnectBtnState();
+        stopSpectatorTick();
+        refreshLeaderboard();
+      } else if (event === "entrants_update" || event === "entrant_updated") {
+        refreshLeaderboard();
+        updateGhostRunner(lastElapsedSec);
       } else if (event === "entrant_mute_changed") {
         if (data && data.userId) {
           const marker = document.getElementById(`ghost-marker-race-${data.userId}`);
@@ -4148,10 +4189,11 @@ function initOverlay() {
         }
       } else if (event === "race_pins_visibility_changed") {
         updateGhostRunner(lastElapsedSec);
+      } else if (event === "race_standby_changed") {
+        syncConnectBtnState();
       }
     });
   }
-
   // Latching pressed-down trigger pill and close button setup
   const triggerPill = document.getElementById("settings-trigger-pill");
   const closeBtn = document.getElementById("btn-close-settings");
