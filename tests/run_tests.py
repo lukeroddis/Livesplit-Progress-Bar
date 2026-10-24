@@ -12,6 +12,7 @@ import json
 import shutil
 import socket
 import subprocess
+import tempfile
 import urllib.request
 import asyncio
 
@@ -2140,7 +2141,16 @@ def test_modular_architecture():
     assert "getLiveElements(currentIndex)" in overlay_src, "overlay.js must use getLiveElements for 60 FPS tick"
     assert "createLiveElementCache" in overlay_src, "overlay.js must hook into createLiveElementCache"
 
-    print("✓ Modular architecture (src/core, src/ui, LiveSplit namespaces, 60 FPS element caching) passed.")
+    # 4. Verify Vite single-file build entry synchronicity with index.html scripts
+    build_entry_path = os.path.join(ROOT_DIR, "src", "build-entry.js")
+    if os.path.exists(build_entry_path):
+        with open(build_entry_path, "r", encoding="utf-8") as f:
+            build_src = f.read()
+        for mod in expected_modules:
+            rel_import = mod.replace("src/", "./")
+            assert rel_import in build_src, f"src/build-entry.js must import {rel_import} to stay synchronized with index.html"
+
+    print("✓ Modular architecture (src/core, src/ui, LiveSplit namespaces, 60 FPS element caching, Vite build-entry) passed.")
 
 
 def test_race_client_and_simulation_engine():
@@ -2651,6 +2661,8 @@ def calculate_file_line_coverage(file_path, script_coverage):
 async def _run_browser_cdp_async(chrome_bin, test_url):
     import websockets
     port = find_free_port()
+    # Chrome 136+ ignores remote debugging when using the default data directory.
+    user_data_dir = tempfile.mkdtemp(prefix="livesplit-chrome-")
     proc = subprocess.Popen([
         chrome_bin,
         "--headless=new",
@@ -2658,6 +2670,9 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-default-browser-check",
+        f"--user-data-dir={user_data_dir}",
         f"--remote-debugging-port={port}",
         "--remote-debugging-address=127.0.0.1",
         "about:blank"
@@ -2665,10 +2680,10 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
     
     try:
         ws_url = None
-        for _ in range(40):
+        for _ in range(150):
             await asyncio.sleep(0.1)
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as resp:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/json", timeout=1) as resp:
                     targets = json.loads(resp.read().decode())
                 if targets:
                     page = next((t for t in targets if t.get("type") == "page"), None)
@@ -2719,6 +2734,7 @@ async def _run_browser_cdp_async(chrome_bin, test_url):
             proc.wait(timeout=2)
         except Exception:
             proc.kill()
+        shutil.rmtree(user_data_dir, ignore_errors=True)
 
 
 def run_browser_tests_and_coverage(python_test_count=35):
