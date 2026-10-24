@@ -41,6 +41,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
       - name: Run Test Suite
         run: |
           python tests/run_tests.py
@@ -85,12 +94,14 @@ jobs:
           echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
           echo "Target tag: $TAG"
 
-      - name: Bundle Runtime Package
+      - name: Build Single-File Distribution
         if: env.SKIP_RELEASE != 'true'
         run: |
-          ZIP_NAME="livesplit-minimal-overlay-${RELEASE_TAG}.zip"
-          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-          zip -r "$ZIP_NAME" index.html style.css layout.js overlay.js package.json LICENSE README.md assets/ src/ schema/
+          npm run build
+          HTML_NAME="livesplit-minimal-overlay-${RELEASE_TAG}.html"
+          cp dist/index.html "$HTML_NAME"
+          echo "HTML_NAME=$HTML_NAME" >> $GITHUB_ENV
+          echo "Built release asset: $HTML_NAME"
 
       - name: Create GitHub Release
         if: env.SKIP_RELEASE != 'true'
@@ -98,7 +109,7 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: "LiveSplit Progress Bar ${{ env.RELEASE_TAG }}"
-          files: ${{ env.ZIP_NAME }}
+          files: ${{ env.HTML_NAME }}
           generate_release_notes: true
           draft: false
           prerelease: false
