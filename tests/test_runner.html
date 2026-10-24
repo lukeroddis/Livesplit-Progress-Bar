@@ -95,8 +95,9 @@
     <div id="hud-comp-timers"></div>
     <div id="hud-comp-track"></div>
     <div id="hud-comp-leaderboard"></div>
-    <div id="race-leaderboard"></div>
+    <div id="race-leaderboard">
     <div id="leaderboard-rows"></div>
+    </div>
     <span id="badge-scale-leaderboard"></span>
     <span id="leaderboard-status-badge"></span>
     <input type="checkbox" id="cb-toggle-leaderboard">
@@ -172,7 +173,7 @@
   <div id="results"></div>
 
   <!-- Load application scripts -->
-  <script src="../src/core/storage.js"></script>
+  <script>window.__scriptErrors = []; window.addEventListener("error", e => { window.__scriptErrors.push(e.message + " in " + e.filename + ":" + e.lineno); });</script>`r`n  <script src="../src/core/storage.js"></script>
   <script src="../src/core/time-utils.js"></script>
   <script src="../src/core/split-engine.js"></script>
   <script src="../src/core/ghost-math.js"></script>
@@ -3260,6 +3261,261 @@
         // Both completed Split 2: 64.0 - 60.0 = +4.0s
         assertEqual(ranked[1].gapDisplay, "+4.0s", "Delta locks into Split 2 milestone gap");
         rc.disconnectFromRace();
+      });
+
+      it("Lobby Ready and Unready transitions correctly toggle entrant status and log lobby events", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+
+        // 1. Runner joins race
+        rc.handleRaceMessage({
+          userId: "user_luke",
+          username: "Luke",
+          status: "joined"
+        });
+
+        let entrants = rc.getRankedEntrants();
+        let luke = entrants.find(e => e.userId === "user_luke");
+        assert(luke !== undefined, "Luke is added as entrant");
+        assertEqual(luke.status, "joined", "Initial status is joined");
+        assertEqual(luke.isReady, false, "Initial isReady is false");
+        assertEqual(luke.currentSplitName, "Split 1", "currentSplitName remains Split 1 (not overwritten with status)");
+
+        // 2. Runner clicks Ready
+        rc.handleRaceMessage({
+          userId: "user_luke",
+          username: "Luke",
+          status: "ready"
+        });
+
+        entrants = rc.getRankedEntrants();
+        luke = entrants.find(e => e.userId === "user_luke");
+        assertEqual(luke.status, "ready", "Status transitions to ready");
+        assertEqual(luke.isReady, true, "isReady is true");
+        assertEqual(luke.currentSplitName, "Split 1", "currentSplitName remains Split 1 on ready");
+
+        // 3. Runner clicks Unready (sends status: 'joined')
+        rc.handleRaceMessage({
+          userId: "user_luke",
+          username: "Luke",
+          status: "joined"
+        });
+
+        entrants = rc.getRankedEntrants();
+        luke = entrants.find(e => e.userId === "user_luke");
+        assertEqual(luke.status, "joined", "Status reverts to joined on unready");
+        assertEqual(luke.isReady, false, "isReady is false on unready");
+        assertEqual(luke.currentSplitName, "Split 1", "currentSplitName remains Split 1 on unready");
+
+        // 4. Verify race events were logged
+        const events = rc.getRecentEvents();
+        assert(events.length >= 3, "Lobby events recorded");
+        assert(events.some(e => e.type === "join" && e.text.includes("Luke joined")), "Join event logged");
+        assert(events.some(e => e.type === "ready" && e.text.includes("Luke is Ready")), "Ready event logged");
+        assert(events.some(e => e.type === "unready" && e.text.includes("Luke unreadied")), "Unready event logged");
+
+        rc.disconnectFromRace();
+      });
+
+      it("Pre-race lobby renders LOBBY badge, ready indicators, and lobby banner", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("pre_race_lobby");
+
+        rc.handleRaceMessage({
+          userId: "p1",
+          username: "RunnerOne",
+          status: "ready"
+        });
+        rc.handleRaceMessage({
+          userId: "p2",
+          username: "RunnerTwo",
+          status: "joined"
+        });
+
+        const entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 2);
+
+        // Render leaderboard in connected mode (isConnected = true, isSimulating = false)
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, false, true, false);
+
+        const statusBadge = document.getElementById("leaderboard-status-badge");
+        assert(statusBadge !== null, "status badge exists");
+        assertEqual(statusBadge.innerText, "LOBBY", "Badge shows LOBBY before race starts");
+        assert(statusBadge.classList.contains("status-lobby"), "Badge has status-lobby class");
+
+        // Check Lobby Banner
+        const lobbyBanner = document.querySelector(".leaderboard-lobby-banner");
+        assert(lobbyBanner !== null, "Lobby banner is rendered");
+
+        // Check row indicators: p1 has delta-ready and gap-ready; p2 has delta-joined and gap-joined
+        const p1Row = document.querySelector('.leaderboard-row[data-user-id="p1"]');
+        const p2Row = document.querySelector('.leaderboard-row[data-user-id="p2"]');
+        assert(p1Row !== null, "p1 row exists");
+        assert(p2Row !== null, "p2 row exists");
+
+        const p1Delta = p1Row.querySelector(".pos-delta");
+        const p2Delta = p2Row.querySelector(".pos-delta");
+        assert(p1Delta && p1Delta.classList.contains("delta-ready"), "p1 has delta-ready class");
+        assert(p2Delta && p2Delta.classList.contains("delta-joined"), "p2 has delta-joined class");
+
+        const p1Gap = p1Row.querySelector(".racer-gap");
+        const p2Gap = p2Row.querySelector(".racer-gap");
+        assert(p1Gap && p1Gap.textContent === "READY", "p1 gap shows READY");
+        assert(p2Gap && p2Gap.textContent === "JOINED", "p2 gap shows JOINED");
+
+        rc.disconnectFromRace();
+      });
+
+      it("Countdown messages trigger START countdown banner and GO! transition", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("countdown_room");
+
+        rc.handleRaceMessage({
+          userId: "p1",
+          username: "RunnerOne",
+          status: "ready"
+        });
+
+        // Broadcast countdown: 5
+        rc.handleRaceMessage({
+          type: "countdown",
+          countdown: 5
+        });
+
+        assertEqual(rc.getCountdownSec(), 5, "rc countdown seconds is 5");
+        assertEqual(rc.getRaceStatus(), "starting", "raceStatus is starting");
+
+        let entrants = rc.getRankedEntrants();
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, false, true, false);
+
+        const statusBadge = document.getElementById("leaderboard-status-badge");
+        assertEqual(statusBadge.innerText, "START 5s", "Status badge shows START 5s");
+        assert(statusBadge.classList.contains("status-countdown"), "Status badge has status-countdown class");
+
+        let cdBanner = document.querySelector(".leaderboard-countdown-banner");
+        assert(cdBanner !== null, "Countdown banner is rendered");
+        assert(cdBanner.classList.contains("is-counting"), "Countdown banner has is-counting class");
+        assert(cdBanner.textContent.includes("5s"), "Countdown banner displays 5s");
+
+        // Broadcast countdown: 0 (Go!)
+        rc.handleRaceMessage({
+          type: "countdown",
+          countdown: 0
+        });
+
+        assertEqual(rc.getCountdownSec(), 0, "rc countdown seconds is 0");
+        assertEqual(rc.getRaceStatus(), "in_progress", "raceStatus is in_progress");
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, false, true, false);
+        assertEqual(statusBadge.innerText, "GO!", "Status badge shows GO!");
+
+        cdBanner = document.querySelector(".leaderboard-countdown-banner");
+        assert(cdBanner !== null, "Countdown banner still visible for GO!");
+        assert(cdBanner.classList.contains("is-go"), "Countdown banner has is-go class");
+        assert(cdBanner.textContent.includes("GO! GO! GO!"), "Countdown banner displays GO! GO! GO!");
+
+        rc.disconnectFromRace();
+      });
+
+      it("Simulation with { withLobby: true } initializes lobby state, runners ready up, and countdown starts", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.reset();
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true });
+        assertEqual(rc.isSimulating(), true, "Simulation is active");
+        assertEqual(rc.getRaceStatus(), "open", "Race status starts in open/lobby state");
+
+        let entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 10, "Provides 10 runners");
+        const comp = entrants.find(e => !e.isHost);
+        assertEqual(comp.status, "joined", "Competitor initial status is joined");
+        assertEqual(comp.isReady, false, "Competitor initial isReady is false");
+        assert(typeof comp.pbSec === "number" && comp.pbSec > 0, "Competitor has valid pbSec for lobby display");
+
+        // Render leaderboard in simulation lobby
+        window.LiveSplit.Leaderboard.renderLeaderboard(entrants, true, false, false);
+        const statusBadge = document.getElementById("leaderboard-status-badge");
+        assertEqual(statusBadge.innerText, "LOBBY", "Badge displays LOBBY in simulation");
+        assert(statusBadge.classList.contains("status-lobby"), "Badge has status-lobby class");
+
+        // Verify lobby banner is rendered with ready count
+        const lobbyBanner = document.querySelector(".leaderboard-lobby-banner");
+        assert(lobbyBanner !== null, "Lobby banner renders in simulated lobby");
+
+        // Calling handleHostRunStarted while simulating in lobby immediately transitions to in_progress (GO!)
+        rc.handleHostRunStarted();
+        assertEqual(rc.getRaceStatus(), "in_progress", "LiveSplit start transitions simulation to in_progress");
+        entrants = rc.getRankedEntrants();
+        const updatedComp = entrants.find(e => !e.isHost);
+        assertEqual(updatedComp.status, "started", "Competitors switch to started");
+
+        rc.stopSimulation();
+      });
+      it("Simulation pre-race display preserves ready status and PB display during countdown, frozen until GO!", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.reset();
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true });
+        let entrants = rc.getRankedEntrants();
+        const comp = entrants.find(e => !e.isHost);
+        comp.status = "ready";
+        comp.isReady = true;
+
+        // Broadcast countdown
+        rc.handleRaceMessage({ type: "countdown", countdown: 3 });
+        assertEqual(rc.getCountdownSec(), 3);
+        assertEqual(rc.getRaceStatus(), "starting");
+
+        window.LiveSplit.Leaderboard.renderLeaderboard(rc.getRankedEntrants(), true, false, false);
+        const statusBadge = document.getElementById("leaderboard-status-badge");
+        assertEqual(statusBadge.innerText, "START 3s");
+
+        const compRow = document.querySelector(`.leaderboard-row[data-user-id="${comp.userId}"]`);
+        assert(compRow !== null, "Competitor row exists");
+        const gapEl = compRow.querySelector(".racer-gap");
+        assertEqual(gapEl.textContent, "READY", "During countdown gap remains READY, not LEADER or --");
+        const expEl = compRow.querySelector(".racer-expected");
+        assert(expEl.textContent.includes("PB"), "During countdown expected column retains PB, not elapsed split timer");
+
+        rc.stopSimulation();
+      });
+
+      it("rc.reset() during active simulation resets all racers to 00:00 and restarts lobby sequence cleanly", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.reset();
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        // 1. Start simulation with lobby
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true });
+        // Advance to in_progress
+        rc.handleHostRunStarted();
+        assertEqual(rc.getRaceStatus(), "in_progress", "Race is in progress");
+
+        // Competitors now have active time
+        rc.updateHostProgress(15, 0, [], [30, 60], "Split 1", ["Split 1", "Split 2"], null, true, 15);
+        let comp = rc.getRankedEntrants().find(e => !e.isHost);
+        assertEqual(comp.currentTimeSec, 15, "Competitor reached 15s in run");
+
+        // 2. Host resets splits in LiveSplit -> calls rc.reset()
+        rc.reset();
+
+        // 3. Verify clean reset to lobby
+        assertEqual(rc.getRaceStatus(), "open", "Race status returned to open (lobby)");
+        assertEqual(rc.getCountdownSec(), null, "Countdown target is null");
+        comp = rc.getRankedEntrants().find(e => !e.isHost);
+        assertEqual(comp.currentTimeSec, 0, "Competitor time cleanly reset to 00:00");
+        assertEqual(comp.currentSplitIndex, 0, "Competitor split index reset to 0");
+        assertEqual(comp.status, "joined", "Competitor status reset to joined");
+        assertEqual(comp.isReady, false, "Competitor readiness reset to false");
+
+        rc.stopSimulation();
       });
     });
     // --- RENDER RESULTS ---

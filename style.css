@@ -2810,6 +2810,108 @@ body.edit-mode .settings-menu-panel {
   border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
+.leaderboard-status.status-lobby {
+  background: rgba(234, 179, 8, 0.18);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.leaderboard-status.status-countdown {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  animation: countdown-pulse 1s ease-in-out infinite alternate;
+}
+
+.leaderboard-status.status-finished {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+/* Leaderboard Lobby & Countdown Banners */
+.leaderboard-countdown-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.15));
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.2);
+}
+
+.leaderboard-countdown-banner.is-counting .cd-num {
+  font-size: 14px;
+  font-weight: 900;
+  color: #fef08a;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
+  animation: countdown-pulse 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+}
+
+.leaderboard-countdown-banner.is-go {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.2));
+  border-color: rgba(34, 197, 94, 0.6);
+  color: #bbf7d0;
+  box-shadow: 0 2px 12px rgba(34, 197, 94, 0.3);
+}
+
+.leaderboard-countdown-banner.is-go .cd-go {
+  font-size: 13px;
+  font-weight: 900;
+  color: #4ade80;
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.8);
+  animation: go-pulse 0.4s ease-out infinite alternate;
+}
+
+@keyframes countdown-pulse {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(1.15); opacity: 1; }
+}
+
+@keyframes go-pulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); text-shadow: 0 0 14px rgba(74, 222, 128, 1); }
+}
+
+.leaderboard-lobby-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(4px);
+}
+
+.leaderboard-lobby-banner .lobby-banner-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.leaderboard-lobby-banner .lobby-banner-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-lobby-banner .lobby-banner-text strong {
+  color: #facc15;
+  font-weight: 700;
+}
+
 /* Leaderboard Rows */
 .leaderboard-rows {
   display: flex;
@@ -3155,6 +3257,7 @@ body.edit-mode .settings-menu-panel {
   transition: color 0.4s ease, text-shadow 0.4s ease;
 }
 
+
 .pos-badge.pos-1 {
   color: #facc15;
   text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
@@ -3193,6 +3296,19 @@ body.edit-mode .settings-menu-panel {
 .pos-delta.delta-down {
   color: #f87171;
   text-shadow: 0 0 6px rgba(248, 113, 113, 0.45);
+}
+
+.pos-delta.delta-ready {
+  color: #4ade80;
+  font-size: 10px;
+  font-weight: 900;
+  text-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+}
+
+.pos-delta.delta-joined {
+  color: #94a3b8;
+  font-size: 9px;
+  opacity: 0.8;
 }
 
 .pos-delta.delta-dnf,
@@ -3327,6 +3443,17 @@ body.edit-mode .settings-menu-panel {
   transition: color 0.4s ease, text-shadow 0.4s ease;
 }
 
+.racer-split.status-ready {
+  color: #4ade80;
+  font-weight: 600;
+  text-shadow: 0 0 4px rgba(74, 222, 128, 0.3);
+}
+
+.racer-split.status-joined {
+  color: #94a3b8;
+  font-style: italic;
+}
+
 .racer-gap-col {
   display: flex;
   flex-direction: column;
@@ -3347,6 +3474,41 @@ body.edit-mode .settings-menu-panel {
   font-size: 10px;
   letter-spacing: 0.05em;
   text-shadow: 0 0 6px rgba(250, 204, 21, 0.4);
+}
+
+.racer-gap.gap-ready {
+  color: #4ade80;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 6px rgba(74, 222, 128, 0.35);
+}
+
+.racer-gap.gap-joined {
+  color: #94a3b8;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+}
+
+.racer-ready-tag {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.racer-joined-tag {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(148, 163, 184, 0.25);
 }
 
 .racer-expected,

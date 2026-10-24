@@ -2929,48 +2929,20 @@ async function pollLoop() {
 
       // Reset transition (active run to reset, restarting from a later split, or repeated reset to clear DNF)
       if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0) || isSecondResetWithDNF) {
-        if (isSecondResetWithDNF) {
-          // Second reset while DNF'd: cleanly clear DNF and completely reset the race client
-          clearInRunState();
-          lockedDeltas = {};
-          completedSplitTimes = {};
-          completedSplitTimesRT = {};
-          completedSplitTimesGT = {};
-          lastSplitRecordedSec = 0;
-          previousDeltaSeconds = 0;
-          lastElapsedSec = 0;
-          pendingHostSplitFlash = null;
-          if (typeof rc.setHostDNF === "function") {
+        clearInRunState();
+        lockedDeltas = {};
+        completedSplitTimes = {};
+        completedSplitTimesRT = {};
+        completedSplitTimesGT = {};
+        lastSplitRecordedSec = 0;
+        previousDeltaSeconds = 0;
+        lastElapsedSec = 0;
+        pendingHostSplitFlash = null;
+        if (rc) {
+          if (typeof rc.setHostDNF === "function" && rc.isHostDNF()) {
             rc.setHostDNF(false);
           }
           if (typeof rc.reset === "function") {
-            rc.reset();
-          }
-        } else if (isSim && wasRunning && typeof rc.isHostDNF === "function" && !rc.isHostDNF()) {
-          // Reset during active simulation: Host forfeits / cancels their run (DNF)
-          // The rest of the simulated competitors continue racing so you can see DNF behavior on the leaderboard!
-          rc.setHostDNF(true);
-          clearInRunState();
-          lockedDeltas = {};
-          completedSplitTimes = {};
-          completedSplitTimesRT = {};
-          completedSplitTimesGT = {};
-          lastSplitRecordedSec = 0;
-          previousDeltaSeconds = 0;
-          lastElapsedSec = 0;
-          pendingHostSplitFlash = null;
-        } else {
-          clearInRunState();
-          lockedDeltas = {};
-          completedSplitTimes = {};
-          completedSplitTimesRT = {};
-          completedSplitTimesGT = {};
-          lastSplitRecordedSec = 0;
-          previousDeltaSeconds = 0;
-          lastElapsedSec = 0;
-          pendingHostSplitFlash = null;
-
-          if (rc && typeof rc.reset === "function") {
             rc.reset();
           }
         }
@@ -4122,19 +4094,8 @@ function initOverlay() {
         } else {
           const gtComparisons = (comparisonTimesGT && comparisonTimesGT.length > 0) ? comparisonTimesGT : comparisonTimes;
           const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : gtComparisons;
-          const isAlreadySimStandby = typeof raceClient.isSimStandby === "function" && raceClient.isSimStandby();
-          if (isAlreadySimStandby) {
-            // Clicking a second time while already in Sim Standby force-starts immediately (e.g. standalone browser without LiveSplit)
-            raceClient.startSimulation(splitsList, gtComparisons, rtComparisons);
-          } else if (typeof raceClient.armSimulationStandby === "function") {
-            raceClient.armSimulationStandby(splitsList, gtComparisons, rtComparisons);
-            // If local LiveSplit timer is already running mid-run, trigger the delayed connect automatically
-            if (currentIndex >= 0 && typeof raceClient.handleHostRunStarted === "function") {
-              raceClient.handleHostRunStarted();
-            }
-          } else {
-            raceClient.startSimulation(splitsList, gtComparisons, rtComparisons);
-          }
+          const isAlreadyRunning = (currentIndex >= 0 && typeof lastElapsedSec === "number" && lastElapsedSec > 0);
+          raceClient.startSimulation(splitsList, gtComparisons, rtComparisons, { withLobby: !isAlreadyRunning });
           syncConnectBtnState();
           refreshLeaderboard();
         }

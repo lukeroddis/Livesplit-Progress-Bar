@@ -229,14 +229,45 @@
 
     compEl.classList.remove("is-hidden");
 
+    const rc = getRaceClient();
+    const cdSec = rc && typeof rc.getCountdownSec === "function" ? rc.getCountdownSec() : null;
+    const isCountingDown = (cdSec !== null && cdSec >= 0);
+    const hasAnyRunnerStarted = Array.isArray(rankedEntrants) && rankedEntrants.some(r =>
+      (r.currentTimeSec || 0) > 0 ||
+      (r.currentSplitIndex || 0) > 0 ||
+      (Array.isArray(r.splitTimes) && r.splitTimes.length > 0) ||
+      !!r.lastSplitEffect ||
+      r.isFinished ||
+      r.isDNF
+    );
+    const raceStatus = rc && typeof rc.getRaceStatus === "function" ? rc.getRaceStatus() : "";
+    const isPreRace = (isConn || isSim) && !hasAnyRunnerStarted && (isCountingDown || raceStatus === "open" || raceStatus === "pending" || raceStatus === "starting" || !raceStatus);
+    const isPreRaceLobby = isPreRace && !isCountingDown;
+
     // Update status badge
     if (statusBadge) {
-      if (isSim) {
-        statusBadge.innerText = "SIM";
-        statusBadge.className = "leaderboard-status status-sim";
+      if (isCountingDown) {
+        statusBadge.innerText = cdSec > 0 ? `START ${cdSec}s` : "GO!";
+        statusBadge.className = "leaderboard-status status-countdown";
+      } else if (isPreRaceLobby) {
+        statusBadge.innerText = "LOBBY";
+        statusBadge.className = "leaderboard-status status-lobby";
+      } else if (isSim) {
+        if (rankedEntrants.length > 0 && rankedEntrants.every(r => r.isFinished || r.isDNF)) {
+          statusBadge.innerText = "FINISHED";
+          statusBadge.className = "leaderboard-status status-finished";
+        } else {
+          statusBadge.innerText = "SIM";
+          statusBadge.className = "leaderboard-status status-sim";
+        }
       } else if (isConn) {
-        statusBadge.innerText = "LIVE";
-        statusBadge.className = "leaderboard-status status-live";
+        if (rankedEntrants.length > 0 && rankedEntrants.every(r => r.isFinished || r.isDNF)) {
+          statusBadge.innerText = "FINISHED";
+          statusBadge.className = "leaderboard-status status-finished";
+        } else {
+          statusBadge.innerText = "LIVE";
+          statusBadge.className = "leaderboard-status status-live";
+        }
       } else {
         statusBadge.innerText = "PREVIEW";
         statusBadge.className = "leaderboard-status status-preview";
@@ -261,6 +292,64 @@
     const domOrderMatches = (currentDomIds.length === desiredDomIds.length) &&
       currentDomIds.every((id, i) => id === desiredDomIds[i]);
 
+    const raceBoardEl = document.getElementById("race-leaderboard");
+    const bannerContainer = (raceBoardEl && rowsEl && raceBoardEl.contains(rowsEl))
+      ? raceBoardEl
+      : ((rowsEl && rowsEl.parentNode) ? rowsEl.parentNode : raceBoardEl);
+
+    // Countdown Banner (3, 2, 1, GO!)
+    let cdBanner = bannerContainer ? bannerContainer.querySelector(".leaderboard-countdown-banner") : null;
+    if (isCountingDown && bannerContainer) {
+      if (!cdBanner) {
+        cdBanner = document.createElement("div");
+        cdBanner.className = "leaderboard-countdown-banner";
+        if (rowsEl && bannerContainer.contains(rowsEl)) {
+          bannerContainer.insertBefore(cdBanner, rowsEl);
+        } else {
+          bannerContainer.appendChild(cdBanner);
+        }
+      }
+      if (cdSec > 0) {
+        cdBanner.className = "leaderboard-countdown-banner is-counting";
+        cdBanner.innerHTML = `<span class="cd-icon">&#9201;</span><span class="cd-label">RACE STARTING IN</span><strong class="cd-num">${cdSec}s</strong>`;
+      } else {
+        cdBanner.className = "leaderboard-countdown-banner is-go";
+        cdBanner.innerHTML = `<span class="cd-icon">&#128640;</span><strong class="cd-go">GO! GO! GO!</strong>`;
+      }
+    } else if (cdBanner) {
+      cdBanner.remove();
+    }
+
+    // Lobby Banner (e.g. 2/3 Runners Ready or recent join/unready event)
+    let lobbyBanner = bannerContainer ? bannerContainer.querySelector(".leaderboard-lobby-banner") : null;
+    if (isPreRaceLobby && !isCountingDown && rawEntrants.length > 0 && bannerContainer) {
+      const readyCount = rawEntrants.filter(r => r.isReady === true || String(r.status || "").toLowerCase() === "ready").length;
+      const latestEvt = rc && typeof rc.getLatestEvent === "function" ? rc.getLatestEvent() : null;
+      const hasRecentEvt = latestEvt && (Date.now() - latestEvt.timestamp) < 5000;
+
+      if (!lobbyBanner) {
+        lobbyBanner = document.createElement("div");
+        lobbyBanner.className = "leaderboard-lobby-banner";
+        if (rowsEl && bannerContainer.contains(rowsEl)) {
+          bannerContainer.insertBefore(lobbyBanner, rowsEl);
+        } else {
+          bannerContainer.appendChild(lobbyBanner);
+        }
+      }
+      if (hasRecentEvt) {
+        let evtIcon = "&#128100;";
+        if (latestEvt.type === "ready") evtIcon = "&#9989;";
+        else if (latestEvt.type === "unready") evtIcon = "&#9203;";
+        else if (latestEvt.type === "leave") evtIcon = "&#128682;";
+        else if (latestEvt.type === "join") evtIcon = "&#128100;";
+        lobbyBanner.innerHTML = `<span class="lobby-banner-icon">${evtIcon}</span><span class="lobby-banner-text">${escapeHtml(latestEvt.text || "")}</span>`;
+      } else {
+        lobbyBanner.innerHTML = `<span class="lobby-banner-icon">&#128101;</span><span class="lobby-banner-text"><strong>${readyCount}/${rawEntrants.length}</strong> Runners Ready</span>`;
+      }
+    } else if (lobbyBanner) {
+      lobbyBanner.remove();
+    }
+
     // -------------------------------------------------------------
     // In-place update of rows and append in strict rank order
     // -------------------------------------------------------------
@@ -274,6 +363,12 @@
       const posDelta = (!isDnf && typeof racer.positionDelta === "number" && !isNaN(racer.positionDelta))
         ? Math.trunc(racer.positionDelta)
         : 0;
+      const racerStatus = String(racer.status || "").toLowerCase();
+      const isReady = racer.isReady === true || racerStatus === "ready";
+      if (racer.username && (String(racer.username).includes("://") || String(racer.username).includes("therun.gg/"))) {
+        racer.username = "";
+      }
+      const displayName = racer.username || (isHost ? "You" : "Runner");
       let deltaClass = "pos-delta delta-same";
       let deltaText = "-";
       let deltaTooltip = "No position change on last split";
@@ -281,6 +376,16 @@
         deltaClass = "pos-delta delta-dnf";
         deltaText = "-";
         deltaTooltip = "Did not finish";
+      } else if (isPreRace) {
+        if (isReady) {
+          deltaClass = "pos-delta delta-ready";
+          deltaText = "✓";
+          deltaTooltip = `${displayName} is ready to race`;
+        } else {
+          deltaClass = "pos-delta delta-joined";
+          deltaText = "⏳";
+          deltaTooltip = `${displayName} has joined (not ready)`;
+        }
       } else if (posDelta > 0) {
         deltaClass = "pos-delta delta-up";
         deltaText = `▲+${posDelta}`;
@@ -291,11 +396,12 @@
         deltaTooltip = `Dropped ${Math.abs(posDelta)} ${Math.abs(posDelta) === 1 ? "place" : "places"}`;
       }
       const color = racer.color || (isHost ? "#38bdf8" : "#94a3b8");
-      if (racer.username && (String(racer.username).includes("://") || String(racer.username).includes("therun.gg/"))) {
-        racer.username = "";
+      let splitLabel = isDnf ? "DNF" : (racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`));
+      if (isPreRace) {
+        splitLabel = (racer.currentSplitName && racer.currentSplitName !== "Ready" && racer.currentSplitName !== "Joined")
+          ? racer.currentSplitName
+          : "Split 1";
       }
-      const displayName = racer.username || (isHost ? "You" : "Runner");
-      const splitLabel = isDnf ? "DNF" : (racer.isFinished ? "FINISHED" : (racer.currentSplitName || `Split ${racer.currentSplitIndex + 1 || 1}`));
 
       const hasPbDelta = typeof racer.deltaSec === "number" && !isNaN(racer.deltaSec);
       const pbDeltaText = hasPbDelta
@@ -306,12 +412,22 @@
         : "";
 
       const rawGap = racer.gapDisplay || (rank === 1 ? "LEADER" : "--");
-      const gapVal = isDnf ? "DNF" : ((rank === 1) ? "LEADER" : rawGap);
+      let gapVal = isDnf ? "DNF" : ((rank === 1) ? "LEADER" : rawGap);
+      if (isPreRace) {
+        gapVal = isReady ? "READY" : "JOINED";
+      }
       const expType = racer.expectedType || (racer.isFinished ? "FIN" : "EXP");
       const expVal = racer.expectedSegmentDisplay || "--";
       const elapsedVal = racer.elapsedSegmentDisplay || "--";
 
       let expMarkup = "--";
+      if (isPreRace) {
+        if (typeof racer.pbSec === "number" && racer.pbSec > 0) {
+          expMarkup = `<span class="expected-tag interval-tag">PB</span>${escapeHtml(formatSegmentDuration(racer.pbSec))}`;
+        } else {
+          expMarkup = "--";
+        }
+      } else
       if (racer.isFinished) {
         expMarkup = `<span class="expected-tag interval-tag">FIN</span>${escapeHtml(expVal)}`;
       } else if (expVal !== "--") {
@@ -321,7 +437,9 @@
 
       const expSource = racer.hasStatisticalPrediction ? "therun.gg prediction" : "PB segment";
       const pbDeltaInfo = hasPbDelta ? ` | PB Delta: ${pbDeltaText}` : "";
-      const gapTooltip = (rank === 1)
+      const gapTooltip = isPreRace
+        ? (isReady ? `${displayName} is Ready` : `${displayName} has Joined (Not Ready)`)
+        : (rank === 1)
         ? `Race Leader${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})`
         : (gapVal === "--" ? `Split 1 in progress${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})` : `Leader Gap: ${gapVal}${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})`);
 
@@ -337,7 +455,10 @@
       // Phase 3 (2500ms - 4000ms): Smooth scroll and fade in of incoming new split name in neutral color
       let displayedSplit = splitLabel;
       let splitClass = "racer-split";
-      if (isEffectActive) {
+      if (isPreRace) {
+        displayedSplit = splitLabel;
+        splitClass = "racer-split";
+      } else if (isEffectActive) {
         if (effectAge < 850) {
           displayedSplit = effect.completedSplitName || splitLabel;
           splitClass = `racer-split is-completed-${effect.type}`;
@@ -399,7 +520,7 @@
             <span class="${splitClass}">${escapeHtml(displayedSplit)}</span>
           </div>
           <div class="racer-gap-col" title="${escapeHtml(gapTooltip)}">
-            <span class="racer-gap${rank === 1 ? ' is-leader' : ''}">${gapVal}</span>
+            <span class="racer-gap${(!isPreRace && rank === 1) ? ' is-leader' : ''}${isPreRace ? (isReady ? ' gap-ready' : ' gap-joined') : ''}">${gapVal}</span>
             <span class="racer-expected racer-interval">${expMarkup}</span>
           </div>
         `;
@@ -467,9 +588,11 @@
         }
 
         const gapEl = row.querySelector(".racer-gap");
-        if (gapEl && gapEl.textContent !== gapVal) {
-          gapEl.textContent = gapVal;
-          gapEl.classList.toggle("is-leader", rank === 1);
+        if (gapEl) {
+          if (gapEl.textContent !== gapVal) gapEl.textContent = gapVal;
+          gapEl.classList.toggle("is-leader", !isPreRace && rank === 1);
+          gapEl.classList.toggle("gap-ready", isPreRace && isReady);
+          gapEl.classList.toggle("gap-joined", isPreRace && !isReady);
         }
 
         const intEl = row.querySelector(".racer-expected, .racer-interval");

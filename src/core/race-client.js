@@ -158,6 +158,14 @@
     let isStandby = false;
     let isSimStandby = false;
     let pendingSimConfig = null;
+    let simLobbyTimers = [];
+    let simHasLobby = false;
+    function clearSimLobbyTimers() {
+      if (Array.isArray(simLobbyTimers)) {
+        simLobbyTimers.forEach(t => clearTimeout(t));
+        simLobbyTimers.length = 0;
+      }
+    }
     let runStartLookupTimers = [];
     let racePinsVisible = (function () {
       try {
@@ -186,6 +194,41 @@
     let lastHostCompletedSplitsGT = [];
     let lastHostCompletedSplitsRT = [];
     let lastSimTickTimestamp = 0;
+    let raceStatus = "open"; // "open" | "starting" | "in_progress" | "finished"
+    let countdownTargetMs = null;
+    let countdownSeconds = null;
+    const recentRaceEvents = [];
+
+    function pushRaceEvent(evt) {
+      if (!evt || !evt.text) return;
+      const last = recentRaceEvents[recentRaceEvents.length - 1];
+      if (last && last.text === evt.text && (evt.timestamp - last.timestamp) < 1500) {
+        return;
+      }
+      recentRaceEvents.push(evt);
+      if (recentRaceEvents.length > 20) {
+        recentRaceEvents.shift();
+      }
+      notifyListeners("race_event", evt);
+    }
+
+    function getCountdownSec() {
+      if (countdownTargetMs && countdownTargetMs > 0) {
+        const diffMs = countdownTargetMs - Date.now();
+        if (diffMs > 0) {
+          return Math.ceil(diffMs / 1000);
+        }
+        if (diffMs > -2500) {
+          return 0; // GO!
+        }
+        countdownTargetMs = null;
+        return null;
+      }
+      if (typeof countdownSeconds === "number") {
+        return countdownSeconds;
+      }
+      return null;
+    }
 
     /**
      * Normalizes split times dictionary/array into a clean numeric array.
@@ -755,7 +798,7 @@
 
           // Check if runner has therun.gg statistical model prediction for this split segment
           const splitObj = (Array.isArray(runner.splits) && runner.splits[sIdx]) ? runner.splits[sIdx] : null;
-          let predictedSegSec = null;
+          let predictedSegSec = (typeof runner.timeToNextSplit === "number" && runner.timeToNextSplit > 0.05) ? runner.timeToNextSplit : null;
           if (splitObj) {
             // Priority 1: therun.gg statistical model / machine learning single split prediction
             if (typeof splitObj.predictedSingleTime === "number" && splitObj.predictedSingleTime > 0) {
@@ -1340,12 +1383,36 @@
      * never need to take their hands off the controller to click Connect after the countdown ends.
      */
     function handleHostRunStarted(opts = {}) {
-      if (isSimulating) return Promise.resolve({ status: "simulating" });
+      if (isSimulating) {
+        if (raceStatus !== "in_progress") {
+          clearSimLobbyTimers();
+          raceStatus = "in_progress";
+          countdownSeconds = 0;
+          countdownTargetMs = null;
+          entrants.forEach(e => {
+            e.status = "started";
+            e.isReady = true;
+          });
+          pushRaceEvent({
+            type: "started",
+            text: "Race started! Good luck!",
+            timestamp: Date.now()
+          });
+          notifyListeners("race_started", null);
+          setTimeout(() => {
+            if (countdownSeconds === 0) {
+              countdownSeconds = null;
+              notifyListeners("entrant_updated", null);
+            }
+          }, 1500);
+        }
+        return Promise.resolve({ status: "simulating" });
+      }
       if (ws && ws.readyState === WebSocket.OPEN) return Promise.resolve({ status: "already_connected", raceId });
 
       if (isSimStandby) {
         clearRunStartLookupTimers();
-        const simDelayMs = typeof opts.initialDelayMs === "number" ? Math.max(0, opts.initialDelayMs) : 1800;
+        const simDelayMs = typeof opts.initialDelayMs === "number" ? Math.max(0, opts.initialDelayMs) : 0;
         const launchSim = () => {
           if (!isSimStandby) return { status: "cancelled" };
           const cfg = pendingSimConfig || {};
@@ -1501,6 +1568,10 @@
       } catch (err) {
         console.error("[RaceClient] Failed to connect to race WebSocket:", err);
         raceId = null;
+      raceStatus = "open";
+      countdownTargetMs = null;
+      countdownSeconds = null;
+      recentRaceEvents.length = 0;
         ws = null;
         return false;
       }
@@ -1516,6 +1587,10 @@
         ws = null;
       }
       raceId = null;
+      raceStatus = "open";
+      countdownTargetMs = null;
+      countdownSeconds = null;
+      recentRaceEvents.length = 0;
       hostState.username = hostUsername || "You";
       hostState.isHost = true;
       hostState.color = "#38bdf8";
@@ -1531,13 +1606,168 @@
       if (!msg) return;
 
       // Ignore chat messages on the race websocket
-      if (msg.type === "message" || msg.type === "chat") return;
+      // Ignore pure chat messages on the race websocket
+      if (msg.type === "chat" || (msg.type === "message" && typeof msg.message === "string" && !msg.data && !msg.user && !msg.username && !msg.userId && !msg.participants && !msg.countdown && !msg.startTime)) {
+        return;
+      }
 
       const payload = (msg.result !== undefined && msg.result !== null)
         ? msg.result
         : ((msg.data !== undefined && msg.data !== null) ? msg.data : msg);
 
       if (!payload) return;
+
+      // 1. Process Race-Level Status, Countdown, and Start Times
+      const rawStatus = (payload && (payload.raceStatus || payload.status || payload.state)) ||
+        (payload && payload.race && (payload.race.raceStatus || payload.race.status || payload.race.state)) ||
+        msg.status || msg.raceStatus || msg.state;
+
+      const rawMsgType = String(msg.type || msg.action || msg.event || "").toLowerCase();
+
+      let detectedCountdown = null;
+      if (typeof payload.countdown === "number" && !isNaN(payload.countdown)) {
+        detectedCountdown = payload.countdown;
+      } else if (typeof msg.countdown === "number" && !isNaN(msg.countdown)) {
+        detectedCountdown = msg.countdown;
+      } else if ((rawMsgType === "countdown" || rawMsgType === "starting") && typeof msg.value === "number") {
+        detectedCountdown = msg.value;
+      } else if ((rawMsgType === "countdown" || rawMsgType === "starting") && typeof msg.seconds === "number") {
+        detectedCountdown = msg.seconds;
+      }
+
+      const rawStartTime = (payload && (payload.startTime || payload.startDate || payload.start_time)) ||
+        (payload && payload.race && (payload.race.startTime || payload.race.startDate || payload.race.start_time)) ||
+        msg.startTime || msg.startDate || msg.start_time;
+
+      if (detectedCountdown !== null) {
+        if (detectedCountdown > 0) {
+          countdownTargetMs = Date.now() + (detectedCountdown * 1000);
+          countdownSeconds = Math.ceil(detectedCountdown);
+          raceStatus = "starting";
+          pushRaceEvent({
+            type: "countdown",
+            text: `Race starting in ${countdownSeconds}s`,
+            timestamp: Date.now()
+          });
+        } else {
+          countdownTargetMs = null;
+          countdownSeconds = 0;
+          raceStatus = "in_progress";
+          pushRaceEvent({
+            type: "started",
+            text: "Race started! Good luck!",
+            timestamp: Date.now()
+          });
+        }
+      } else if (rawStartTime) {
+        let sMs = 0;
+        if (typeof rawStartTime === "number") {
+          sMs = rawStartTime > 1e11 ? rawStartTime : (rawStartTime * 1000);
+        } else if (typeof rawStartTime === "string") {
+          const parsed = Date.parse(rawStartTime);
+          if (!isNaN(parsed)) sMs = parsed;
+        }
+        if (sMs > Date.now()) {
+          countdownTargetMs = sMs;
+          raceStatus = "starting";
+          const remSec = Math.ceil((sMs - Date.now()) / 1000);
+          pushRaceEvent({
+            type: "countdown",
+            text: `Race starting in ${remSec}s`,
+            timestamp: Date.now()
+          });
+        } else if (sMs > 0 && Date.now() >= sMs && raceStatus === "starting") {
+          countdownTargetMs = null;
+          countdownSeconds = 0;
+          raceStatus = "in_progress";
+          pushRaceEvent({
+            type: "started",
+            text: "Race started! Good luck!",
+            timestamp: Date.now()
+          });
+        }
+      }
+
+      if (rawStatus && typeof rawStatus === "string") {
+        const s = rawStatus.toLowerCase().trim();
+        if (s === "starting" || s === "countdown") {
+          raceStatus = "starting";
+        } else if (s === "started" || s === "in_progress" || s === "progress") {
+          raceStatus = "in_progress";
+          countdownTargetMs = null;
+          countdownSeconds = null;
+        } else if (s === "finished" || s === "confirmed") {
+          raceStatus = "finished";
+          countdownTargetMs = null;
+          countdownSeconds = null;
+        } else if (s === "pending" || s === "open" || s === "lobby" || s === "ready" || s === "waiting") {
+          if (raceStatus !== "starting") {
+            raceStatus = "open";
+          }
+        }
+      }
+
+      const raceMsgType = String((msg.type === "message" && payload && payload.type) || msg.type || "").toLowerCase().trim();
+      const raceMsgData = (payload && payload.data && typeof payload.data === "object") ? payload.data : null;
+
+      if (raceMsgType === "race-starting" || raceMsgType === "race_starting") {
+        raceStatus = "starting";
+      } else if (raceMsgType === "race-start-canceled" || raceMsgType === "race_start_canceled") {
+        raceStatus = "open";
+        countdownTargetMs = null;
+        countdownSeconds = null;
+        pushRaceEvent({
+          type: "canceled",
+          text: "Race countdown canceled",
+          timestamp: Date.now()
+        });
+      } else if (raceMsgType === "race-started" || raceMsgType === "race_started") {
+        raceStatus = "in_progress";
+        countdownTargetMs = null;
+        countdownSeconds = 0;
+        pushRaceEvent({
+          type: "started",
+          text: "Race started! Good luck!",
+          timestamp: Date.now()
+        });
+      } else if (raceMsgType === "race-finish" || raceMsgType === "race-abort") {
+        raceStatus = "finished";
+        countdownTargetMs = null;
+        countdownSeconds = null;
+      } else if (raceMsgType === "participant-ready") {
+        const u = raceMsgData?.user || payload.user;
+        if (u) updateEntrantFromTelemetry({ user: u, status: "ready" });
+      } else if (raceMsgType === "participant-unready") {
+        const u = raceMsgData?.user || payload.user;
+        if (u) updateEntrantFromTelemetry({ user: u, status: "joined" });
+      } else if (raceMsgType === "participant-join") {
+        const u = raceMsgData?.user || payload.user;
+        if (u) updateEntrantFromTelemetry({ user: u, status: "joined" });
+      } else if (raceMsgType === "participant-unjoin") {
+        const u = raceMsgData?.user || payload.user;
+        if (u) updateEntrantFromTelemetry({ user: u, status: "unjoined" });
+      } else if (raceMsgType === "participant-abandon") {
+        const u = raceMsgData?.user || payload.user;
+        if (u) updateEntrantFromTelemetry({ user: u, status: "abandoned" });
+      } else if (raceMsgType === "participant-split" && raceMsgData) {
+        updateEntrantFromTelemetry({
+          user: raceMsgData.user,
+          currentSplitName: raceMsgData.splitName,
+          currentTime: raceMsgData.time,
+          runPercentage: raceMsgData.percentage
+        });
+      }
+
+      if (rawMsgType === "race_started" || rawMsgType === "start" || rawMsgType === "go") {
+        raceStatus = "in_progress";
+        countdownTargetMs = null;
+        countdownSeconds = 0;
+        pushRaceEvent({
+          type: "started",
+          text: "Race started! Good luck!",
+          timestamp: Date.now()
+        });
+      }
 
       // Handle full entrants/participants snapshot or incremental runner update
       if (Array.isArray(payload)) {
@@ -1549,6 +1779,8 @@
       } else if (payload.participant && typeof payload.participant === "object") {
         updateEntrantFromTelemetry(payload.participant);
       } else if (payload.user || payload.username || payload.userId) {
+        updateEntrantFromTelemetry(payload);
+      } else if (msg.user || msg.username || msg.userId) {
         updateEntrantFromTelemetry(payload);
       }
 
@@ -1566,14 +1798,59 @@
         return; // Standalone host state handled locally
       }
 
-      const statusStr = String(data.status?.value || data.status || "").toLowerCase();
+      const rawSplitName = (live && live.currentSplitName) || data.currentSplitName || "";
+      const rawName = data.user || data.username || data.login || (live && (live.user || live.username || live.login)) || uId;
+      let statusStr = "";
+      if (data.status !== undefined && data.status !== null) {
+        statusStr = String(data.status?.value || data.status?.name || data.status?.text || data.status || "").toLowerCase().trim();
+      }
+      if (!statusStr) {
+        if (data.ready === true || data.isReady === true || (live && (live.ready === true || live.isReady === true))) {
+          statusStr = "ready";
+        } else if (data.ready === false || data.isReady === false || (live && (live.ready === false || live.isReady === false))) {
+          statusStr = "joined";
+        } else if (data.action) {
+          const act = String(data.action).toLowerCase().trim();
+          if (act === "ready") statusStr = "ready";
+          else if (act === "unready" || act === "not_ready" || act === "notready") statusStr = "joined";
+          else if (act === "joined" || act === "join") statusStr = "joined";
+          else if (act === "leave" || act === "left" || act === "unjoin") statusStr = "unjoined";
+        } else if (data.type) {
+          const t = String(data.type).toLowerCase().trim();
+          if (t === "ready") statusStr = "ready";
+          else if (t === "unready" || t === "not_ready" || t === "notready") statusStr = "joined";
+          else if (t === "joined" || t === "join") statusStr = "joined";
+          else if (t === "leave" || t === "left" || t === "unjoin") statusStr = "unjoined";
+        }
+      }
+      if (statusStr === "unready" || statusStr === "not_ready" || statusStr === "notready") {
+        statusStr = "joined";
+      }
+
+      // Look up entrant by uId or matching username to avoid duplicate entries across event types
+      let existing = entrants.get(uId);
+      if (!existing && rawName) {
+        for (const [id, e] of entrants.entries()) {
+          if (e.username && String(e.username).toLowerCase() === String(rawName).toLowerCase()) {
+            existing = e;
+            break;
+          }
+        }
+      }
       if (statusStr === "unjoined" || statusStr === "left" || statusStr === "removed") {
-        entrants.delete(uId);
+        const targetId = existing ? existing.userId : uId;
+        entrants.delete(targetId);
+        pushRaceEvent({
+          type: "leave",
+          user: rawName,
+          text: `${rawName} left the race`,
+          timestamp: Date.now()
+        });
         lastKnownRanks.delete(uId);
         return;
       }
 
-      const rawName = data.user || data.username || data.login || (live && (live.user || live.username || live.login)) || uId;
+
       const isMatchedHost = !!(hostUsername && (
         String(rawName).trim().toLowerCase() === hostUsername.toLowerCase() ||
         String(uId).trim().toLowerCase() === hostUsername.toLowerCase()
@@ -1581,21 +1858,48 @@
 
       const rawPic = data.picture || data.avatar || (live && (live.picture || live.avatar)) || "";
 
-      const existing = entrants.get(uId) || {
-        userId: uId,
-        username: rawName,
-        avatar: rawPic,
-        color: isMatchedHost ? "#38bdf8" : RACER_PALETTE[entrants.size % RACER_PALETTE.length],
-        isHost: isMatchedHost,
-        currentSplitIndex: 0,
-        currentSplitName: "",
-        currentTimeSec: 0,
-        splitTimes: [],
-        isFinished: false,
-        finalTimeSec: null,
-        score: 0,
-        isMuted: false
-      };
+      if (!existing) {
+        existing = {
+          userId: uId,
+          username: rawName,
+          avatar: rawPic,
+          color: isMatchedHost ? "#38bdf8" : RACER_PALETTE[entrants.size % RACER_PALETTE.length],
+          isHost: isMatchedHost,
+          currentSplitIndex: 0,
+          currentSplitName: rawSplitName || "Split 1",
+          currentTimeSec: 0,
+          splitTimes: [],
+          isFinished: false,
+          finalTimeSec: null,
+          score: 0,
+          isMuted: false,
+          status: statusStr || "joined",
+          isReady: (statusStr === "ready")
+        };
+        entrants.set(uId, existing);
+        pushRaceEvent({
+          type: "join",
+          user: rawName,
+          text: `${rawName} joined the race`,
+          timestamp: Date.now()
+        });
+      } else if (statusStr && existing.status && existing.status !== statusStr) {
+        if (statusStr === "ready") {
+          pushRaceEvent({
+            type: "ready",
+            user: rawName,
+            text: `${rawName} is Ready`,
+            timestamp: Date.now()
+          });
+        } else if (statusStr === "joined") {
+          pushRaceEvent({
+            type: "unready",
+            user: rawName,
+            text: `${rawName} unreadied (Joined)`,
+            timestamp: Date.now()
+          });
+        }
+      }
 
       existing.username = rawName;
       existing.isHost = isMatchedHost;
@@ -1615,12 +1919,19 @@
       }
       existing.reportedTimeSec = existing.currentTimeSec;
       existing.lastUpdateTimestamp = Date.now();
+      if (live && typeof live.timeToNextSplit === "number" && live.timeToNextSplit > 0) {
+        existing.timeToNextSplit = live.timeToNextSplit > 500 ? (live.timeToNextSplit / 1000) : live.timeToNextSplit;
+      }
+      if (live && typeof live.streaming === "boolean") {
+        existing.isStreaming = live.streaming;
+      }
 
       if (live && typeof live.splitStartedAt === "number" && live.splitStartedAt > 0) {
         existing.splitStartedAt = live.splitStartedAt;
       }
       if (data.status) {
-        existing.status = String(data.status?.value || data.status || "").toLowerCase();
+        existing.status = statusStr;
+        existing.isReady = (statusStr === "ready");
       }
 
       const rawDelta = (live && live.delta !== undefined) ? live.delta : data.delta;
@@ -1654,7 +1965,7 @@
       const rawSplitIdx = (live && typeof live.currentSplitIndex === "number")
         ? live.currentSplitIndex
         : data.currentSplitIndex;
-      const rawSplitName = (live && live.currentSplitName) || data.currentSplitName;
+      // rawSplitName declared at top of updateEntrantFromTelemetry
       const rawIsGold = (live && (live.isGold === true || live.gold === true || live.split?.isGold === true)) ||
         data.isGold === true || data.gold === true || data.split?.isGold === true;
 
@@ -1704,10 +2015,9 @@
 
       if (rawSplitName) {
         existing.currentSplitName = rawSplitName;
-      } else if (!existing.currentSplitName && (statusStr === "ready" || statusStr === "joined")) {
-        existing.currentSplitName = statusStr === "ready" ? "Ready" : "Joined";
+      } else if (!existing.currentSplitName) {
+        existing.currentSplitName = "Split 1";
       }
-
       const rawSplits = (live && (Array.isArray(live.splits) ? live.splits : (live.runData && Array.isArray(live.runData.splits) ? live.runData.splits : null)))
         || (Array.isArray(data.splits) ? data.splits : null);
       if (Array.isArray(rawSplits)) {
@@ -1838,13 +2148,137 @@
     /**
      * Starts realistic live race simulation with 3 virtual competitors.
      */
-    function startSimulation(splitsList = [], comparisonTimes = [], comparisonTimesRT = []) {
+    function startSimLobbySequence() {
+      clearSimLobbyTimers();
+      raceStatus = "open";
+      countdownTargetMs = null;
+      countdownSeconds = null;
+      recentRaceEvents.length = 0;
+
+      pushRaceEvent({
+        type: "join",
+        user: hostState.username || "You",
+        text: `Race lobby opened (${entrants.size} runners)`,
+        timestamp: Date.now()
+      });
+
+      const t1 = setTimeout(() => {
+        if (!isSimulating || raceStatus !== "open") return;
+        const e1 = entrants.get("sim_speeddemon");
+        const e2 = entrants.get("sim_pixelknight");
+        if (e1) { e1.status = "ready"; e1.isReady = true; }
+        if (e2) { e2.status = "ready"; e2.isReady = true; }
+        pushRaceEvent({
+          type: "ready",
+          user: "SpeedDemon",
+          text: "SpeedDemon is Ready",
+          timestamp: Date.now()
+        });
+        notifyListeners("entrant_updated", null);
+      }, 500);
+      simLobbyTimers.push(t1);
+
+      const t2 = setTimeout(() => {
+        if (!isSimulating || raceStatus !== "open") return;
+        ["sim_turboblaze", "sim_apex", "sim_frostbyte"].forEach(id => {
+          const e = entrants.get(id);
+          if (e) { e.status = "ready"; e.isReady = true; }
+        });
+        pushRaceEvent({
+          type: "ready",
+          user: "TurboBlaze",
+          text: "TurboBlaze is Ready",
+          timestamp: Date.now()
+        });
+        notifyListeners("entrant_updated", null);
+      }, 1100);
+      simLobbyTimers.push(t2);
+
+      const t3 = setTimeout(() => {
+        if (!isSimulating || raceStatus !== "open") return;
+        entrants.forEach(e => {
+          e.status = "ready";
+          e.isReady = true;
+        });
+        pushRaceEvent({
+          type: "ready",
+          user: "ShadowPacer",
+          text: "All runners are ready!",
+          timestamp: Date.now()
+        });
+        notifyListeners("entrant_updated", null);
+      }, 1700);
+      simLobbyTimers.push(t3);
+
+      const t4 = setTimeout(() => {
+        if (!isSimulating || raceStatus !== "open") return;
+        raceStatus = "starting";
+        countdownTargetMs = Date.now() + 3000;
+        countdownSeconds = 3;
+        pushRaceEvent({
+          type: "starting",
+          text: "Race countdown: 3s!",
+          timestamp: Date.now()
+        });
+        notifyListeners("race_countdown", { countdown: 3 });
+
+        const t4_2 = setTimeout(() => {
+          if (!isSimulating || raceStatus !== "starting") return;
+          countdownSeconds = 2;
+          notifyListeners("race_countdown", { countdown: 2 });
+        }, 1000);
+        simLobbyTimers.push(t4_2);
+
+        const t4_1 = setTimeout(() => {
+          if (!isSimulating || raceStatus !== "starting") return;
+          countdownSeconds = 1;
+          notifyListeners("race_countdown", { countdown: 1 });
+        }, 2000);
+        simLobbyTimers.push(t4_1);
+
+        const t4_go = setTimeout(() => {
+          if (!isSimulating) return;
+          raceStatus = "in_progress";
+          countdownSeconds = 0;
+          countdownTargetMs = null;
+          entrants.forEach(e => {
+            e.status = "started";
+          });
+          pushRaceEvent({
+            type: "started",
+            text: "Race started! Good luck!",
+            timestamp: Date.now()
+          });
+          notifyListeners("race_started", null);
+          const t4_clear = setTimeout(() => {
+            if (!isSimulating) return;
+            if (countdownSeconds === 0) {
+              countdownSeconds = null;
+              notifyListeners("entrant_updated", null);
+            }
+          }, 1500);
+          simLobbyTimers.push(t4_clear);
+        }, 3000);
+        simLobbyTimers.push(t4_go);
+
+      }, 2300);
+      simLobbyTimers.push(t4);
+    }
+
+    function startSimulation(splitsList = [], comparisonTimes = [], comparisonTimesRT = [], opts = {}) {
       clearRunStartLookupTimers();
+      clearSimLobbyTimers();
       setStandby(false);
       stopSimulation();
       isSimulating = true;
       raceId = "sim_cup_2026";
-      const preserveLiveHost = (lastExternalHostUpdate > 0 && hostState.currentTimeSec > 0);
+      const withLobby = !!(opts && opts.withLobby);
+      simHasLobby = withLobby;
+      raceStatus = withLobby ? "open" : "in_progress";
+      countdownTargetMs = null;
+      countdownSeconds = null;
+      recentRaceEvents.length = 0;
+      const preserveLiveHost = !withLobby && (lastExternalHostUpdate > 0 && hostState.currentTimeSec > 0);
       if (!preserveLiveHost) {
         lastHostGameTimeSec = 0;
         lastHostRealTimeSec = 0;
@@ -1901,6 +2335,8 @@
       hostState.isDNF = false;
       hostState.dnfTimeSec = null;
       hostState.lastSplitEffect = null;
+      hostState.status = withLobby ? "ready" : "started";
+      hostState.isReady = true;
 
       entrants.clear();
       entrants.set(hostState.userId, Object.assign({}, hostState));
@@ -1975,7 +2411,10 @@
           dnfTimeSec: null,
           score: 0,
           isMuted: false,
-          lastSplitEffect: null
+          lastSplitEffect: null,
+          pbSec: isRT ? (pbCheckpointTimesRT[pbCheckpointTimesRT.length - 1] || 0) : (pbCheckpointTimesGT[pbCheckpointTimesGT.length - 1] || 0),
+          status: withLobby ? "joined" : "started",
+          isReady: !withLobby
         });
       });
 
@@ -1986,9 +2425,14 @@
 
       notifyListeners("race_connected", { raceId, isSimulated: true });
 
+      if (withLobby) {
+        startSimLobbySequence();
+      }
+
       simVirtualSec = hostState.currentTimeSec || 0;
 
       function advanceVirtualHost(baseSec) {
+        if (raceStatus !== "in_progress") return;
         if (hostState.isDNF) return;
         simVirtualSec = baseSec + 0.05;
         let curIdx = 0;
@@ -2030,6 +2474,11 @@
         const now = Date.now();
         const dt = Math.min(0.2, Math.max(0.01, (now - (lastSimTickTimestamp || now)) / 1000));
         lastSimTickTimestamp = now;
+
+        if (raceStatus !== "in_progress") {
+          notifyListeners("entrant_updated", null);
+          return;
+        }
 
         const isExternalHostConnected = (lastExternalHostUpdate > 0);
 
@@ -2081,7 +2530,9 @@
     }
 
     function stopSimulation() {
+      simHasLobby = false;
       clearRunStartLookupTimers();
+      clearSimLobbyTimers();
       setStandby(false);
       if (simulationTimer) {
         clearInterval(simulationTimer);
@@ -2091,6 +2542,10 @@
       if (isSimulating) {
         isSimulating = false;
         raceId = null;
+      raceStatus = "open";
+      countdownTargetMs = null;
+      countdownSeconds = null;
+      recentRaceEvents.length = 0;
         hostState.currentTimeSec = 0;
         hostState.currentSplitIndex = 0;
         hostState.currentSplitName = "Start";
@@ -2112,6 +2567,7 @@
      */
     function tickSimulatedCompetitors(hostSec, dt = 0.05) {
       if (!isSimulating) return;
+      if (raceStatus !== "in_progress") return;
       const isRT = (currentTimingMethod === "RealTime");
       const activeTargets = isRT
         ? (simulationCourseTargetsRT.length > 0 ? simulationCourseTargetsRT : simulationCourseTargets)
@@ -2338,6 +2794,23 @@
 
       lastKnownRanks.clear();
       checkpointRankHistory.clear();
+
+      if (isSimulating) {
+        simHasLobby = true;
+        clearSimLobbyTimers();
+        raceStatus = "open";
+        countdownTargetMs = null;
+        countdownSeconds = null;
+        hostState.status = "ready";
+        hostState.isReady = true;
+        entrants.forEach((racer) => {
+          if (!racer.isHost) {
+            racer.status = "joined";
+            racer.isReady = false;
+          }
+        });
+        startSimLobbySequence();
+      }
       notifyListeners("race_reset", null);
       if (typeof window !== "undefined" && window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.reset === "function") {
         window.LiveSplitLeaderboard.reset();
@@ -2380,6 +2853,10 @@
       isSimulating: () => isSimulating,
       isConnected: () => Boolean(raceId && !isSimulating),
       getRaceId: () => raceId,
+      getRaceStatus: () => raceStatus,
+      getCountdownSec,
+      getRecentEvents: () => recentRaceEvents.slice(),
+      getLatestEvent: () => (recentRaceEvents.length > 0 ? recentRaceEvents[recentRaceEvents.length - 1] : null),
       updateHostProgress,
       handleRaceMessage,
       getRankedEntrants,
