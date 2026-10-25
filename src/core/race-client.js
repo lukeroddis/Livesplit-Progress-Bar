@@ -195,6 +195,7 @@
     let pendingSimConfig = null;
     let simLobbyTimers = [];
     let simHasLobby = false;
+    let simProgressiveLobby = false;
     function clearSimLobbyTimers() {
       if (Array.isArray(simLobbyTimers)) {
         simLobbyTimers.forEach(t => clearTimeout(t));
@@ -1424,6 +1425,11 @@
           raceStatus = "in_progress";
           countdownSeconds = 0;
           countdownTargetMs = null;
+          SIMULATED_COMPETITORS.forEach(cfg => {
+            if (!entrants.has(cfg.id)) {
+              entrants.set(cfg.id, createSimulatedCompetitorEntrant(cfg, false));
+            }
+          });
           entrants.forEach(e => {
             e.status = "started";
             e.isReady = true;
@@ -2228,123 +2234,281 @@
     // ============================================================
 
     /**
-     * Starts realistic live race simulation with 3 virtual competitors.
+     * Schedules the 3-second pre-race countdown and transition to in_progress (GO!).
      */
-    function startSimLobbySequence() {
+    function scheduleSimCountdown() {
+      if (!isSimulating || (raceStatus !== "open" && raceStatus !== "lobby")) return;
+      raceStatus = "starting";
+      countdownTargetMs = Date.now() + 3000;
+      countdownSeconds = 3;
+      pushRaceEvent({
+        type: "starting",
+        text: "Race countdown: 3s!",
+        timestamp: Date.now()
+      });
+      notifyListeners("race_countdown", { countdown: 3 });
+
+      const t4_2 = setTimeout(() => {
+        if (!isSimulating || raceStatus !== "starting") return;
+        countdownSeconds = 2;
+        notifyListeners("race_countdown", { countdown: 2 });
+      }, 1000);
+      simLobbyTimers.push(t4_2);
+
+      const t4_1 = setTimeout(() => {
+        if (!isSimulating || raceStatus !== "starting") return;
+        countdownSeconds = 1;
+        notifyListeners("race_countdown", { countdown: 1 });
+      }, 2000);
+      simLobbyTimers.push(t4_1);
+
+      const t4_go = setTimeout(() => {
+        if (!isSimulating) return;
+        raceStatus = "in_progress";
+        countdownSeconds = 0;
+        countdownTargetMs = null;
+        SIMULATED_COMPETITORS.forEach(cfg => {
+          if (!entrants.has(cfg.id)) {
+            entrants.set(cfg.id, createSimulatedCompetitorEntrant(cfg, false));
+          }
+        });
+        entrants.forEach(e => {
+          e.status = "started";
+          e.isReady = true;
+        });
+        pushRaceEvent({
+          type: "started",
+          text: "Race started! Good luck!",
+          timestamp: Date.now()
+        });
+        notifyListeners("race_started", null);
+        const t4_clear = setTimeout(() => {
+          if (!isSimulating) return;
+          if (countdownSeconds === 0) {
+            countdownSeconds = null;
+            notifyListeners("entrant_updated", null);
+          }
+        }, 1500);
+        simLobbyTimers.push(t4_clear);
+      }, 3000);
+      simLobbyTimers.push(t4_go);
+    }
+
+    /**
+     * Starts realistic live race simulation lobby sequence.
+     * When isProgressive is true:
+     * - Phase 1 (0s to 5s): Competitors join 1-by-1, increasing leaderboard size from 1 to 10
+     * - Phase 2 (5s to 10s): Competitors click Ready 1-by-1
+     * - Phase 3 (10.5s): Countdown begins (3, 2, 1, GO!)
+     */
+    function startSimLobbySequence(isProgressive = true) {
       clearSimLobbyTimers();
       raceStatus = "open";
       countdownTargetMs = null;
       countdownSeconds = null;
       recentRaceEvents.length = 0;
 
+      if (!isProgressive) {
+        pushRaceEvent({
+          type: "join",
+          user: hostState.username || "You",
+          text: `Race lobby opened (${entrants.size} runners)`,
+          timestamp: Date.now()
+        });
+
+        const t1 = setTimeout(() => {
+          if (!isSimulating || (raceStatus !== "open" && raceStatus !== "lobby")) return;
+          const e1 = entrants.get("sim_speeddemon");
+          const e2 = entrants.get("sim_pixelknight");
+          if (e1) { e1.status = "ready"; e1.isReady = true; }
+          if (e2) { e2.status = "ready"; e2.isReady = true; }
+          pushRaceEvent({
+            type: "ready",
+            user: "SpeedDemon",
+            text: "SpeedDemon is Ready",
+            timestamp: Date.now()
+          });
+          notifyListeners("entrant_updated", null);
+        }, 500);
+        simLobbyTimers.push(t1);
+
+        const t2 = setTimeout(() => {
+          if (!isSimulating || (raceStatus !== "open" && raceStatus !== "lobby")) return;
+          ["sim_turboblaze", "sim_apex", "sim_frostbyte"].forEach(id => {
+            const e = entrants.get(id);
+            if (e) { e.status = "ready"; e.isReady = true; }
+          });
+          pushRaceEvent({
+            type: "ready",
+            user: "TurboBlaze",
+            text: "TurboBlaze is Ready",
+            timestamp: Date.now()
+          });
+          notifyListeners("entrant_updated", null);
+        }, 1100);
+        simLobbyTimers.push(t2);
+
+        const t3 = setTimeout(() => {
+          if (!isSimulating || (raceStatus !== "open" && raceStatus !== "lobby")) return;
+          entrants.forEach(e => {
+            e.status = "ready";
+            e.isReady = true;
+          });
+          pushRaceEvent({
+            type: "ready",
+            user: "ShadowPacer",
+            text: "All runners are ready!",
+            timestamp: Date.now()
+          });
+          notifyListeners("entrant_updated", null);
+        }, 1700);
+        simLobbyTimers.push(t3);
+
+        const t4 = setTimeout(() => {
+          scheduleSimCountdown();
+        }, 2300);
+        simLobbyTimers.push(t4);
+        return;
+      }
+
       pushRaceEvent({
         type: "join",
         user: hostState.username || "You",
-        text: `Race lobby opened (${entrants.size} runners)`,
+        text: "Race lobby opened",
         timestamp: Date.now()
       });
+      notifyListeners("entrant_updated", null);
 
-      const t1 = setTimeout(() => {
-        if (!isSimulating || raceStatus !== "open") return;
-        const e1 = entrants.get("sim_speeddemon");
-        const e2 = entrants.get("sim_pixelknight");
-        if (e1) { e1.status = "ready"; e1.isReady = true; }
-        if (e2) { e2.status = "ready"; e2.isReady = true; }
-        pushRaceEvent({
-          type: "ready",
-          user: "SpeedDemon",
-          text: "SpeedDemon is Ready",
-          timestamp: Date.now()
-        });
-        notifyListeners("entrant_updated", null);
-      }, 500);
-      simLobbyTimers.push(t1);
-
-      const t2 = setTimeout(() => {
-        if (!isSimulating || raceStatus !== "open") return;
-        ["sim_turboblaze", "sim_apex", "sim_frostbyte"].forEach(id => {
-          const e = entrants.get(id);
-          if (e) { e.status = "ready"; e.isReady = true; }
-        });
-        pushRaceEvent({
-          type: "ready",
-          user: "TurboBlaze",
-          text: "TurboBlaze is Ready",
-          timestamp: Date.now()
-        });
-        notifyListeners("entrant_updated", null);
-      }, 1100);
-      simLobbyTimers.push(t2);
-
-      const t3 = setTimeout(() => {
-        if (!isSimulating || raceStatus !== "open") return;
-        entrants.forEach(e => {
-          e.status = "ready";
-          e.isReady = true;
-        });
-        pushRaceEvent({
-          type: "ready",
-          user: "ShadowPacer",
-          text: "All runners are ready!",
-          timestamp: Date.now()
-        });
-        notifyListeners("entrant_updated", null);
-      }, 1700);
-      simLobbyTimers.push(t3);
-
-      const t4 = setTimeout(() => {
-        if (!isSimulating || raceStatus !== "open") return;
-        raceStatus = "starting";
-        countdownTargetMs = Date.now() + 3000;
-        countdownSeconds = 3;
-        pushRaceEvent({
-          type: "starting",
-          text: "Race countdown: 3s!",
-          timestamp: Date.now()
-        });
-        notifyListeners("race_countdown", { countdown: 3 });
-
-        const t4_2 = setTimeout(() => {
-          if (!isSimulating || raceStatus !== "starting") return;
-          countdownSeconds = 2;
-          notifyListeners("race_countdown", { countdown: 2 });
-        }, 1000);
-        simLobbyTimers.push(t4_2);
-
-        const t4_1 = setTimeout(() => {
-          if (!isSimulating || raceStatus !== "starting") return;
-          countdownSeconds = 1;
-          notifyListeners("race_countdown", { countdown: 1 });
-        }, 2000);
-        simLobbyTimers.push(t4_1);
-
-        const t4_go = setTimeout(() => {
-          if (!isSimulating) return;
-          raceStatus = "in_progress";
-          countdownSeconds = 0;
-          countdownTargetMs = null;
-          entrants.forEach(e => {
-            e.status = "started";
-          });
+      // Join Schedule (9 competitors joining one by one over ~5 seconds)
+      const joinDelays = [500, 1000, 1600, 2100, 2700, 3200, 3800, 4400, 5000];
+      SIMULATED_COMPETITORS.forEach((cfg, idx) => {
+        const delay = joinDelays[idx] || ((idx + 1) * 550);
+        const tJoin = setTimeout(() => {
+          if (!isSimulating || (raceStatus !== "open" && raceStatus !== "lobby")) return;
+          if (!entrants.has(cfg.id)) {
+            const entrant = createSimulatedCompetitorEntrant(cfg, true);
+            entrant.status = "joined";
+            entrant.isReady = false;
+            entrants.set(cfg.id, entrant);
+          }
           pushRaceEvent({
-            type: "started",
-            text: "Race started! Good luck!",
+            type: "join",
+            user: cfg.username,
+            text: `${cfg.username} joined the race`,
             timestamp: Date.now()
           });
-          notifyListeners("race_started", null);
-          const t4_clear = setTimeout(() => {
-            if (!isSimulating) return;
-            if (countdownSeconds === 0) {
-              countdownSeconds = null;
-              notifyListeners("entrant_updated", null);
-            }
-          }, 1500);
-          simLobbyTimers.push(t4_clear);
-        }, 3000);
-        simLobbyTimers.push(t4_go);
+          notifyListeners("entrant_updated", null);
+        }, delay);
+        simLobbyTimers.push(tJoin);
+      });
 
-      }, 2300);
-      simLobbyTimers.push(t4);
+      // Ready-Up Schedule (9 competitors readying up one by one over subsequent ~5 seconds: 5.5s to 10.0s)
+      const readyDelays = [5500, 6000, 6600, 7100, 7700, 8200, 8800, 9400, 10000];
+      SIMULATED_COMPETITORS.forEach((cfg, idx) => {
+        const delay = readyDelays[idx] || (5500 + (idx * 500));
+        const isLast = (idx === SIMULATED_COMPETITORS.length - 1);
+        const tReady = setTimeout(() => {
+          if (!isSimulating || (raceStatus !== "open" && raceStatus !== "lobby")) return;
+          let entrant = entrants.get(cfg.id);
+          if (!entrant) {
+            entrant = createSimulatedCompetitorEntrant(cfg, true);
+            entrants.set(cfg.id, entrant);
+          }
+          entrant.status = "ready";
+          entrant.isReady = true;
+          pushRaceEvent({
+            type: "ready",
+            user: cfg.username,
+            text: isLast ? `All runners are ready! (${entrants.size}/${entrants.size})` : `${cfg.username} is Ready`,
+            timestamp: Date.now()
+          });
+          notifyListeners("entrant_updated", null);
+        }, delay);
+        simLobbyTimers.push(tReady);
+      });
+
+      // Countdown Schedule (starts at 10.5s after all runners are ready)
+      const tCountdown = setTimeout(() => {
+        scheduleSimCountdown();
+      }, 10500);
+      simLobbyTimers.push(tCountdown);
+    }
+
+    /**
+     * Builds entrant object for a simulated competitor.
+     */
+    function createSimulatedCompetitorEntrant(cfg, withLobby = false) {
+      const isRT = (currentTimingMethod === "RealTime");
+      const checkpointTimesGT = [];
+      const pbCheckpointTimesGT = [];
+      const checkpointTimesRT = [];
+      const pbCheckpointTimesRT = [];
+      let cumTimeGT = 0, cumPbGT = 0;
+      let cumTimeRT = 0, cumPbRT = 0;
+
+      for (let k = 0; k < simulationCourseTargets.length; k++) {
+        const prevT_GT = k > 0 ? simulationCourseTargets[k - 1] : 0;
+        const baseSegGT = Math.max(1, simulationCourseTargets[k] - prevT_GT);
+
+        const prevT_RT = k > 0 ? simulationCourseTargetsRT[k - 1] : 0;
+        const baseSegRT = Math.max(1, simulationCourseTargetsRT[k] - prevT_RT);
+
+        // Expected Personal Best segment duration
+        const pbSegGT = Math.max(0.5, baseSegGT * cfg.paceFactor);
+        cumPbGT += pbSegGT;
+        pbCheckpointTimesGT.push(cumPbGT);
+
+        const pbSegRT = Math.max(0.5, baseSegRT * cfg.paceFactor);
+        cumPbRT += pbSegRT;
+        pbCheckpointTimesRT.push(cumPbRT);
+
+        // Actual simulated segment duration with variance / swing (-12% to +14%)
+        const seed = Math.sin((k + 1) * 12.9898 + (cfg.driftOffset * 78.233)) * 43758.5453;
+        const pseudoRand = (seed - Math.floor(seed)) * 2.0 - 1.0;
+        const wave = Math.sin((k + 1) * 2.1 + cfg.driftOffset);
+        const swingPercent = (wave * 0.08) + (pseudoRand * 0.06);
+
+        const segDurGT = Math.max(0.5, baseSegGT * (cfg.paceFactor + swingPercent));
+        cumTimeGT += segDurGT;
+        checkpointTimesGT.push(cumTimeGT);
+
+        const segDurRT = Math.max(0.5, baseSegRT * (cfg.paceFactor + swingPercent));
+        cumTimeRT += segDurRT;
+        checkpointTimesRT.push(cumTimeRT);
+      }
+
+      return {
+        userId: cfg.id,
+        username: cfg.username,
+        avatar: cfg.avatar,
+        color: cfg.color,
+        paceFactor: cfg.paceFactor,
+        driftOffset: cfg.driftOffset,
+        checkpointTimesGT,
+        checkpointTimesRT,
+        pbCheckpointTimesGT,
+        pbCheckpointTimesRT,
+        checkpointTimes: isRT ? checkpointTimesRT : checkpointTimesGT,
+        pbCheckpointTimes: isRT ? pbCheckpointTimesRT : pbCheckpointTimesGT,
+        currentSplitIndex: 0,
+        currentSplitName: activeSplitsList[0] || "Split 1",
+        currentTimeSec: 0,
+        currentTimeSecGT: 0,
+        currentTimeSecRT: 0,
+        splitTimes: [],
+        splitTimesGT: [],
+        splitTimesRT: [],
+        isFinished: false,
+        finalTimeSec: null,
+        isDNF: false,
+        dnfTimeSec: null,
+        score: 0,
+        isMuted: false,
+        lastSplitEffect: null,
+        pbSec: isRT ? (pbCheckpointTimesRT[pbCheckpointTimesRT.length - 1] || 0) : (pbCheckpointTimesGT[pbCheckpointTimesGT.length - 1] || 0),
+        status: withLobby ? "joined" : "started",
+        isReady: !withLobby
+      };
     }
 
     function startSimulation(splitsList = [], comparisonTimes = [], comparisonTimesRT = [], opts = {}) {
@@ -2355,7 +2519,9 @@
       isSimulating = true;
       raceId = "sim_cup_2026";
       const withLobby = !!(opts && opts.withLobby);
+      const isProgressive = withLobby && (opts.progressive !== false) && !opts.immediate && !opts.immediateEntrants;
       simHasLobby = withLobby;
+      simProgressiveLobby = isProgressive;
       raceStatus = withLobby ? "open" : "in_progress";
       countdownTargetMs = null;
       countdownSeconds = null;
@@ -2427,78 +2593,11 @@
 
       const isRT = (currentTimingMethod === "RealTime");
 
-      SIMULATED_COMPETITORS.forEach((cfg) => {
-        const checkpointTimesGT = [];
-        const pbCheckpointTimesGT = [];
-        const checkpointTimesRT = [];
-        const pbCheckpointTimesRT = [];
-        let cumTimeGT = 0, cumPbGT = 0;
-        let cumTimeRT = 0, cumPbRT = 0;
-
-        for (let k = 0; k < simulationCourseTargets.length; k++) {
-          const prevT_GT = k > 0 ? simulationCourseTargets[k - 1] : 0;
-          const baseSegGT = Math.max(1, simulationCourseTargets[k] - prevT_GT);
-
-          const prevT_RT = k > 0 ? simulationCourseTargetsRT[k - 1] : 0;
-          const baseSegRT = Math.max(1, simulationCourseTargetsRT[k] - prevT_RT);
-
-          // Expected Personal Best segment duration
-          const pbSegGT = Math.max(0.5, baseSegGT * cfg.paceFactor);
-          cumPbGT += pbSegGT;
-          pbCheckpointTimesGT.push(cumPbGT);
-
-          const pbSegRT = Math.max(0.5, baseSegRT * cfg.paceFactor);
-          cumPbRT += pbSegRT;
-          pbCheckpointTimesRT.push(cumPbRT);
-
-          // Actual simulated segment duration with variance / swing (-12% to +14%)
-          const seed = Math.sin((k + 1) * 12.9898 + (cfg.driftOffset * 78.233)) * 43758.5453;
-          const pseudoRand = (seed - Math.floor(seed)) * 2.0 - 1.0; // range -1.0 to +1.0
-          const wave = Math.sin((k + 1) * 2.1 + cfg.driftOffset);
-          const swingPercent = (wave * 0.08) + (pseudoRand * 0.06);
-
-          const segDurGT = Math.max(0.5, baseSegGT * (cfg.paceFactor + swingPercent));
-          cumTimeGT += segDurGT;
-          checkpointTimesGT.push(cumTimeGT);
-
-          const segDurRT = Math.max(0.5, baseSegRT * (cfg.paceFactor + swingPercent));
-          cumTimeRT += segDurRT;
-          checkpointTimesRT.push(cumTimeRT);
-        }
-
-        entrants.set(cfg.id, {
-          userId: cfg.id,
-          username: cfg.username,
-          avatar: cfg.avatar,
-          color: cfg.color,
-          paceFactor: cfg.paceFactor,
-          driftOffset: cfg.driftOffset,
-          checkpointTimesGT,
-          checkpointTimesRT,
-          pbCheckpointTimesGT,
-          pbCheckpointTimesRT,
-          checkpointTimes: isRT ? checkpointTimesRT : checkpointTimesGT,
-          pbCheckpointTimes: isRT ? pbCheckpointTimesRT : pbCheckpointTimesGT,
-          currentSplitIndex: 0,
-          currentSplitName: activeSplitsList[0] || "Split 1",
-          currentTimeSec: 0,
-          currentTimeSecGT: 0,
-          currentTimeSecRT: 0,
-          splitTimes: [],
-          splitTimesGT: [],
-          splitTimesRT: [],
-          isFinished: false,
-          finalTimeSec: null,
-          isDNF: false,
-          dnfTimeSec: null,
-          score: 0,
-          isMuted: false,
-          lastSplitEffect: null,
-          pbSec: isRT ? (pbCheckpointTimesRT[pbCheckpointTimesRT.length - 1] || 0) : (pbCheckpointTimesGT[pbCheckpointTimesGT.length - 1] || 0),
-          status: withLobby ? "joined" : "started",
-          isReady: !withLobby
+      if (!withLobby || !isProgressive) {
+        SIMULATED_COMPETITORS.forEach((cfg) => {
+          entrants.set(cfg.id, createSimulatedCompetitorEntrant(cfg, withLobby));
         });
-      });
+      }
 
       if (preserveLiveHost) {
         const activeHostSec = isRT ? (lastHostRealTimeSec || hostState.currentTimeSec) : (lastHostGameTimeSec || hostState.currentTimeSec);
@@ -2508,7 +2607,7 @@
       notifyListeners("race_connected", { raceId, isSimulated: true });
 
       if (withLobby) {
-        startSimLobbySequence();
+        startSimLobbySequence(isProgressive);
       }
 
       simVirtualSec = hostState.currentTimeSec || 0;
@@ -2613,6 +2712,7 @@
 
     function stopSimulation() {
       simHasLobby = false;
+      simProgressiveLobby = false;
       clearRunStartLookupTimers();
       clearSimLobbyTimers();
       setStandby(false);
@@ -2900,13 +3000,19 @@
         countdownSeconds = null;
         hostState.status = "ready";
         hostState.isReady = true;
-        entrants.forEach((racer) => {
-          if (!racer.isHost) {
-            racer.status = "joined";
-            racer.isReady = false;
-          }
-        });
-        startSimLobbySequence();
+        if (simProgressiveLobby) {
+          entrants.clear();
+          entrants.set(hostState.userId, Object.assign({}, hostState));
+          startSimLobbySequence(true);
+        } else {
+          entrants.forEach((racer) => {
+            if (!racer.isHost) {
+              racer.status = "joined";
+              racer.isReady = false;
+            }
+          });
+          startSimLobbySequence(false);
+        }
       }
       notifyListeners("race_reset", null);
       if (typeof window !== "undefined" && window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.reset === "function") {

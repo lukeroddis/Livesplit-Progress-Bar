@@ -3425,7 +3425,7 @@
         rc.stopSimulation();
         rc.disconnectFromRace();
 
-        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true });
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true, immediate: true });
         assertEqual(rc.isSimulating(), true, "Simulation is active");
         assertEqual(rc.getRaceStatus(), "open", "Race status starts in open/lobby state");
 
@@ -3455,13 +3455,45 @@
 
         rc.stopSimulation();
       });
+
+      it("Simulation progressive lobby starts with host, rivals join 1-by-1 and ready up before countdown", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.reset();
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        // 1. Start simulation with progressive lobby (default for UI Test Race)
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true, progressive: true });
+        assertEqual(rc.isSimulating(), true, "Simulation is active");
+        assertEqual(rc.getRaceStatus(), "open", "Race status starts in open/lobby state");
+
+        // Initially only Host ('You') is in the lobby
+        let entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 1, "Initially only 1 runner (Host) in progressive lobby");
+        assertEqual(entrants[0].isHost, true, "First runner is Host");
+        assertEqual(entrants[0].status, "ready", "Host is ready");
+
+        // Calling handleHostRunStarted even before everyone joins immediately brings in all 9 rivals and starts
+        rc.handleHostRunStarted();
+        assertEqual(rc.getRaceStatus(), "in_progress", "Early start cleanly triggers in_progress");
+        entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 10, "All 10 runners are populated and present upon run start");
+        const rivals = entrants.filter(e => !e.isHost);
+        assertEqual(rivals.length, 9, "All 9 competitors are present");
+        rivals.forEach(r => {
+          assertEqual(r.status, "started", `${r.username} status is started`);
+          assertEqual(r.isReady, true, `${r.username} isReady is true`);
+        });
+
+        rc.stopSimulation();
+      });
       it("Simulation pre-race display preserves ready status and PB display during countdown, frozen until GO!", () => {
         const rc = window.LiveSplit.RaceClient;
         rc.reset();
         rc.stopSimulation();
         rc.disconnectFromRace();
 
-        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true });
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true, immediate: true });
         let entrants = rc.getRankedEntrants();
         const comp = entrants.find(e => !e.isHost);
         comp.status = "ready";
@@ -3493,7 +3525,7 @@
         rc.disconnectFromRace();
 
         // 1. Start simulation with lobby
-        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true });
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: true, immediate: true });
         // Advance to in_progress
         rc.handleHostRunStarted();
         assertEqual(rc.getRaceStatus(), "in_progress", "Race is in progress");

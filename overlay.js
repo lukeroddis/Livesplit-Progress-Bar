@@ -4143,7 +4143,7 @@ function initOverlay() {
           const gtComparisons = (comparisonTimesGT && comparisonTimesGT.length > 0) ? comparisonTimesGT : comparisonTimes;
           const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : gtComparisons;
           const isAlreadyRunning = (currentIndex >= 0 && typeof lastElapsedSec === "number" && lastElapsedSec > 0);
-          raceClient.startSimulation(splitsList, gtComparisons, rtComparisons, { withLobby: !isAlreadyRunning });
+          raceClient.startSimulation(splitsList, gtComparisons, rtComparisons, { withLobby: !isAlreadyRunning, progressive: !isAlreadyRunning });
           syncConnectBtnState();
           refreshLeaderboard();
         }
