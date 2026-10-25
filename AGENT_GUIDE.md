@@ -300,12 +300,13 @@ To keep the overlay modular, maintainable, and high-performing as new race and t
   * Reduces [`src/core/race-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-client.js) complexity by >650 lines, keeping it strictly focused on live telemetry, WebSockets, auto-detection, and F1 standings calculations.
   * Allows independent unit testing of simulated competitor drift curves and countdown sequencing without WebSocket connection overhead.
 
-### 4. Modularize Overlay UI Sub-Controllers
-* **Current State**: [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) still contains timer milestone formatters (`formatTimerDisplay`), comparison toast managers (`showComparisonToast`), and global keyboard listener bindings.
-* **Target Architecture**: Progressively decompose secondary sub-controllers into `src/ui/` modules:
-  * `src/ui/toast-manager.js`: HUD comparison and alert toast notifications.
-  * `src/ui/timer-display.js`: Timer formatting and milestone styling.
-* **Benefits**: Leaves [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) as a lightweight coordination shell (< 1,500 lines) that simply wires together domain modules and schedules the 60 FPS animation frame.
+### 4. Modularize Overlay UI Sub-Controllers ([`src/ui/toast-manager.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/toast-manager.js), [`src/ui/timer-display.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/timer-display.js))
+* **Status**: Completed. HUD toast notification management (`getToastElement`, `showToast`, `hideToast`, `showComparisonToast`, `showDevModeToast`) is extracted into `src/ui/toast-manager.js` (95.9% line coverage), and timer display hierarchy, badge styling, 4-state timing method cycling, and modal controls synchronization (`updateTimingMethodBadge`, `updateTimerDisplayHierarchy`, `calculateNextTimingMode`, `syncModalControls`) are extracted into `src/ui/timer-display.js` (100.0% line coverage). Duplicate time formatting functions in `overlay.js` (`formatTimerDisplay`, `formatTargetTime`, `formatDeltaSeconds`, `formatDeltaLive`) now delegate directly to `window.LiveSplit.Time`.
+* **Architecture**: Exported on `window.LiveSplit.ToastManager` and `window.LiveSplit.TimerDisplay` with top-level delegating wrappers in `overlay.js` preserving 100% backward compatibility for all public APIs.
+* **Benefits**:
+  * Decouples transient HUD alert lifecycle and timer DOM presentation from main orchestration logic.
+  * Eliminates ~190 lines of duplicate time formatting code from [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js).
+  * Enables isolated unit testing for 4-state timing mode transitions, badge color updates, and toast DOM creation/cleanup.
 
 ---
 

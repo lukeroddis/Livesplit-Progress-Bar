@@ -38,6 +38,8 @@ def test_file_integrity():
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "ui", "race-track-markers.js"),
+        os.path.join("src", "ui", "toast-manager.js"),
+        os.path.join("src", "ui", "timer-display.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     for fname in required:
@@ -65,6 +67,8 @@ def test_syntax_and_brackets():
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "ui", "race-track-markers.js"),
+        os.path.join("src", "ui", "toast-manager.js"),
+        os.path.join("src", "ui", "timer-display.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     
@@ -169,6 +173,8 @@ def test_dom_id_consistency():
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "ui", "leaderboard.js"),
         os.path.join("src", "ui", "race-track-markers.js"),
+        os.path.join("src", "ui", "toast-manager.js"),
+        os.path.join("src", "ui", "timer-display.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]:
         path = os.path.join(ROOT_DIR, js_file)
@@ -2841,6 +2847,8 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "ui", "interactions.js"),
             os.path.join("src", "ui", "leaderboard.js"),
             os.path.join("src", "ui", "race-track-markers.js"),
+            os.path.join("src", "ui", "toast-manager.js"),
+            os.path.join("src", "ui", "timer-display.js"),
             os.path.join("src", "utils", "dom-utils.js")
         ]
 
@@ -2919,6 +2927,47 @@ def run_browser_tests_and_coverage(python_test_count=35):
         "coverage_pct": overall_pct
     }
 
+def test_overlay_subcontrollers_modularization():
+    """Verify Stage 4 modularization of ToastManager and TimerDisplay sub-controllers."""
+    toast_path = os.path.join(ROOT_DIR, "src", "ui", "toast-manager.js")
+    timer_path = os.path.join(ROOT_DIR, "src", "ui", "timer-display.js")
+    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
+
+    assert os.path.exists(toast_path), "src/ui/toast-manager.js must exist"
+    assert os.path.exists(timer_path), "src/ui/timer-display.js must exist"
+
+    with open(toast_path, "r", encoding="utf-8") as f:
+        toast_code = f.read()
+    with open(timer_path, "r", encoding="utf-8") as f:
+        timer_code = f.read()
+    with open(overlay_path, "r", encoding="utf-8") as f:
+        overlay_code = f.read()
+
+    # ToastManager checks
+    assert "window.LiveSplit.ToastManager" in toast_code, "toast-manager.js must export LiveSplit.ToastManager"
+    assert "function getToastElement" in toast_code, "toast-manager.js must define getToastElement"
+    assert "function showToast" in toast_code, "toast-manager.js must define showToast"
+    assert "function hideToast" in toast_code, "toast-manager.js must define hideToast"
+    assert "function showComparisonToast" in toast_code, "toast-manager.js must define showComparisonToast"
+    assert "function showDevModeToast" in toast_code, "toast-manager.js must define showDevModeToast"
+
+    # TimerDisplay checks
+    assert "window.LiveSplit.TimerDisplay" in timer_code, "timer-display.js must export LiveSplit.TimerDisplay"
+    assert "function updateTimingMethodBadge" in timer_code, "timer-display.js must define updateTimingMethodBadge"
+    assert "function updateTimerDisplayHierarchy" in timer_code, "timer-display.js must define updateTimerDisplayHierarchy"
+    assert "function calculateNextTimingMode" in timer_code, "timer-display.js must define calculateNextTimingMode"
+    assert "function syncModalControls" in timer_code, "timer-display.js must define syncModalControls"
+
+    # Overlay delegation checks
+    assert "window.LiveSplit.ToastManager.showComparisonToast" in overlay_code, "overlay.js must delegate showComparisonToast to ToastManager"
+    assert "window.LiveSplit.ToastManager.showDevModeToast" in overlay_code, "overlay.js must delegate showDevModeToast to ToastManager"
+    assert "window.LiveSplit.TimerDisplay.updateTimingMethodBadge" in overlay_code, "overlay.js must delegate updateTimingMethodBadge to TimerDisplay"
+    assert "window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy" in overlay_code, "overlay.js must delegate updateTimerDisplayHierarchy to TimerDisplay"
+    assert "window.LiveSplit.TimerDisplay.calculateNextTimingMode" in overlay_code, "overlay.js must delegate toggleTimingMethod to TimerDisplay"
+
+    print("✓ Overlay UI sub-controllers (ToastManager & TimerDisplay) modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -2962,7 +3011,8 @@ def main():
         test_track_orientation_and_split_density_reflow()
         test_intelligent_release_bump_detection()
         test_live_race_ghost_pins_and_f1_leaderboard()
-        run_browser_tests_and_coverage(python_test_count=38)
+        test_overlay_subcontrollers_modularization()
+        run_browser_tests_and_coverage(python_test_count=39)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

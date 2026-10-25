@@ -203,6 +203,9 @@ function updatePageTitle() {
 }
 
 function updateTimingMethodBadge() {
+  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
+    return window.LiveSplit.TimerDisplay.updateTimingMethodBadge(timerDisplayMode, currentTimingMethod);
+  }
   const badge = document.getElementById("timing-method-badge");
   if (!badge) return;
   if (timerDisplayMode === "gametime") {
@@ -224,6 +227,9 @@ function updateTimingMethodBadge() {
 }
 
 function updateTimerDisplayHierarchy() {
+  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
+    return window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy(timerDisplayMode, currentTimingMethod);
+  }
   const rtaEl = document.getElementById("timer-rta");
   const igtEl = document.getElementById("timer-igt");
   const rtaBlock = document.getElementById("block-rta");
@@ -441,6 +447,9 @@ function applyActiveComparison(compName, updateLiveSplit = false, showToast = tr
 
 let comparisonToastTimer = null;
 function showComparisonToast(compName) {
+  if (window.LiveSplit && window.LiveSplit.ToastManager) {
+    return window.LiveSplit.ToastManager.showComparisonToast(compName);
+  }
   if (!compName) return;
   let toast = document.getElementById("hud-toast");
   if (!toast) {
@@ -512,194 +521,38 @@ function escapeHtml(str) {
 }
 
 function formatTimerDisplay(rawTime) {
+  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatTimerDisplay === "function") {
+    return window.LiveSplit.Time.formatTimerDisplay(rawTime);
+  }
   if (rawTime === null || rawTime === undefined || rawTime === "") return "0.00";
-  if (rawTime === "-") return "-";
-
-  let isNegative = false;
-  let days = 0;
-  let h = 0;
-  let m = 0;
-  let s = 0;
-  let hundredths = "00";
-
-  if (typeof rawTime === "number") {
-    if (isNaN(rawTime)) return "0.00";
-    if (rawTime < 0) {
-      isNegative = true;
-      rawTime = Math.abs(rawTime);
-    }
-    const totalHundredths = Math.round(rawTime * 100);
-    const totalSec = Math.floor(totalHundredths / 100);
-    const frac = totalHundredths % 100;
-    h = Math.floor(totalSec / 3600);
-    m = Math.floor((totalSec % 3600) / 60);
-    s = totalSec % 60;
-    hundredths = frac.toString().padStart(2, "0");
-  } else {
-    let str = String(rawTime).trim();
-    if (str.startsWith("-") || str.startsWith("−") || str.charCodeAt(0) === 8722) {
-      isNegative = true;
-      str = str.replace(/^[-−\u2212]/, "").trim();
-    }
-
-    if (str.includes(".")) {
-      const firstDot = str.indexOf(".");
-      const firstColon = str.indexOf(":");
-      // Days part before dot, e.g. "1.02:03:04.56"
-      if (firstColon !== -1 && firstDot < firstColon) {
-        days = parseInt(str.slice(0, firstDot), 10) || 0;
-        str = str.slice(firstDot + 1);
-      }
-    }
-
-    let timeMain = str;
-    let fracPart = "";
-    if (str.includes(".")) {
-      const dotIdx = str.indexOf(".");
-      timeMain = str.slice(0, dotIdx);
-      fracPart = str.slice(dotIdx + 1);
-    }
-
-    hundredths = fracPart.length >= 2 
-      ? fracPart.slice(0, 2) 
-      : fracPart.padEnd(2, "0");
-
-    const parts = timeMain.split(":");
-    if (parts.length === 3) {
-      h = (parseInt(parts[0], 10) || 0) + (days * 24);
-      m = parseInt(parts[1], 10) || 0;
-      s = parseInt(parts[2], 10) || 0;
-    } else if (parts.length === 2) {
-      h = days * 24;
-      m = parseInt(parts[0], 10) || 0;
-      s = parseInt(parts[1], 10) || 0;
-    } else if (parts.length === 1) {
-      h = days * 24;
-      m = 0;
-      s = parseInt(parts[0], 10) || 0;
-    }
-  }
-
-  // Avoid "-0.00"
-  if (isNegative && h === 0 && m === 0 && s === 0 && (hundredths === "00" || hundredths === "0")) {
-    isNegative = false;
-  }
-
-  const sPad = (h > 0 || m > 0) ? s.toString().padStart(2, "0") : s.toString();
-  let result = "";
-
-  if (h > 0) {
-    const mPad = m.toString().padStart(2, "0");
-    result = `${h}:${mPad}:${sPad}.${hundredths}`;
-  } else if (m > 0) {
-    result = `${m}:${sPad}.${hundredths}`;
-  } else {
-    result = `${sPad}.${hundredths}`;
-  }
-
-  return isNegative ? `-${result}` : result;
+  return String(rawTime);
 }
 
 function formatTargetTime(sec) {
+  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatTargetTime === "function") {
+    return window.LiveSplit.Time.formatTargetTime(sec);
+  }
   if (sec === null || sec === undefined || isNaN(sec)) return "";
   const totalSec = Math.floor(sec);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
+  const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  const sPad = s < 10 ? `0${s}` : `${s}`;
-
-  if (h > 0) {
-    const mPad = m < 10 ? `0${m}` : `${m}`;
-    return `${h}:${mPad}:${sPad}`;
-  }
-  return `${m}:${sPad}`;
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
 }
 
 function formatDeltaSeconds(signedSec) {
+  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatDeltaSeconds === "function") {
+    return window.LiveSplit.Time.formatDeltaSeconds(signedSec);
+  }
   if (signedSec === null || signedSec === undefined || isNaN(signedSec)) return "";
-  const isAhead = signedSec < 0;
-  const sign = isAhead ? "-" : "+";
-  const abs = Math.abs(signedSec);
-
-  if (abs < 0.05) {
-    return "±0.0";
-  }
-
-  const totalSec = Math.floor(abs);
-  const frac = Math.floor((abs - totalSec) * 10);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  const sPad = (s < 10 && (h > 0 || m > 0)) ? `0${s}` : `${s}`;
-
-  if (h > 0) {
-    const mPad = m < 10 ? `0${m}` : `${m}`;
-    return `${sign}${h}:${mPad}:${sPad}`;
-  } else if (m > 0) {
-    return `${sign}${m}:${sPad}`;
-  } else {
-    return `${sign}${sPad}.${frac}`;
-  }
+  const sign = signedSec < 0 ? "-" : "+";
+  return `${sign}${Math.abs(signedSec).toFixed(1)}`;
 }
 
 function formatDeltaLive(raw) {
-  if (!raw || raw === "-" || raw.trim() === "") return null;
-
-  const trimmed = raw.trim();
-  const isAhead = trimmed.startsWith("-") || trimmed.startsWith("−") || trimmed.charCodeAt(0) === 8722;
-  const sign = isAhead ? "-" : "+";
-
-  let cleaned = trimmed.replace(/^[-+−\u2212]/, "").trim();
-
-  let days = 0;
-  if (cleaned.includes(".")) {
-    const firstDot = cleaned.indexOf(".");
-    const firstColon = cleaned.indexOf(":");
-    if (firstColon !== -1 && firstDot < firstColon) {
-      days = parseInt(cleaned.slice(0, firstDot), 10) || 0;
-      cleaned = cleaned.slice(firstDot + 1);
-    }
+  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatDeltaLive === "function") {
+    return window.LiveSplit.Time.formatDeltaLive(raw);
   }
-
-  let decPart = "";
-  let fracSec = 0;
-  if (cleaned.includes(".")) {
-    const parts = cleaned.split(".");
-    cleaned = parts[0];
-    decPart = "." + parts[1].charAt(0);
-    fracSec = parseFloat("0." + parts[1]) || 0;
-  }
-
-  const timeUnits = cleaned.split(":").map(p => parseInt(p, 10));
-  if (timeUnits.some(isNaN)) return null;
-
-  let totalSec = days * 86400;
-  if (timeUnits.length === 3) totalSec += timeUnits[0] * 3600 + timeUnits[1] * 60 + timeUnits[2];
-  else if (timeUnits.length === 2) totalSec += timeUnits[0] * 60 + timeUnits[1];
-  else if (timeUnits.length === 1) totalSec += timeUnits[0];
-
-  const signedSeconds = isAhead ? -(totalSec + fracSec) : (totalSec + fracSec);
-
-  if (totalSec === 0 && fracSec === 0 && !isAhead) {
-    return { text: "±0.0", isAhead: false, signedSeconds: 0 };
-  }
-
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  const secFormatted = (s < 10 && (h > 0 || m > 0)) ? `0${s}` : `${s}`;
-
-  let outputText = "";
-  if (h > 0) {
-    const minFormatted = m < 10 ? `0${m}` : `${m}`;
-    outputText = `${sign}${h}:${minFormatted}:${secFormatted}`;
-  } else if (m > 0) {
-    outputText = `${sign}${m}:${secFormatted}`;
-  } else {
-    outputText = `${sign}${secFormatted}${decPart || ".0"}`;
-  }
-
-  return { text: outputText, isAhead, signedSeconds };
+  return null;
 }
 
 function sanitizeComparisonTimes(times, fallbackTimes, targetLen = null) {
@@ -1024,15 +877,19 @@ function setTimerDisplayMode(mode, focusMethod) {
   updateTimingMethodBadge();
 
   // Sync modal segmented controls if open
-  document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-val") === mode);
-  });
-  document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
-  });
-  const rowTimerFocus = document.getElementById("row-timer-focus");
-  if (rowTimerFocus) {
-    rowTimerFocus.style.display = (mode === "both") ? "flex" : "none";
+  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
+    window.LiveSplit.TimerDisplay.syncModalControls(mode, currentTimingMethod);
+  } else {
+    document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === mode);
+    });
+    document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
+    });
+    const rowTimerFocus = document.getElementById("row-timer-focus");
+    if (rowTimerFocus) {
+      rowTimerFocus.style.display = (mode === "both") ? "flex" : "none";
+    }
   }
 
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1061,12 +918,16 @@ function setTimingMethodFocus(method) {
   updateTimingMethodBadge();
 
   // Sync modal controls
-  document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-val") === timerDisplayMode);
-  });
-  document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
-  });
+  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
+    window.LiveSplit.TimerDisplay.syncModalControls(timerDisplayMode, currentTimingMethod);
+  } else {
+    document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === timerDisplayMode);
+    });
+    document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
+    });
+  }
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     if (method === "GameTime") ws.send("switchto gametime");
@@ -1075,6 +936,11 @@ function setTimingMethodFocus(method) {
 }
 
 function toggleTimingMethod() {
+  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
+    const next = window.LiveSplit.TimerDisplay.calculateNextTimingMode(timerDisplayMode, currentTimingMethod);
+    setTimerDisplayMode(next.mode, next.focusMethod);
+    return;
+  }
   // Cycle across all 4 logical states:
   // 1. Time: Game (IGT only)
   // 2. Time: Real (RTA only)
@@ -4196,6 +4062,9 @@ function isDevModeActive() {
 }
 
 function showDevModeToast(enabled) {
+  if (window.LiveSplit && window.LiveSplit.ToastManager) {
+    return window.LiveSplit.ToastManager.showDevModeToast(enabled);
+  }
   let toast = document.getElementById("hud-toast");
   if (!toast) {
     toast = document.createElement("div");
@@ -4346,6 +4215,8 @@ window.showComparisonToast = showComparisonToast;
 window.isDevMode = isDevModeActive;
 window.setDevMode = setDevMode;
 window.toggleDevMode = toggleDevMode;
+window.updateTimingMethodBadge = updateTimingMethodBadge;
+window.updateTimerDisplayHierarchy = updateTimerDisplayHierarchy;
 window.initOverlay = initOverlay;
 window.getLastElapsedSec = () => lastElapsedSec;
 window.LiveSplit = window.LiveSplit || {};
