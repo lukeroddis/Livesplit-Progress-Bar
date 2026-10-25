@@ -35,7 +35,8 @@ def test_file_integrity():
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
-        os.path.join("src", "ui", "race-track-markers.js")
+        os.path.join("src", "ui", "race-track-markers.js"),
+        os.path.join("src", "utils", "dom-utils.js")
     ]
     for fname in required:
         path = os.path.join(ROOT_DIR, fname)
@@ -59,7 +60,8 @@ def test_syntax_and_brackets():
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
-        os.path.join("src", "ui", "race-track-markers.js")
+        os.path.join("src", "ui", "race-track-markers.js"),
+        os.path.join("src", "utils", "dom-utils.js")
     ]
     
     for fname in files_to_check:
@@ -161,7 +163,8 @@ def test_dom_id_consistency():
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "leaderboard.js"),
-            os.path.join("src", "ui", "race-track-markers.js")
+        os.path.join("src", "ui", "race-track-markers.js"),
+        os.path.join("src", "utils", "dom-utils.js")
     ]:
         path = os.path.join(ROOT_DIR, js_file)
         with open(path, "r", encoding="utf-8") as f:
@@ -2525,6 +2528,12 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     markers_file = os.path.join(ROOT_DIR, "src", "ui", "race-track-markers.js")
     with open(markers_file, "r", encoding="utf-8") as mf:
         markers_code = mf.read()
+    dom_utils_file = os.path.join(ROOT_DIR, "src", "utils", "dom-utils.js")
+    with open(dom_utils_file, "r", encoding="utf-8") as df:
+        dom_utils_code = df.read()
+    assert "window.LiveSplit.DOMUtils" in dom_utils_code, "src/utils/dom-utils.js must export LiveSplit.DOMUtils"
+    assert "isSafeAvatarUrl" in dom_utils_code, "src/utils/dom-utils.js must provide isSafeAvatarUrl"
+    assert "buildAvatarMarkup" in dom_utils_code, "src/utils/dom-utils.js must provide buildAvatarMarkup"
     assert "function escapeHtml" in overlay_js, "overlay.js must define escapeHtml for XSS defense"
     assert "escapeHtml(racer.username" in (overlay_js + markers_code), "race track markers getOrCreateRaceMarker must escape racer.username"
     assert 'rawAvatar.startsWith("https://")' in (overlay_js + markers_code), "race track markers getOrCreateRaceMarker must validate avatar URL protocols"
@@ -2821,7 +2830,8 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "ui", "track-renderer.js"),
             os.path.join("src", "ui", "interactions.js"),
             os.path.join("src", "ui", "leaderboard.js"),
-            os.path.join("src", "ui", "race-track-markers.js")
+            os.path.join("src", "ui", "race-track-markers.js"),
+            os.path.join("src", "utils", "dom-utils.js")
         ]
 
         for tf in target_files:

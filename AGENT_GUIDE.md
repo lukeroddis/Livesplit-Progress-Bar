@@ -287,10 +287,10 @@ To keep the overlay modular, maintainable, and high-performing as new race and t
   * Enables independent unit testing of marker DOM caching and lifecycle management.
 
 ### 2. Shared DOM Sanitization & Security Utility ([`src/utils/dom-utils.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/utils/dom-utils.js))
-* **Current State**: `escapeHtml` and avatar protocol verification (`https://`, `http://`, `data:image/`) are duplicated across [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) and [`src/ui/leaderboard.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/leaderboard.js).
-* **Target Architecture**: Consolidate HTML entity escaping, safe URL scheme validation, and XSS sanitization helpers into a zero-dependency shared utility module (e.g. `src/utils/dom-utils.js` or `src/core/security.js`).
+* **Status**: Completed. HTML entity escaping, safe URL scheme validation, and standardized avatar HTML construction are centralized in `src/utils/dom-utils.js` (100% line coverage), replacing duplicate implementations in `overlay.js`, `src/ui/leaderboard.js`, and `src/ui/race-track-markers.js`.
+* **Architecture**: Exported on `window.LiveSplit.DOMUtils` (with `window.escapeHtml` global alias).
 * **Benefits**:
-  * DRY (Don't Repeat Yourself) security enforcement across all UI components and HUD badges.
+  * DRY security enforcement across all UI components, badges, ribbons, and overlays.
   * Single audit point for input sanitization against malicious competitor usernames, split titles, and remote avatar assets.
 
 ### 3. Decouple Simulation Engine ([`src/core/race-simulation.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-simulation.js))

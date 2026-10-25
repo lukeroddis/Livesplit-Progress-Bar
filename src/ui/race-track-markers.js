@@ -12,12 +12,17 @@
   // Cache mapping markerId -> DOM element for zero-allocation 60 FPS animation loop
   const raceMarkerMap = new Map();
 
+  const DOMUtils = (window.LiveSplit && window.LiveSplit.DOMUtils) ? window.LiveSplit.DOMUtils : null;
+
   /**
-   * Safely escapes strings for innerHTML embedding to protect against XSS injection.
+   * Safely escapes strings for innerHTML embedding (delegates to LiveSplit.DOMUtils).
    * @param {string} str
    * @returns {string}
    */
   function escapeHtml(str) {
+    if (DOMUtils && typeof DOMUtils.escapeHtml === "function") {
+      return DOMUtils.escapeHtml(str);
+    }
     if (!str || typeof str !== "string") return "";
     return str
       .replace(/&/g, "&amp;")
@@ -33,6 +38,9 @@
    * @returns {boolean}
    */
   function isSafeAvatarUrl(rawAvatar) {
+    if (DOMUtils && typeof DOMUtils.isSafeAvatarUrl === "function") {
+      return DOMUtils.isSafeAvatarUrl(rawAvatar);
+    }
     return typeof rawAvatar === "string" && (
       rawAvatar.startsWith("https://") ||
       rawAvatar.startsWith("http://") ||

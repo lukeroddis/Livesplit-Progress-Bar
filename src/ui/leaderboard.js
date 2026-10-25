@@ -15,17 +15,22 @@
   const rowElementMap = new Map();
   let isMuteListenerAttached = false;
 
+  const DOMUtils = (window.LiveSplit && window.LiveSplit.DOMUtils) ? window.LiveSplit.DOMUtils : null;
+
   /**
-   * Escapes HTML strings to prevent XSS.
+   * Escapes HTML strings to prevent XSS (delegates to LiveSplit.DOMUtils).
    */
   function escapeHtml(str) {
+    if (DOMUtils && typeof DOMUtils.escapeHtml === "function") {
+      return DOMUtils.escapeHtml(str);
+    }
     if (!str) return "";
     return String(str)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+      .replace(/[\x22]/g, "&quot;")
+      .replace(/[\x27]/g, "&#039;");
   }
 
   /**
@@ -60,6 +65,10 @@
    */
 
   function buildAvatarMarkup(avatar, isHost) {
+    const fallback = isHost ? "👤" : "🏎️";
+    if (DOMUtils && typeof DOMUtils.buildAvatarMarkup === "function") {
+      return DOMUtils.buildAvatarMarkup(avatar, fallback);
+    }
     const raw = typeof avatar === "string" ? avatar : "";
     const isSafeImg = (
       raw.startsWith("https://") ||
@@ -70,8 +79,8 @@
       return `<img class="racer-avatar-img" src="${escapeHtml(raw)}" alt="" />`;
     }
     const isLikelyUrl = raw.includes(":") || raw.includes("/");
-    const fallback = isLikelyUrl ? (isHost ? "👤" : "🏎️") : (raw || (isHost ? "👤" : "🏎️"));
-    return `<span class="racer-avatar-emoji">${escapeHtml(fallback)}</span>`;
+    const fb = isLikelyUrl ? fallback : (raw || fallback);
+    return `<span class="racer-avatar-emoji">${escapeHtml(fb)}</span>`;
   }
 
   /**

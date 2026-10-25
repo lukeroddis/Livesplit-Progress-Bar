@@ -499,6 +499,9 @@ function timeStringToSeconds(tStr) {
 }
 
 function escapeHtml(str) {
+  if (window.LiveSplit && window.LiveSplit.DOMUtils && typeof window.LiveSplit.DOMUtils.escapeHtml === "function") {
+    return window.LiveSplit.DOMUtils.escapeHtml(str);
+  }
   if (!str) return "";
   return String(str)
     .replace(/&/g, "&amp;")
