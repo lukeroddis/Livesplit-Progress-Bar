@@ -77,35 +77,31 @@
   function createRaceClient() {
     let raceId = null;
     let ws = null;
-    const MAX_WS_DEBUG_LOGS = 150;
-    const wsDebugLogs = [];
-    let wsLogCounter = 0;
+    let loggerInstance = null;
+    function getLogger() {
+      if (!loggerInstance && typeof window !== "undefined" && window.LiveSplit && window.LiveSplit.RaceLogger) {
+        loggerInstance = window.LiveSplit.RaceLogger.createRaceLogger({
+          notifyListeners
+        });
+      }
+      return loggerInstance;
+    }
 
     function recordWsLog(direction, type, data, raw) {
-      const entry = {
-        id: ++wsLogCounter,
-        time: new Date().toLocaleTimeString(),
-        timestamp: Date.now(),
-        direction: direction || "in",
-        type: type || "message",
-        user: (data && (data.user || data.username || (data.data && (data.data.user || data.data.username)))) || "",
-        data: data,
-        raw: raw || (typeof data === "string" ? data : JSON.stringify(data))
-      };
-      wsDebugLogs.unshift(entry);
-      if (wsDebugLogs.length > MAX_WS_DEBUG_LOGS) {
-        wsDebugLogs.pop();
+      const logger = getLogger();
+      return logger ? logger.recordLog(direction, type, data, raw) : null;
+    }
+
+    function getWebSocketLogs() {
+      const logger = getLogger();
+      return logger ? logger.getLogs() : [];
+    }
+
+    function clearWebSocketLogs() {
+      const logger = getLogger();
+      if (logger) {
+        logger.clearLogs();
       }
-      try {
-        console.log(
-          `%c[TheRun WS ${direction.toUpperCase()}] %c${entry.time} %c[${entry.type}]`,
-          direction === "in" ? "color: #38bdf8; font-weight: bold;" : "color: #4ade80; font-weight: bold;",
-          "color: #94a3b8;",
-          "color: #c084fc; font-weight: 600;",
-          data
-        );
-      } catch (_) {}
-      notifyListeners("ws_log", entry);
     }
     let heartbeatTimer = null;
     let isExternalLiveSplitConnected = false;
@@ -1137,11 +1133,9 @@
       areRacePinsVisible,
       setRacePinsVisible,
       toggleRacePinsVisible,
-      getWebSocketLogs: () => wsDebugLogs.slice(),
-      clearWebSocketLogs: () => {
-        wsDebugLogs.length = 0;
-        notifyListeners("ws_logs_cleared", null);
-      },
+      getWebSocketLogs,
+      clearWebSocketLogs,
+      recordWsLog,
       reset,
       subscribe(fn) {
         listeners.add(fn);

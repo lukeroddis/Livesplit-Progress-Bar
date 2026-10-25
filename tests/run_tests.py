@@ -36,6 +36,7 @@ def test_file_integrity():
         os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-protocol.js"),
         os.path.join("src", "core", "race-discovery.js"),
+        os.path.join("src", "core", "race-logger.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -68,6 +69,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-protocol.js"),
         os.path.join("src", "core", "race-discovery.js"),
+        os.path.join("src", "core", "race-logger.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -176,6 +178,7 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-protocol.js"),
         os.path.join("src", "core", "race-discovery.js"),
+        os.path.join("src", "core", "race-logger.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -2460,7 +2463,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         protocol_code = rpf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "race-discovery.js"), "r", encoding="utf-8") as rdf:
         discovery_code = rdf.read()
-    race_sim_combined = race_code + sim_code + ranking_code + protocol_code + discovery_code
+    with open(os.path.join(ROOT_DIR, "src", "core", "race-logger.js"), "r", encoding="utf-8") as rlf:
+        logger_code = rlf.read()
+    race_sim_combined = race_code + sim_code + ranking_code + protocol_code + discovery_code + logger_code
     assert "window.LiveSplit.RaceSimulation" in sim_code, "src/core/race-simulation.js must export LiveSplit.RaceSimulation"
     assert "if (hostState.currentTimeSec > 0)" in race_sim_combined, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
     assert "setHostUsername" in race_code, "race-client.js must export setHostUsername"
@@ -2859,6 +2864,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "race-ranking.js"),
             os.path.join("src", "core", "race-protocol.js"),
             os.path.join("src", "core", "race-discovery.js"),
+            os.path.join("src", "core", "race-logger.js"),
             os.path.join("src", "core", "race-client.js"),
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),
@@ -3054,6 +3060,25 @@ def test_race_discovery_modularization():
     print("✓ Race Room Discovery & Auto-Detect modularization passed.")
 
 
+def test_race_logger_modularization():
+    """Verify modularization of WebSocket telemetry & diagnostics logger."""
+    logger_path = os.path.join(ROOT_DIR, "src", "core", "race-logger.js")
+    race_client_path = os.path.join(ROOT_DIR, "src", "core", "race-client.js")
+
+    assert os.path.exists(logger_path), "src/core/race-logger.js must exist"
+
+    with open(logger_path, "r", encoding="utf-8") as rf:
+        logger_code = rf.read()
+    with open(race_client_path, "r", encoding="utf-8") as rcf:
+        client_code = rcf.read()
+
+    assert "window.LiveSplit.RaceLogger" in logger_code, "race-logger.js must export LiveSplit.RaceLogger"
+    assert "createRaceLogger" in logger_code, "race-logger.js must define createRaceLogger"
+    assert "LiveSplit.RaceLogger.createRaceLogger" in client_code, "race-client.js must instantiate RaceLogger"
+
+    print("✓ Race WebSocket Diagnostics Logger modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3101,7 +3126,8 @@ def main():
         test_race_ranking_modularization()
         test_race_protocol_modularization()
         test_race_discovery_modularization()
-        run_browser_tests_and_coverage(python_test_count=42)
+        test_race_logger_modularization()
+        run_browser_tests_and_coverage(python_test_count=43)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
