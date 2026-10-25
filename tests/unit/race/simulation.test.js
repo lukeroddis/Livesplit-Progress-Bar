@@ -389,5 +389,16 @@
 
         rc.stopSimulation();
       });
+      it("clears the GO! banner after the host starts their timer during the lobby", async () => {
+        const rc = window.LiveSplit.RaceClient.createRaceClient();
+        rc.startSimulation(["A", "B"], [30, 60], [30, 60], { withLobby: true });
+        rc.handleHostRunStarted();
+        assertEqual(rc.getRaceStatus(), "in_progress");
+        assertEqual(rc.getCountdownSec(), 0, "GO! shows immediately");
+        await new Promise((r) => setTimeout(r, 1700));
+        const after = rc.getCountdownSec();
+        rc.stopSimulation();
+        assertEqual(after, null, "GO! banner cleared after 1.5s");
+      });
     });
 })();

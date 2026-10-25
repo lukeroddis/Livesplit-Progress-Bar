@@ -38,7 +38,8 @@
      - [`race-identity.js`](src/core/race-identity.js): Username / race code validation and the stored therun username.
      - [`race-host.js`](src/core/race-host.js): Host progress from LiveSplit, undo, DNF, username matching, timing method, reset.
      - [`race-connection.js`](src/core/race-connection.js): therun.gg REST snapshot, room WebSocket and protocol hand-off.
-     - `race-protocol.js`, `race-ranking.js`, `race-simulation.js`, `race-discovery.js`, `race-logger.js`: message parsing, F1 standings/gaps, offline simulation (`SIM_RACE_ID`), auto-detect/standby, WS log.
+     - `race-protocol.js`, `race-ranking.js`, `race-discovery.js`, `race-logger.js`: message parsing, F1 standings/gaps, auto-detect/standby, WS log.
+     - [`race-simulation.js`](src/core/race-simulation.js): Offline race engine (start/stop/standby/reset/undo, 50ms loop, `SIM_RACE_ID`) composing [`race-sim-roster.js`](src/core/race-sim-roster.js) (rival presets + pure `buildCompetitorEntrant`), [`race-sim-lobby.js`](src/core/race-sim-lobby.js) (lobby schedules, countdown, `startRaceNow`) and [`race-sim-pacing.js`](src/core/race-sim-pacing.js) (rival pacing, virtual host). The race client reads the running course via `getSimulationCourseTargets()`.
    - **`src/ui/` Interface & Layout Modules**:
      - [`layout-engine.js`](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
      - [`track-renderer.js`](src/ui/track-renderer.js): Track DOM building, sliding window math and class application, schematic breaks, scroll-to-split, visible-split capacity, and zero-allocation 60 FPS element caching.
@@ -51,7 +52,7 @@
      - [`dev-mode.js`](src/ui/dev-mode.js): Developer mode gating (`?dev`/`?debug`, Ctrl+Shift+D, version 5-click).
      - [`splits-file-loader.js`](src/ui/splits-file-loader.js): `.lss` file picker and window drag-and-drop (`.lss`/`.xml` splits, `.json`/`.lshud` profiles).
      - [`interactions.js`](src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
-     - [leaderboard.js](src/ui/leaderboard.js): Live race F1 timing tower controller, 60 FPS FLIP overtake reorder animations, and entrant mute controls.
+     - [leaderboard.js](src/ui/leaderboard.js): Live race F1 timing tower orchestrator (visibility, pre-race detection, mute, Layout Mode preview) over [`leaderboard-row.js`](src/ui/leaderboard-row.js) (pure `describeRow` view model + in-place row DOM), [`leaderboard-banners.js`](src/ui/leaderboard-banners.js) (status badge, countdown / lobby / waiting banners), [`leaderboard-flip.js`](src/ui/leaderboard-flip.js) (FLIP overtake reorder) and [`leaderboard-marquee.js`](src/ui/leaderboard-marquee.js) (scrolling long names).
      - [`track-status.js`](src/ui/track-status.js): Track render, per-split completed/current classes, locked delta display, window shifting, 60 FPS live segment progress.
      - [`timing-controls.js`](src/ui/timing-controls.js): Timer display mode (Game/Real/Both), timing method focus, gold toggle and badges.
      - [`hud-titles.js`](src/ui/hud-titles.js): Game/category labels, tab title, LiveSplit metadata sync.
