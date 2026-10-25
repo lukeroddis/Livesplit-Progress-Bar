@@ -23,36 +23,31 @@ if hasattr(sys.stderr, "reconfigure"):
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
+
+def _scripts_from_index_html():
+    """Classic <script src> paths in index.html load order (the single source of truth for module lists)."""
+    with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html = f.read()
+    return [os.path.normpath(src) for src in re.findall(r'<script\s+src="([^"]+)"', html)]
+
+
+SOURCE_SCRIPTS = _scripts_from_index_html()
+MODULE_SCRIPTS = [s for s in SOURCE_SCRIPTS if s not in ("layout.js", "overlay.js")]
+
+
+def read_overlay_sources():
+    """overlay.js plus every module script, for static checks of features that may live in either."""
+    parts = []
+    for rel in ["overlay.js"] + MODULE_SCRIPTS:
+        with open(os.path.join(ROOT_DIR, rel), "r", encoding="utf-8") as f:
+            parts.append(f.read())
+    return "\n".join(parts)
+
 def test_file_integrity():
     """Verify core project files exist and are UTF-8 decodable."""
     required = [
-        "index.html", "layout.js", "overlay.js", "style.css", "README.md", "LICENSE", "package.json", "schema/layout-v1.json",
-        os.path.join("src", "core", "storage.js"),
-        os.path.join("src", "core", "time-utils.js"),
-        os.path.join("src", "core", "split-engine.js"),
-        os.path.join("src", "core", "ghost-math.js"),
-        os.path.join("src", "core", "livesplit-client.js"),
-        os.path.join("src", "core", "race-simulation.js"),
-        os.path.join("src", "core", "race-ranking.js"),
-        os.path.join("src", "core", "race-protocol.js"),
-        os.path.join("src", "core", "race-discovery.js"),
-        os.path.join("src", "core", "race-logger.js"),
-        os.path.join("src", "core", "race-client.js"),
-        os.path.join("src", "core", "layout-profiles.js"),
-        os.path.join("src", "ui", "layout-engine.js"),
-        os.path.join("src", "ui", "layout-drag.js"),
-        os.path.join("src", "ui", "track-renderer.js"),
-        os.path.join("src", "ui", "track-style.js"),
-        os.path.join("src", "ui", "interactions.js"),
-        os.path.join("src", "ui", "race-track-markers.js"),
-        os.path.join("src", "ui", "toast-manager.js"),
-        os.path.join("src", "ui", "timer-display.js"),
-        os.path.join("src", "ui", "timer-anchor.js"),
-        os.path.join("src", "ui", "game-logo.js"),
-        os.path.join("src", "ui", "layout-modal.js"),
-        os.path.join("src", "ui", "layout-params.js"),
-        os.path.join("src", "utils", "dom-utils.js")
-    ]
+        "index.html", "layout.js", "overlay.js", "style.css", "README.md", "LICENSE", "package.json", "schema/layout-v1.json"
+    ] + MODULE_SCRIPTS
     for fname in required:
         path = os.path.join(ROOT_DIR, fname)
         assert os.path.exists(path), f"Missing required file: {fname}"
@@ -66,33 +61,8 @@ def test_syntax_and_brackets():
     """Verify bracket balance, parentheses, and quote termination."""
     pairs = {')': '(', ']': '[', '}': '{'}
     files_to_check = [
-        "index.html", "layout.js", "overlay.js", "style.css",
-        os.path.join("src", "core", "storage.js"),
-        os.path.join("src", "core", "time-utils.js"),
-        os.path.join("src", "core", "split-engine.js"),
-        os.path.join("src", "core", "ghost-math.js"),
-        os.path.join("src", "core", "livesplit-client.js"),
-        os.path.join("src", "core", "race-simulation.js"),
-        os.path.join("src", "core", "race-ranking.js"),
-        os.path.join("src", "core", "race-protocol.js"),
-        os.path.join("src", "core", "race-discovery.js"),
-        os.path.join("src", "core", "race-logger.js"),
-        os.path.join("src", "core", "race-client.js"),
-        os.path.join("src", "core", "layout-profiles.js"),
-        os.path.join("src", "ui", "layout-engine.js"),
-        os.path.join("src", "ui", "layout-drag.js"),
-        os.path.join("src", "ui", "track-renderer.js"),
-        os.path.join("src", "ui", "track-style.js"),
-        os.path.join("src", "ui", "interactions.js"),
-        os.path.join("src", "ui", "race-track-markers.js"),
-        os.path.join("src", "ui", "toast-manager.js"),
-        os.path.join("src", "ui", "timer-display.js"),
-        os.path.join("src", "ui", "timer-anchor.js"),
-        os.path.join("src", "ui", "game-logo.js"),
-        os.path.join("src", "ui", "layout-modal.js"),
-        os.path.join("src", "ui", "layout-params.js"),
-        os.path.join("src", "utils", "dom-utils.js")
-    ]
+        "index.html", "layout.js", "overlay.js", "style.css"
+    ] + MODULE_SCRIPTS
     
     for fname in files_to_check:
         path = os.path.join(ROOT_DIR, fname)
@@ -182,34 +152,8 @@ def test_dom_id_consistency():
     dynamic_prefixes = ("item-", "fill-", "delta-", "delta-val-", "time-val-", "node-", "ghost-marker-")
 
     for js_file in [
-        "layout.js", "overlay.js",
-        os.path.join("src", "core", "storage.js"),
-        os.path.join("src", "core", "time-utils.js"),
-        os.path.join("src", "core", "split-engine.js"),
-        os.path.join("src", "core", "ghost-math.js"),
-        os.path.join("src", "core", "livesplit-client.js"),
-        os.path.join("src", "core", "race-simulation.js"),
-        os.path.join("src", "core", "race-ranking.js"),
-        os.path.join("src", "core", "race-protocol.js"),
-        os.path.join("src", "core", "race-discovery.js"),
-        os.path.join("src", "core", "race-logger.js"),
-        os.path.join("src", "core", "race-client.js"),
-        os.path.join("src", "core", "layout-profiles.js"),
-        os.path.join("src", "ui", "layout-engine.js"),
-        os.path.join("src", "ui", "layout-drag.js"),
-        os.path.join("src", "ui", "track-renderer.js"),
-        os.path.join("src", "ui", "track-style.js"),
-        os.path.join("src", "ui", "interactions.js"),
-        os.path.join("src", "ui", "leaderboard.js"),
-        os.path.join("src", "ui", "race-track-markers.js"),
-        os.path.join("src", "ui", "toast-manager.js"),
-        os.path.join("src", "ui", "timer-display.js"),
-        os.path.join("src", "ui", "timer-anchor.js"),
-        os.path.join("src", "ui", "game-logo.js"),
-        os.path.join("src", "ui", "layout-modal.js"),
-        os.path.join("src", "ui", "layout-params.js"),
-        os.path.join("src", "utils", "dom-utils.js")
-    ]:
+        "layout.js", "overlay.js"
+    ] + MODULE_SCRIPTS:
         path = os.path.join(ROOT_DIR, js_file)
         with open(path, "r", encoding="utf-8") as f:
             code = f.read()
@@ -463,8 +407,7 @@ def test_format_timer_display_unit():
     # 7. Static codebase verification
     with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
         html_src = f.read()
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
 
     assert '<div class="timer-secondary" id="timer-rta">0.00</div>' in html_src, \
         "index.html must initialize timer-rta with '0.00'"
@@ -1069,9 +1012,7 @@ def test_draggable_settings_and_timer_display_modes():
     with open(css_path, "r", encoding="utf-8") as f:
         css = f.read()
 
-    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(overlay_path, "r", encoding="utf-8") as f:
-        overlay_js = f.read()
+    overlay_js = read_overlay_sources()
 
     layout_path = os.path.join(ROOT_DIR, "layout.js")
     with open(layout_path, "r", encoding="utf-8") as f:
@@ -1175,9 +1116,7 @@ def test_draggable_settings_and_timer_display_modes():
 
 def test_undo_split_and_reconnection_safety():
     """Verify LiveSplit Undo Split synchronization and socket reconnect race protection."""
-    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(overlay_path, "r", encoding="utf-8") as f:
-        overlay_js = f.read()
+    overlay_js = read_overlay_sources()
 
     # 1. Verification of Undo Split handler in pollLoop and exported helper
     assert "function handleUndoSplit" in overlay_js, "overlay.js missing handleUndoSplit function"
@@ -1255,9 +1194,7 @@ def test_undo_split_and_reconnection_safety():
 
 def test_completed_split_dot_coloring():
     """Verify completed split nodes color their dots according to split delta/state."""
-    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(overlay_path, "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
 
     css_path = os.path.join(ROOT_DIR, "style.css")
     with open(css_path, "r", encoding="utf-8") as f:
@@ -1339,9 +1276,7 @@ def test_overdue_split_bar_glow():
     with open(css_path, "r", encoding="utf-8") as f:
         css_src = f.read()
 
-    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(overlay_path, "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
 
     # style.css checks
     assert ".segment-bar-fill.overdue" in css_src, "style.css must style .segment-bar-fill.overdue"
@@ -1376,9 +1311,7 @@ def test_version_and_license():
     assert "version" in pkg and re.match(r'^\d+\.\d+\.\d+$', pkg["version"]), \
         f"package.json must contain semver version: {pkg.get('version')}"
 
-    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(overlay_path, "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
     assert f'const APP_VERSION = "v{pkg["version"]}";' in overlay_src, \
         "overlay.js APP_VERSION must match package.json version"
 
@@ -1501,9 +1434,7 @@ def test_layout_profiles_and_extensible_schema():
         "layout.js parseUrlParameters must check ?profile= and ?layout= URL parameters"
 
     # 6. Check overlay.js game auto-loading & drag-and-drop integration
-    overlay_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(overlay_path, "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
 
     assert "autoLoadProfileForGame" in overlay_src, \
         "overlay.js setGameName must trigger autoLoadProfileForGame"
@@ -1585,8 +1516,7 @@ def test_layout_profiles_and_extensible_schema():
 
 def test_track_scrolling_consistency_and_mousewheel():
     """Verify mousewheel and arrow key scrolling consistency, edit mode guards, and idle track scroll retention."""
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
     ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
@@ -1647,8 +1577,7 @@ def test_track_scrolling_consistency_and_mousewheel():
 
 def test_skipped_split_and_incomplete_data_handling():
     """Verify skipped splits and splits with incomplete data are uncoloured and display a dash '-' for delta."""
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
     with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
         css_src = f.read()
 
@@ -1684,8 +1613,7 @@ def test_skipped_split_and_incomplete_data_handling():
 def test_in_run_state_persistence():
     """Verify in-run split progress (deltas, split times, colors) is preserved across refreshes."""
     import json
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
 
     # 1. State key and storage management functions
     assert 'const IN_RUN_STATE_KEY = "livesplit_in_run_state";' in overlay_src, \
@@ -1860,8 +1788,7 @@ def test_timer_anchor_and_expansion_modes():
     # 9. Button element check & edit mode click safety
     assert '<button type="button" class="hud-btn-icon" id="badge-anchor-timers"' in html_src, \
         "index.html #badge-anchor-timers must be a button with .hud-btn-icon styling so it is clickable and excluded from dragging"
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
     assert "if (window.hudLayout && window.hudLayout.isEditMode && window.hudLayout.isEditMode()) return;" in overlay_src, \
         "overlay.js block-igt and block-rta must be disabled while in layout edit mode"
     assert 'rtaBlock.removeAttribute("title")' in layout_src, \
@@ -1878,8 +1805,7 @@ def test_always_show_last_split_and_schematic_break():
         html_src = f.read()
     with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
         css_src = f.read()
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
     ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
@@ -2062,8 +1988,7 @@ def test_always_show_last_split_and_schematic_break():
 
 def test_comparison_hotkeys_and_toast():
     """Verify hotkey comparison switching (C, Shift+C, NumPad 4/6, [/]) and transient HUD toast notification."""
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
     with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
         css_src = f.read()
     with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
@@ -2156,8 +2081,7 @@ def test_comparison_hotkeys_and_toast():
 
 def test_architectural_safeguards_and_bug_fixes():
     """Verify WebSocket timeout desync guard, strict integer split index parsing, multi-ghost profile schema, and safeStorage."""
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
     ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
@@ -2222,8 +2146,7 @@ def test_modular_architecture():
         html_src = f.read()
     with open(os.path.join(ROOT_DIR, "tests", "test_runner.html"), "r", encoding="utf-8") as f:
         runner_src = f.read()
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
 
     expected_modules = [
         "src/core/storage.js",
@@ -2367,8 +2290,7 @@ def test_track_orientation_and_split_density_reflow():
     if os.path.exists(params_path):
         with open(params_path, "r", encoding="utf-8") as pf:
             layout_src += pf.read()
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_src = f.read()
+    overlay_src = read_overlay_sources()
 
     # 1. Structural assertions in layout.js: applyComponentLayout before applyTrackStyle and status updates
     assert 'applyComponentLayout("track");\n    applyTrackStyle();' in layout_src or \
@@ -2510,8 +2432,7 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         layout_engine_js = f.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
         schema_json = json.load(f)
-    with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
-        overlay_js = f.read()
+    overlay_js = read_overlay_sources()
     with open(os.path.join(ROOT_DIR, "src", "ui", "leaderboard.js"), "r", encoding="utf-8") as f:
         leaderboard_js = f.read()
 

@@ -56,6 +56,10 @@
         assertEqual(res[2], 35.0);
         assertEqual(res[3], 42.0); // Filled from fallback fb[3]
 
+        // Shorter comparison is padded to the fallback length
+        const padded = se.sanitizeComparisonTimes([10.0], [12.0, 22.0, 32.0]);
+        assertEqual(padded, [10.0, 22.0, 32.0]);
+
         // Forward-fill without fallback
         const noFb = [15.0, null, null];
         const resNoFb = se.sanitizeComparisonTimes(noFb, null, 3);

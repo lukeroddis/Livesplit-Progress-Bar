@@ -1,34 +1,10 @@
-// Safe storage wrapper providing in-memory fallback if localStorage is disabled or restricted
-// (e.g. sandboxed OBS Studio CEF Browser Sources, private browsing, or QuotaExceededError)
-const memoryStorage = {};
-const safeStorage = {
-  getItem(key) {
-    try {
-      const val = localStorage.getItem(key);
-      return val !== null ? val : (memoryStorage[key] !== undefined ? memoryStorage[key] : null);
-    } catch (e) {
-      return memoryStorage[key] !== undefined ? memoryStorage[key] : null;
-    }
-  },
-  setItem(key, value) {
-    const str = String(value);
-    memoryStorage[key] = str;
-    try {
-      localStorage.setItem(key, str);
-    } catch (e) {
-      console.warn(`[safeStorage] localStorage unavailable, using in-memory fallback for "${key}"`, e);
-    }
-  },
-  removeItem(key) {
-    delete memoryStorage[key];
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {
-      // ignore
-    }
-  }
-};
-window.safeStorage = safeStorage;
+// safeStorage is provided by src/core/storage.js (window.safeStorage).
+
+function getRaceClient() {
+  return window.LiveSplit && window.LiveSplit.RaceClient
+    ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient)
+    : window.LiveSplitRaceClient;
+}
 
 const APP_VERSION = "v1.0.3";
 const WS_URL = "ws://localhost:16834/livesplit";
@@ -203,90 +179,22 @@ function updatePageTitle() {
 }
 
 function updateTimingMethodBadge() {
-  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
-    return window.LiveSplit.TimerDisplay.updateTimingMethodBadge(timerDisplayMode, currentTimingMethod);
-  }
-  const badge = document.getElementById("timing-method-badge");
-  if (!badge) return;
-  if (timerDisplayMode === "gametime") {
-    badge.innerText = "Time: Game";
-    badge.style.color = "#38bdf8";
-  } else if (timerDisplayMode === "realtime") {
-    badge.innerText = "Time: Real";
-    badge.style.color = "#a78bfa";
-  } else {
-    // Both timers visible
-    if (currentTimingMethod === "GameTime") {
-      badge.innerText = "Time: Both (Game)";
-      badge.style.color = "#38bdf8";
-    } else {
-      badge.innerText = "Time: Both (Real)";
-      badge.style.color = "#a78bfa";
-    }
-  }
+  return window.LiveSplit.TimerDisplay.updateTimingMethodBadge(timerDisplayMode, currentTimingMethod);
 }
 
 function updateTimerDisplayHierarchy() {
-  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
-    return window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy(timerDisplayMode, currentTimingMethod);
-  }
-  const rtaEl = document.getElementById("timer-rta");
-  const igtEl = document.getElementById("timer-igt");
-  const rtaBlock = document.getElementById("block-rta");
-  const igtBlock = document.getElementById("block-igt");
-  if (!rtaEl || !igtEl || !rtaBlock || !igtBlock) return;
-
-  const mode = timerDisplayMode || "both";
-
-  if (mode === "gametime") {
-    igtBlock.style.display = "flex";
-    rtaBlock.style.display = "none";
-    igtEl.className = "timer-primary";
-    rtaEl.className = "timer-secondary";
-  } else if (mode === "realtime") {
-    rtaBlock.style.display = "flex";
-    igtBlock.style.display = "none";
-    rtaEl.className = "timer-primary";
-    igtEl.className = "timer-secondary";
-  } else {
-    // Both timers visible
-    rtaBlock.style.display = "flex";
-    igtBlock.style.display = "flex";
-    const isRT = currentTimingMethod === "RealTime";
-    if (isRT) {
-      rtaEl.className = "timer-primary";
-      igtEl.className = "timer-secondary";
-    } else {
-      igtEl.className = "timer-primary";
-      rtaEl.className = "timer-secondary";
-    }
-  }
+  return window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy(timerDisplayMode, currentTimingMethod);
 }
 
 // ============================================================
 // 3. COMPARISONS NORMALIZATION & ACTIVE CURVES ENGINE
 // ============================================================
 function getShortComparisonName(name) {
-  if (name === "Personal Best") return "PB";
-  if (name === "Best Segments") return "Best Segs";
-  if (name === "Average Segments") return "Average";
-  if (name === "Worst Segments") return "Worst";
-  return name.length > 10 ? name.slice(0, 9) + "…" : name;
+  return window.LiveSplit.SplitEngine.getShortComparisonName(name);
 }
 
 function normalizeComparisonName(raw) {
-  if (!raw || raw === "-" || raw.trim() === "") return null;
-  const str = raw.trim();
-  const lower = str.toLowerCase();
-  if (lower === "personal best" || lower === "pb") return "Personal Best";
-  if (lower === "best segments" || lower === "best splits" || lower === "sum of best") return "Best Segments";
-  if (lower === "average segments" || lower === "average") return "Average Segments";
-  if (lower === "worst segments" || lower === "worst") return "Worst Segments";
-
-  for (const c of comparisonsList) {
-    if (c.toLowerCase() === lower) return c;
-  }
-  return str;
+  return window.LiveSplit.SplitEngine.normalizeComparisonName(raw, comparisonsList);
 }
 
 function initDefaultComparisons() {
@@ -340,7 +248,7 @@ function applyActiveTimingMethod(method) {
     }
   }
 
-  const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+  const rc = getRaceClient();
   if (rc && typeof rc.setTimingMethod === "function") {
     rc.setTimingMethod(currentTimingMethod);
   }
@@ -445,26 +353,8 @@ function applyActiveComparison(compName, updateLiveSplit = false, showToast = tr
   }
 }
 
-let comparisonToastTimer = null;
 function showComparisonToast(compName) {
-  if (window.LiveSplit && window.LiveSplit.ToastManager) {
-    return window.LiveSplit.ToastManager.showComparisonToast(compName);
-  }
-  if (!compName) return;
-  let toast = document.getElementById("hud-toast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "hud-toast";
-    toast.className = "hud-toast";
-    document.body.appendChild(toast);
-  }
-  toast.style.display = "";
-  toast.innerHTML = `<span style="color: #38bdf8;">⚖️ Comparison:</span> <span>${escapeHtml(compName)}</span>`;
-  toast.classList.add("show");
-  if (comparisonToastTimer) clearTimeout(comparisonToastTimer);
-  comparisonToastTimer = setTimeout(() => {
-    toast.classList.remove("show");
-  }, 1800);
+  return window.LiveSplit.ToastManager.showComparisonToast(compName);
 }
 
 function cycleComparison(reverse = false) {
@@ -480,105 +370,33 @@ function cycleComparison(reverse = false) {
 // ============================================================
 // 4. TIME UTILITIES & LIVE DELTA PARSING
 // ============================================================
+// Thin aliases onto LiveSplit.Time / DOMUtils / SplitEngine, kept so existing call sites stay short.
 function timeStringToSeconds(tStr) {
-  if (!tStr || tStr === "-" || tStr === "") return null;
-  const str = tStr.trim();
-  let days = 0;
-  let timePart = str;
-  if (str.includes(".")) {
-    const firstDot = str.indexOf(".");
-    const firstColon = str.indexOf(":");
-    if (firstColon !== -1 && firstDot < firstColon) {
-      days = parseInt(str.slice(0, firstDot), 10) || 0;
-      timePart = str.slice(firstDot + 1);
-    }
-  }
-  const parts = timePart.split(":");
-  let sec = 0;
-  if (parts.length === 3) {
-    sec = parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
-  } else if (parts.length === 2) {
-    sec = parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
-  } else if (parts.length === 1) {
-    sec = parseFloat(parts[0]);
-  } else {
-    return null;
-  }
-  return isNaN(sec) ? null : days * 86400 + sec;
+  return window.LiveSplit.Time.timeStringToSeconds(tStr);
 }
 
 function escapeHtml(str) {
-  if (window.LiveSplit && window.LiveSplit.DOMUtils && typeof window.LiveSplit.DOMUtils.escapeHtml === "function") {
-    return window.LiveSplit.DOMUtils.escapeHtml(str);
-  }
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/[\x22]/g, "&quot;")
-    .replace(/[\x27]/g, "&#039;");
+  return window.LiveSplit.DOMUtils.escapeHtml(str);
 }
 
 function formatTimerDisplay(rawTime) {
-  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatTimerDisplay === "function") {
-    return window.LiveSplit.Time.formatTimerDisplay(rawTime);
-  }
-  if (rawTime === null || rawTime === undefined || rawTime === "") return "0.00";
-  return String(rawTime);
+  return window.LiveSplit.Time.formatTimerDisplay(rawTime);
 }
 
 function formatTargetTime(sec) {
-  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatTargetTime === "function") {
-    return window.LiveSplit.Time.formatTargetTime(sec);
-  }
-  if (sec === null || sec === undefined || isNaN(sec)) return "";
-  const totalSec = Math.floor(sec);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s < 10 ? "0" : ""}${s}`;
+  return window.LiveSplit.Time.formatTargetTime(sec);
 }
 
 function formatDeltaSeconds(signedSec) {
-  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatDeltaSeconds === "function") {
-    return window.LiveSplit.Time.formatDeltaSeconds(signedSec);
-  }
-  if (signedSec === null || signedSec === undefined || isNaN(signedSec)) return "";
-  const sign = signedSec < 0 ? "-" : "+";
-  return `${sign}${Math.abs(signedSec).toFixed(1)}`;
+  return window.LiveSplit.Time.formatDeltaSeconds(signedSec);
 }
 
 function formatDeltaLive(raw) {
-  if (window.LiveSplit && window.LiveSplit.Time && typeof window.LiveSplit.Time.formatDeltaLive === "function") {
-    return window.LiveSplit.Time.formatDeltaLive(raw);
-  }
-  return null;
+  return window.LiveSplit.Time.formatDeltaLive(raw);
 }
 
 function sanitizeComparisonTimes(times, fallbackTimes, targetLen = null) {
-  if (!times || !Array.isArray(times) || times.length === 0) {
-    return fallbackTimes && Array.isArray(fallbackTimes) ? [...fallbackTimes] : [];
-  }
-  const len = targetLen !== null 
-    ? targetLen 
-    : (fallbackTimes && fallbackTimes.length > times.length ? fallbackTimes.length : times.length);
-  const result = new Array(len);
-  let lastVal = 0;
-
-  for (let i = 0; i < len; i++) {
-    const raw = times[i];
-    if (raw !== null && raw !== undefined && !isNaN(raw) && raw > 0) {
-      lastVal = raw;
-      result[i] = raw;
-    } else if (fallbackTimes && fallbackTimes[i] !== null && fallbackTimes[i] !== undefined && !isNaN(fallbackTimes[i]) && fallbackTimes[i] > 0) {
-      const fb = fallbackTimes[i];
-      lastVal = Math.max(lastVal, fb);
-      result[i] = lastVal;
-    } else {
-      result[i] = lastVal > 0 ? lastVal : null;
-    }
-  }
-  return result;
+  return window.LiveSplit.SplitEngine.sanitizeComparisonTimes(times, fallbackTimes, targetLen);
 }
 
 // ============================================================
@@ -727,20 +545,7 @@ function setTimerDisplayMode(mode, focusMethod) {
   updateTimingMethodBadge();
 
   // Sync modal segmented controls if open
-  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
-    window.LiveSplit.TimerDisplay.syncModalControls(mode, currentTimingMethod);
-  } else {
-    document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-val") === mode);
-    });
-    document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
-    });
-    const rowTimerFocus = document.getElementById("row-timer-focus");
-    if (rowTimerFocus) {
-      rowTimerFocus.style.display = (mode === "both") ? "flex" : "none";
-    }
-  }
+  window.LiveSplit.TimerDisplay.syncModalControls(mode, currentTimingMethod);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     if (currentTimingMethod === "GameTime") ws.send("switchto gametime");
@@ -768,16 +573,7 @@ function setTimingMethodFocus(method) {
   updateTimingMethodBadge();
 
   // Sync modal controls
-  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
-    window.LiveSplit.TimerDisplay.syncModalControls(timerDisplayMode, currentTimingMethod);
-  } else {
-    document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-val") === timerDisplayMode);
-    });
-    document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-val") === currentTimingMethod);
-    });
-  }
+  window.LiveSplit.TimerDisplay.syncModalControls(timerDisplayMode, currentTimingMethod);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     if (method === "GameTime") ws.send("switchto gametime");
@@ -786,25 +582,9 @@ function setTimingMethodFocus(method) {
 }
 
 function toggleTimingMethod() {
-  if (window.LiveSplit && window.LiveSplit.TimerDisplay) {
-    const next = window.LiveSplit.TimerDisplay.calculateNextTimingMode(timerDisplayMode, currentTimingMethod);
-    setTimerDisplayMode(next.mode, next.focusMethod);
-    return;
-  }
-  // Cycle across all 4 logical states:
-  // 1. Time: Game (IGT only)
-  // 2. Time: Real (RTA only)
-  // 3. Time: Both (Game primary)
-  // 4. Time: Both (Real primary)
-  if (timerDisplayMode === "gametime") {
-    setTimerDisplayMode("realtime", "RealTime");
-  } else if (timerDisplayMode === "realtime") {
-    setTimerDisplayMode("both", "GameTime");
-  } else if (timerDisplayMode === "both" && currentTimingMethod === "GameTime") {
-    setTimerDisplayMode("both", "RealTime");
-  } else {
-    setTimerDisplayMode("gametime", "GameTime");
-  }
+  // Cycles Game -> Real -> Both (Game) -> Both (Real)
+  const next = window.LiveSplit.TimerDisplay.calculateNextTimingMode(timerDisplayMode, currentTimingMethod);
+  setTimerDisplayMode(next.mode, next.focusMethod);
 }
 
 function loadCachedSplits() {
@@ -1375,17 +1155,10 @@ function updateTrackStatus(idx) {
 // ============================================================
 let liveElementCache = null;
 function getLiveElements(idx) {
-  if (!liveElementCache && window.LiveSplit?.TrackRenderer?.createLiveElementCache) {
+  if (!liveElementCache) {
     liveElementCache = window.LiveSplit.TrackRenderer.createLiveElementCache();
   }
-  if (liveElementCache) {
-    return liveElementCache.getElements(idx);
-  }
-  return {
-    fill: document.getElementById(`fill-${idx}`),
-    deltaSpan: document.getElementById(`delta-val-${idx}`),
-    isVertical: document.getElementById("track")?.classList.contains("vertical")
-  };
+  return liveElementCache.getElements(idx);
 }
 
 function updateLiveSegmentProgress(currentSec) {
@@ -1494,132 +1267,18 @@ function saveActiveGhostComparisons() {
 }
 
 function getGhostComparisonInfo(targetGhost = null) {
-  const gChoice = targetGhost || ghostComparison;
-  if (!gChoice || gChoice === "off") return null;
-
-  const isRT = (currentTimingMethod === "RealTime");
-  const compData = isRT ? comparisonsDataRT : comparisonsDataGT;
-  const altData = isRT ? comparisonsDataGT : comparisonsDataRT;
-  const compKeys = Object.keys(compData);
-  const altKeys = Object.keys(altData);
-  const fallbackTimes = isRT ? comparisonTimesRT : comparisonTimesGT;
-
-  const lowGhost = gChoice.toLowerCase().trim();
-
-  // 1. World Record match (wr / world record)
-  const isWRMatch = (lowGhost === "wr" || lowGhost.includes("world record"));
-  if (isWRMatch) {
-    const wrKey = compKeys.find(k => k.toLowerCase().includes("world record") || k.toLowerCase() === "wr");
-    const altWrKey = altKeys.find(k => k.toLowerCase().includes("world record") || k.toLowerCase() === "wr");
-
-    const candTimes = (wrKey && compData[wrKey] && compData[wrKey].some(t => t !== null && t > 0)) ? compData[wrKey] : null;
-    const altTimes = (altWrKey && altData[altWrKey] && altData[altWrKey].some(t => t !== null && t > 0)) ? altData[altWrKey] : null;
-
-    if (candTimes) {
-      if (altTimes && fallbackTimes && fallbackTimes.length > 0 && fallbackTimes[0] > 0) {
-        const curRatio = Math.abs(candTimes[0] - fallbackTimes[0]) / fallbackTimes[0];
-        const altRatio = Math.abs(altTimes[0] - fallbackTimes[0]) / fallbackTimes[0];
-        if (curRatio > 1.5 && altRatio < 0.5) {
-          return { id: "wr", name: altWrKey, icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
-        }
-      }
-      return { id: "wr", name: wrKey, icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(candTimes, fallbackTimes) };
-    }
-
-    if (altTimes) {
-      return { id: "wr", name: altWrKey, icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(altTimes, fallbackTimes) };
-    }
-
-    // Fallback if no explicit WR track in .lss: use Best Segments / Sum of Best pace
-    if (compData["Best Segments"] && compData["Best Segments"].some(t => t !== null && t > 0)) {
-      return { id: "wr", name: "Best Segments (WR Fallback)", icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(compData["Best Segments"], fallbackTimes) };
-    }
-    return { id: "wr", name: "Personal Best", icon: "🏆", color: "#facc15", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
-  }
-
-  // 2. Personal Best (pb)
-  if (lowGhost === "pb" || lowGhost === "personal best") {
-    return { id: "pb", name: "Personal Best", icon: "🥈", color: "#38bdf8", times: sanitizeComparisonTimes(compData["Personal Best"] || fallbackTimes, fallbackTimes) };
-  }
-
-  // 3. Best Segments (best)
-  if (lowGhost === "best" || lowGhost === "best segments") {
-    return { id: "best", name: "Best Segments", icon: "⭐", color: "#eab308", times: sanitizeComparisonTimes(compData["Best Segments"] || fallbackTimes, fallbackTimes) };
-  }
-
-  // 4. Average Segments (average)
-  if (lowGhost === "average" || lowGhost === "average segments") {
-    return { id: "average", name: "Average Segments", icon: "📊", color: "#a78bfa", times: sanitizeComparisonTimes(compData["Average Segments"] || fallbackTimes, fallbackTimes) };
-  }
-
-  // 5. Worst Segments (worst)
-  if (lowGhost === "worst" || lowGhost === "worst segments") {
-    return { id: "worst", name: "Worst Segments", icon: "🐢", color: "#f87171", times: sanitizeComparisonTimes(compData["Worst Segments"] || fallbackTimes, fallbackTimes) };
-  }
-
-  // 6. Direct match with any custom comparison by name
-  if (compData[gChoice] && compData[gChoice].some(t => t !== null && t > 0)) {
-    const cand = compData[gChoice];
-    const alt = altData[gChoice];
-    if (alt && alt.some(t => t !== null && t > 0) && fallbackTimes && fallbackTimes.length > 0 && fallbackTimes[0] > 0) {
-      const curRatio = Math.abs(cand[0] - fallbackTimes[0]) / fallbackTimes[0];
-      const altRatio = Math.abs(alt[0] - fallbackTimes[0]) / fallbackTimes[0];
-      if (curRatio > 1.5 && altRatio < 0.5) {
-        return { id: gChoice, name: gChoice, icon: "👤", color: "#06b6d4", times: sanitizeComparisonTimes(alt, fallbackTimes) };
-      }
-    }
-    return { id: gChoice, name: gChoice, icon: "👤", color: "#06b6d4", times: sanitizeComparisonTimes(cand, fallbackTimes) };
-  }
-  if (altData[gChoice] && altData[gChoice].some(t => t !== null && t > 0)) {
-    return { id: gChoice, name: gChoice, icon: "👤", color: "#06b6d4", times: sanitizeComparisonTimes(altData[gChoice], fallbackTimes) };
-  }
-
-  return null;
+  return window.LiveSplit.GhostMath.getGhostComparisonInfo(
+    targetGhost || ghostComparison,
+    currentTimingMethod,
+    comparisonsDataGT,
+    comparisonsDataRT,
+    comparisonTimesGT,
+    comparisonTimesRT
+  );
 }
 
 function calculateGhostProgress(currentSec, times) {
-  if (!times || !Array.isArray(times) || times.length === 0 || currentSec === null || currentSec <= 0) {
-    return { segIdx: 0, ratio: 0, isFinished: false, targetSec: 0 };
-  }
-
-  // Find the last valid positive target time
-  let lastValidIdx = times.length - 1;
-  while (lastValidIdx >= 0 && (times[lastValidIdx] === null || times[lastValidIdx] === undefined || times[lastValidIdx] <= 0)) {
-    lastValidIdx--;
-  }
-
-  if (lastValidIdx < 0) {
-    return { segIdx: 0, ratio: 0, isFinished: false, targetSec: 0 };
-  }
-
-  const lastTime = times[lastValidIdx];
-  if (currentSec >= lastTime) {
-    return { segIdx: lastValidIdx, ratio: 1.0, isFinished: true, targetSec: lastTime };
-  }
-
-  for (let i = 0; i <= lastValidIdx; i++) {
-    const tNext = times[i];
-    if (tNext === null || tNext === undefined || tNext <= 0) continue;
-
-    // Search backwards for the previous positive target time
-    let tPrev = 0;
-    let pIdx = i - 1;
-    while (pIdx >= 0) {
-      if (times[pIdx] !== null && times[pIdx] !== undefined && times[pIdx] > 0) {
-        tPrev = times[pIdx];
-        break;
-      }
-      pIdx--;
-    }
-
-    if (currentSec < tNext) {
-      const dur = tNext - tPrev;
-      const ratio = (dur > 0) ? Math.max(0, Math.min(1.0, (currentSec - tPrev) / dur)) : 0;
-      return { segIdx: i, ratio, isFinished: false, targetSec: tNext };
-    }
-  }
-
-  return { segIdx: lastValidIdx, ratio: 1.0, isFinished: true, targetSec: lastTime };
+  return window.LiveSplit.GhostMath.calculateGhostProgress(currentSec, times);
 }
 
 function getNodeTextThreshold(nodeEl, isNext = false) {
@@ -1698,7 +1357,7 @@ function getOrCreateRaceMarker(racer) {
 
 function refreshLeaderboard() {
   if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
-    const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+    const rc = getRaceClient();
     const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
     const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
     const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
@@ -1744,7 +1403,7 @@ function updateGhostRunner(currentSec) {
   const isVertical = track.classList.contains("vertical");
 
   const activeList = activeGhostComparisons.filter(g => g && g !== "off");
-  const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+  const rc = getRaceClient();
   const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
   const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
   const isRaceActive = isSim || isConn;
@@ -2252,9 +1911,7 @@ function handleUndoSplit(newIdx, oldIdx) {
     }
   }
 
-  const rc = window.LiveSplit && window.LiveSplit.RaceClient
-    ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient)
-    : window.LiveSplitRaceClient;
+  const rc = getRaceClient();
   if (rc && typeof rc.handleUndoSplit === "function") {
     rc.handleUndoSplit(newIdx, oldIdx);
   }
@@ -2263,27 +1920,18 @@ function handleUndoSplit(newIdx, oldIdx) {
 }
 
 function detectTimingMethodFromComp(splitIdx, compSec) {
-  if (splitIdx < 0 || compSec === null || compSec <= 0) return null;
-  const gtArr = (typeof window !== "undefined" && Array.isArray(window.comparisonTimesGT) && window.comparisonTimesGT.length > 0)
-    ? window.comparisonTimesGT
-    : comparisonTimesGT;
-  const rtArr = (typeof window !== "undefined" && Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0)
-    ? window.comparisonTimesRT
-    : comparisonTimesRT;
-  const gtSec = (gtArr && splitIdx < gtArr.length) ? gtArr[splitIdx] : null;
-  const rtSec = (rtArr && splitIdx < rtArr.length) ? rtArr[splitIdx] : null;
-  if (gtSec !== null && rtSec !== null && Math.abs(gtSec - rtSec) > 1.0) {
-    const diffGT = Math.abs(compSec - gtSec);
-    const diffRT = Math.abs(compSec - rtSec);
-    const detected = (diffGT <= diffRT) ? "GameTime" : "RealTime";
+  // window.comparisonTimesGT/RT are test hooks that override the parsed curves when set.
+  const gtArr = (Array.isArray(window.comparisonTimesGT) && window.comparisonTimesGT.length > 0) ? window.comparisonTimesGT : comparisonTimesGT;
+  const rtArr = (Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0) ? window.comparisonTimesRT : comparisonTimesRT;
+  const detected = window.LiveSplit.SplitEngine.detectTimingMethodFromComp(splitIdx, compSec, gtArr, rtArr);
+  if (detected) {
     const isManual = (localStorage.getItem("livesplit_timing_method_manual") === "true");
     if (!isManual && detected !== currentTimingMethod) {
       applyActiveTimingMethod(detected);
       localStorage.setItem("livesplit_timing_method", detected);
     }
-    return detected;
   }
-  return null;
+  return detected;
 }
 
 // ============================================================
@@ -2306,7 +1954,7 @@ function connect() {
     }
 
     canQueryComparison = true;
-    const rcConn = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+    const rcConn = getRaceClient();
     if (rcConn && typeof rcConn.setExternalHostConnected === "function") {
       rcConn.setExternalHostConnected(true);
     }
@@ -2333,7 +1981,7 @@ function connect() {
 
   ws.onclose = () => {
     isPolling = false;
-    const rcDisconn = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+    const rcDisconn = getRaceClient();
     if (rcDisconn && typeof rcDisconn.setExternalHostConnected === "function") {
       rcDisconn.setExternalHostConnected(false);
     }
@@ -2408,7 +2056,7 @@ async function pollLoop() {
 
     if (isStrictInt) {
       const idx = parseInt(splitIdxStr.trim(), 10);
-      const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+      const rc = getRaceClient();
       if (rc && typeof rc.setExternalHostConnected === "function") {
         rc.setExternalHostConnected(true);
       }
@@ -2533,7 +2181,7 @@ async function pollLoop() {
           lastSplitRecordedSec = 0;
           previousDeltaSeconds = 0;
 
-          const rcStart = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+          const rcStart = getRaceClient();
           if (rcStart) {
             if (typeof rcStart.setHostDNF === "function" && rcStart.isHostDNF()) {
               rcStart.setHostDNF(false);
@@ -2785,7 +2433,7 @@ async function pollLoop() {
       }
 
       if (idx >= 0 && currentTotalSec !== null) {
-        const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+        const rc = getRaceClient();
         if (rc && typeof rc.updateHostProgress === "function") {
           const hostSplitName = (currentIndex < 0)
             ? "Start"
@@ -3360,7 +3008,7 @@ function initOverlay() {
   document.getElementById("split-angle-badge")?.addEventListener("click", cycleSplitAngle);
 
   // Live Race Controls & Telemetry
-  const raceClient = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+  const raceClient = getRaceClient();
   const raceToggleBtn = document.getElementById("race-toggle-badge");
   const raceSimBtn = document.getElementById("race-sim-badge");
   const therunRaceCodeInp = document.getElementById("input-therun-race-code");
@@ -3912,25 +3560,7 @@ function isDevModeActive() {
 }
 
 function showDevModeToast(enabled) {
-  if (window.LiveSplit && window.LiveSplit.ToastManager) {
-    return window.LiveSplit.ToastManager.showDevModeToast(enabled);
-  }
-  let toast = document.getElementById("hud-toast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "hud-toast";
-    toast.className = "hud-toast";
-    document.body.appendChild(toast);
-  }
-  toast.style.display = "";
-  toast.innerHTML = enabled
-    ? `<span style="color: #f59e0b;">🛠️ Developer Mode:</span> <span>Enabled (Test Race &amp; WS Logs visible)</span>`
-    : `<span style="color: #94a3b8;">🛠️ Developer Mode:</span> <span>Disabled (Production view)</span>`;
-  toast.classList.add("show");
-  if (comparisonToastTimer) clearTimeout(comparisonToastTimer);
-  comparisonToastTimer = setTimeout(() => {
-    toast.classList.remove("show");
-  }, 2200);
+  return window.LiveSplit.ToastManager.showDevModeToast(enabled);
 }
 
 function setDevMode(enabled, save = true) {

@@ -56,7 +56,10 @@
     if (!times || !Array.isArray(times) || times.length === 0) {
       return fallbackTimes && Array.isArray(fallbackTimes) ? [...fallbackTimes] : [];
     }
-    const len = targetLen !== null ? targetLen : times.length;
+    // Default length pads to the fallback curve so every split keeps a target.
+    const len = targetLen !== null
+      ? targetLen
+      : (fallbackTimes && fallbackTimes.length > times.length ? fallbackTimes.length : times.length);
     const result = new Array(len);
     let lastVal = 0;
 
