@@ -1,6 +1,11 @@
 """
-pytest configuration: makes tests/ importable (helpers, browser package) and
-prints the in-browser coverage report after the run.
+pytest configuration: makes tests/ importable (helpers, browser package), adds the
+--spec / --coverage options, and reports in-browser coverage when asked.
+
+    python tests/run_tests.py                       full suite, quiet output
+    python tests/run_tests.py -m "not browser"      skip headless Chrome (npm run test:quick)
+    python tests/run_tests.py --spec race/standings only matching tests/unit spec files
+    python tests/run_tests.py --coverage            print the per-file JS coverage table
 """
 
 import os
@@ -12,20 +17,33 @@ sys.path.insert(0, os.path.dirname(__file__))
 BROWSER_REPORT = {}
 
 
+def pytest_addoption(parser):
+    parser.addoption("--spec", action="append", default=[], metavar="SUBSTRING",
+                     help="Only load tests/unit spec files whose path contains SUBSTRING (repeatable)")
+    parser.addoption("--coverage", action="store_true", default=False,
+                     help="Print the per-file in-browser JS coverage table")
+
+
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
     if not BROWSER_REPORT:
         return
     from browser import coverage
 
-    for line in coverage.terminal_lines(BROWSER_REPORT["count"], BROWSER_REPORT["rows"]):
-        terminalreporter.write_line(line)
-    if not BROWSER_REPORT.get("coverage_available"):
-        terminalreporter.write_line("ℹ️ Install requirements-dev.txt (websockets) for file-by-file coverage.")
+    rows = BROWSER_REPORT["rows"]
+    if config.getoption("--coverage"):
+        for line in coverage.terminal_lines(BROWSER_REPORT["count"], rows):
+            terminalreporter.write_line(line)
+        if not BROWSER_REPORT.get("coverage_available"):
+            terminalreporter.write_line("Install requirements-dev.txt (websockets) for file-by-file coverage.")
+    else:
+        total_exec, total_cov, pct = coverage.totals(rows)
+        cov_text = f", JS coverage {pct:.1f}% (--coverage for per-file)" if rows else ""
+        terminalreporter.write_line(f"Browser unit tests: {BROWSER_REPORT['count']} passed{cov_text}")
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path and exitstatus == 0:
         passed = len(terminalreporter.stats.get("passed", []))
         try:
-            coverage.write_github_summary(summary_path, passed, BROWSER_REPORT["count"], BROWSER_REPORT["rows"])
+            coverage.write_github_summary(summary_path, passed, BROWSER_REPORT["count"], rows)
         except OSError as e:
             terminalreporter.write_line(f"Notice: Could not write GITHUB_STEP_SUMMARY: {e}")

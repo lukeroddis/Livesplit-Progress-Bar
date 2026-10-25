@@ -10,14 +10,17 @@ from browser.build_runner import build_runner
 from helpers import ROOT_DIR, index_scripts
 
 
+pytestmark = pytest.mark.browser
+
+
 @pytest.fixture(scope="module")
-def browser_results():
+def browser_results(request):
     chrome_bin = chrome.find_chrome()
     if not chrome_bin:
         if os.environ.get("CI"):
             pytest.fail("Chrome/Chromium is required in CI for the in-browser suite")
         pytest.skip("Chrome/Chromium not found; skipping in-browser unit tests")
-    return chrome.run_runner_page(chrome_bin, build_runner())
+    return chrome.run_runner_page(chrome_bin, build_runner(request.config.getoption("--spec")))
 
 
 def test_in_browser_unit_suite_passes(browser_results):

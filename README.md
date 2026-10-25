@@ -146,8 +146,11 @@ The repository includes an automated test suite verifying data parsers, ghost in
 # One-time: install the dev test tools (pytest, websockets for coverage)
 python -m pip install -r requirements-dev.txt
 
-# Run the full suite (or: npm test). Extra args go to pytest, e.g. -k browser
+# Run the full suite (or: npm test). Extra args go to pytest
 python tests/run_tests.py
+npm run test:quick                              # skip the headless Chrome suite
+python tests/run_tests.py --spec race/standings # only matching tests/unit spec files
+npm run test:coverage                           # per-file JS coverage table
 
 # Verify the single-file build contract
 npm run build

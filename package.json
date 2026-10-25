@@ -9,6 +9,8 @@
     "postbuild": "node scripts/verify-single-file.mjs",
     "preview": "vite preview",
     "test": "python tests/run_tests.py",
+    "test:quick": "python tests/run_tests.py -m \"not browser\"",
+    "test:coverage": "python tests/run_tests.py --coverage",
     "test:runner": "python tests/browser/build_runner.py"
   },
   "engines": {

@@ -36,7 +36,7 @@ jobs:
 
       - name: Run Unified Test Suite & Code Coverage
         run: |
-          python tests/run_tests.py
+          python tests/run_tests.py --coverage
 
       - name: Build single-file distribution
         run: npm run build
