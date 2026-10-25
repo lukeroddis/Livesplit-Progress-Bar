@@ -611,167 +611,17 @@ function parseLSS(xmlText, isNewDrop = false) {
       localStorage.setItem("livesplit_category", category);
     }
 
-    const segments = Array.from(xml.querySelectorAll("Segment"));
-    if (segments.length > 0) {
-      splitsList = [];
-      comparisonTimesGT = [];
-      comparisonTimesRT = [];
-      bestSegmentTimesGT = [];
-      bestSegmentTimesRT = [];
-      comparisonsDataGT = {};
-      comparisonsDataRT = {};
-      comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
-
-      // Collect any custom comparisons declared in root <Comparisons>
-      const declaredComps = Array.from(xml.querySelectorAll("Comparisons > Comparison"));
-      declaredComps.forEach(c => {
-        const cName = c.textContent.trim();
-        if (cName && !comparisonsList.includes(cName)) {
-          comparisonsList.push(cName);
-        }
-      });
-
-      const segmentHistoriesGT = [];
-      const segmentHistoriesRT = [];
-      const customSplitTimesGT = {};
-      const customSplitTimesRT = {};
-
-      segments.forEach((seg, segIdx) => {
-        const name = seg.querySelector("Name")?.textContent.trim() || "Split";
-
-        let pbGT = null;
-        let pbRT = null;
-        const pbNode = seg.querySelector("SplitTimes > SplitTime[name='Personal Best']");
-        if (pbNode) {
-          pbGT = pbNode.querySelector("GameTime")?.textContent;
-          pbRT = pbNode.querySelector("RealTime")?.textContent;
-        }
-        if (!pbGT && !pbRT) {
-          pbGT = seg.querySelector("PersonalBestSplitTime > GameTime")?.textContent;
-          pbRT = seg.querySelector("PersonalBestSplitTime > RealTime")?.textContent;
-        }
-
-        const bestGT = seg.querySelector("BestSegmentTime > GameTime")?.textContent;
-        const bestRT = seg.querySelector("BestSegmentTime > RealTime")?.textContent;
-
-        let bestSecGT = timeStringToSeconds(bestGT);
-        let bestSecRT = timeStringToSeconds(bestRT);
-
-        // Collect segment history for calculating Average Segments and Worst Segments
-        const segHistGT = [];
-        const segHistRT = [];
-        const historyTimes = Array.from(seg.querySelectorAll("SegmentHistory > Time"));
-        historyTimes.forEach(tNode => {
-          const hgt = timeStringToSeconds(tNode.querySelector("GameTime")?.textContent);
-          const hrt = timeStringToSeconds(tNode.querySelector("RealTime")?.textContent);
-          if (hgt !== null && hgt > 0) {
-            segHistGT.push(hgt);
-            if (bestSecGT === null || hgt < bestSecGT) bestSecGT = hgt;
-          }
-          if (hrt !== null && hrt > 0) {
-            segHistRT.push(hrt);
-            if (bestSecRT === null || hrt < bestSecRT) bestSecRT = hrt;
-          }
-        });
-
-        // Collect custom comparison split times
-        const splitTimeNodes = Array.from(seg.querySelectorAll("SplitTimes > SplitTime"));
-        splitTimeNodes.forEach(st => {
-          const stName = st.getAttribute("name");
-          if (stName && stName !== "Personal Best") {
-            if (!customSplitTimesGT[stName]) customSplitTimesGT[stName] = [];
-            if (!customSplitTimesRT[stName]) customSplitTimesRT[stName] = [];
-            const sgt = timeStringToSeconds(st.querySelector("GameTime")?.textContent);
-            const srt = timeStringToSeconds(st.querySelector("RealTime")?.textContent);
-            customSplitTimesGT[stName][segIdx] = sgt;
-            customSplitTimesRT[stName][segIdx] = srt;
-            if (!comparisonsList.includes(stName)) comparisonsList.push(stName);
-          }
-        });
-
-        splitsList.push(name);
-        comparisonTimesGT.push(timeStringToSeconds(pbGT));
-        comparisonTimesRT.push(timeStringToSeconds(pbRT));
-        bestSegmentTimesGT.push(bestSecGT);
-        bestSegmentTimesRT.push(bestSecRT);
-        segmentHistoriesGT.push(segHistGT);
-        segmentHistoriesRT.push(segHistRT);
-      });
-
-      // 1. Personal Best targets
-      comparisonsDataGT["Personal Best"] = [...comparisonTimesGT];
-      comparisonsDataRT["Personal Best"] = [...comparisonTimesRT];
-
-      // 2. Best Segments targets (Sum of Best)
-      let cumBestGT = 0;
-      let cumBestRT = 0;
-      comparisonsDataGT["Best Segments"] = bestSegmentTimesGT.map(s => {
-        if (s !== null && s > 0) cumBestGT += s;
-        return cumBestGT > 0 ? cumBestGT : null;
-      });
-      comparisonsDataRT["Best Segments"] = bestSegmentTimesRT.map(s => {
-        if (s !== null && s > 0) cumBestRT += s;
-        return cumBestRT > 0 ? cumBestRT : null;
-      });
-
-      // 3. Average Segments targets
-      let cumAvgGT = 0;
-      let cumAvgRT = 0;
-      comparisonsDataGT["Average Segments"] = [];
-      comparisonsDataRT["Average Segments"] = [];
-      for (let i = 0; i < segments.length; i++) {
-        const hgt = segmentHistoriesGT[i];
-        let pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
-        if (pbDurGT !== null && pbDurGT <= 0) pbDurGT = bestSegmentTimesGT[i];
-        const avgGT = hgt.length > 0 ? (hgt.reduce((a, b) => a + b, 0) / hgt.length) : (pbDurGT ?? bestSegmentTimesGT[i]);
-        if (avgGT != null && avgGT > 0) cumAvgGT += avgGT;
-        comparisonsDataGT["Average Segments"].push(cumAvgGT > 0 ? cumAvgGT : null);
-
-        const hrt = segmentHistoriesRT[i];
-        let pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
-        if (pbDurRT !== null && pbDurRT <= 0) pbDurRT = bestSegmentTimesRT[i];
-        const avgRT = hrt.length > 0 ? (hrt.reduce((a, b) => a + b, 0) / hrt.length) : (pbDurRT ?? bestSegmentTimesRT[i]);
-        if (avgRT != null && avgRT > 0) cumAvgRT += avgRT;
-        comparisonsDataRT["Average Segments"].push(cumAvgRT > 0 ? cumAvgRT : null);
-      }
-
-      // 4. Worst Segments targets
-      let cumWorstGT = 0;
-      let cumWorstRT = 0;
-      comparisonsDataGT["Worst Segments"] = [];
-      comparisonsDataRT["Worst Segments"] = [];
-      for (let i = 0; i < segments.length; i++) {
-        const hgt = segmentHistoriesGT[i];
-        let pbDurGT = (comparisonTimesGT[i] != null && (i === 0 ? comparisonTimesGT[i] : (comparisonTimesGT[i] - (comparisonTimesGT[i-1] || 0)))) || null;
-        if (pbDurGT !== null && pbDurGT <= 0) pbDurGT = bestSegmentTimesGT[i];
-        const worstGT = hgt.length > 0 ? Math.max(...hgt) : (pbDurGT ?? bestSegmentTimesGT[i]);
-        if (worstGT != null && worstGT > 0) cumWorstGT += worstGT;
-        comparisonsDataGT["Worst Segments"].push(cumWorstGT > 0 ? cumWorstGT : null);
-
-        const hrt = segmentHistoriesRT[i];
-        let pbDurRT = (comparisonTimesRT[i] != null && (i === 0 ? comparisonTimesRT[i] : (comparisonTimesRT[i] - (comparisonTimesRT[i-1] || 0)))) || null;
-        if (pbDurRT !== null && pbDurRT <= 0) pbDurRT = bestSegmentTimesRT[i];
-        const worstRT = hrt.length > 0 ? Math.max(...hrt) : (pbDurRT ?? bestSegmentTimesRT[i]);
-        if (worstRT != null && worstRT > 0) cumWorstRT += worstRT;
-        comparisonsDataRT["Worst Segments"].push(cumWorstRT > 0 ? cumWorstRT : null);
-      }
-
-      // 5. Custom comparisons (sanitized and cross-filled between GT/RT if one timing method is missing)
-      const allCustomKeys = new Set([...Object.keys(customSplitTimesGT), ...Object.keys(customSplitTimesRT)]);
-      allCustomKeys.forEach(cName => {
-        const rawGT = customSplitTimesGT[cName] || [];
-        const rawRT = customSplitTimesRT[cName] || [];
-        const hasGT = rawGT.some(t => t !== null && t > 0);
-        const hasRT = rawRT.some(t => t !== null && t > 0);
-
-        // Sanitize with fallback to PB times, cross-filling if one method is empty
-        const sanGT = sanitizeComparisonTimes(hasGT ? rawGT : (hasRT ? rawRT : []), comparisonTimesGT);
-        const sanRT = sanitizeComparisonTimes(hasRT ? rawRT : (hasGT ? rawGT : []), comparisonTimesRT);
-
-        comparisonsDataGT[cName] = sanGT;
-        comparisonsDataRT[cName] = sanRT;
-        if (!comparisonsList.includes(cName)) comparisonsList.push(cName);
-      });
+    // Pure XML parsing & curve computation is delegated to LiveSplit.SplitEngine
+    const parsed = window.LiveSplit.SplitEngine.parseLssXml(xmlText);
+    if (parsed) {
+      splitsList = parsed.splitsList;
+      comparisonTimesGT = parsed.comparisonTimesGT;
+      comparisonTimesRT = parsed.comparisonTimesRT;
+      bestSegmentTimesGT = parsed.bestSegmentTimesGT;
+      bestSegmentTimesRT = parsed.bestSegmentTimesRT;
+      comparisonsDataGT = parsed.comparisonsDataGT;
+      comparisonsDataRT = parsed.comparisonsDataRT;
+      comparisonsList = parsed.comparisonsList;
 
       // Auto-detect timing method from the splits file:
       // If splits have GameTime recorded (e.g. PC speedruns with load remover), default to GameTime.
@@ -815,7 +665,7 @@ function parseLSS(xmlText, isNewDrop = false) {
       const dropDesc = document.getElementById("dropzone-desc");
       if (dropDesc) {
         const gName = game || localStorage.getItem("livesplit_game") || "";
-        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${segments.length} splits loaded ✓`;
+        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${splitsList.length} splits loaded ✓`;
         dropDesc.style.color = "#38bdf8";
       }
       if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
