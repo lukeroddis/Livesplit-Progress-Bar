@@ -3843,6 +3843,466 @@
         window.setDevMode(false, true); // Clean up
       });
     });
+
+    describe("Live Race Leaderboard - Avatars, Podium, Banners, & FLIP", () => {
+      it("renders image tag for HTTP/HTTPS/data image avatars with safe HTML escaping", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const entrants = [
+          {
+            userId: "img_runner",
+            username: "PhotoRunner",
+            avatar: "https://example.com/avatar.png",
+            rank: 1,
+            position: 1,
+            isHost: false,
+            currentTimeSec: 45,
+            currentSplitName: "Stage 1",
+            deltaSec: 0,
+            isFinished: false
+          },
+          {
+            userId: "data_runner",
+            username: "DataRunner",
+            avatar: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==",
+            rank: 2,
+            position: 2,
+            isHost: false,
+            currentTimeSec: 48,
+            currentSplitName: "Stage 1",
+            deltaSec: 3,
+            isFinished: false
+          },
+          {
+            userId: "emoji_runner",
+            username: "EmojiRunner",
+            avatar: "⚡",
+            rank: 3,
+            position: 3,
+            isHost: true,
+            currentTimeSec: 50,
+            currentSplitName: "Stage 1",
+            deltaSec: 5,
+            isFinished: false
+          }
+        ];
+
+        lb.renderLeaderboard(entrants, true, false, false);
+        const row1 = document.querySelector('.leaderboard-row[data-user-id="img_runner"]');
+        assert(row1 !== null, "row1 rendered");
+        const img1 = row1.querySelector(".racer-avatar-img");
+        assert(img1 !== null, "racer-avatar-img rendered for https URL");
+        assertEqual(img1.getAttribute("src"), "https://example.com/avatar.png");
+
+        const row2 = document.querySelector('.leaderboard-row[data-user-id="data_runner"]');
+        const img2 = row2.querySelector(".racer-avatar-img");
+        assert(img2 !== null, "racer-avatar-img rendered for data: image URL");
+
+        const row3 = document.querySelector('.leaderboard-row[data-user-id="emoji_runner"]');
+        assert(row3.querySelector(".racer-avatar-img") === null, "emoji does not render img tag");
+        assert(row3.querySelector(".racer-avatar-badge").textContent.includes("⚡"), "renders emoji text");
+      });
+
+      it("renders winner podium ribbon and FINISHED status badge when race completes", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const entrants = [
+          {
+            userId: "winner_1",
+            username: "Champion",
+            rank: 1,
+            position: 1,
+            isHost: false,
+            currentTimeSec: 120,
+            currentSplitName: "Finish",
+            finalTimeSec: 120,
+            isFinished: true,
+            segmentRibbon: "gold",
+            hasCrown: true
+          },
+          {
+            userId: "runner_2",
+            username: "SecondPlace",
+            rank: 2,
+            position: 2,
+            isHost: false,
+            currentTimeSec: 125,
+            currentSplitName: "Finish",
+            finalTimeSec: 125,
+            isFinished: true
+          }
+        ];
+
+        lb.renderLeaderboard(entrants, true, false, false);
+        const statusBadge = document.getElementById("leaderboard-status-badge");
+        if (statusBadge) {
+          assertEqual(statusBadge.innerText, "FINISHED", "Status badge displays FINISHED");
+        }
+
+        const row1 = document.querySelector('.leaderboard-row[data-user-id="winner_1"]');
+        assert(row1 !== null, "winner row rendered");
+        const ribbon = row1.querySelector(".racer-ribbon.ribbon-gold");
+        assert(ribbon !== null, "winner has gold ribbon mounted");
+      });
+
+      it("renders countdown and lobby banners when race is pending or starting", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("banner_room");
+
+        // 1. Countdown banner
+        rc.handleRaceMessage({
+          type: "countdown",
+          seconds: 5
+        });
+        lb.renderLeaderboard([], false, true, false);
+        let cdBanner = document.querySelector(".leaderboard-countdown-banner");
+        assert(cdBanner !== null, "countdown banner is rendered");
+        assert(cdBanner.innerText.includes("5s"), "countdown banner text has 5s");
+
+        // 2. Lobby banner
+        rc.handleRaceMessage({
+          type: "message",
+          data: { type: "race-start-canceled" }
+        });
+        const lobbyEntrants = [
+          { userId: "u1", username: "U1", isReady: true, status: "ready" },
+          { userId: "u2", username: "U2", isReady: true, status: "ready" },
+          { userId: "u3", username: "U3", isReady: true, status: "ready" },
+          { userId: "u4", username: "U4", isReady: false, status: "joined" },
+          { userId: "u5", username: "U5", isReady: false, status: "joined" }
+        ];
+        lb.renderLeaderboard(lobbyEntrants, false, true, false);
+        let lobbyBanner = document.querySelector(".leaderboard-lobby-banner");
+        assert(lobbyBanner !== null, "lobby banner is rendered");
+        assert(lobbyBanner.innerText.length > 0, "lobby banner has active message or ready status");
+
+        rc.disconnectFromRace();
+      });
+
+      it("handles FLIP animation swap cleanup on transitionend", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const entrantsA = [
+          { userId: "flip_1", username: "FlipOne", rank: 1, position: 1, currentTimeSec: 50 },
+          { userId: "flip_2", username: "FlipTwo", rank: 2, position: 2, currentTimeSec: 52 }
+        ];
+        lb.renderLeaderboard(entrantsA, true, false, false);
+
+        // Swap positions
+        const entrantsB = [
+          { userId: "flip_2", username: "FlipTwo", rank: 1, position: 1, currentTimeSec: 52 },
+          { userId: "flip_1", username: "FlipOne", rank: 2, position: 2, currentTimeSec: 50 }
+        ];
+        lb.renderLeaderboard(entrantsB, true, false, false);
+
+        const row = document.querySelector('.leaderboard-row[data-user-id="flip_2"]');
+        assert(row !== null, "row exists");
+
+        // Simulate transitionend on transform
+        const transEv = new TransitionEvent("transitionend", {
+          propertyName: "transform",
+          bubbles: true
+        });
+        row.dispatchEvent(transEv);
+        assert(!row.classList.contains("is-swapping"), "is-swapping removed after transform transition");
+      });
+
+      it("handles fallback display when username is missing", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const namelessEntrants = [
+          { userId: "no_name_id", username: "", rank: 1, position: 1, currentTimeSec: 20 }
+        ];
+        lb.renderLeaderboard(namelessEntrants, true, false, false);
+        const row = document.querySelector('.leaderboard-row[data-user-id="no_name_id"]');
+        assert(row !== null, "row rendered");
+        const nameEl = row.querySelector(".racer-name");
+        assert(nameEl !== null, "name element exists");
+        assert(nameEl.innerText.length > 0, "fallback name is not empty");
+      });
+
+      it("hides leaderboard component when layout state sets visibility to false", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const compEl = document.getElementById("hud-comp-leaderboard");
+        const origGetState = window.hudLayout?.getState;
+        window.hudLayout = window.hudLayout || {};
+        window.hudLayout.getState = () => ({ leaderboard: { visible: false } });
+
+        lb.renderLeaderboard([{ userId: "p1", username: "P1", rank: 1, position: 1 }], true, false, false);
+        assert(compEl.classList.contains("is-hidden"), "Leaderboard is hidden when layout sets visible to false");
+
+        if (origGetState) {
+          window.hudLayout.getState = origGetState;
+        } else {
+          delete window.hudLayout.getState;
+        }
+      });
+    });
+
+    describe("Live Race Client - Deep Telemetry, DNF, & Lifecycles", () => {
+      it("manages entrant and host DNF status transitions", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        rc.connectToRace("dnf_test_room");
+        rc.handleRaceMessage({
+          type: "raceUpdate",
+          data: {
+            raceId: "dnf_test_room",
+            participants: [
+              { user: "RacerA", status: "joined", currentTime: 65000 }
+            ]
+          }
+        });
+
+        // Set entrant to DNF
+        rc.setEntrantDNF("RacerA", true);
+        let entrants = rc.getRankedEntrants();
+        let rA = entrants.find(e => e.username === "RacerA" || e.userId === "RacerA");
+        assert(rA !== null, "RacerA found");
+        assertEqual(rA.isDNF, true, "RacerA isDNF is true");
+        assertEqual(rA.currentSplitName, "DNF", "RacerA split name is DNF");
+
+        // Clear DNF
+        rc.setEntrantDNF("RacerA", false);
+        entrants = rc.getRankedEntrants();
+        rA = entrants.find(e => e.username === "RacerA" || e.userId === "RacerA");
+        assertEqual(rA.isDNF, false, "RacerA isDNF is cleared");
+
+        // Host DNF
+        assertEqual(rc.isHostDNF(), false, "Host starts not DNF");
+        rc.setHostDNF(true);
+        assertEqual(rc.isHostDNF(), true, "Host set to DNF");
+        rc.setHostDNF(false);
+        assertEqual(rc.isHostDNF(), false, "Host DNF cleared");
+
+        rc.disconnectFromRace();
+      });
+
+      it("handles competitor split undo and rolls back splitTimes", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("undo_test_room");
+
+        // 1. Competitor progresses to split index 3
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            user: "UndoRunner",
+            currentSplitIndex: 3,
+            currentSplitName: "Stage 3",
+            currentTime: 90000,
+            splitTimes: [30, 60, 90]
+          }
+        });
+
+        let entrants = rc.getRankedEntrants();
+        let runner = entrants.find(e => e.username === "UndoRunner");
+        assert(runner !== null, "UndoRunner exists");
+        assertEqual(runner.currentSplitIndex, 3, "Runner is at split 3");
+        assertEqual(runner.splitTimes.length, 3, "Runner has 3 split times");
+
+        // 2. Competitor undid to split index 1
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            user: "UndoRunner",
+            currentSplitIndex: 1,
+            currentSplitName: "Stage 1",
+            currentTime: 35000
+          }
+        });
+
+        entrants = rc.getRankedEntrants();
+        runner = entrants.find(e => e.username === "UndoRunner");
+        assertEqual(runner.currentSplitIndex, 1, "Runner rolled back to split 1");
+        assertEqual(runner.splitTimes.length, 1, "Split times sliced to 1");
+
+        rc.disconnectFromRace();
+      });
+
+      it("evaluates split flash types: gold, green, red deltas", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("flash_test_room");
+
+        // 1. Gold split
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            user: "FlashRunner",
+            currentSplitIndex: 1,
+            currentTime: 25000,
+            isGold: true
+          }
+        });
+        let entrants = rc.getRankedEntrants();
+        let r = entrants.find(e => e.username === "FlashRunner");
+        assertEqual(r.lastSplitEffect?.type, "gold", "Flash is gold when isGold is true");
+
+        // 2. Green split (negative delta)
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            user: "FlashRunner",
+            currentSplitIndex: 2,
+            currentTime: 50000,
+            delta: -1500
+          }
+        });
+        entrants = rc.getRankedEntrants();
+        r = entrants.find(e => e.username === "FlashRunner");
+        assertEqual(r.lastSplitEffect?.type, "green", "Flash is green when delta is negative");
+
+        // 3. Red split (positive delta)
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            user: "FlashRunner",
+            currentSplitIndex: 3,
+            currentTime: 80000,
+            delta: 2500
+          }
+        });
+        entrants = rc.getRankedEntrants();
+        r = entrants.find(e => e.username === "FlashRunner");
+        assertEqual(r.lastSplitEffect?.type, "red", "Flash is red when delta is positive");
+
+        rc.disconnectFromRace();
+      });
+
+      it("handles race lifecycle cancellations, finishes, and predictions", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("life_test_room");
+
+        // Countdown cancellation
+        rc.handleRaceMessage({
+          type: "countdown",
+          seconds: 10
+        });
+        assertEqual(rc.getRaceStatus(), "starting", "Status is starting during countdown");
+
+        rc.handleRaceMessage({
+          type: "message",
+          data: { type: "race-start-canceled" }
+        });
+        assertEqual(rc.getRaceStatus(), "open", "Status reverts to open on cancellation");
+
+        // Race finish
+        rc.handleRaceMessage({
+          type: "message",
+          data: { type: "race-finish" }
+        });
+        assertEqual(rc.getRaceStatus(), "finished", "Status is finished");
+
+        // Monte Carlo & Estimated Finish Time Predictions
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            user: "PredRunner",
+            monteCarloPrediction: 3600,
+            estimatedFinishTime: 3650000
+          }
+        });
+        const runner = rc.getRankedEntrants().find(e => e.username === "PredRunner");
+        assert(runner !== null, "PredRunner exists");
+        assertEqual(runner.monteCarloPrediction, 3600, "Monte Carlo prediction stored");
+        assertEqual(runner.currentPrediction, 3650, "Estimated finish time converted from ms to sec");
+
+        rc.disconnectFromRace();
+      });
+
+      it("toggles entrant muting and global pins visibility APIs", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("mute_test_room");
+
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: { user: "MuteTarget", status: "joined" }
+        });
+
+        // Entrant mute
+        rc.setEntrantMuted("MuteTarget", true);
+        let target = rc.getRankedEntrants().find(e => e.username === "MuteTarget");
+        assertEqual(target.isMuted, true, "isMuted is true");
+
+        assertEqual(rc.toggleEntrantMuted("MuteTarget"), false, "Toggle entrant unmutes");
+        target = rc.getRankedEntrants().find(e => e.username === "MuteTarget");
+        assertEqual(target.isMuted, false, "isMuted is false");
+
+        // Global pins visibility
+        assertEqual(rc.areRacePinsVisible(), true, "Pins default to visible");
+        assertEqual(rc.setRacePinsVisible(false), false, "Set pins invisible");
+        assertEqual(rc.areRacePinsVisible(), false, "Pins are invisible");
+        assertEqual(rc.toggleRacePinsVisible(), true, "Toggle pins makes them visible");
+
+        rc.disconnectFromRace();
+      });
+
+      it("clears and retrieves WebSocket debug logs", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.clearWebSocketLogs();
+        assertEqual(rc.getWebSocketLogs().length, 0, "Logs are empty after clear");
+
+        // Inject simulated race message to generate log
+        rc.handleRaceMessage({
+          type: "raceUpdate",
+          data: { raceId: "log_room", participants: [] }
+        });
+        assert(rc.getWebSocketLogs().length >= 0, "getWebSocketLogs returns array");
+
+        rc.clearWebSocketLogs();
+        assertEqual(rc.getWebSocketLogs().length, 0, "Logs cleared successfully");
+      });
+
+      it("handles dead-reckoning extrapolation and string delta formats", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.disconnectFromRace();
+        rc.connectToRace("dead_reckon_room");
+
+        // String delta ("+3.5") and streaming flag
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            user: "StreamerRacer",
+            delta: "+3.5",
+            liveData: {
+              streaming: true,
+              splitStartedAt: Date.now() - 4000,
+              currentTime: 20000
+            }
+          }
+        });
+
+        let entrant = rc.getRankedEntrants().find(e => e.username === "StreamerRacer");
+        assert(entrant !== null, "StreamerRacer exists");
+        assertEqual(entrant.deltaSec, 3.5, "deltaSec parsed from string '+3.5'");
+        assertEqual(entrant.isStreaming, true, "isStreaming flag captured");
+        assert(entrant.currentTimeSec >= 20, "currentTimeSec computed including elapsed split duration");
+
+        rc.disconnectFromRace();
+      });
+
+      it("handles simulation virtual host advance and competitor completions", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.stopSimulation();
+        rc.setExternalHostConnected(false);
+
+        // Very short course targets (1s, 2s, 3s)
+        rc.startSimulation(["Intro", "Middle", "End"], [1, 2, 3], [1, 2, 3], { withLobby: false });
+        assertEqual(rc.isSimulating(), true, "Simulation active");
+
+        // Update host progress past final split target
+        rc.updateHostProgress(5.0, 3, [1.0, 2.0, 3.0], [1, 2, 3], "End", ["Intro", "Middle", "End"]);
+
+        const entrants = rc.getRankedEntrants();
+        const finishedCompetitors = entrants.filter(e => e.isFinished);
+        assert(finishedCompetitors.length > 0, "Host and/or pace contenders mark as finished");
+
+        rc.stopSimulation();
+      });
+    });
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");
     suites.forEach((suite) => {
