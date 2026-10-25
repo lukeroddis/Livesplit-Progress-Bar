@@ -49,6 +49,7 @@ def test_file_integrity():
         os.path.join("src", "ui", "timer-display.js"),
         os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
+        os.path.join("src", "ui", "layout-modal.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     for fname in required:
@@ -87,6 +88,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "ui", "timer-display.js"),
         os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
+        os.path.join("src", "ui", "layout-modal.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     
@@ -202,6 +204,7 @@ def test_dom_id_consistency():
         os.path.join("src", "ui", "timer-display.js"),
         os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
+        os.path.join("src", "ui", "layout-modal.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]:
         path = os.path.join(ROOT_DIR, js_file)
@@ -905,6 +908,10 @@ def test_ghost_pin_length_zero_track():
     if os.path.exists(ts_path):
         with open(ts_path, "r", encoding="utf-8") as tsf:
             js += tsf.read()
+    lm_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(lm_path):
+        with open(lm_path, "r", encoding="utf-8") as lmf:
+            js += lmf.read()
     assert 'track.classList.toggle("ghost-on-track", pinLength === 0)' in js, \
         "layout.js or track-style.js missing track ghost-on-track toggle"
     assert 'track.style.setProperty("--ghost-needle-length"' in js, \
@@ -1066,6 +1073,11 @@ def test_draggable_settings_and_timer_display_modes():
     layout_path = os.path.join(ROOT_DIR, "layout.js")
     with open(layout_path, "r", encoding="utf-8") as f:
         layout_js = f.read()
+
+    layout_modal_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(layout_modal_path):
+        with open(layout_modal_path, "r", encoding="utf-8") as f:
+            layout_js += f.read()
 
     # 1. Drag & Drop HTML Elements & Controls
     assert 'id="btn-reset-settings-pos"' not in html, "index.html should omit redundant btn-reset-settings-pos"
@@ -1283,6 +1295,10 @@ def test_custom_game_logo_feature():
     layout_path = os.path.join(ROOT_DIR, "layout.js")
     with open(layout_path, "r", encoding="utf-8") as f:
         layout_src = f.read()
+    lm_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(lm_path):
+        with open(lm_path, "r", encoding="utf-8") as lmf:
+            layout_src += lmf.read()
 
     # HTML checks
     assert 'id="game-logo"' in html_src, "index.html must contain #game-logo"
@@ -1436,6 +1452,10 @@ def test_layout_profiles_and_extensible_schema():
     layout_path = os.path.join(ROOT_DIR, "layout.js")
     with open(layout_path, "r", encoding="utf-8") as f:
         layout_src = f.read()
+    lm_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(lm_path):
+        with open(lm_path, "r", encoding="utf-8") as lmf:
+            layout_src += lmf.read()
 
     # Must NOT contain hardcoded personal dead-link schema URLs
     assert "https://lukeroddis.github.io" not in layout_src, \
@@ -1566,6 +1586,10 @@ def test_track_scrolling_consistency_and_mousewheel():
     if os.path.exists(drag_path):
         with open(drag_path, "r", encoding="utf-8") as df:
             layout_src += df.read()
+    modal_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(modal_path):
+        with open(modal_path, "r", encoding="utf-8") as mf:
+            layout_src += mf.read()
     with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
         html_src = f.read()
     with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
@@ -1729,6 +1753,10 @@ def test_timer_anchor_and_expansion_modes():
     if os.path.exists(drag_path):
         with open(drag_path, "r", encoding="utf-8") as df:
             layout_src += df.read()
+    modal_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(modal_path):
+        with open(modal_path, "r", encoding="utf-8") as mf:
+            layout_src += mf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
         schema_src = f.read()
 
@@ -1843,6 +1871,10 @@ def test_always_show_last_split_and_schematic_break():
     if os.path.exists(drag_path):
         with open(drag_path, "r", encoding="utf-8") as df:
             layout_src += df.read()
+    modal_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(modal_path):
+        with open(modal_path, "r", encoding="utf-8") as mf:
+            layout_src += mf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2113,6 +2145,10 @@ def test_architectural_safeguards_and_bug_fixes():
     if os.path.exists(drag_path):
         with open(drag_path, "r", encoding="utf-8") as df:
             layout_src += df.read()
+    modal_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(modal_path):
+        with open(modal_path, "r", encoding="utf-8") as mf:
+            layout_src += mf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2296,6 +2332,10 @@ def test_track_orientation_and_split_density_reflow():
     if os.path.exists(drag_path):
         with open(drag_path, "r", encoding="utf-8") as df:
             layout_src += df.read()
+    modal_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    if os.path.exists(modal_path):
+        with open(modal_path, "r", encoding="utf-8") as mf:
+            layout_src += mf.read()
     with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
         overlay_src = f.read()
 
@@ -2949,6 +2989,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "ui", "timer-display.js"),
             os.path.join("src", "ui", "timer-anchor.js"),
             os.path.join("src", "ui", "game-logo.js"),
+            os.path.join("src", "ui", "layout-modal.js"),
             os.path.join("src", "utils", "dom-utils.js")
         ]
 
@@ -3250,6 +3291,25 @@ def test_layout_drag_modularization():
     print("✓ Layout Pointer Drag & Scale Engine modularization passed.")
 
 
+def test_layout_modal_modularization():
+    """Verify modularization of layout modal and settings toolbar controller."""
+    modal_path = os.path.join(ROOT_DIR, "src", "ui", "layout-modal.js")
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+
+    assert os.path.exists(modal_path), "src/ui/layout-modal.js must exist"
+
+    with open(modal_path, "r", encoding="utf-8") as rf:
+        modal_code = rf.read()
+    with open(layout_path, "r", encoding="utf-8") as lcf:
+        layout_code = lcf.read()
+
+    assert "window.LiveSplit.LayoutModal" in modal_code, "layout-modal.js must export LiveSplit.LayoutModal"
+    assert "createLayoutModal" in modal_code, "layout-modal.js must define createLayoutModal"
+    assert "LiveSplit.LayoutModal.createLayoutModal" in layout_code, "layout.js must instantiate LayoutModal"
+
+    print("✓ Layout Modal & Settings Controller modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3303,7 +3363,8 @@ def main():
         test_timer_anchor_modularization()
         test_track_style_modularization()
         test_layout_drag_modularization()
-        run_browser_tests_and_coverage(python_test_count=48)
+        test_layout_modal_modularization()
+        run_browser_tests_and_coverage(python_test_count=49)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
