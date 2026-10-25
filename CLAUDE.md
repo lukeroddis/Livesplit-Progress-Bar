@@ -41,8 +41,8 @@ Run `npm test` and `npm run build` before committing; both must be green.
 - New behaviour tests go in `tests/unit/<core|ui|utils>/<module>.test.js` (cross-module race flows in `tests/unit/race/`). They are discovered automatically and use `describe`/`it`/`assert`/`assertEqual` from `tests/harness/mini-test.js`.
 - Drive LiveSplit through `tests/harness/fake-livesplit.js` (`FakeLiveSplit.acceptConnection()`, `.state`, `.sent`), never a real server.
 - Don't assert on source text or re-implement JS logic in Python. The Python tests are only for cross-file contracts and project rules.
-- Shared spec helpers live in `tests/harness/test-utils.js` (`TestUtils.mountHtml`, `captureWindowListeners`, `withFakeTimers`, `waitFor`); real sample `.lss` files in `tests/fixtures/` are available as `window.TestFixtures["<file name>"]`.
-- Full runs enforce the JS coverage floors in `pytest.ini` (`js_coverage_floor`, `js_file_coverage_floor`). Raise them after improving coverage.
+- Shared spec helpers live in `tests/harness/test-utils.js` (`TestUtils.mountHtml`, `captureWindowListeners`, `withFakeTimers`, `stubWindow`, `waitFor`); real sample `.lss` files in `tests/fixtures/` are available as `window.TestFixtures["<file name>"]`.
+- Full runs enforce the JS coverage floors in `pytest.ini` (`js_coverage_floor`, `js_file_coverage_floor`). Raise them after improving coverage, keeping about a point of headroom (coverage varies slightly per run).
 - `tests/test_runner.html` is generated; edit `tests/test_runner.template.html`.
 
 ## Working in this repo

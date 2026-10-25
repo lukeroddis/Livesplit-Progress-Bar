@@ -5,9 +5,11 @@
  *   runner page's own elements in getElementById / querySelector; returns { root, el(id), remove() }
  * - captureWindowListeners(fn): runs fn while window.addEventListener records instead of
  *   registering, so specs can call handlers directly without firing the app's own listeners
- * - withFakeTimers(fn): runs fn(clock) with setTimeout/clearTimeout on a manual clock;
- *   clock.tick(ms) fires due timers in order (including ones scheduled while ticking)
+ * - withFakeTimers(fn): runs fn(clock) with setTimeout / setInterval / Date.now on a manual
+ *   clock; clock.tick(ms) fires due timers in order (including ones scheduled while ticking)
  * - waitFor(condition, label, timeoutMs): polls until condition() is truthy (async specs)
+ * - stubWindow(overrides, fn): replaces window.<name> for the duration of fn (undefined removes
+ *   it), then restores the originals; returns fn's result (awaits it if fn is async)
  */
 
 (function () {
@@ -42,6 +44,10 @@
   function withFakeTimers(fn) {
     const realSet = window.setTimeout;
     const realClear = window.clearTimeout;
+    const realSetInterval = window.setInterval;
+    const realClearInterval = window.clearInterval;
+    const realDateNow = Date.now;
+    const epoch = realDateNow();
     let now = 0;
     let nextId = 1;
     const timers = new Map();
@@ -56,7 +62,8 @@
             if (t.at <= end && (!due || t.at < due.at || (t.at === due.at && id < due.id))) due = { ...t, id };
           });
           if (!due) break;
-          timers.delete(due.id);
+          if (due.every) timers.set(due.id, { ...timers.get(due.id), at: due.at + due.every });
+          else timers.delete(due.id);
           now = due.at;
           due.fn();
         }
@@ -69,11 +76,21 @@
       return id;
     };
     window.clearTimeout = (id) => { timers.delete(id); };
+    window.setInterval = (cb, every = 0) => {
+      const id = nextId++;
+      timers.set(id, { fn: cb, at: now + Math.max(1, every), every: Math.max(1, every) });
+      return id;
+    };
+    window.clearInterval = window.clearTimeout;
+    Date.now = () => epoch + now;
     try {
       return fn(clock);
     } finally {
       window.setTimeout = realSet;
       window.clearTimeout = realClear;
+      window.setInterval = realSetInterval;
+      window.clearInterval = realClearInterval;
+      Date.now = realDateNow;
     }
   }
 
@@ -85,5 +102,23 @@
     }
   }
 
-  window.TestUtils = { mountHtml, captureWindowListeners, withFakeTimers, waitFor };
+  function stubWindow(overrides, fn) {
+    const saved = Object.keys(overrides).map((k) => [k, Object.prototype.hasOwnProperty.call(window, k), window[k]]);
+    // Globals from top-level function declarations cannot be deleted; blank those instead
+    const unset = (k) => { try { delete window[k]; } catch (_) { /* non-configurable */ } if (k in window) window[k] = undefined; };
+    Object.entries(overrides).forEach(([k, v]) => { if (v === undefined) unset(k); else window[k] = v; });
+    const restore = () => saved.forEach(([k, had, v]) => { if (had) window[k] = v; else unset(k); });
+    let result;
+    try {
+      result = fn();
+    } catch (e) {
+      restore();
+      throw e;
+    }
+    if (result && typeof result.then === "function") return result.finally(restore);
+    restore();
+    return result;
+  }
+
+  window.TestUtils = { mountHtml, captureWindowListeners, withFakeTimers, waitFor, stubWindow };
 })();

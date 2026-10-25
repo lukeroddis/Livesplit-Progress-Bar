@@ -163,11 +163,12 @@
     const startCooldownCountdownUI = (durationMs = 5000, prefix = "Wait") => {
       if (!therunSaveBtn) return;
       clearConnectCooldownUI();
+      // Sync the badges before disabling: with no cooldown running yet, the sync re-enables the button
+      syncConnectBtnState();
       const endMs = Date.now() + durationMs;
       therunSaveBtn.disabled = true;
       therunSaveBtn.classList.remove("danger");
       therunSaveBtn.style.color = "";
-      syncConnectBtnState();
       const updateTick = () => {
         const remSec = Math.ceil(Math.max(0, endMs - Date.now()) / 1000);
         if (remSec <= 0) {
