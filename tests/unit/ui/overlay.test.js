@@ -228,4 +228,58 @@
         assert("deltaSpan" in res, "result contains deltaSpan");
       });
     });
+    describe("Overlay: in-run state persistence and undo rollback", () => {
+      const KEY = "livesplit_in_run_state";
+      const stored = () => JSON.parse(localStorage.getItem(KEY) || "null");
+      const resetOverlayRun = () => {
+        localStorage.setItem(KEY, JSON.stringify({ currentIndex: -1, lockedDeltas: {}, completedSplitTimes: {}, completedSplitTimesRT: {}, completedSplitTimesGT: {}, lastSplitRecordedSec: 0, previousDeltaSeconds: 0, lastElapsedSec: 0 }));
+        window.loadInRunState();
+        window.clearInRunState();
+      };
+      const lock = (sec, cls) => ({ deltaInfo: { text: "", isAhead: sec <= 0, signedSeconds: sec }, stateClass: cls, splitTimeSec: null });
+
+      it("rejects persisted state saved for a different number of splits", () => {
+        localStorage.setItem(KEY, JSON.stringify({ currentIndex: 2, splitsCount: 99999, lockedDeltas: {} }));
+        assertEqual(window.loadInRunState(), false, "split count mismatch is rejected");
+        assertEqual(localStorage.getItem(KEY), null, "mismatched state is cleared");
+      });
+
+      it("round-trips locked deltas and split times through save/load", () => {
+        localStorage.setItem(KEY, JSON.stringify({
+          currentIndex: 2,
+          lockedDeltas: { 0: lock(-1.5, "ahead-gaining"), 1: lock(0, "uncoloured") },
+          completedSplitTimes: { 0: 50 },
+          lastSplitRecordedSec: 50
+        }));
+        assertEqual(window.loadInRunState(), true);
+        window.saveInRunState();
+        const s = stored();
+        assertEqual(s.currentIndex, 2);
+        assertEqual(s.lockedDeltas["0"].stateClass, "ahead-gaining");
+        assertEqual(s.lockedDeltas["1"].stateClass, "uncoloured");
+        assertEqual(typeof s.splitsCount, "number", "splitsCount is persisted for the mismatch guard");
+        resetOverlayRun();
+      });
+
+      it("undo rolls back split times, locked deltas, last split time and previous delta", () => {
+        localStorage.setItem(KEY, JSON.stringify({
+          currentIndex: 3,
+          lockedDeltas: { 0: lock(-2, "ahead-gaining"), 1: lock(-6, "ahead-gaining"), 2: lock(2, "behind-losing") },
+          completedSplitTimes: { 0: 48, 1: 94, 2: 152 },
+          lastSplitRecordedSec: 152,
+          previousDeltaSeconds: 2
+        }));
+        window.loadInRunState();
+        window.handleUndoSplit(1, 3);
+
+        const s = stored();
+        assertEqual(Object.keys(window.getLockedDeltas()), ["0"], "only split 0 stays locked");
+        assertEqual(Object.keys(s.completedSplitTimes), ["0"]);
+        assertEqual(s.completedSplitTimes["0"], 48);
+        assertEqual(s.lastSplitRecordedSec, 48, "last split time rolls back to split 0");
+        assertEqual(s.previousDeltaSeconds, -2, "delta baseline rolls back to split 0");
+        resetOverlayRun();
+      });
+    });
+
 })();

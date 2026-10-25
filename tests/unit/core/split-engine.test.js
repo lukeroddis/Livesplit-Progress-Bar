@@ -188,4 +188,36 @@
         assertEqual(se.detectTimingMethodFromComp(0, 0, compGT, compRT), null);
       });
     });
+    describe("Split Engine: normalization, sanitizing and timing detection cases", () => {
+      const se = window.LiveSplit.SplitEngine;
+
+      it("normalizes LiveSplit comparison aliases and keeps custom names", () => {
+        const comps = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments", "Goal 100%"];
+        assertEqual(se.normalizeComparisonName("pb", comps), "Personal Best");
+        assertEqual(se.normalizeComparisonName("Personal Best", comps), "Personal Best");
+        assertEqual(se.normalizeComparisonName("sum of best", comps), "Best Segments");
+        assertEqual(se.normalizeComparisonName("average", comps), "Average Segments");
+        assertEqual(se.normalizeComparisonName("worst", comps), "Worst Segments");
+        assertEqual(se.normalizeComparisonName("goal 100%", comps), "Goal 100%");
+        assertEqual(se.normalizeComparisonName("-", comps), null);
+      });
+
+      it("sanitizes sparse comparison times with an explicit length", () => {
+        assertEqual(se.sanitizeComparisonTimes([100.0, null, 300.0], [120.0, 220.0, 320.0], 3), [100.0, 220.0, 300.0]);
+        assertEqual(se.sanitizeComparisonTimes([], [120.0, 220.0, 320.0], 3), [120.0, 220.0, 320.0]);
+      });
+
+      it("detects GameTime vs RealTime from LiveSplit's comparison split time", () => {
+        // FFX PC: GT targets ~206s, RT targets ~811s
+        const gt = [206.0, 686.0];
+        const rt = [811.0, 1734.0];
+        assertEqual(se.detectTimingMethodFromComp(0, 206.0, gt, rt), "GameTime");
+        assertEqual(se.detectTimingMethodFromComp(0, 811.0, gt, rt), "RealTime");
+        assertEqual(se.detectTimingMethodFromComp(0, 202.0, gt, rt), "GameTime");
+        assertEqual(se.detectTimingMethodFromComp(-1, 206.0, gt, rt), null);
+        assertEqual(se.detectTimingMethodFromComp(0, null, gt, rt), null);
+        assertEqual(se.detectTimingMethodFromComp(5, 206.0, gt, rt), null);
+      });
+    });
+
 })();

@@ -297,4 +297,54 @@
         assertEqual(resUnknown, null);
       });
     });
+    describe("Ghost Math: progress interpolation and timescale defense cases", () => {
+      const gm = window.LiveSplit.GhostMath;
+      const near = (a, b) => Math.abs(a - b) < 1e-9;
+
+      it("interpolates ghost progress across segments, boundaries and the finish", () => {
+        const times = [60.0, 120.0, 180.0, 240.0];
+        let r = gm.calculateGhostProgress(0, times);
+        assert(r.segIdx === 0 && r.ratio === 0 && !r.isFinished, "start");
+        r = gm.calculateGhostProgress(30, times);
+        assert(r.segIdx === 0 && near(r.ratio, 0.5) && !r.isFinished, "mid segment 0");
+        r = gm.calculateGhostProgress(60, times);
+        assert(r.segIdx === 1 && near(r.ratio, 0) && !r.isFinished, "exactly at split 0 boundary");
+        r = gm.calculateGhostProgress(90, times);
+        assert(r.segIdx === 1 && near(r.ratio, 0.5), "mid segment 1");
+        r = gm.calculateGhostProgress(240, times);
+        assert(r.segIdx === 3 && near(r.ratio, 1) && r.isFinished, "at finish");
+        r = gm.calculateGhostProgress(300, times);
+        assert(r.segIdx === 3 && near(r.ratio, 1) && r.isFinished, "beyond finish");
+        r = gm.calculateGhostProgress(30, [60.0, null, 180.0]);
+        assert(r.segIdx === 0 && near(r.ratio, 0.5), "sparse array");
+      });
+
+      it("prefers the GameTime WR when the RealTime WR is on a different timescale", () => {
+        // PB 206.5s; WR GameTime 202s; WR RealTime 811s (includes cutscenes)
+        const info = gm.getGhostComparisonInfo(
+          "wr", "RealTime",
+          { "World Record": [202.0] },
+          { "World Record": [811.0] },
+          [206.5], [206.5]
+        );
+        assertEqual(info.id, "wr");
+        assertEqual(info.times, [202.0]);
+        const r = gm.calculateGhostProgress(214.0, info.times);
+        assert(r.segIdx === 0 && near(r.ratio, 1) && r.isFinished, "WR ghost finished by 214s");
+      });
+
+      it("parses ghost selections from strings and arrays", () => {
+        window.setGhostComparison("wr,pb");
+        assertEqual(window.getActiveGhostComparisons(), ["wr", "pb"]);
+        window.setGhostComparison(["best", "average"]);
+        assertEqual(window.getActiveGhostComparisons(), ["best", "average"]);
+        window.setGhostComparison("");
+        assertEqual(window.getActiveGhostComparisons(), ["off"]);
+        window.setGhostComparison(null);
+        assertEqual(window.getActiveGhostComparisons(), ["off"]);
+        window.setGhostComparison("off");
+        assertEqual(window.getActiveGhostComparisons(), ["off"]);
+      });
+    });
+
 })();

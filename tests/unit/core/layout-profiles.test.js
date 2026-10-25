@@ -125,4 +125,43 @@
       });
     });
   });
+  describe("LayoutProfiles: profile style compatibility", () => {
+    it("merges older and newer profile styles over current defaults", () => {
+      const snapshot = Object.assign({}, localStorage);
+      try {
+        runMergeChecks();
+      } finally {
+        localStorage.clear();
+        Object.keys(snapshot).forEach((k) => localStorage.setItem(k, snapshot[k]));
+      }
+    });
+
+    function runMergeChecks() {
+      const defaults = { orientation: "horizontal", logoHeight: 60, ghostPinLength: 16, bgOpacity: 65, deltaPos: "bottom" };
+      let applied = null;
+      const engine = window.LiveSplit.LayoutProfiles.createLayoutProfiles({
+        getDefaultLayout: () => ({ title: {}, timers: {}, track: {}, leaderboard: {} }),
+        getDefaultTrackStyle: () => defaults,
+        setCurrentTrackStyle: (s) => { applied = s; }
+      });
+
+      // Older profile missing newer fields keeps its values and inherits defaults
+      engine.applyProfileData({ version: 1, style: { bgOpacity: 80, deltaPos: "top" } });
+      assertEqual(applied.logoHeight, 60, "missing logoHeight defaults to 60");
+      assertEqual(applied.ghostPinLength, 16, "missing ghostPinLength defaults to 16");
+      assertEqual(applied.bgOpacity, 80, "older bgOpacity preserved");
+      assertEqual(applied.deltaPos, "top", "older deltaPos preserved");
+
+      // Missing deltaPos falls back to default
+      engine.applyProfileData({ version: 1, style: { bgOpacity: 70 } });
+      assertEqual(applied.deltaPos, "bottom");
+
+      // Future profile fields survive and defaults still apply
+      engine.applyProfileData({ version: 2, style: { orientation: "vertical", neonGlowSpread: 25 } });
+      assertEqual(applied.orientation, "vertical");
+      assertEqual(applied.neonGlowSpread, 25, "future field preserved");
+      assertEqual(applied.logoHeight, 60, "future style inherits defaults");
+    }
+  });
+
 })();

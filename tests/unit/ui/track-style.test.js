@@ -147,4 +147,17 @@
       });
     });
   });
+    describe("Track Style: orientation position mapping cases", () => {
+      const map = window.LiveSplit.TrackStyle.mapOrientationSwitch;
+      const pos = (r) => [r.orientation, r.namePos, r.deltaPos];
+
+      it("maps name/delta positions when switching orientation", () => {
+        assertEqual(pos(map("horizontal", "vertical", "top", "top")), ["vertical", "left", "right"]);
+        assertEqual(pos(map("horizontal", "vertical", "bottom", "top")), ["vertical", "right", "right"]);
+        assertEqual(pos(map("vertical", "horizontal", "left", "right")), ["horizontal", "top", "top"]);
+        assertEqual(pos(map("vertical", "horizontal", "right", "right")), ["horizontal", "bottom", "top"]);
+        assertEqual(pos(map("vertical", "vertical", "left", "right")), ["vertical", "left", "right"]);
+      });
+    });
+
 })();

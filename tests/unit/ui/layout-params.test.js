@@ -132,4 +132,23 @@
       assert(removedLogo, "removeGameLogo called when ?logo=none");
     });
   });
+  describe("LayoutParams: ghost pin length parameter", () => {
+    it("parses and clamps ?ghostlen to 0..60, ignoring invalid values", () => {
+      const run = (search) => {
+        const style = { ghostPinLength: 16 };
+        window.LiveSplit.LayoutParams.parseUrlParameters({
+          getLayoutState: () => ({}),
+          getCurrentTrackStyle: () => style,
+          search
+        });
+        return style.ghostPinLength;
+      };
+      assertEqual(run("?ghostlen=0"), 0);
+      assertEqual(run("?ghostlen=-5"), 0);
+      assertEqual(run("?ghostlen=16"), 16);
+      assertEqual(run("?ghostlen=70"), 60);
+      assertEqual(run("?ghostlen=invalid"), 16, "invalid value leaves the existing length");
+    });
+  });
+
 })();

@@ -126,4 +126,18 @@
       assertEqual(ctrlDisplay.querySelector(".seg-btn.active").getAttribute("data-val"), "gametime");
     });
   });
+  describe("Timer Display: timing mode cycle", () => {
+    it("cycles Game -> Real -> Both (Game) -> Both (Real) -> Game", () => {
+      const next = window.LiveSplit.TimerDisplay.calculateNextTimingMode;
+      const step = (s) => { const n = next(s[0], s[1]); return [n.mode, n.focusMethod]; };
+      const s1 = step(["gametime", "GameTime"]);
+      assertEqual(s1, ["realtime", "RealTime"]);
+      const s2 = step(s1);
+      assertEqual(s2, ["both", "GameTime"]);
+      const s3 = step(s2);
+      assertEqual(s3, ["both", "RealTime"]);
+      assertEqual(step(s3), ["gametime", "GameTime"]);
+    });
+  });
+
 })();
