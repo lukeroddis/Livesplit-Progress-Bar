@@ -17,7 +17,6 @@
   let layoutState = null;
   let currentTrackStyle = null;
   let isEditMode = false;
-  let activePointerOp = null; // { type: 'drag'|'scale', compId, startX, startY, origX, origY, origScale }
 
   let gameLogoController = null;
   function getGameLogoController() {
@@ -175,10 +174,6 @@
   // ============================================================
   // EXTENSIBLE LAYOUT PROFILES & BACKWARD-COMPATIBLE SCHEMAS
   // ============================================================
-  const PROFILES_INDEX_KEY = STORAGE_KEYS.PROFILES_INDEX;
-  const ACTIVE_PROFILE_KEY = STORAGE_KEYS.ACTIVE_PROFILE;
-  const PROFILE_KEY_PREFIX = STORAGE_KEYS.PROFILE_PREFIX;
-
   let profilesEngine = null;
   function getProfilesEngine() {
     if (!profilesEngine && typeof window !== "undefined" && window.LiveSplit && window.LiveSplit.LayoutProfiles) {
@@ -211,19 +206,9 @@
     return e ? e.getProfilesList() : ["Default"];
   }
 
-  function saveProfilesList(list) {
-    const e = getProfilesEngine();
-    if (e) e.saveProfilesList(list);
-  }
-
   function getActiveProfileName() {
     const e = getProfilesEngine();
     return e ? e.getActiveProfileName() : "Default";
-  }
-
-  function setActiveProfileName(name) {
-    const e = getProfilesEngine();
-    if (e) e.setActiveProfileName(name);
   }
 
   function getProfileData(name) {
@@ -256,21 +241,6 @@
     return e ? e.loadProfileByName(name) : false;
   }
 
-  function openExportModal(filename, jsonStr) {
-    const e = getProfilesEngine();
-    if (e) e.openExportModal(filename, jsonStr);
-  }
-
-  function closeExportModal() {
-    const e = getProfilesEngine();
-    if (e) e.closeExportModal();
-  }
-
-  function triggerFileDownload(filename, jsonStr) {
-    const e = getProfilesEngine();
-    return e ? e.triggerFileDownload(filename, jsonStr) : false;
-  }
-
   function exportProfileToFile(profileName) {
     const e = getProfilesEngine();
     if (e) e.exportProfileToFile(profileName);
@@ -281,21 +251,6 @@
     return e ? e.importProfileFromFile(file) : Promise.reject(new Error("Profiles engine unavailable"));
   }
 
-  function openImportModal() {
-    const e = getProfilesEngine();
-    if (e) e.openImportModal();
-  }
-
-  function closeImportModal() {
-    const e = getProfilesEngine();
-    if (e) e.closeImportModal();
-  }
-
-  function toggleProfileDropdown(forceState) {
-    const e = getProfilesEngine();
-    if (e) e.toggleProfileDropdown(forceState);
-  }
-
   function syncProfileUI() {
     const e = getProfilesEngine();
     if (e) e.syncProfileUI();
@@ -304,11 +259,6 @@
   function autoLoadProfileForGame(gameName) {
     const e = getProfilesEngine();
     return e ? e.autoLoadProfileForGame(gameName) : false;
-  }
-
-  function enforceOpposingTrackPositions() {
-    const e = getTrackStyleEngine();
-    if (e) e.enforceOpposingTrackPositions();
   }
 
   function setTrackOrientation(orient) {

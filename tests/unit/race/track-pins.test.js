@@ -58,7 +58,7 @@
           avatar: "javascript:alert('xss')",
           color: "#ff0000"
         };
-        const marker = getOrCreateRaceMarker(maliciousRacer);
+        const marker = window.getOrCreateRaceMarker(maliciousRacer);
         assert(marker, "Race marker created");
         const tag = marker.querySelector(".racer-tag");
         assert(tag, "Racer tag exists");

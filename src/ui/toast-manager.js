@@ -73,10 +73,7 @@
    */
   function showComparisonToast(compName, durationMs = 1800) {
     if (!compName) return null;
-    const escape = (window.LiveSplit && window.LiveSplit.DOMUtils && typeof window.LiveSplit.DOMUtils.escapeHtml === "function")
-      ? window.LiveSplit.DOMUtils.escapeHtml
-      : (typeof escapeHtml === "function" ? escapeHtml : (str => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")));
-    const markup = `<span style="color: #38bdf8;">⚖️ Comparison:</span> <span>${escape(compName)}</span>`;
+    const markup = `<span style="color: #38bdf8;">⚖️ Comparison:</span> <span>${window.LiveSplit.DOMUtils.escapeHtml(compName)}</span>`;
     return showToast(markup, durationMs);
   }
 

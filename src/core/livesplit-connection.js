@@ -27,7 +27,7 @@
       reconnectDelayMs = 1500
     } = options;
 
-    const client = window.LiveSplit.Client.createLiveSplitClient({ url });
+    const client = window.LiveSplit.Client.createLiveSplitClient();
     let ws = null;
 
     function setStatus(connected) {

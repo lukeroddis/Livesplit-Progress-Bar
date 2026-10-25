@@ -7,11 +7,13 @@ protocol constraint across every file.
 """
 
 import json
+import os
 import re
+import subprocess
 
 import pytest
 
-from helpers import index_scripts, index_stylesheets, read_text
+from helpers import ROOT_DIR, index_scripts, index_stylesheets, read_text
 
 
 def all_app_js():
@@ -91,3 +93,14 @@ def test_layout_schema_is_valid_and_declares_active_ghosts():
     assert schema.get("title") == "LiveSplit Minimal Overlay Layout Profile"
     assert "properties" in schema
     assert '"activeGhosts"' in read_text("schema/layout-v1.json")
+
+
+def test_eslint_passes():
+    """no-undef / no-unused-vars across app, specs and tooling (config: eslint.config.mjs)."""
+    eslint = os.path.join(ROOT_DIR, "node_modules", "eslint", "bin", "eslint.js")
+    if not os.path.exists(eslint):
+        if os.environ.get("CI"):
+            pytest.fail("ESLint is not installed; run npm ci")
+        pytest.skip("ESLint not installed (npm install); skipping lint")
+    result = subprocess.run(["node", eslint, "."], cwd=ROOT_DIR, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr

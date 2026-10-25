@@ -15,8 +15,6 @@
   const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
 
   function installHudTitles(app) {
-    const { state } = app;
-
     function setGameName(name) {
       const el = document.getElementById("game-name");
       if (el && name) {

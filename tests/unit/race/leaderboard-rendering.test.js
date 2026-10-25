@@ -314,7 +314,6 @@
       });
 
       it("Split completion glow lasts 4.0s with gradual fade and 3-phase title transition", () => {
-        const rc = window.LiveSplit.RaceClient;
         const now = Date.now();
         const testEntrants = [
           {

@@ -70,7 +70,7 @@
         const track = document.getElementById("track");
 
         const m1 = rtm.getOrCreateRaceMarker({ userId: "keep_1", username: "Keep1" }, track);
-        const m2 = rtm.getOrCreateRaceMarker({ userId: "drop_2", username: "Drop2" }, track);
+        rtm.getOrCreateRaceMarker({ userId: "drop_2", username: "Drop2" }, track);
 
         assert(document.getElementById("ghost-marker-race-keep_1") !== null, "m1 in DOM");
         assert(document.getElementById("ghost-marker-race-drop_2") !== null, "m2 in DOM");

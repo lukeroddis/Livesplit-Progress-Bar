@@ -38,11 +38,13 @@
         const controller = window.LiveSplit.LayoutModal.createLayoutModal({
           getCurrentTrackStyle: () => mockStyle,
           saveTrackStyle: () => {},
-          applyTrackStyle: () => {}
+          applyTrackStyle: () => {},
+          syncTimerAnchorUI: () => { syncCalled = true; }
         });
 
         controller.openTrackModal();
         assertEqual(modal.style.display, "flex", "modal display set to flex");
+        assert(syncCalled, "opening the modal syncs the settings UI");
       } finally {
         if (created && modal.parentNode) {
           modal.parentNode.removeChild(modal);
@@ -131,9 +133,9 @@
         getLayoutState: () => ({})
       });
 
-      // Should execute cleanly
       controller.bindToolbarAndControls();
-      assert(true, "bindToolbarAndControls executed without throwing");
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "F2" }));
+      assert(editToggled, "F2 hotkey toggles edit mode");
     });
   });
 })();

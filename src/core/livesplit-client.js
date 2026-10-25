@@ -17,7 +17,6 @@
     let ws = null;
     let commandQueue = Promise.resolve();
     let inflightResolver = null;
-    let url = options.url || DEFAULT_WS_URL;
 
     function getSocket() {
       return ws;
