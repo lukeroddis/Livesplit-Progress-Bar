@@ -38,6 +38,7 @@ def test_file_integrity():
         os.path.join("src", "core", "race-discovery.js"),
         os.path.join("src", "core", "race-logger.js"),
         os.path.join("src", "core", "race-client.js"),
+        os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -71,6 +72,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "race-discovery.js"),
         os.path.join("src", "core", "race-logger.js"),
         os.path.join("src", "core", "race-client.js"),
+        os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -180,6 +182,7 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "race-discovery.js"),
         os.path.join("src", "core", "race-logger.js"),
         os.path.join("src", "core", "race-client.js"),
+        os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -1800,6 +1803,8 @@ def test_always_show_last_split_and_schematic_break():
         overlay_src = f.read()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
+    with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
+        profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
         schema_src = f.read()
 
@@ -1831,8 +1836,8 @@ def test_always_show_last_split_and_schematic_break():
 
     # 4. layout.js wiring & profiles
     assert "cb-always-show-last-split" in layout_src, "layout.js must sync cb-always-show-last-split"
-    assert "showLastSplit:" in layout_src, "createProfileExport must export showLastSplit"
-    assert "prefs.showLastSplit" in layout_src, "applyProfileData must restore showLastSplit"
+    assert "showLastSplit:" in (layout_src + profiles_src), "createProfileExport must export showLastSplit"
+    assert "prefs.showLastSplit" in (layout_src + profiles_src), "applyProfileData must restore showLastSplit"
     assert 'params.get("lastsplit")' in layout_src or 'params.get("showlastsplit")' in layout_src, "parseUrlParameters must parse lastsplit"
     assert "window.updateTrackStatus(window.getCurrentIndex" in layout_src, "setVisibleSplits must update track status"
 
@@ -2060,6 +2065,8 @@ def test_architectural_safeguards_and_bug_fixes():
         overlay_src = f.read()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
+    with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
+        profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
         schema_src = f.read()
 
@@ -2088,8 +2095,8 @@ def test_architectural_safeguards_and_bug_fixes():
 
     # 3. Bug 3: Multi-ghost selection in layout profiles schema and layout.js
     assert '"activeGhosts"' in schema_src, "schema/layout-v1.json must declare activeGhosts"
-    assert "activeGhosts:" in layout_src, "layout.js createProfileExport must export activeGhosts"
-    assert "Array.isArray(prefs.activeGhosts)" in layout_src, "layout.js applyProfileData must restore activeGhosts"
+    assert "activeGhosts:" in (layout_src + profiles_src), "layout.js and layout-profiles.js createProfileExport must export activeGhosts"
+    assert "Array.isArray(prefs.activeGhosts)" in (layout_src + profiles_src), "layout.js and layout-profiles.js applyProfileData must restore activeGhosts"
 
     # 4. Bug 4: safeStorage with in-memory fallback for sandboxed OBS environments
     assert "const safeStorage =" in overlay_src, "overlay.js must define safeStorage wrapper"
@@ -2866,6 +2873,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "race-discovery.js"),
             os.path.join("src", "core", "race-logger.js"),
             os.path.join("src", "core", "race-client.js"),
+            os.path.join("src", "core", "layout-profiles.js"),
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),
             os.path.join("src", "ui", "interactions.js"),
@@ -3079,6 +3087,25 @@ def test_race_logger_modularization():
     print("✓ Race WebSocket Diagnostics Logger modularization passed.")
 
 
+def test_layout_profiles_modularization():
+    """Verify modularization of layout profiles and preset storage engine."""
+    profiles_path = os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js")
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+
+    assert os.path.exists(profiles_path), "src/core/layout-profiles.js must exist"
+
+    with open(profiles_path, "r", encoding="utf-8") as rf:
+        profiles_code = rf.read()
+    with open(layout_path, "r", encoding="utf-8") as lcf:
+        layout_code = lcf.read()
+
+    assert "window.LiveSplit.LayoutProfiles" in profiles_code, "layout-profiles.js must export LiveSplit.LayoutProfiles"
+    assert "createLayoutProfiles" in profiles_code, "layout-profiles.js must define createLayoutProfiles"
+    assert "LiveSplit.LayoutProfiles.createLayoutProfiles" in layout_code, "layout.js must instantiate LayoutProfiles"
+
+    print("✓ Layout Profiles & Preset Engine modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3127,7 +3154,8 @@ def main():
         test_race_protocol_modularization()
         test_race_discovery_modularization()
         test_race_logger_modularization()
-        run_browser_tests_and_coverage(python_test_count=43)
+        test_layout_profiles_modularization()
+        run_browser_tests_and_coverage(python_test_count=44)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
