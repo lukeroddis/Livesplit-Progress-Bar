@@ -142,8 +142,6 @@ const ALL_SPLIT_STATE_CLASSES = [
   ...ALL_DELTA_CLASSES
 ];
 let cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
-const nodeThresholdCache = new Map();
-const knownGhostMarkers = new Set();
 let commandQueue = Promise.resolve();
 
 // ============================================================
@@ -768,7 +766,7 @@ async function syncLiveSplitMetadata() {
 // ============================================================
 function renderTrack() {
   if (liveElementCache) liveElementCache.invalidate();
-  nodeThresholdCache.clear();
+  ghostRunner.clearTextThresholdCache();
   const track = document.getElementById("track");
   track.innerHTML = "";
 
@@ -849,7 +847,7 @@ function renderTrack() {
     <div class="ghost-needle"></div>
   `;
   track.appendChild(ghostMarker);
-  track.style.setProperty("--ghost-opacity", ghostOpacity);
+  track.style.setProperty("--ghost-opacity", ghostRunner.getGhostOpacity());
 
   updateTrackDensityAndAngle();
   updateTrackStatus(currentIndex);
@@ -1240,35 +1238,31 @@ function updateLiveSegmentProgress(currentSec) {
 }
 
 // ============================================================
-// 10. LIVE GHOST RUNNER ENGINE & MULTI-GHOST MARKERS
+// 10. LIVE GHOST RUNNER ENGINE & MULTI-GHOST MARKERS (src/ui/ghost-runner.js)
 // ============================================================
-let activeGhostComparisons = loadActiveGhostComparisons();
-let ghostComparison = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
-let ghostOpacity = parseFloat(localStorage.getItem("livesplit_ghost_opacity") || "85") / 100;
+const ghostRunner = window.LiveSplit.GhostRunner.createGhostRunner({
+  getSplitsList: () => splitsList,
+  getComparisonTimes: () => comparisonTimes,
+  getCurrentIndex: () => currentIndex,
+  getLastSplitRecordedSec: () => lastSplitRecordedSec,
+  getLastElapsedSec: () => lastElapsedSec,
+  getGhostInfo: (ghostId) => getGhostComparisonInfo(ghostId),
+  getRaceClient
+});
 
-function loadActiveGhostComparisons() {
-  const savedMulti = localStorage.getItem("livesplit_active_ghosts");
-  if (savedMulti) {
-    try {
-      const parsed = JSON.parse(savedMulti);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      if (Array.isArray(parsed) && parsed.length === 0) return ["off"];
-    } catch (e) {}
-  }
-  const single = localStorage.getItem("livesplit_ghost_comparison") || "off";
-  return single === "off" ? ["off"] : [single];
-}
-
-function saveActiveGhostComparisons() {
-  localStorage.setItem("livesplit_active_ghosts", JSON.stringify(activeGhostComparisons));
-  const primary = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
-  ghostComparison = primary;
-  localStorage.setItem("livesplit_ghost_comparison", primary);
-}
+const getNodeTextThreshold = ghostRunner.getNodeTextThreshold;
+const getOrCreateGhostMarker = ghostRunner.getOrCreateGhostMarker;
+const refreshLeaderboard = ghostRunner.refreshLeaderboard;
+const updateGhostRunner = ghostRunner.updateGhostRunner;
+const updateGhostBadge = ghostRunner.updateGhostBadge;
+const setGhostComparison = ghostRunner.setGhostComparison;
+const toggleGhostComparison = ghostRunner.toggleGhostComparison;
+const cycleGhostComparison = ghostRunner.cycleGhostComparison;
+const setGhostOpacity = ghostRunner.setGhostOpacity;
 
 function getGhostComparisonInfo(targetGhost = null) {
   return window.LiveSplit.GhostMath.getGhostComparisonInfo(
-    targetGhost || ghostComparison,
+    targetGhost || ghostRunner.getPrimaryGhost(),
     currentTimingMethod,
     comparisonsDataGT,
     comparisonsDataRT,
@@ -1279,519 +1273,6 @@ function getGhostComparisonInfo(targetGhost = null) {
 
 function calculateGhostProgress(currentSec, times) {
   return window.LiveSplit.GhostMath.calculateGhostProgress(currentSec, times);
-}
-
-function getNodeTextThreshold(nodeEl, isNext = false) {
-  if (!nodeEl) return 45;
-  const cacheKey = (nodeEl.id || "start") + (isNext ? "_next" : "_prev");
-  if (nodeThresholdCache.has(cacheKey)) {
-    return nodeThresholdCache.get(cacheKey);
-  }
-
-  const track = document.getElementById("track");
-  const isAngled = track && track.classList.contains("angled-text");
-  const nameEl = nodeEl.querySelector(".split-name");
-  const deltaEl = nodeEl.querySelector(".split-delta");
-  const nameW = nameEl ? nameEl.offsetWidth : 60;
-  const deltaW = deltaEl ? deltaEl.offsetWidth : 50;
-
-  let val = 45;
-  if (isAngled) {
-    if (!isNext) {
-      val = Math.max(45, (nameW * 0.76) + 12);
-    } else {
-      val = Math.max(45, (deltaW / 2) + 15);
-    }
-  } else {
-    const maxW = Math.max(nameW, deltaW, 50);
-    val = (maxW / 2) + 14;
-  }
-
-  nodeThresholdCache.set(cacheKey, val);
-  return val;
-}
-
-function getOrCreateGhostMarker(ghostInfo) {
-  const markerId = `ghost-marker-${ghostInfo.id}`;
-  let marker = document.getElementById(markerId);
-  const track = document.getElementById("track");
-  if (!track) return null;
-
-  if (!marker) {
-    marker = document.createElement("div");
-    marker.id = markerId;
-    marker.className = `ghost-marker ghost-theme-${ghostInfo.id}`;
-    marker.innerHTML = `
-      <div class="ghost-icon-wrap"><span class="ghost-icon">${escapeHtml(ghostInfo.icon || "🏎️")}</span></div>
-      <div class="ghost-needle"></div>
-      <div class="racer-tag">${ghostInfo.name ? escapeHtml(ghostInfo.name) : ""}</div>
-    `;
-    track.appendChild(marker);
-  } else {
-    if (!track.contains(marker)) {
-      track.appendChild(marker);
-    }
-    marker.className = `ghost-marker ghost-theme-${ghostInfo.id}`;
-    const iconSpan = marker.querySelector(".ghost-icon");
-    if (iconSpan) iconSpan.innerText = ghostInfo.icon;
-    let tag = marker.querySelector(".racer-tag");
-    if (!tag) {
-      tag = document.createElement("div");
-      tag.className = "racer-tag";
-      marker.appendChild(tag);
-    }
-    tag.innerText = ghostInfo.name || "";
-  }
-  knownGhostMarkers.add(marker);
-  return marker;
-}
-
-function getOrCreateRaceMarker(racer) {
-  if (window.LiveSplit && window.LiveSplit.RaceTrackMarkers && typeof window.LiveSplit.RaceTrackMarkers.getOrCreateRaceMarker === "function") {
-    const marker = window.LiveSplit.RaceTrackMarkers.getOrCreateRaceMarker(racer);
-    if (marker) knownGhostMarkers.add(marker);
-    return marker;
-  }
-  return null;
-}
-
-function refreshLeaderboard() {
-  if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
-    const rc = getRaceClient();
-    const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
-    const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
-    const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
-    window.LiveSplitLeaderboard.renderLeaderboard(
-      rc ? rc.getRankedEntrants() : [],
-      isSim,
-      isConn,
-      isEditMode
-    );
-  }
-}
-
-function hideAllGhostMarkers() {
-  const staticMarker = document.getElementById("ghost-marker");
-  if (staticMarker) {
-    staticMarker.style.display = "none";
-    staticMarker.style.removeProperty("--ghost-stack-offset");
-    staticMarker.style.removeProperty("--ghost-splay-x");
-    staticMarker.style.removeProperty("--ghost-needle-angle");
-    staticMarker.style.removeProperty("--ghost-needle-height");
-    staticMarker.classList.remove("splay-left", "splay-right");
-  }
-  knownGhostMarkers.forEach((m) => {
-    if (m) {
-      m.style.display = "none";
-      m.style.removeProperty("--ghost-stack-offset");
-      m.style.removeProperty("--ghost-splay-x");
-      m.style.removeProperty("--ghost-needle-angle");
-      m.style.removeProperty("--ghost-needle-height");
-      m.classList.remove("splay-left", "splay-right");
-    }
-  });
-}
-
-function updateGhostRunner(currentSec) {
-  const edgeLeft = document.getElementById("ghost-edge-left");
-  const edgeRight = document.getElementById("ghost-edge-right");
-  const viewport = document.getElementById("track-viewport");
-  const track = document.getElementById("track");
-
-  if (!viewport || !track) return;
-
-  const isVertical = track.classList.contains("vertical");
-
-  const activeList = activeGhostComparisons.filter(g => g && g !== "off");
-  const rc = getRaceClient();
-  const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
-  const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
-  const isRaceActive = isSim || isConn;
-  const areRacePinsOn = rc && typeof rc.areRacePinsVisible === "function" ? rc.areRacePinsVisible() : true;
-  const raceEntrants = (isRaceActive && areRacePinsOn)
-    ? rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted)
-    : [];
-
-  if ((activeList.length === 0 && raceEntrants.length === 0) || currentSec === null || currentSec < 0 || splitsList.length === 0) {
-    hideAllGhostMarkers();
-    if (edgeLeft) edgeLeft.style.display = "none";
-    if (edgeRight) edgeRight.style.display = "none";
-    refreshLeaderboard();
-    return;
-  }
-
-  // Pre-calculate runner's current progress in segment for live delta calculations
-  let runnerSegProgress = 0;
-  if (currentIndex >= 0 && currentIndex < splitsList.length) {
-    const curTarget = comparisonTimes[currentIndex];
-    const prevTarget = (currentIndex > 0) ? (comparisonTimes[currentIndex - 1] || 0) : 0;
-    const dur = curTarget ? (curTarget - prevTarget) : 0;
-    const elapsedInSeg = Math.max(0, currentSec - lastSplitRecordedSec);
-    runnerSegProgress = (dur > 0) ? Math.min(1.0, elapsedInSeg / dur) : 0;
-  }
-
-  const scrollOffset = isVertical ? viewport.scrollTop : viewport.scrollLeft;
-  const rawSpan = isVertical ? viewport.clientHeight : viewport.clientWidth;
-  const clientSpan = (rawSpan > 0) ? rawSpan : ((isVertical ? window.innerHeight : window.innerWidth) || 800);
-  const visibleMin = (scrollOffset > 0) ? (scrollOffset + 10) : -20;
-  const visibleMax = scrollOffset + clientSpan + 20;
-
-  const nodeStart = document.getElementById("node-start");
-  if (!nodeStart) return;
-
-  const leftOffscreenGhosts = [];
-  const rightOffscreenGhosts = [];
-  const renderedMarkerIds = new Set();
-  const visibleOnscreenMarkers = [];
-
-  function getSegmentCoords(segIdx) {
-    let startCoord = 0;
-    let endCoord = 0;
-    let prevNode = null;
-    let nextNode = null;
-
-    if (isVertical) {
-      if (segIdx === 0) {
-        prevNode = nodeStart;
-        startCoord = nodeStart.offsetTop + (nodeStart.offsetHeight / 2);
-        const item0 = document.getElementById("item-0");
-        nextNode = item0;
-        endCoord = item0 ? (item0.offsetTop + (item0.offsetHeight / 2)) : startCoord + 64;
-      } else {
-        const prevItem = document.getElementById(`item-${segIdx - 1}`);
-        const currentItem = document.getElementById(`item-${segIdx}`);
-        if (prevItem && currentItem) {
-          if (currentItem.classList.contains("is-omitted")) {
-            const finalItem = document.getElementById(`item-${splitsList.length - 1}`);
-            if (finalItem && finalItem.classList.contains("has-discontinuity")) {
-              const discY = finalItem.offsetTop - 32;
-              startCoord = discY;
-              endCoord = discY;
-            } else {
-              return null;
-            }
-          } else {
-            prevNode = prevItem;
-            nextNode = currentItem;
-            startCoord = (prevItem.classList.contains("is-omitted") ? currentItem.offsetTop - 64 : prevItem.offsetTop) + (prevItem.offsetHeight / 2);
-            endCoord = currentItem.offsetTop + (currentItem.offsetHeight / 2);
-          }
-        } else {
-          return null;
-        }
-      }
-    } else {
-      if (segIdx === 0) {
-        prevNode = nodeStart;
-        startCoord = nodeStart.offsetLeft + (nodeStart.offsetWidth / 2);
-        const item0 = document.getElementById("item-0");
-        nextNode = item0;
-        endCoord = item0 ? (item0.offsetLeft + (item0.offsetWidth / 2)) : startCoord + 220;
-      } else {
-        const prevItem = document.getElementById(`item-${segIdx - 1}`);
-        const currentItem = document.getElementById(`item-${segIdx}`);
-        if (prevItem && currentItem) {
-          if (currentItem.classList.contains("is-omitted")) {
-            const finalItem = document.getElementById(`item-${splitsList.length - 1}`);
-            if (finalItem && finalItem.classList.contains("has-discontinuity")) {
-              const discX = finalItem.offsetLeft - (finalItem.offsetWidth / 2);
-              startCoord = discX;
-              endCoord = discX;
-            } else {
-              return null;
-            }
-          } else {
-            prevNode = prevItem;
-            nextNode = currentItem;
-            startCoord = (prevItem.classList.contains("is-omitted") ? currentItem.offsetLeft - 120 : prevItem.offsetLeft) + (prevItem.offsetWidth / 2);
-            endCoord = currentItem.offsetLeft + (currentItem.offsetWidth / 2);
-          }
-        } else {
-          return null;
-        }
-      }
-    }
-
-    return { startCoord, endCoord, prevNode, nextNode };
-  }
-
-  // 1. Render active comparison ghosts (WR, PB, Best, Avg, Worst)
-  activeList.forEach((gId) => {
-    const ghostInfo = getGhostComparisonInfo(gId);
-    if (!ghostInfo) return;
-
-    const marker = getOrCreateGhostMarker(ghostInfo);
-    if (!marker) return;
-    renderedMarkerIds.add(marker.id);
-
-    const { segIdx, ratio } = calculateGhostProgress(currentSec, ghostInfo.times);
-    const coords = getSegmentCoords(segIdx);
-    if (!coords) {
-      marker.style.display = "none";
-      return;
-    }
-
-    const ghostCoord = coords.startCoord + ratio * (coords.endCoord - coords.startCoord);
-
-    // Compute live delta vs this ghost
-    const ghostTimes = ghostInfo.times;
-    let ghostTimeAtRunnerPos = 0;
-    if (currentIndex >= 0 && currentIndex < ghostTimes.length) {
-      const gNext = ghostTimes[currentIndex] ?? comparisonTimes[currentIndex] ?? 0;
-      const gPrev = (currentIndex === 0) ? 0 : (ghostTimes[currentIndex - 1] ?? (comparisonTimes[currentIndex - 1] || 0));
-      ghostTimeAtRunnerPos = gPrev + runnerSegProgress * (gNext - gPrev);
-    } else {
-      ghostTimeAtRunnerPos = ghostTimes[ghostTimes.length - 1] || 0;
-    }
-
-    const liveDeltaGhost = currentSec - ghostTimeAtRunnerPos;
-    const isAhead = (liveDeltaGhost <= 0);
-    const deltaStr = formatDeltaSeconds(liveDeltaGhost);
-
-    if (ghostCoord < visibleMin) {
-      marker.style.display = "none";
-      marker.style.removeProperty("--ghost-stack-offset");
-      marker.style.removeProperty("--ghost-splay-x");
-      marker.style.removeProperty("--ghost-needle-angle");
-      marker.style.removeProperty("--ghost-needle-height");
-      leftOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
-    } else if (ghostCoord > visibleMax) {
-      marker.style.display = "none";
-      marker.style.removeProperty("--ghost-stack-offset");
-      marker.style.removeProperty("--ghost-splay-x");
-      marker.style.removeProperty("--ghost-needle-angle");
-      marker.style.removeProperty("--ghost-needle-height");
-      rightOffscreenGhosts.push({ ghostInfo, deltaStr, isAhead });
-    } else {
-      visibleOnscreenMarkers.push({
-        marker,
-        coord: ghostCoord,
-        coords
-      });
-    }
-  });
-
-  // 2. Render live race competitors (therun.gg / racetime.gg / simulation)
-  if (window.LiveSplit && window.LiveSplit.RaceTrackMarkers && typeof window.LiveSplit.RaceTrackMarkers.renderRaceCompetitorMarkers === "function") {
-    window.LiveSplit.RaceTrackMarkers.renderRaceCompetitorMarkers({
-      raceEntrants,
-      splitsList,
-      comparisonTimes,
-      currentIndex,
-      runnerSegProgress,
-      currentSec,
-      visibleMin,
-      visibleMax,
-      getSegmentCoords,
-      formatDeltaSeconds,
-      leftOffscreenGhosts,
-      rightOffscreenGhosts,
-      visibleOnscreenMarkers,
-      renderedMarkerIds,
-      trackElem: track
-    });
-    const activeIds = new Set(raceEntrants.map(e => e.userId));
-    window.LiveSplit.RaceTrackMarkers.removeDanglingRaceMarkers(activeIds);
-  }
-
-  // 3. Intelligent Mini-Leaderboard Track Pins with Orthogonal Drop Lines
-  if (window.LiveSplit && window.LiveSplit.RaceTrackMarkers && typeof window.LiveSplit.RaceTrackMarkers.layoutTrackPins === "function") {
-    window.LiveSplit.RaceTrackMarkers.layoutTrackPins(visibleOnscreenMarkers, {
-      isVertical,
-      visibleMin,
-      visibleMax,
-      trackElem: track,
-      getNodeTextThreshold
-    });
-  }
-
-  // Hide static template marker and any marker not in rendered set
-  const staticMarker = document.getElementById("ghost-marker");
-  if (staticMarker) staticMarker.style.display = "none";
-  knownGhostMarkers.forEach((m) => {
-    if (m && !renderedMarkerIds.has(m.id)) {
-      m.style.display = "none";
-    }
-  });
-
-  const prevArrow = isVertical ? "▲" : "❮";
-  const nextArrow = isVertical ? "▼" : "❯";
-
-  // Render left / top off-screen pills
-  if (leftOffscreenGhosts.length > 0 && edgeLeft) {
-    edgeLeft.style.display = "flex";
-    if (leftOffscreenGhosts.length === 1) {
-      const g = leftOffscreenGhosts[0];
-      const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
-      edgeLeft.innerHTML = `<span>${prevArrow}</span> <span id="ghost-edge-left-icon" ${iconCol}>${g.ghostInfo.icon}</span> <span id="ghost-edge-left-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span>`;
-    } else {
-      let html = `<span style="opacity:0.7;">${prevArrow}</span> `;
-      html += leftOffscreenGhosts.map(g => {
-        const col = g.isAhead ? "#22c55e" : "#ef4444";
-        const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
-        return `<span ${iconCol}>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
-      }).join(" &nbsp;");
-      edgeLeft.innerHTML = html;
-    }
-  } else if (edgeLeft) {
-    edgeLeft.style.display = "none";
-  }
-
-  // Render right / bottom off-screen pills
-  if (rightOffscreenGhosts.length > 0 && edgeRight) {
-    edgeRight.style.display = "flex";
-    if (rightOffscreenGhosts.length === 1) {
-      const g = rightOffscreenGhosts[0];
-      const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
-      edgeRight.innerHTML = `<span id="ghost-edge-right-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span> <span id="ghost-edge-right-icon" ${iconCol}>${g.ghostInfo.icon}</span> <span>${nextArrow}</span>`;
-    } else {
-      let html = rightOffscreenGhosts.map(g => {
-        const col = g.isAhead ? "#22c55e" : "#ef4444";
-        const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
-        return `<span ${iconCol}>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
-      }).join(" &nbsp;");
-      html += ` <span style="opacity:0.7;">${nextArrow}</span>`;
-      edgeRight.innerHTML = html;
-    }
-  } else if (edgeRight) {
-    edgeRight.style.display = "none";
-  }
-
-  // 3. Render F1 Dynamic Leaderboard
-  refreshLeaderboard();
-}
-
-function updateGhostBadge() {
-  const badge = document.getElementById("ghost-badge");
-  if (!badge) return;
-  const active = activeGhostComparisons.filter(g => g && g !== "off");
-  if (active.length === 0) {
-    badge.innerText = "Ghost: Off";
-    badge.style.color = "rgba(148, 163, 184, 0.9)";
-    return;
-  }
-
-  const labelMap = {
-    wr: "🏆 WR",
-    pb: "🥈 PB",
-    best: "⭐ Best",
-    average: "📊 Avg",
-    worst: "🐢 Worst"
-  };
-
-  const labels = active.map(id => {
-    const low = id.toLowerCase();
-    if (labelMap[low]) return labelMap[low];
-    if (low.includes("world record")) return "🏆 WR";
-    if (low === "personal best") return "🥈 PB";
-    if (low === "best segments") return "⭐ Best";
-    if (low === "average segments") return "📊 Avg";
-    if (low === "worst segments") return "🐢 Worst";
-    return `👤 ${id.slice(0, 8)}`;
-  });
-
-  badge.innerText = `Ghost: ${labels.join(" + ")}`;
-  badge.style.color = active.includes("wr") ? "#facc15" : (active.includes("pb") ? "#38bdf8" : "#eab308");
-}
-
-function cycleGhostComparison() {
-  const presets = [
-    ["off"],
-    ["wr"],
-    ["pb"],
-    ["wr", "pb"],
-    ["best"],
-    ["wr", "best"],
-    ["average"],
-    ["worst"]
-  ];
-
-  const curKey = activeGhostComparisons.filter(g => g !== "off").sort().join(",");
-  let curIdx = -1;
-  presets.forEach((p, idx) => {
-    const pKey = p.filter(g => g !== "off").sort().join(",");
-    if (pKey === curKey) curIdx = idx;
-  });
-
-  const nextIdx = (curIdx + 1) % presets.length;
-  setGhostComparison(presets[nextIdx]);
-}
-
-function setGhostComparison(val) {
-  if (Array.isArray(val)) {
-    activeGhostComparisons = val.filter(Boolean);
-  } else if (typeof val === "string") {
-    if (val.includes(",")) {
-      activeGhostComparisons = val.split(",").map(s => s.trim()).filter(Boolean);
-    } else {
-      activeGhostComparisons = (!val.trim() || val.trim().toLowerCase() === "off") ? ["off"] : [val.trim()];
-    }
-  } else {
-    activeGhostComparisons = ["off"];
-  }
-  if (activeGhostComparisons.length === 0) {
-    activeGhostComparisons = ["off"];
-  }
-
-  saveActiveGhostComparisons();
-  updateGhostBadge();
-  hideAllGhostMarkers();
-
-  const edgeLeft = document.getElementById("ghost-edge-left");
-  const edgeRight = document.getElementById("ghost-edge-right");
-  if (activeGhostComparisons.length === 1 && activeGhostComparisons[0] === "off") {
-    if (edgeLeft) edgeLeft.style.display = "none";
-    if (edgeRight) edgeRight.style.display = "none";
-  } else if (lastElapsedSec > 0) {
-    updateGhostRunner(lastElapsedSec);
-  }
-
-  if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
-    window.hudLayout.syncTrackModalUI();
-  }
-}
-
-function toggleGhostComparison(ghostId) {
-  const id = (ghostId || "").trim();
-  if (!id || id === "off") {
-    activeGhostComparisons = ["off"];
-  } else {
-    let list = activeGhostComparisons.filter(g => g !== "off");
-    const idx = list.indexOf(id);
-    if (idx !== -1) {
-      list.splice(idx, 1);
-    } else {
-      list.push(id);
-    }
-    activeGhostComparisons = list.length > 0 ? list : ["off"];
-  }
-
-  saveActiveGhostComparisons();
-  updateGhostBadge();
-  hideAllGhostMarkers();
-
-  const edgeLeft = document.getElementById("ghost-edge-left");
-  const edgeRight = document.getElementById("ghost-edge-right");
-  if (activeGhostComparisons.length === 1 && activeGhostComparisons[0] === "off") {
-    if (edgeLeft) edgeLeft.style.display = "none";
-    if (edgeRight) edgeRight.style.display = "none";
-  } else if (lastElapsedSec > 0) {
-    updateGhostRunner(lastElapsedSec);
-  }
-
-  if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
-    window.hudLayout.syncTrackModalUI();
-  }
-}
-
-function setGhostOpacity(pct) {
-  const parsed = parseInt(pct, 10);
-  if (!isNaN(parsed) && parsed >= 30 && parsed <= 100) {
-    ghostOpacity = parsed / 100;
-    localStorage.setItem("livesplit_ghost_opacity", parsed.toString());
-    const track = document.getElementById("track");
-    if (track) track.style.setProperty("--ghost-opacity", ghostOpacity);
-  }
 }
 
 // ============================================================
@@ -2487,7 +1968,7 @@ const cycleVisibleSplits = trackDensity.cycleVisibleSplits;
 const cycleSplitAngle = trackDensity.cycleSplitAngle;
 
 function updateTrackDensityAndAngle() {
-  nodeThresholdCache.clear();
+  ghostRunner.clearTextThresholdCache();
   if (trackDensity.update()) {
     updateTrackStatus(currentIndex);
   }
@@ -3091,8 +2572,8 @@ window.formatDeltaSeconds = formatDeltaSeconds;
 window.formatDeltaLive = formatDeltaLive;
 window.normalizeComparisonName = normalizeComparisonName;
 window.getShortComparisonName = getShortComparisonName;
-window.getGhostComparison = () => ghostComparison;
-window.getActiveGhostComparisons = () => [...activeGhostComparisons];
+window.getGhostComparison = () => ghostRunner.getPrimaryGhost();
+window.getActiveGhostComparisons = () => ghostRunner.getActiveGhostComparisons();
 window.setGhostComparison = setGhostComparison;
 window.toggleGhostComparison = toggleGhostComparison;
 window.cycleGhostComparison = cycleGhostComparison;

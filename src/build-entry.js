@@ -42,5 +42,6 @@ import "./ui/dev-mode.js";
 import "./ui/splits-file-loader.js";
 import "./ui/track-density.js";
 import "./ui/track-scroll.js";
+import "./ui/ghost-runner.js";
 import "../layout.js";
 import "../overlay.js";
