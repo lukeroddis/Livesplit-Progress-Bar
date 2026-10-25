@@ -33,7 +33,12 @@
      - [`comparison-controller.js`](src/core/comparison-controller.js): Active comparison and timing-method curve switching, default curves, timing detection, ghost comparison lookup.
      - [`splits-loader.js`](src/core/splits-loader.js): Applies parsed `.lss` data to state and restores cached splits on startup.
      - [`window-api.js`](src/core/window-api.js): The `window.*` API consumed by layout.js, layout modules and tests.
-     - [race-client.js](src/core/race-client.js): therun.gg/racetime.gg live telemetry bridge, F1-style continuous scoring, leader gap/interval calculations, and local simulated race engine.
+     - [race-client.js](src/core/race-client.js): Race client facade: creates isolated clients and their public API, composing the race modules below over one `ctx` (shared `raceState` + functions, same pattern as overlay's `app`).
+     - [`race-state.js`](src/core/race-state.js): Per-client race state, host runner defaults (`createHostState`), shared runner resets, `isLiveRoom`.
+     - [`race-identity.js`](src/core/race-identity.js): Username / race code validation and the stored therun username.
+     - [`race-host.js`](src/core/race-host.js): Host progress from LiveSplit, undo, DNF, username matching, timing method, reset.
+     - [`race-connection.js`](src/core/race-connection.js): therun.gg REST snapshot, room WebSocket and protocol hand-off.
+     - `race-protocol.js`, `race-ranking.js`, `race-simulation.js`, `race-discovery.js`, `race-logger.js`: message parsing, F1 standings/gaps, offline simulation (`SIM_RACE_ID`), auto-detect/standby, WS log.
    - **`src/ui/` Interface & Layout Modules**:
      - [`layout-engine.js`](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
      - [`track-renderer.js`](src/ui/track-renderer.js): Track DOM building, sliding window math and class application, schematic breaks, scroll-to-split, visible-split capacity, and zero-allocation 60 FPS element caching.
@@ -51,6 +56,8 @@
      - [`timing-controls.js`](src/ui/timing-controls.js): Timer display mode (Game/Real/Both), timing method focus, gold toggle and badges.
      - [`hud-titles.js`](src/ui/hud-titles.js): Game/category labels, tab title, LiveSplit metadata sync.
      - [`hud-bindings.js`](src/ui/hud-bindings.js): Badge clicks, settings pill, comparison hotkeys, timer block focus.
+     - [`layout-modal.js`](src/ui/layout-modal.js): Toolbar + track customizer modal composer (open/close, toolbar, logo, hotkeys, resize clamp) over the settings panels:
+       [`settings-track-panel.js`](src/ui/settings-track-panel.js) (orientation, positions, angle, sizes, visible splits), [`settings-background-panel.js`](src/ui/settings-background-panel.js), [`settings-ghost-panel.js`](src/ui/settings-ghost-panel.js), [`settings-timing-panel.js`](src/ui/settings-timing-panel.js), [`layout-profiles-panel.js`](src/ui/layout-profiles-panel.js) (profiles, export/import). Each panel exposes `sync(style)` / `bind()`; [`settings-controls.js`](src/ui/settings-controls.js) holds the shared slider / segmented / spinner / checkbox helpers.
    - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
    - [overlay.js](overlay.js): Composition root (~280 lines). Creates `state` and the shared `app` registry, installs the overlay controllers, wires the stateful UI helpers (connection, ghost runner, track density, menus) and boots the overlay.
    - **Controller pattern**: overlay controllers export `installX(app)`, which adds their functions to `app` and reads/writes `app.state`. Cross-controller calls go through `app.<fn>` at call time, so controllers can load in any order before overlay.js. Self-contained UI helpers keep the `createX({ getters })` factory style. `test_app_registry_calls_are_provided` fails if a controller calls an `app.<fn>` nobody registers.
@@ -280,7 +287,7 @@ Before committing any changes, you must ensure:
 >
 > | Where | What goes there |
 > | :--- | :--- |
-> | `tests/unit/<core\|ui\|utils>/<module>.test.js` | **Behaviour tests (default home for new tests).** One spec per module, run in headless Chrome against the real scripts. New files are discovered automatically. |
+> | `tests/unit/<core\|ui\|utils>/<module>.test.js` | **Behaviour tests (default home for new tests).** One spec per module, run in headless Chrome against the real scripts. New files are discovered automatically. Cross-module race flows (leaderboard, standings, simulation, live connection, pins) live in `tests/unit/race/<topic>.test.js`. |
 > | `tests/test_structure.py` | Cross-file contracts: files parse (`node --check`), DOM ids exist in `index.html`, JS-toggled CSS classes exist in `src/styles/`. |
 > | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only). |
 > | `tests/test_release_bump.py` | `scripts/determine_bump.py` release classification. |
