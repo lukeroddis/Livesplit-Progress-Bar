@@ -35,6 +35,7 @@ def test_file_integrity():
         os.path.join("src", "core", "race-simulation.js"),
         os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-protocol.js"),
+        os.path.join("src", "core", "race-discovery.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -66,6 +67,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "race-simulation.js"),
         os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-protocol.js"),
+        os.path.join("src", "core", "race-discovery.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -173,6 +175,7 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "race-simulation.js"),
         os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-protocol.js"),
+        os.path.join("src", "core", "race-discovery.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -2455,7 +2458,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         ranking_code = rkf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "race-protocol.js"), "r", encoding="utf-8") as rpf:
         protocol_code = rpf.read()
-    race_sim_combined = race_code + sim_code + ranking_code + protocol_code
+    with open(os.path.join(ROOT_DIR, "src", "core", "race-discovery.js"), "r", encoding="utf-8") as rdf:
+        discovery_code = rdf.read()
+    race_sim_combined = race_code + sim_code + ranking_code + protocol_code + discovery_code
     assert "window.LiveSplit.RaceSimulation" in sim_code, "src/core/race-simulation.js must export LiveSplit.RaceSimulation"
     assert "if (hostState.currentTimeSec > 0)" in race_sim_combined, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
     assert "setHostUsername" in race_code, "race-client.js must export setHostUsername"
@@ -2564,7 +2569,7 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert 'rawAvatar.startsWith("https://")' in (overlay_js + markers_code), "race track markers getOrCreateRaceMarker must validate avatar URL protocols"
     assert "let hostSplitName = currentSplitName;" in race_code, "race-client.js updateHostProgress must declare hostSplitName"
     assert race_code.index("let hostSplitName = currentSplitName;") < race_code.index("if (splitFlash && splitFlash.type)"), "race-client.js updateHostProgress must declare hostSplitName before splitFlash to prevent TDZ ReferenceError"
-    assert "!ws || ws.readyState !== WebSocket.OPEN" in race_code, "race-client.js pollUserStatus must auto-reconnect if socket dropped on active raceId"
+    assert "!ws || ws.readyState !== WebSocket.OPEN" in race_sim_combined, "race client and discovery must auto-reconnect if socket dropped on active raceId"
     assert "function handleHostRunStarted" in race_code, "race-client.js must define handleHostRunStarted for event-driven lobby auto-connect"
     assert "function armSimulationStandby" in race_code, "race-client.js must define armSimulationStandby for Simulation Race standby"
     assert "rcStart.handleHostRunStarted" in overlay_js, "overlay.js must trigger handleHostRunStarted when local LiveSplit timer starts"
@@ -2853,6 +2858,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "race-simulation.js"),
             os.path.join("src", "core", "race-ranking.js"),
             os.path.join("src", "core", "race-protocol.js"),
+            os.path.join("src", "core", "race-discovery.js"),
             os.path.join("src", "core", "race-client.js"),
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),
@@ -3029,6 +3035,25 @@ def test_race_protocol_modularization():
     print("✓ Race Telemetry & Message Protocol modularization passed.")
 
 
+def test_race_discovery_modularization():
+    """Verify modularization of room discovery and auto-detect engine."""
+    discovery_path = os.path.join(ROOT_DIR, "src", "core", "race-discovery.js")
+    race_client_path = os.path.join(ROOT_DIR, "src", "core", "race-client.js")
+
+    assert os.path.exists(discovery_path), "src/core/race-discovery.js must exist"
+
+    with open(discovery_path, "r", encoding="utf-8") as rf:
+        discovery_code = rf.read()
+    with open(race_client_path, "r", encoding="utf-8") as rcf:
+        client_code = rcf.read()
+
+    assert "window.LiveSplit.RaceDiscovery" in discovery_code, "race-discovery.js must export LiveSplit.RaceDiscovery"
+    assert "createRaceDiscovery" in discovery_code, "race-discovery.js must define createRaceDiscovery"
+    assert "LiveSplit.RaceDiscovery.createRaceDiscovery" in client_code, "race-client.js must instantiate RaceDiscovery"
+
+    print("✓ Race Room Discovery & Auto-Detect modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3075,7 +3100,8 @@ def main():
         test_overlay_subcontrollers_modularization()
         test_race_ranking_modularization()
         test_race_protocol_modularization()
-        run_browser_tests_and_coverage(python_test_count=41)
+        test_race_discovery_modularization()
+        run_browser_tests_and_coverage(python_test_count=42)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

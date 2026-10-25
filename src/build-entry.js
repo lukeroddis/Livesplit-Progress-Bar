@@ -19,6 +19,7 @@ import "./core/livesplit-client.js";
 import "./core/race-simulation.js";
 import "./core/race-ranking.js";
 import "./core/race-protocol.js";
+import "./core/race-discovery.js";
 import "./core/race-client.js";
 import "./utils/dom-utils.js";
 import "./ui/layout-engine.js";
