@@ -1,0 +1,314 @@
+/* ============================================================
+   SCHEMATIC ENGINEERING DISCONTINUITY BREAK (//)
+   ============================================================ */
+.discontinuity-break {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  gap: 3.5px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.split-item.has-discontinuity .discontinuity-break {
+  display: flex !important;
+}
+
+.disc-slash {
+  width: 2.5px;
+  height: 18px;
+  background: #38bdf8;
+  transform: skewX(-28deg);
+  border-radius: 1px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.95), 0 0 4px rgba(56, 189, 248, 0.85);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Cutout gap in the horizontal connector bar */
+.split-item.has-discontinuity .segment-bar-bg {
+  overflow: visible !important;
+  background: linear-gradient(
+    to right,
+    var(--line-idle) 0%,
+    var(--line-idle) calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    var(--line-idle) calc(50% + 13px),
+    var(--line-idle) 100%
+  ) !important;
+}
+
+.split-item.has-discontinuity .segment-bar-fill {
+  mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
+}
+
+/* Light up Start node cyan when run is active */
+.split-item.origin-node.active .dot,
+#node-start.active .dot {
+  background: var(--node-active) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.95);
+}
+
+.split-item.origin-node .split-name,
+#node-start .split-name {
+  color: #ffffff;
+}
+
+.split-item.origin-node .split-time-val,
+#node-start .split-time-val {
+  color: #ffffff;
+}
+
+.segment-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--node-active);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.85);
+  transition: width 0.1s linear, background 0.2s ease, box-shadow 0.2s ease;
+  border-radius: calc(var(--bar-height, 6px) / 2);
+}
+
+.track:not(.vertical) .segment-bar-fill {
+  height: 100% !important;
+}
+
+/* 4-State Fill Styles */
+.segment-bar-fill.ahead-gaining {
+  background: var(--ahead-gaining) !important;
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.85) !important;
+}
+
+.segment-bar-fill.ahead-losing {
+  background: var(--ahead-losing) !important;
+  box-shadow: 0 0 8px rgba(134, 239, 172, 0.8) !important;
+}
+
+.segment-bar-fill.behind-gaining {
+  background: var(--behind-gaining) !important;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.8) !important;
+}
+
+.segment-bar-fill.behind-losing {
+  background: var(--behind-losing) !important;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.9) !important;
+}
+
+.segment-bar-fill.gold {
+  background: var(--gold-color) !important;
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.95) !important;
+}
+
+.segment-bar-fill.uncoloured {
+  background: #475569 !important;
+  box-shadow: none !important;
+}
+
+/* Overdue / Time-Exceeded Active Split Bar Segment */
+.segment-bar-bg:has(.segment-bar-fill.overdue),
+.segment-bar-bg.overdue {
+  overflow: visible !important;
+  z-index: 1;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.35) !important;
+}
+
+.segment-bar-fill.overdue {
+  background: #dc2626 !important;
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%) !important;
+  box-shadow: 
+    0 0 6px rgba(239, 68, 68, 0.7),
+    0 0 12px rgba(220, 38, 38, 0.4) !important;
+  animation: pulse-overdue 1.4s ease-in-out infinite alternate !important;
+}
+
+.track.vertical .segment-bar-fill.overdue {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%) !important;
+}
+
+@keyframes pulse-overdue {
+  0% {
+    box-shadow: 
+      0 0 5px rgba(239, 68, 68, 0.55),
+      0 0 9px rgba(220, 38, 38, 0.3) !important;
+  }
+  50% {
+    box-shadow: 
+      0 0 8px rgba(239, 68, 68, 0.75),
+      0 0 14px rgba(220, 38, 38, 0.45) !important;
+  }
+  100% {
+    box-shadow: 
+      0 0 5px rgba(239, 68, 68, 0.55),
+      0 0 9px rgba(220, 38, 38, 0.3) !important;
+  }
+}
+
+/* Node Dots */
+.dot {
+  position: relative;
+  z-index: 10;
+  width: var(--dot-size, 15px);
+  height: var(--dot-size, 15px);
+  border-radius: 50%;
+  background: var(--node-idle);
+  border: 2px solid rgba(15, 23, 42, 0.95);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.95);
+  transition: all 0.2s ease;
+  margin-bottom: 0px;
+}
+
+/* Split Titles */
+.split-name {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  text-align: center;
+  font-size: var(--name-font-size, 17px);
+  font-weight: 700;
+  color: var(--text-muted);
+  text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
+  pointer-events: none;
+  letter-spacing: 0.2px;
+  transition: all 0.2s ease;
+  z-index: 15;
+}
+
+/* Split Delta & Cumulative Split Time Displays */
+.split-delta {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
+  transition: all 0.2s ease;
+  z-index: 15;
+}
+
+.split-delta-val {
+  font-size: var(--delta-font-size, 16px);
+  font-weight: 700;
+}
+
+.split-time-val {
+  font-size: calc(var(--delta-font-size, 15px) - 1px);
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,1);
+}
+
+.split-time-val.target-time {
+  color: rgba(203, 213, 225, 0.7);
+  font-weight: 600;
+  font-size: calc(var(--delta-font-size, 15px) - 2px);
+}
+
+/* Completed Dots mapped to states */
+.split-item.completed.ahead-gaining .dot,
+.split-item.ahead-gaining .dot {
+  background: var(--ahead-gaining) !important;
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.85);
+}
+
+.split-item.completed.ahead-losing .dot,
+.split-item.ahead-losing .dot {
+  background: var(--ahead-losing) !important;
+  box-shadow: 0 0 10px rgba(134, 239, 172, 0.85);
+}
+
+.split-item.completed.behind-gaining .dot,
+.split-item.behind-gaining .dot {
+  background: var(--behind-gaining) !important;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.85);
+}
+
+.split-item.completed.behind-losing .dot,
+.split-item.behind-losing .dot {
+  background: var(--behind-losing) !important;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.85);
+}
+
+.split-item.completed.gold .dot,
+.split-item.gold .dot {
+  background: var(--gold-color) !important;
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.95) !important;
+}
+
+.split-item.completed.uncoloured .dot,
+.split-item.uncoloured .dot {
+  background: var(--node-idle, #334155) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Active Split (cyan highlight overrides completed) */
+.split-item.current .dot {
+  background: var(--node-active) !important;
+  transform: scale(1.35);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.95);
+  z-index: 5;
+}
+
+.split-item.current .split-name {
+  color: #38bdf8;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* 4-State Delta Typography */
+.delta-ahead-gaining {
+  color: var(--ahead-gaining) !important;
+  text-shadow: 0 0 6px rgba(22, 163, 74, 0.8), 0 2px 4px #000 !important;
+}
+
+.delta-ahead-losing {
+  color: var(--ahead-losing) !important;
+  text-shadow: 0 0 6px rgba(134, 239, 172, 0.8), 0 2px 4px #000 !important;
+}
+
+.delta-behind-gaining {
+  color: var(--behind-gaining) !important;
+  text-shadow: 0 0 6px rgba(248, 113, 113, 0.85), 0 2px 4px #000 !important;
+}
+
+.delta-behind-losing {
+  color: var(--behind-losing) !important;
+  text-shadow: 0 0 6px rgba(220, 38, 38, 0.85), 0 2px 4px #000 !important;
+}
+
+.delta-gold {
+  color: var(--gold-color) !important;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.85), 0 2px 4px #000 !important;
+}
+
+.delta-uncoloured {
+  color: rgba(148, 163, 184, 0.7) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+}
+

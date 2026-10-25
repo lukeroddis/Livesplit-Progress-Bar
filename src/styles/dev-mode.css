@@ -1,0 +1,17 @@
+
+
+/* ============================================================
+   Developer & Diagnostics Mode (Feature Gating)
+   ============================================================ */
+.dev-only {
+  display: none !important;
+}
+
+body.dev-mode .dev-only {
+  display: flex !important;
+}
+
+/* In non-dev mode, balance the Live Race settings grid so the 3rd tile spans full width */
+body:not(.dev-mode) #section-race-mode .settings-grid > button:last-child {
+  grid-column: span 2;
+}

@@ -11,7 +11,7 @@ import re
 
 import pytest
 
-from helpers import index_scripts, read_text
+from helpers import index_scripts, index_stylesheets, read_text
 
 
 def all_app_js():
@@ -46,9 +46,7 @@ def test_overlay_init_is_not_bound_to_window_onload():
     (r'<script[^>]+src="https?://', "index.html"),
     (r'<link[^>]+href="https?://', "index.html"),
     (r'<img[^>]+src="https?://', "index.html"),
-    (r'@import', "style.css"),
-    (r'url\(\s*["\']?https?://', "style.css"),
-])
+] + [(p, css) for css in index_stylesheets() for p in (r'@import', r'url\(\s*["\']?https?://')])
 def test_no_external_runtime_assets(pattern, where):
     """The release must run from file:// in OBS with no network assets (AGENT_GUIDE §1)."""
     matches = re.findall(pattern, read_text(where))

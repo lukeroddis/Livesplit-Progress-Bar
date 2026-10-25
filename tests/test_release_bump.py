@@ -38,7 +38,7 @@ def test_non_runtime_paths_do_not_release(db, paths):
     ["overlay.js"],
     ["layout.js"],
     ["index.html"],
-    ["style.css"],
+    ["src/styles/track.css"],
     ["src/core/split-engine.js"],
     ["src/ui/track-renderer.js"],
     ["assets/logo.png"],

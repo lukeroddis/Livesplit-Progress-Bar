@@ -1,0 +1,103 @@
+/* ============================================================
+   COMPONENT INTERNAL STYLES
+   ============================================================ */
+.title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+}
+
+.game-name {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 32px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 4px #000;
+}
+
+.game-logo {
+  display: none;
+  max-width: 100%;
+  max-height: var(--game-logo-height, 60px);
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.85));
+  user-select: none;
+  -webkit-user-drag: none;
+  margin-bottom: 2px;
+}
+
+#hud-comp-title.has-logo .game-logo {
+  display: block;
+}
+
+#hud-comp-title.has-logo .game-name {
+  display: none;
+}
+
+.category-name {
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.95);
+}
+
+.timer-group {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 32px;
+  padding: 4px 6px;
+}
+
+.timer-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.timer-block:hover {
+  transform: scale(1.02);
+}
+
+.timer-block:active {
+  transform: scale(0.98);
+}
+
+.timer-secondary {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.88);
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 2px #000;
+  transition: font-size 0.2s ease, color 0.2s ease;
+}
+
+.timer-primary {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 54px;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--timer-green);
+  letter-spacing: -1.5px;
+  text-shadow: 0 2px 10px rgba(0,0,0,1), 0 0 8px rgba(34, 197, 94, 0.6);
+  transition: font-size 0.2s ease, color 0.2s ease;
+}
+
+.timer-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  font-family: monospace;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95);
+}
+

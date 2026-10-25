@@ -7,9 +7,9 @@ import subprocess
 
 import pytest
 
-from helpers import ROOT_DIR, index_scripts, read_text
+from helpers import ROOT_DIR, all_css, index_scripts, index_stylesheets, read_text
 
-APP_FILES = ["index.html", "style.css", "README.md", "LICENSE", "package.json", "schema/layout-v1.json"]
+APP_FILES = ["index.html", "README.md", "LICENSE", "package.json", "schema/layout-v1.json"]
 NODE = shutil.which("node")
 BRACKET_PAIRS = {")": "(", "]": "[", "}": "{"}
 
@@ -17,7 +17,7 @@ BRACKET_PAIRS = {")": "(", "]": "[", "}": "{"}
 DYNAMIC_ID_PREFIXES = ("item-", "fill-", "delta-", "delta-val-", "time-val-", "node-", "ghost-marker-")
 
 
-@pytest.mark.parametrize("rel_path", APP_FILES + index_scripts())
+@pytest.mark.parametrize("rel_path", APP_FILES + index_stylesheets() + index_scripts())
 def test_file_exists_and_is_utf8(rel_path):
     assert os.path.isfile(os.path.join(ROOT_DIR, rel_path)), f"Missing file: {rel_path}"
     assert read_text(rel_path), f"File is empty: {rel_path}"
@@ -72,7 +72,7 @@ def _bracket_errors(content):
     return f"unclosed '{stack[-1][0]}' from {stack[-1][1]}:{stack[-1][2]}" if stack else None
 
 
-@pytest.mark.parametrize("rel_path", ["index.html", "style.css"])
+@pytest.mark.parametrize("rel_path", ["index.html"] + index_stylesheets())
 def test_brackets_balanced(rel_path):
     assert _bracket_errors(read_text(rel_path)) is None
 
@@ -119,8 +119,8 @@ def test_app_registry_calls_are_provided():
 
 
 def test_css_classes_toggled_by_js_are_styled():
-    """Every class name JS adds/toggles/removes must have a rule in style.css."""
-    css = re.sub(r"/\*.*?\*/", "", read_text("style.css"), flags=re.S)
+    """Every class name JS adds/toggles/removes must have a rule in src/styles/."""
+    css = re.sub(r"/\*.*?\*/", "", all_css(), flags=re.S)
     styled = set(re.findall(r"\.(-?[_a-zA-Z][\w-]*)", css))
     missing = {}
     for rel in index_scripts():

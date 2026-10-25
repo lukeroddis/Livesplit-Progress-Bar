@@ -4,20 +4,22 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 const ENTRY_URL = "/@livesplit-entry.js";
 const ENTRY_ID = "\0livesplit-entry";
 const SCRIPT_TAG_RE = /\s*<script\b[^>]*\bsrc="([^"]*)"[^>]*>\s*<\/script>/gi;
+const STYLESHEET_TAG_RE = /\s*<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi;
 
 /**
  * Build-only HTML transform.
  *
  * The application source is intentionally kept as classic, dependency-free
- * scripts so index.html and the generated test runner work from file://.
- * During a Vite build we replace those tags with one virtual module entry that
- * imports the same scripts in the same order (read from index.html itself, so
- * there is no second list to keep in sync) and lets Rollup emit a single JS
- * chunk. vite-plugin-singlefile then inlines that chunk and style.css into
- * dist/index.html.
+ * scripts and plain stylesheets so index.html and the generated test runner
+ * work from file://. During a Vite build we replace those <script> and
+ * stylesheet <link> tags with one virtual module entry that imports the same
+ * files in the same order (read from index.html itself, so there is no second
+ * list to keep in sync) and lets Rollup emit a single JS chunk and a single
+ * CSS chunk. vite-plugin-singlefile then inlines both into dist/index.html.
  */
 function singleFileEntryPlugin() {
   let scripts = [];
+  let stylesheets = [];
   return {
     name: "livesplit-single-file-entry",
     apply: "build",
@@ -25,8 +27,10 @@ function singleFileEntryPlugin() {
       order: "pre",
       handler(html) {
         scripts = [...html.matchAll(SCRIPT_TAG_RE)].map((m) => m[1]);
+        stylesheets = [...html.matchAll(STYLESHEET_TAG_RE)].map((m) => m[1]);
         return html
           .replace(SCRIPT_TAG_RE, "")
+          .replace(STYLESHEET_TAG_RE, "")
           .replace("</body>", `    <script type="module" src="${ENTRY_URL}"></script>\n  </body>`);
       }
     },
@@ -35,7 +39,7 @@ function singleFileEntryPlugin() {
     },
     load(id) {
       if (id !== ENTRY_ID) return null;
-      return ['import "/style.css";', ...scripts.map((src) => `import "/${src}";`)].join("\n");
+      return [...stylesheets, ...scripts].map((src) => `import "/${src}";`).join("\n");
     }
   };
 }

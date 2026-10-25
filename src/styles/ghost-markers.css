@@ -1,0 +1,244 @@
+/* ============================================================
+   LIVE GHOST RUNNER MARKER & EDGE BEACONS
+   ============================================================ */
+.ghost-marker {
+  position: absolute;
+  bottom: calc(var(--ghost-pin-bottom, calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--ghost-needle-length, 16px))) + var(--ghost-stack-offset, 0px));
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ghost-pin-size, 26px);
+  height: var(--ghost-pin-size, 26px);
+  pointer-events: none;
+  z-index: auto;
+  opacity: var(--ghost-opacity, 0.85);
+  transition: opacity 0.2s ease, bottom 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, bottom;
+  transform: translateX(-50%);
+}
+
+.ghost-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ghost-pin-size, 26px);
+  height: var(--ghost-pin-size, 26px);
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid var(--ghost-needle-color, #facc15);
+  box-shadow: 0 0 10px var(--ghost-needle-glow, rgba(250, 204, 21, 0.6)), 0 4px 10px rgba(0, 0, 0, 0.9);
+  font-size: calc(var(--ghost-pin-size, 26px) * 0.5);
+  line-height: 1;
+  user-select: none;
+  transform-origin: center center;
+  transform: translateX(var(--ghost-splay-x, 0px));
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ghost-needle {
+  position: absolute;
+  top: 100%;
+  left: calc(50% - 1px);
+  width: 2px;
+  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+  background: var(--ghost-needle-color, #facc15);
+  box-shadow: 0 0 6px var(--ghost-needle-glow, rgba(250, 204, 21, 0.9));
+  border-radius: 1px;
+  z-index: 5;
+  pointer-events: none;
+  transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Orthogonal Leader Lines: connects horizontally behind badges, drops vertically at runner track coordinate */
+.ghost-marker.splay-right .ghost-needle {
+  left: 50%;
+  width: var(--ghost-splay-x);
+  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  border-left: 2px solid var(--ghost-needle-color, #facc15);
+  border-top: 2px solid var(--ghost-needle-color, #facc15);
+  border-right: none;
+  border-bottom: none;
+  filter: drop-shadow(0 0 3px var(--ghost-needle-glow, rgba(250, 204, 21, 0.9)));
+}
+
+.ghost-marker.splay-left .ghost-needle {
+  left: calc(50% + var(--ghost-splay-x));
+  width: calc(-1 * var(--ghost-splay-x));
+  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  border-right: 2px solid var(--ghost-needle-color, #facc15);
+  border-top: 2px solid var(--ghost-needle-color, #facc15);
+  border-left: none;
+  border-bottom: none;
+  filter: drop-shadow(0 0 3px var(--ghost-needle-glow, rgba(250, 204, 21, 0.9)));
+}
+
+/* Stems always extend full length down to track dot/bar (passing behind split text at z-index: 5) */
+.ghost-marker.compact .ghost-needle {
+  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+}
+
+.ghost-marker.compact .ghost-icon-wrap {
+  transform: translateX(var(--ghost-splay-x, 0px));
+}
+
+/* Zero-length Ghost Pin: Ghost runs directly along track */
+.track.ghost-on-track:not(.vertical) .ghost-marker {
+  bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) / 2) - (var(--ghost-pin-size, 26px) / 2)) !important;
+}
+
+.track.ghost-on-track .ghost-needle {
+  display: none !important;
+}
+
+/* Theme-Specific Glow & Needle Colors */
+.ghost-theme-wr {
+  --ghost-needle-color: #facc15;
+  --ghost-needle-glow: rgba(250, 204, 21, 0.9);
+}
+.ghost-theme-wr .ghost-icon-wrap {
+  border-color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-wr:not(.splay-right):not(.splay-left) .ghost-needle {
+  background: #facc15;
+  box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
+}
+
+.ghost-theme-pb {
+  --ghost-needle-color: #38bdf8;
+  --ghost-needle-glow: rgba(56, 189, 248, 0.9);
+}
+.ghost-theme-pb .ghost-icon-wrap {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-pb:not(.splay-right):not(.splay-left) .ghost-needle {
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.9);
+}
+
+.ghost-theme-best {
+  --ghost-needle-color: #eab308;
+  --ghost-needle-glow: rgba(234, 179, 8, 0.9);
+}
+.ghost-theme-best .ghost-icon-wrap {
+  border-color: #eab308;
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-best:not(.splay-right):not(.splay-left) .ghost-needle {
+  background: #eab308;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.9);
+}
+
+.ghost-theme-average {
+  --ghost-needle-color: #a78bfa;
+  --ghost-needle-glow: rgba(167, 139, 250, 0.9);
+}
+.ghost-theme-average .ghost-icon-wrap {
+  border-color: #a78bfa;
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-average:not(.splay-right):not(.splay-left) .ghost-needle {
+  background: #a78bfa;
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.9);
+}
+
+.ghost-theme-worst {
+  --ghost-needle-color: #f87171;
+  --ghost-needle-glow: rgba(248, 113, 113, 0.9);
+}
+.ghost-theme-worst .ghost-icon-wrap {
+  border-color: #f87171;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.7), 0 4px 10px rgba(0, 0, 0, 0.9);
+}
+.ghost-theme-worst:not(.splay-right):not(.splay-left) .ghost-needle {
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.9);
+}
+
+.ghost-theme-pb.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.ghost-theme-best.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.ghost-theme-average.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.ghost-theme-worst.compact .ghost-icon-wrap {
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+
+/* Modal Ghost Pill Toggle Colors */
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="wr"].active {
+  background: #facc15;
+  color: #0f172a;
+  border-color: #facc15;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="pb"].active {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="best"].active {
+  background: #eab308;
+  color: #0f172a;
+  border-color: #eab308;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="average"].active {
+  background: #a78bfa;
+  color: #0f172a;
+  border-color: #a78bfa;
+}
+#ghost-pill-row .preset-pill-btn[data-ghost-pill="worst"].active {
+  background: #f87171;
+  color: #0f172a;
+  border-color: #f87171;
+}
+
+/* Off-screen Edge Pills */
+.ghost-edge-pill {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid #facc15;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85), 0 0 10px rgba(250, 204, 21, 0.4);
+  border-radius: 20px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #f1f5f9;
+  z-index: 30;
+  pointer-events: none;
+  animation: pulse-ghost 2s infinite ease-in-out;
+}
+
+.ghost-edge-left {
+  left: 12px;
+}
+
+.ghost-edge-right {
+  right: 12px;
+}
+
+@keyframes pulse-ghost {
+  0%, 100% { opacity: 0.95; transform: translateY(-50%) scale(1); }
+  50% { opacity: 0.7; transform: translateY(-50%) scale(0.96); }
+}
+

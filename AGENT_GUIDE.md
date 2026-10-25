@@ -17,7 +17,8 @@
    - Only modify `textContent` and `style` transforms on cached element references during live timing.
 3. **Modular Vite-Built Architecture**:
    - [index.html](index.html): Clean semantic structure, HUD components, and SVG icons.
-   - [style.css](style.css): Glassmorphic HUD styles, typography, layout editor UI, and animations.
+   - **`src/styles/` Stylesheets** (linked from `index.html` in cascade order; the Vite build inlines them in the same order):
+     `base.css` (design tokens), `hud-layout.css`, `layout-toolbar.css`, `hud-components.css`, `track.css`, `track-nodes.css`, `track-angled.css`, `track-vertical.css`, `settings-menu.css`, `settings-profiles.css`, `track-modal.css`, `ghost-markers.css`, `toast.css`, `race-pins.css`, `leaderboard.css`, `leaderboard-animations.css`, `leaderboard-badges.css`, `dev-mode.css`. Link order is part of the cascade: add rules to the file that owns the component, and add new files with a `<link>` placed where their rules should win.
    - **`src/core/` Core Speedrun & Persistence Modules**:
      - [`storage.js`](src/core/storage.js): `safeStorage` wrapper with in-memory fallback for sandboxed OBS CEF sources, state persistence, and centralized keys.
      - [`time-utils.js`](src/core/time-utils.js): `timeStringToSeconds`, `formatTimerDisplay`, `formatTargetTime`, and `formatDeltaSeconds`.
@@ -280,7 +281,7 @@ Before committing any changes, you must ensure:
 > | Where | What goes there |
 > | :--- | :--- |
 > | `tests/unit/<core\|ui\|utils>/<module>.test.js` | **Behaviour tests (default home for new tests).** One spec per module, run in headless Chrome against the real scripts. New files are discovered automatically. |
-> | `tests/test_structure.py` | Cross-file contracts: files parse (`node --check`), DOM ids exist in `index.html`, JS-toggled CSS classes exist in `style.css`. |
+> | `tests/test_structure.py` | Cross-file contracts: files parse (`node --check`), DOM ids exist in `index.html`, JS-toggled CSS classes exist in `src/styles/`. |
 > | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only). |
 > | `tests/test_release_bump.py` | `scripts/determine_bump.py` release classification. |
 > | `tests/browser/` | Runner page generator (`build_runner.py`), Chrome/CDP driver, coverage maths. |
@@ -347,6 +348,6 @@ Developer Mode can be activated via any of the following 4 methods:
    ```
 
 ### Implementation Details & Architecture
-* **CSS Visibility Gating**: In [`style.css`](style.css), `.dev-only` elements have `display: none !important;` by default. When active, `body.dev-mode` is added to the DOM and `.dev-only` elements render with `display: flex !important;`.
+* **CSS Visibility Gating**: In [`src/styles/dev-mode.css`](src/styles/dev-mode.css), `.dev-only` elements have `display: none !important;` by default. When active, `body.dev-mode` is added to the DOM and `.dev-only` elements render with `display: flex !important;`.
 * **State Persistence**: The active mode is saved to `safeStorage` under the key `livesplit_dev_mode` (`"true"` / `"false"`), surviving page refreshes.
 * **Layout Symmetry**: In production mode (`body:not(.dev-mode)`), the Live Race Telemetry settings grid automatically reflows so the remaining tiles fill the grid evenly.

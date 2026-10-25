@@ -22,6 +22,16 @@ def index_scripts():
     return re.findall(r'<script\s+src="([^"]+)"', read_text("index.html"))
 
 
+def index_stylesheets():
+    """<link rel="stylesheet"> hrefs in index.html cascade order."""
+    return re.findall(r'<link\s+rel="stylesheet"\s+href="([^"]+)"', read_text("index.html"))
+
+
+def all_css():
+    """Every stylesheet concatenated in cascade order."""
+    return "\n".join(read_text(rel) for rel in index_stylesheets())
+
+
 def module_scripts():
     """Every app script except the two top-level controllers."""
     return [s for s in index_scripts() if s not in ("layout.js", "overlay.js")]
