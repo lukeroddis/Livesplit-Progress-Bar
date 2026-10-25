@@ -22,6 +22,8 @@ def pytest_addoption(parser):
                      help="Only load tests/unit spec files whose path contains SUBSTRING (repeatable)")
     parser.addoption("--coverage", action="store_true", default=False,
                      help="Print the per-file in-browser JS coverage table")
+    parser.addini("js_coverage_floor", "Minimum total in-browser JS line coverage (%)", default="0")
+    parser.addini("js_file_coverage_floor", "Minimum JS line coverage (%) for every app script", default="0")
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):

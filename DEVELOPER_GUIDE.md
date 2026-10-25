@@ -292,9 +292,12 @@ Before committing any changes, you must ensure:
 > | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only) plus the ESLint run (`npm run lint`, `no-undef` / `no-unused-vars`, config in `eslint.config.mjs`). |
 > | `tests/test_release_bump.py` | `scripts/determine_bump.py` release classification. |
 > | `tests/browser/` | Runner page generator (`build_runner.py`), Chrome/CDP driver, coverage maths. |
-> | `tests/harness/` | `mini-test.js` (`describe`/`it`/`assert`; `async` tests run serially after sync specs) and `fake-livesplit.js`, a scriptable fake LiveSplit Server installed as `window.WebSocket` so tests never touch a real LiveSplit. Call `FakeLiveSplit.acceptConnection()` and set `FakeLiveSplit.state` to drive the poll loop (see `tests/unit/core/run-tracker.test.js`). |
+> | `tests/harness/` | `mini-test.js` (`describe`/`it`/`assert`; `async` tests run serially after sync specs) and `fake-livesplit.js`, a scriptable fake LiveSplit Server installed as `window.WebSocket` so tests never touch a real LiveSplit. Call `FakeLiveSplit.acceptConnection()` and set `FakeLiveSplit.state` to drive the poll loop (see `tests/unit/core/run-tracker.test.js`). `test-utils.js` (`window.TestUtils`): `mountHtml` (temporary DOM that wins over the runner page's own ids), `captureWindowListeners` (call window handlers directly without firing the app's), `withFakeTimers` (manual clock for `setTimeout` flows), `waitFor`. |
+> | `tests/fixtures/` | Real-world sample files (`.lss` splits). The runner inlines them as `window.TestFixtures["<file name>"]`; add a file and it is available to every spec (see `tests/unit/core/splits-loader.test.js`). |
 >
 > **Run modes:** `npm test` (everything, one-line coverage summary), `npm run test:quick` (skip the browser suite), `python tests/run_tests.py --spec race/` (only browser specs whose path contains the substring; repeatable), `npm run test:coverage` (per-file JS coverage table), `npm run lint`.
+>
+> **Coverage floors:** `pytest.ini` sets `js_coverage_floor` (total) and `js_file_coverage_floor` (every app script). Full runs fail below them; `--spec` runs skip the check. Raise them when coverage improves; lower one only with a reason in the commit.
 >
 > Do **not** assert on source text (`"function foo" in overlay_js`): it breaks on every refactor and does not test behaviour. Do not re-implement JS logic in Python to test it; test the JS directly. `tests/test_runner.html` is generated (gitignored); edit `tests/test_runner.template.html` for harness changes. The browser suite needs Chrome/Chromium (required when `CI` is set); without `websockets` it falls back to `--dump-dom` and skips coverage.
 
