@@ -33,6 +33,7 @@ def test_file_integrity():
         os.path.join("src", "core", "ghost-math.js"),
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "core", "race-simulation.js"),
+        os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -62,6 +63,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "ghost-math.js"),
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "core", "race-simulation.js"),
+        os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -167,6 +169,7 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "ghost-math.js"),
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "core", "race-simulation.js"),
+        os.path.join("src", "core", "race-ranking.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -2445,7 +2448,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         race_code = rf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "race-simulation.js"), "r", encoding="utf-8") as sf:
         sim_code = sf.read()
-    race_sim_combined = race_code + sim_code
+    with open(os.path.join(ROOT_DIR, "src", "core", "race-ranking.js"), "r", encoding="utf-8") as rkf:
+        ranking_code = rkf.read()
+    race_sim_combined = race_code + sim_code + ranking_code
     assert "window.LiveSplit.RaceSimulation" in sim_code, "src/core/race-simulation.js must export LiveSplit.RaceSimulation"
     assert "if (hostState.currentTimeSec > 0)" in race_sim_combined, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
     assert "setHostUsername" in race_code, "race-client.js must export setHostUsername"
@@ -2459,9 +2464,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert ".leaderboard-row.is-swapping" in css, "style.css must style .leaderboard-row.is-swapping"
     assert "is-swapping" in leaderboard_code, "leaderboard.js must support FLIP is-swapping animation class"
     assert "prevTops" in leaderboard_code, "leaderboard.js must record initial positions for FLIP animation"
-    assert "predictedSingleTime" in race_code, "race-client.js must support therun.gg predictedSingleTime"
+    assert "predictedSingleTime" in race_sim_combined, "race client and ranking must support therun.gg predictedSingleTime"
     assert "monteCarloPrediction" in race_code, "race-client.js must store monteCarloPrediction from therun.gg telemetry"
-    assert "hasStatisticalPrediction" in race_code, "race-client.js must track hasStatisticalPrediction flag"
+    assert "hasStatisticalPrediction" in race_sim_combined, "race client and ranking must track hasStatisticalPrediction flag"
 
     # 9. Intelligent pin stacking & mini-leaderboard assertions
     assert "--ghost-stack-offset" in css, "style.css must support dynamic --ghost-stack-offset"
@@ -2503,8 +2508,8 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "calculateMilestoneGap" in race_code, "race-client.js must calculate milestone-based checkpoint gaps"
     assert "normalizeSplitTimes" in race_code, "race-client.js must define normalizeSplitTimes for robust splitTimes object/array handling"
     assert "simulationCourseTargets" in race_sim_combined, "race simulation must establish persistent simulationCourseTargets"
-    assert "expectedSegmentSec" in race_code, "race-client.js must calculate expectedSegmentSec for current split"
-    assert "lastCompletedIdx" in race_code, "race-client.js must update leaderboard positions strictly on split checkpoints"
+    assert "expectedSegmentSec" in race_sim_combined, "race client and ranking must calculate expectedSegmentSec for current split"
+    assert "lastCompletedIdx" in race_sim_combined, "race client and ranking must update leaderboard positions strictly on split checkpoints"
     assert "raceClockSec" in race_code, "race-client.js must synchronize live race clock to Real Time (RTA)"
     assert "completedSplitTimesRT" in overlay_js, "overlay.js must record Real Time split timestamps"
     assert "activeComparisonTimesRT" in race_code, "race-client.js must prioritize Real Time course targets"
@@ -2533,7 +2538,7 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert ".racer-ribbon" in css, "style.css must style .racer-ribbon"
     assert "@keyframes ribbon-slide-in" in css, "style.css must define @keyframes ribbon-slide-in"
     assert "racer.segmentRibbon" in leaderboard_code, "leaderboard.js must render fastest segment corner ribbon"
-    assert "ribbonAwards" in race_code, "race-client.js must calculate top 3 segment ribbons (gold, silver, bronze)"
+    assert "ribbonAwards" in race_sim_combined, "race client and ranking must calculate top 3 segment ribbons (gold, silver, bronze)"
     assert "setTimingMethod" in race_code, "race-client.js must export setTimingMethod"
     assert "getTimingMethod" in race_code, "race-client.js must export getTimingMethod"
     assert "rc.setTimingMethod" in overlay_js, "overlay.js applyActiveTimingMethod must notify rc.setTimingMethod"
@@ -2841,6 +2846,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "storage.js"),
             os.path.join("src", "core", "livesplit-client.js"),
             os.path.join("src", "core", "race-simulation.js"),
+            os.path.join("src", "core", "race-ranking.js"),
             os.path.join("src", "core", "race-client.js"),
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),
@@ -2968,6 +2974,33 @@ def test_overlay_subcontrollers_modularization():
     print("✓ Overlay UI sub-controllers (ToastManager & TimerDisplay) modularization passed.")
 
 
+def test_race_ranking_modularization():
+    """Verify modularization of race standings & milestone ranking engine."""
+    ranking_path = os.path.join(ROOT_DIR, "src", "core", "race-ranking.js")
+    race_client_path = os.path.join(ROOT_DIR, "src", "core", "race-client.js")
+
+    assert os.path.exists(ranking_path), "src/core/race-ranking.js must exist"
+
+    with open(ranking_path, "r", encoding="utf-8") as rf:
+        ranking_code = rf.read()
+    with open(race_client_path, "r", encoding="utf-8") as rcf:
+        client_code = rcf.read()
+
+    assert "window.LiveSplit.RaceRanking" in ranking_code, "race-ranking.js must export LiveSplit.RaceRanking"
+    assert "function normalizeSplitTimes" in ranking_code, "race-ranking.js must define normalizeSplitTimes"
+    assert "function formatGapTime" in ranking_code, "race-ranking.js must define formatGapTime"
+    assert "function getCourseRefTime" in ranking_code, "race-ranking.js must define getCourseRefTime"
+    assert "function getCompletedSplitCount" in ranking_code, "race-ranking.js must define getCompletedSplitCount"
+    assert "function getSplitCheckpointTime" in ranking_code, "race-ranking.js must define getSplitCheckpointTime"
+    assert "function calculateMilestoneGap" in ranking_code, "race-ranking.js must define calculateMilestoneGap"
+    assert "function calculateRankedEntrants" in ranking_code, "race-ranking.js must define calculateRankedEntrants"
+
+    assert "window.LiveSplit.RaceRanking.calculateRankedEntrants" in client_code, "race-client.js must delegate getRankedEntrants to RaceRanking"
+    assert "window.LiveSplit.RaceRanking.calculateMilestoneGap" in client_code, "race-client.js must delegate calculateMilestoneGap to RaceRanking"
+
+    print("✓ Race Standings & Milestone Ranking Engine modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3012,7 +3045,8 @@ def main():
         test_intelligent_release_bump_detection()
         test_live_race_ghost_pins_and_f1_leaderboard()
         test_overlay_subcontrollers_modularization()
-        run_browser_tests_and_coverage(python_test_count=39)
+        test_race_ranking_modularization()
+        run_browser_tests_and_coverage(python_test_count=40)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
