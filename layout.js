@@ -34,69 +34,30 @@
   let isEditMode = false;
   let activePointerOp = null; // { type: 'drag'|'scale', compId, startX, startY, origX, origY, origScale }
 
-  function applyGameLogo(src, height) {
-    const titleComp = document.getElementById("hud-comp-title");
-    const logoImg = document.getElementById("game-logo");
-    const previewWrap = document.getElementById("game-logo-preview-wrap");
-    const previewImg = document.getElementById("game-logo-preview");
-    const removeBtn = document.getElementById("btn-remove-game-logo");
-    const rowHeight = document.getElementById("row-logo-height");
-    const sLogoHeight = document.getElementById("slider-logo-height");
-    const vLogoHeight = document.getElementById("val-logo-height");
-
-    const effectiveHeight = height || (currentTrackStyle && currentTrackStyle.logoHeight) || 60;
-    document.documentElement.style.setProperty("--game-logo-height", `${effectiveHeight}px`);
-
-    if (src && src.trim()) {
-      if (logoImg) {
-        logoImg.src = src;
-        logoImg.style.display = "block";
-      }
-      if (titleComp) {
-        titleComp.classList.add("has-logo");
-      }
-      if (previewImg) previewImg.src = src;
-      if (previewWrap) previewWrap.style.display = "flex";
-      if (removeBtn) removeBtn.style.display = "inline-flex";
-      if (rowHeight) rowHeight.style.display = "flex";
-    } else {
-      if (logoImg) {
-        logoImg.src = "";
-        logoImg.style.display = "none";
-      }
-      if (titleComp) {
-        titleComp.classList.remove("has-logo");
-      }
-      if (previewImg) previewImg.src = "";
-      if (previewWrap) previewWrap.style.display = "none";
-      if (removeBtn) removeBtn.style.display = "none";
-      if (rowHeight) rowHeight.style.display = "none";
+  let gameLogoController = null;
+  function getGameLogoController() {
+    if (!gameLogoController && typeof window !== "undefined" && window.LiveSplit && window.LiveSplit.GameLogo) {
+      gameLogoController = window.LiveSplit.GameLogo.createGameLogo({
+        storageKey: LOGO_STORAGE_KEY,
+        getLogoHeight: () => (currentTrackStyle && currentTrackStyle.logoHeight) || 60
+      });
     }
+    return gameLogoController;
+  }
 
-    if (sLogoHeight) sLogoHeight.value = effectiveHeight;
-    if (vLogoHeight) vLogoHeight.innerText = `${effectiveHeight}px`;
+  function applyGameLogo(src, height) {
+    const c = getGameLogoController();
+    return c ? c.applyGameLogo(src, height) : undefined;
   }
 
   function removeGameLogo() {
-    try {
-      localStorage.removeItem(LOGO_STORAGE_KEY);
-    } catch (e) {
-      console.warn("Failed to clear logo from localStorage", e);
-    }
-    applyGameLogo(null);
+    const c = getGameLogoController();
+    if (c) c.removeGameLogo();
   }
 
   function saveGameLogo(src) {
-    try {
-      if (src) {
-        localStorage.setItem(LOGO_STORAGE_KEY, src);
-      } else {
-        localStorage.removeItem(LOGO_STORAGE_KEY);
-      }
-    } catch (e) {
-      console.warn("Failed to save logo to localStorage", e);
-    }
-    applyGameLogo(src);
+    const c = getGameLogoController();
+    if (c) c.saveGameLogo(src);
   }
 
   function getDefaultLayout() {
@@ -830,26 +791,9 @@
     }
 
     // Custom Game Logo sync
-    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
-    const effLogoH = (currentTrackStyle && currentTrackStyle.logoHeight) || 60;
-    const sLogoH = document.getElementById("slider-logo-height");
-    const vLogoH = document.getElementById("val-logo-height");
-    if (sLogoH) sLogoH.value = effLogoH;
-    if (vLogoH) vLogoH.innerText = `${effLogoH}px`;
-    const previewWrap = document.getElementById("game-logo-preview-wrap");
-    const previewImg = document.getElementById("game-logo-preview");
-    const removeLogoBtn = document.getElementById("btn-remove-game-logo");
-    const rowLogoH = document.getElementById("row-logo-height");
-    if (savedLogo) {
-      if (previewImg) previewImg.src = savedLogo;
-      if (previewWrap) previewWrap.style.display = "flex";
-      if (removeLogoBtn) removeLogoBtn.style.display = "inline-flex";
-      if (rowLogoH) rowLogoH.style.display = "flex";
-    } else {
-      if (previewImg) previewImg.src = "";
-      if (previewWrap) previewWrap.style.display = "none";
-      if (removeLogoBtn) removeLogoBtn.style.display = "none";
-      if (rowLogoH) rowLogoH.style.display = "none";
+    const logoCtrl = getGameLogoController();
+    if (logoCtrl) {
+      logoCtrl.syncModalUI((currentTrackStyle && currentTrackStyle.logoHeight) || 60);
     }
 
     // Timer Expansion segmented control sync
@@ -1913,26 +1857,9 @@
       sliderLogoHeight.addEventListener("change", saveTrackStyle);
     }
 
-    const inputGameLogo = document.getElementById("input-game-logo");
-    if (inputGameLogo) {
-      inputGameLogo.addEventListener("change", (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (loadEvt) => {
-          saveGameLogo(loadEvt.target.result);
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    const btnRemoveGameLogo = document.getElementById("btn-remove-game-logo");
-    if (btnRemoveGameLogo) {
-      btnRemoveGameLogo.addEventListener("click", () => {
-        const fileInput = document.getElementById("input-game-logo");
-        if (fileInput) fileInput.value = "";
-        removeGameLogo();
-      });
+    const logoCtrl = getGameLogoController();
+    if (logoCtrl) {
+      logoCtrl.bindEvents();
     }
 
     // Layout Profiles & Import/Export Controls

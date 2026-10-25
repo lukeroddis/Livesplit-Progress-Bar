@@ -45,6 +45,7 @@ def test_file_integrity():
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
         os.path.join("src", "ui", "timer-display.js"),
+        os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     for fname in required:
@@ -79,6 +80,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
         os.path.join("src", "ui", "timer-display.js"),
+        os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     
@@ -190,6 +192,7 @@ def test_dom_id_consistency():
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
         os.path.join("src", "ui", "timer-display.js"),
+        os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]:
         path = os.path.join(ROOT_DIR, js_file)
@@ -2881,6 +2884,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "ui", "race-track-markers.js"),
             os.path.join("src", "ui", "toast-manager.js"),
             os.path.join("src", "ui", "timer-display.js"),
+            os.path.join("src", "ui", "game-logo.js"),
             os.path.join("src", "utils", "dom-utils.js")
         ]
 
@@ -3106,6 +3110,25 @@ def test_layout_profiles_modularization():
     print("✓ Layout Profiles & Preset Engine modularization passed.")
 
 
+def test_game_logo_modularization():
+    """Verify modularization of custom game logo controller."""
+    logo_path = os.path.join(ROOT_DIR, "src", "ui", "game-logo.js")
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+
+    assert os.path.exists(logo_path), "src/ui/game-logo.js must exist"
+
+    with open(logo_path, "r", encoding="utf-8") as rf:
+        logo_code = rf.read()
+    with open(layout_path, "r", encoding="utf-8") as lcf:
+        layout_code = lcf.read()
+
+    assert "window.LiveSplit.GameLogo" in logo_code, "game-logo.js must export LiveSplit.GameLogo"
+    assert "createGameLogo" in logo_code, "game-logo.js must define createGameLogo"
+    assert "LiveSplit.GameLogo.createGameLogo" in layout_code, "layout.js must instantiate GameLogo"
+
+    print("✓ Custom Game Logo Controller modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3155,7 +3178,8 @@ def main():
         test_race_discovery_modularization()
         test_race_logger_modularization()
         test_layout_profiles_modularization()
-        run_browser_tests_and_coverage(python_test_count=44)
+        test_game_logo_modularization()
+        run_browser_tests_and_coverage(python_test_count=45)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

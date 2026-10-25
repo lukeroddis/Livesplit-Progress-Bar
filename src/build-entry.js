@@ -31,5 +31,6 @@ import "./ui/leaderboard.js";
 import "./ui/race-track-markers.js";
 import "./ui/toast-manager.js";
 import "./ui/timer-display.js";
+import "./ui/game-logo.js";
 import "../layout.js";
 import "../overlay.js";
