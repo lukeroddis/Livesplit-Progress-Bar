@@ -291,18 +291,24 @@ Before committing any changes, you must ensure:
 
 ## 6. Commit Message Attribution Standard
 
-To maintain transparency without tagging third-party GitHub users (since GitHub matches `Co-authored-by:` emails to existing GitHub accounts, including `username@users.noreply.github.com`), **do not** use `Co-authored-by:` trailers.
+`Co-authored-by:` trailers are matched by email to GitHub accounts, so only use one whose address belongs to the tool's vendor, never a guessable username or `username@users.noreply.github.com` (that previously credited an unrelated GitHub user).
 
-Instead, place the attribution statement directly within the commit body:
+- **Claude Code**: use Anthropic's standard trailer, which maps to Anthropic's own address:
 
-```text
-<Short imperative commit title>
+  ```text
+  <Short imperative commit title>
 
-<Detailed summary of changes, rationale, and verification performed>
+  <Detailed summary of changes, rationale, and verification performed>
 
-🤖 Generated with Antigravity (Google DeepMind)
-Reviewed, tested, and approved by Luke.
-```
+  Co-Authored-By: Claude <model> <noreply@anthropic.com>
+  ```
+
+- **Other tools without a vendor-owned address** (e.g. Antigravity): do not add a trailer; put the attribution in the commit body instead:
+
+  ```text
+  🤖 Generated with Antigravity (Google DeepMind)
+  Reviewed, tested, and approved by Luke.
+  ```
 
 ---
 
