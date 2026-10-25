@@ -93,6 +93,31 @@ def test_dom_ids_exist_in_index_html(rel_path):
     assert not missing, f"{rel_path} references ids missing from index.html: {missing}"
 
 
+def _object_assign_app_names(src):
+    """Names provided via Object.assign(app, { a, b: c, ... }) blocks."""
+    names = set()
+    for block in re.findall(r"Object\.assign\(app,\s*\{(.*?)\}\);", src, re.S):
+        for entry in re.findall(r"^\s*(\w+)\s*(?::|,|$)", block, re.M):
+            names.add(entry)
+    return names
+
+
+def test_app_registry_calls_are_provided():
+    """Every app.<name> a controller uses must be registered by an install*(app) or overlay.js."""
+    provided = {"state"}
+    used = {}
+    for rel in index_scripts():
+        src = read_text(rel)
+        if "install" not in src and rel != "overlay.js":
+            continue
+        provided |= _object_assign_app_names(src)
+        provided |= set(re.findall(r"const \{\s*state,\s*(\w+)\s*\} = app;", src))
+        for name in re.findall(r"(?<![\w$])app\.(\w+)", src):
+            used.setdefault(name, set()).add(rel)
+    missing = {n: sorted(f) for n, f in used.items() if n not in provided}
+    assert not missing, f"app.<name> used but never registered: {missing}"
+
+
 def test_css_classes_toggled_by_js_are_styled():
     """Every class name JS adds/toggles/removes must have a rule in style.css."""
     css = re.sub(r"/\*.*?\*/", "", read_text("style.css"), flags=re.S)
