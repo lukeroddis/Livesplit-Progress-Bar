@@ -1669,16 +1669,43 @@
 
       if (!payload) return;
 
+      // Extract inner data and raw message type across single or doubly-nested envelopes
+      let rawMsgType = String(msg.type || msg.action || msg.event || "").toLowerCase().trim();
+      let innerData = payload;
+      if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+        if (payload.type && typeof payload.type === "string") {
+          rawMsgType = String(payload.type).toLowerCase().trim();
+        }
+        if (payload.data !== undefined && payload.data !== null && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+          innerData = payload.data;
+          if (innerData.type && typeof innerData.type === "string") {
+            rawMsgType = String(innerData.type).toLowerCase().trim();
+          }
+          if (innerData.data !== undefined && innerData.data !== null && typeof innerData.data === "object" && !Array.isArray(innerData.data)) {
+            innerData = innerData.data;
+          }
+        }
+      }
+
       // 1. Process Race-Level Status, Countdown, and Start Times
-      const rawStatus = (payload && (payload.raceStatus || payload.status || payload.state)) ||
+      const rawStatus = (innerData && (innerData.raceStatus || innerData.status || innerData.state)) ||
+        (payload && (payload.raceStatus || payload.status || payload.state)) ||
         (payload && payload.race && (payload.race.raceStatus || payload.race.status || payload.race.state)) ||
         msg.status || msg.raceStatus || msg.state;
 
-      const rawMsgType = String(msg.type || msg.action || msg.event || "").toLowerCase();
-
       let detectedCountdown = null;
-      if (typeof payload.countdown === "number" && !isNaN(payload.countdown)) {
+      if (typeof innerData.countdown === "number" && !isNaN(innerData.countdown)) {
+        detectedCountdown = innerData.countdown;
+      } else if (typeof innerData.countdownSeconds === "number" && !isNaN(innerData.countdownSeconds)) {
+        if (rawStatus === "starting" || rawStatus === "countdown") {
+          detectedCountdown = innerData.countdownSeconds;
+        }
+      } else if (typeof payload.countdown === "number" && !isNaN(payload.countdown)) {
         detectedCountdown = payload.countdown;
+      } else if (typeof payload.countdownSeconds === "number" && !isNaN(payload.countdownSeconds)) {
+        if (rawStatus === "starting" || rawStatus === "countdown") {
+          detectedCountdown = payload.countdownSeconds;
+        }
       } else if (typeof msg.countdown === "number" && !isNaN(msg.countdown)) {
         detectedCountdown = msg.countdown;
       } else if ((rawMsgType === "countdown" || rawMsgType === "starting") && typeof msg.value === "number") {
@@ -1687,7 +1714,8 @@
         detectedCountdown = msg.seconds;
       }
 
-      const rawStartTime = (payload && (payload.startTime || payload.startDate || payload.start_time)) ||
+      const rawStartTime = (innerData && (innerData.startTime || innerData.startDate || innerData.start_time)) ||
+        (payload && (payload.startTime || payload.startDate || payload.start_time)) ||
         (payload && payload.race && (payload.race.startTime || payload.race.startDate || payload.race.start_time)) ||
         msg.startTime || msg.startDate || msg.start_time;
 
@@ -1759,10 +1787,10 @@
         }
       }
 
-      const raceMsgType = String((msg.type === "message" && payload && payload.type) || msg.type || "").toLowerCase().trim();
-      const raceMsgData = (payload && payload.data && typeof payload.data === "object")
-        ? payload.data
-        : ((msg.data && typeof msg.data === "object") ? msg.data : (payload && typeof payload === "object" ? payload : null));
+      const raceMsgType = rawMsgType;
+      const raceMsgData = (innerData && typeof innerData === "object")
+        ? innerData
+        : ((payload && typeof payload === "object") ? payload : null);
 
       if (raceMsgType === "race-starting" || raceMsgType === "race_starting") {
         raceStatus = "starting";
@@ -1823,19 +1851,37 @@
         });
       }
 
-      // Handle full entrants/participants snapshot or incremental runner update
-      if (Array.isArray(payload)) {
-        payload.forEach(updateEntrantFromTelemetry);
-      } else if (Array.isArray(payload.participants)) {
-        payload.participants.forEach(updateEntrantFromTelemetry);
-      } else if (Array.isArray(payload.entrants)) {
-        payload.entrants.forEach(updateEntrantFromTelemetry);
+      // Handle full authoritative entrants/participants snapshot or incremental runner update
+      const participantsList = (innerData && Array.isArray(innerData.participants)) ? innerData.participants
+        : ((payload && Array.isArray(payload.participants)) ? payload.participants
+        : ((innerData && Array.isArray(innerData.entrants)) ? innerData.entrants
+        : ((payload && Array.isArray(payload.entrants)) ? payload.entrants
+        : (Array.isArray(innerData) ? innerData : (Array.isArray(payload) ? payload : null)))));
+
+      if (Array.isArray(participantsList)) {
+        // In live room: authoritative snapshot from therun.gg prunes anyone who left the race
+        const activeUsers = new Set(participantsList.map(p => String(p.user || p.username || p.userId || "").toLowerCase().trim()).filter(Boolean));
+        if (ws !== null || (raceId && raceId !== "sim_cup_2026")) {
+          for (const [id, e] of entrants.entries()) {
+            if (e.isHost || id === hostState.userId) continue;
+            const u = String(e.username || e.userId || "").toLowerCase().trim();
+            if (u && !activeUsers.has(u) && !activeUsers.has(id.toLowerCase())) {
+              entrants.delete(id);
+              lastKnownRanks.delete(id);
+            }
+          }
+        }
+        participantsList.forEach(updateEntrantFromTelemetry);
+      } else if (innerData.participant && typeof innerData.participant === "object") {
+        updateEntrantFromTelemetry(innerData.participant);
       } else if (payload.participant && typeof payload.participant === "object") {
         updateEntrantFromTelemetry(payload.participant);
+      } else if (innerData.user || innerData.username || innerData.userId) {
+        updateEntrantFromTelemetry(innerData);
       } else if (payload.user || payload.username || payload.userId) {
         updateEntrantFromTelemetry(payload);
       } else if (msg.user || msg.username || msg.userId) {
-        updateEntrantFromTelemetry(payload);
+        updateEntrantFromTelemetry(msg);
       }
 
       notifyListeners("entrants_update", null);

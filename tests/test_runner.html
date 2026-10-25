@@ -109,6 +109,14 @@
     <input type="text" id="input-therun-race-code">
     <button id="btn-save-therun-username"></button>
     <button id="btn-disconnect-race"></button>
+    <button id="btn-open-ws-logs"></button>
+    <div id="race-ws-logs-modal" class="track-modal-backdrop" style="display: none;">
+      <button id="btn-close-ws-logs-modal"></button>
+      <button id="btn-close-ws-logs-footer"></button>
+      <span id="ws-logs-count"></span>
+      <span id="ws-logs-status"></span>
+      <div id="ws-logs-container"></div>
+    </div>
     <span id="gold-toggle-badge"></span>
     <span id="timing-method-badge"></span>
     <span id="comparison-badge"></span>
@@ -3622,6 +3630,94 @@
         const logs = rc.getWebSocketLogs();
         assert(logs.length >= 0, "getWebSocketLogs returns logs array");
         assert(typeof window.getRaceWsLogs === "function", "window.getRaceWsLogs helper is exported");
+      });
+
+      it("WS Logs modal opens with .is-open on click and closes on close button click", () => {
+        const btn = document.getElementById("btn-open-ws-logs");
+        const modal = document.getElementById("race-ws-logs-modal");
+        const closeBtn = document.getElementById("btn-close-ws-logs-modal");
+        assert(btn !== null, "btn-open-ws-logs exists in DOM");
+        assert(modal !== null, "race-ws-logs-modal exists in DOM");
+        assert(closeBtn !== null, "btn-close-ws-logs-modal exists in DOM");
+
+        btn.click();
+        assertEqual(modal.style.display, "flex", "modal display is flex after click");
+
+        closeBtn.click();
+        assert(!modal.classList.contains("is-open"), "modal removes .is-open on close click");
+      });
+
+      it("raceUpdate populates full participants snapshot and prunes participants who left", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        rc.connectToRace("ltey");
+
+        // 1. Snapshot with 2 runners arriving late
+        rc.handleRaceMessage({
+          type: "raceUpdate",
+          data: {
+            type: "raceUpdate",
+            data: {
+              raceId: "ltey",
+              status: "pending",
+              participants: [
+                { user: "RacerOne", status: "joined", pb: "12242154" },
+                { user: "RacerTwo", status: "ready", pb: "9500000" }
+              ]
+            }
+          }
+        });
+
+        let entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 2, "Full snapshot populates 2 runners");
+        const r1 = entrants.find(e => e.username === "RacerOne");
+        const r2 = entrants.find(e => e.username === "RacerTwo");
+        assert(r1 !== undefined, "RacerOne exists");
+        assert(r2 !== undefined, "RacerTwo exists");
+        assertEqual(r1.status, "joined", "RacerOne is joined");
+        assertEqual(r1.isReady, false, "RacerOne isReady is false");
+        assertEqual(Math.round(r1.pbSec), 12242, "RacerOne PB is parsed from ms to sec");
+        assertEqual(r2.status, "ready", "RacerTwo is ready");
+        assertEqual(r2.isReady, true, "RacerTwo isReady is true");
+
+        // 2. Incremental participantUpdate
+        rc.handleRaceMessage({
+          type: "participantUpdate",
+          data: {
+            type: "participantUpdate",
+            data: {
+              raceId: "ltey",
+              user: "RacerOne",
+              status: "ready"
+            }
+          }
+        });
+        entrants = rc.getRankedEntrants();
+        const r1Updated = entrants.find(e => e.username === "RacerOne");
+        assertEqual(r1Updated.status, "ready", "RacerOne status updated to ready");
+        assertEqual(r1Updated.isReady, true, "RacerOne isReady updated to true");
+
+        // 3. New snapshot where RacerTwo left
+        rc.handleRaceMessage({
+          type: "raceUpdate",
+          data: {
+            type: "raceUpdate",
+            data: {
+              raceId: "ltey",
+              status: "pending",
+              participants: [
+                { user: "RacerOne", status: "joined", pb: "12242154" }
+              ]
+            }
+          }
+        });
+        entrants = rc.getRankedEntrants();
+        assertEqual(entrants.length, 1, "Snapshot prunes RacerTwo who left");
+        assertEqual(entrants[0].username, "RacerOne");
+
+        rc.disconnectFromRace();
       });
 
       it("rc.reset() does not wipe remote live race participants", () => {

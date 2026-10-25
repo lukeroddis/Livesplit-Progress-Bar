@@ -3902,6 +3902,15 @@ function initOverlay() {
   const therunSaveBtn = document.getElementById("btn-save-therun-username");
   const btnToggleLeaderboard = document.getElementById("btn-toggle-leaderboard");
   const btnToggleRacePins = document.getElementById("btn-toggle-race-pins");
+  const btnOpenWsLogs = document.getElementById("btn-open-ws-logs");
+  const wsLogsModal = document.getElementById("race-ws-logs-modal");
+  const btnCloseWsLogs = document.getElementById("btn-close-ws-logs-modal");
+  const btnCloseWsLogsFooter = document.getElementById("btn-close-ws-logs-footer");
+  const btnClearWsLogs = document.getElementById("btn-clear-ws-logs");
+  const btnCopyWsLogs = document.getElementById("btn-copy-ws-logs");
+  const wsLogsContainer = document.getElementById("ws-logs-container");
+  const wsLogsCount = document.getElementById("ws-logs-count");
+  const wsLogsStatus = document.getElementById("ws-logs-status");
 
   if (btnToggleLeaderboard) {
     const syncLeaderboardBtn = () => {
@@ -4223,16 +4232,6 @@ function initOverlay() {
   }
 
   // WebSocket Telemetry Logs Modal
-  const btnOpenWsLogs = document.getElementById("btn-open-ws-logs");
-  const wsLogsModal = document.getElementById("race-ws-logs-modal");
-  const btnCloseWsLogs = document.getElementById("btn-close-ws-logs-modal");
-  const btnCloseWsLogsFooter = document.getElementById("btn-close-ws-logs-footer");
-  const btnClearWsLogs = document.getElementById("btn-clear-ws-logs");
-  const btnCopyWsLogs = document.getElementById("btn-copy-ws-logs");
-  const wsLogsContainer = document.getElementById("ws-logs-container");
-  const wsLogsCount = document.getElementById("ws-logs-count");
-  const wsLogsStatus = document.getElementById("ws-logs-status");
-
   function renderWsLogEntry(entry) {
     const div = document.createElement("div");
     div.className = "ws-log-item";
@@ -4284,18 +4283,37 @@ function initOverlay() {
   }
 
   if (btnOpenWsLogs && wsLogsModal) {
-    btnOpenWsLogs.addEventListener("click", () => {
+    const openWsLogs = () => {
       renderAllWsLogs();
       wsLogsModal.style.display = "flex";
-    });
+      setTimeout(() => wsLogsModal.classList.add("is-open"), 10);
+    };
 
     const closeWsLogs = () => {
-      wsLogsModal.style.display = "none";
+      wsLogsModal.classList.remove("is-open");
+      setTimeout(() => {
+        wsLogsModal.style.display = "none";
+      }, 200);
     };
+
+    btnOpenWsLogs.addEventListener("click", (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      openWsLogs();
+    });
+
     btnCloseWsLogs?.addEventListener("click", closeWsLogs);
     btnCloseWsLogsFooter?.addEventListener("click", closeWsLogs);
     wsLogsModal.addEventListener("click", (e) => {
       if (e.target === wsLogsModal) closeWsLogs();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && wsLogsModal.classList.contains("is-open")) {
+        closeWsLogs();
+      }
     });
 
     btnClearWsLogs?.addEventListener("click", () => {
