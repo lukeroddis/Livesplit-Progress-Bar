@@ -94,6 +94,11 @@
 
       // Immediately fetch race snapshot and participants from the HTTP REST API (6nkfyze0o7)
       fetchRaceData(cleanId);
+      // The room socket only streams runners as they split; catch the host up straight away
+      // (other runners are caught up the first time the room mentions them)
+      if (raceState.hostUsername) {
+        ctx.hydrateRunner(raceState.hostUsername);
+      }
 
       try {
         const wsUrl = `${THERUN_WS_BASE}${encodeURIComponent(cleanId)}`;
@@ -170,6 +175,7 @@
       raceState.entrants.set(raceState.hostState.userId, Object.assign({}, raceState.hostState));
       raceState.lastKnownRanks.clear();
       raceState.checkpointRankHistory.clear();
+      ctx.resetHydration();
       ctx.notifyListeners("race_disconnected", null);
     }
 
@@ -190,7 +196,8 @@
         lastKnownRanks: raceState.lastKnownRanks,
         checkpointRankHistory: raceState.checkpointRankHistory,
         pushRaceEvent: ctx.pushRaceEvent,
-        notifyListeners: ctx.notifyListeners
+        notifyListeners: ctx.notifyListeners,
+        onEntrantDiscovered: ctx.onEntrantDiscovered
       };
     }
 

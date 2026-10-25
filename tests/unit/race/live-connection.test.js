@@ -434,8 +434,9 @@
         });
 
         ranked = rc.getRankedEntrants();
-        // Gap: 2.5s (prevGap) + (61.5 - 60.0) = 2.5 + 1.5 = +4.0s
-        assertEqual(ranked[1].gapDisplay, "+4.0s", "Delta accumulates as leader splits on subsequent split");
+        // Gap timer restarts at FastPanda's split: 61.5 - 60.0 = +1.5s (inside the +2.5s gap)
+        assertEqual(ranked[1].gapDisplay, "+1.5s", "Gap restarts from zero when the leader splits");
+        assertEqual(ranked[1].isLosingToLeader, false, "Still within the previous +2.5s gap");
 
         // 6. CoolFox completes Split 2 at 64.0s
         rc.handleRaceMessage({

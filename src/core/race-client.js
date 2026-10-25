@@ -5,6 +5,7 @@
  * one state object (LiveSplit.RaceState) and composes:
  * - race-host.js        local runner progress, undo, DNF, timing method, reset
  * - race-connection.js  therun.gg REST snapshot + room WebSocket
+ * - race-hydration.js   catch-up of runners first seen mid-race, avatars
  * - race-protocol.js    therun.gg message parsing (via race-connection)
  * - race-ranking.js     F1 standings, gaps and intervals
  * - race-simulation.js  offline simulated race
@@ -28,6 +29,7 @@
     // Shared with this client's controllers; they call each other through ctx.<fn> at call time
     const ctx = { raceState };
     window.LiveSplit.RaceConnection.installRaceConnection(ctx);
+    window.LiveSplit.RaceHydration.installRaceHydration(ctx);
     window.LiveSplit.RaceHost.installRaceHost(ctx);
     let loggerInstance = null;
     function getLogger() {

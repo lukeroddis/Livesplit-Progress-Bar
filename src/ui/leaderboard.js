@@ -15,6 +15,12 @@
   const rowElementMap = new Map();
   let isMuteListenerAttached = false;
 
+  // Name / split labels whose text changed and need an overflow check. Measured once
+  // per change after all row writes (never every frame), then scrolled if too long.
+  const pendingMarquee = new Set();
+  const MARQUEE_SPEED_PX_PER_SEC = 24;
+  const MARQUEE_PAUSE_SEC = 3;
+
   const DOMUtils = (window.LiveSplit && window.LiveSplit.DOMUtils) ? window.LiveSplit.DOMUtils : null;
 
   /**
@@ -81,6 +87,50 @@
     const isLikelyUrl = raw.includes(":") || raw.includes("/");
     const fb = isLikelyUrl ? fallback : (raw || fallback);
     return `<span class="racer-avatar-emoji">${escapeHtml(fb)}</span>`;
+  }
+
+  /**
+   * Sets a fixed-width label's text (inside its .marquee-text span) and queues an overflow check.
+   */
+  function setMarqueeText(el, text) {
+    const inner = el.querySelector(".marquee-text");
+    if (!inner) {
+      if (el.textContent !== text) el.textContent = text;
+      return;
+    }
+    if (inner.textContent !== text) {
+      inner.textContent = text;
+      pendingMarquee.add(el);
+    }
+  }
+
+  /**
+   * Long names / split names scroll back and forth inside their fixed-width column.
+   * Labels measured while hidden (0 width) stay queued and are measured on a later render.
+   */
+  function measurePendingMarquees() {
+    if (pendingMarquee.size === 0) return;
+    pendingMarquee.forEach((el) => {
+      if (!el.isConnected) {
+        pendingMarquee.delete(el);
+        return;
+      }
+      const inner = el.querySelector(".marquee-text");
+      const boxWidth = el.clientWidth;
+      if (!inner || boxWidth === 0) return;
+      pendingMarquee.delete(el);
+      const overflow = Math.ceil(inner.scrollWidth - boxWidth);
+      if (overflow > 1) {
+        const travelSec = overflow / MARQUEE_SPEED_PX_PER_SEC;
+        el.style.setProperty("--marquee-shift", `-${overflow}px`);
+        el.style.setProperty("--marquee-duration", `${(2 * (travelSec + MARQUEE_PAUSE_SEC)).toFixed(2)}s`);
+        el.setAttribute("data-marquee", "on");
+      } else if (el.hasAttribute("data-marquee")) {
+        el.removeAttribute("data-marquee");
+        el.style.removeProperty("--marquee-shift");
+        el.style.removeProperty("--marquee-duration");
+      }
+    });
   }
 
   /**
@@ -455,11 +505,21 @@
 
       const expSource = racer.hasStatisticalPrediction ? "therun.gg prediction" : "PB segment";
       const pbDeltaInfo = hasPbDelta ? ` | PB Delta: ${pbDeltaText}` : "";
+      const isLosing = !isPreRace && !isDnf && rank !== 1 && racer.isLosingToLeader === true;
+      let gapInfo = `Leader Gap: ${gapVal}`;
+      if (racer.gapMode === "live") {
+        const behind = racer.splitsBehindLeader || 1;
+        gapInfo = `Since leader's last split: ${gapVal} (${behind} ${behind === 1 ? "split" : "splits"} behind)`;
+        if (typeof racer.gapReferenceSec === "number") {
+          const refText = `${racer.gapReferenceSec < 0 ? "-" : "+"}${formatGapTime(Math.abs(racer.gapReferenceSec))}`;
+          gapInfo += ` | Gap at last split: ${refText}${isLosing ? " (losing time)" : ""}`;
+        }
+      }
       const gapTooltip = isPreRace
         ? (isReady ? `${displayName} is Ready` : `${displayName} has Joined (Not Ready)`)
         : (rank === 1)
         ? `Race Leader${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})`
-        : (gapVal === "--" ? `Split 1 in progress${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})` : `Leader Gap: ${gapVal}${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})`);
+        : (gapVal === "--" ? `Split 1 in progress${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})` : `${gapInfo}${pbDeltaInfo} | Segment: ${elapsedVal} / ${expVal} (${expSource})`);
 
       // Split completion glow pulse (Gold / Green / Red) and Split Name Phase Transition (4 seconds total)
       const effect = racer.lastSplitEffect;
@@ -534,16 +594,18 @@
             <div class="racer-avatar-badge">${avatarMarkup}</div>
           </div>
           <div class="racer-name-block">
-            <span class="racer-name">${escapeHtml(displayName)}</span>
-            <span class="${splitClass}">${escapeHtml(displayedSplit)}</span>
+            <span class="racer-name"><span class="marquee-text">${escapeHtml(displayName)}</span></span>
+            <span class="${splitClass}"><span class="marquee-text">${escapeHtml(displayedSplit)}</span></span>
           </div>
           <div class="racer-gap-col" title="${escapeHtml(gapTooltip)}">
-            <span class="racer-gap${(!isPreRace && rank === 1) ? ' is-leader' : ''}${isPreRace ? (isReady ? ' gap-ready' : ' gap-joined') : ''}">${gapVal}</span>
+            <span class="racer-gap${(!isPreRace && rank === 1) ? ' is-leader' : ''}${isPreRace ? (isReady ? ' gap-ready' : ' gap-joined') : ''}${isLosing ? ' is-losing' : ''}">${gapVal}</span>
             <span class="racer-expected racer-interval">${expMarkup}</span>
           </div>
         `;
+        row.dataset.avatar = typeof racer.avatar === "string" ? racer.avatar : "";
         rowElementMap.set(uId, row);
         rowsEl.appendChild(row);
+        row.querySelectorAll(".racer-name, .racer-split").forEach((el) => pendingMarquee.add(el));
       } else {
         // In-place property update: never wipe out running animations
         row.classList.toggle("is-host", isHost);
@@ -590,16 +652,20 @@
           ribbonEl.title = ribbonTooltip;
         }
 
-        const nameEl = row.querySelector(".racer-name");
-        if (nameEl && nameEl.textContent !== displayName) {
-          nameEl.textContent = displayName;
+        // Avatars usually arrive after the row exists (therun.gg profile lookup)
+        const avatarKey = typeof racer.avatar === "string" ? racer.avatar : "";
+        if (row.dataset.avatar !== avatarKey) {
+          const badgeEl = row.querySelector(".racer-avatar-badge");
+          if (badgeEl) badgeEl.innerHTML = buildAvatarMarkup(racer.avatar, isHost);
+          row.dataset.avatar = avatarKey;
         }
+
+        const nameEl = row.querySelector(".racer-name");
+        if (nameEl) setMarqueeText(nameEl, displayName);
 
         const splitEl = row.querySelector(".racer-split");
         if (splitEl) {
-          if (splitEl.textContent !== displayedSplit) {
-            splitEl.textContent = displayedSplit;
-          }
+          setMarqueeText(splitEl, displayedSplit);
           if (splitEl.className !== splitClass) {
             splitEl.className = splitClass;
           }
@@ -611,6 +677,7 @@
           gapEl.classList.toggle("is-leader", !isPreRace && rank === 1);
           gapEl.classList.toggle("gap-ready", isPreRace && isReady);
           gapEl.classList.toggle("gap-joined", isPreRace && !isReady);
+          gapEl.classList.toggle("is-losing", isLosing);
         }
 
         const intEl = row.querySelector(".racer-expected, .racer-interval");
@@ -746,6 +813,8 @@
         rowElementMap.delete(uId);
       }
     });
+
+    measurePendingMarquees();
 
     let waitingEl = rowsEl.querySelector(".leaderboard-waiting-state");
     if (isConn && entrants.length === 0) {

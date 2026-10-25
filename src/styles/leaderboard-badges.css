@@ -247,12 +247,41 @@
   font-style: italic;
 }
 
+/* Long names / split names scroll back and forth inside their column
+   (data-marquee and the --marquee-* lengths are set by leaderboard.js) */
+.racer-name .marquee-text,
+.racer-split .marquee-text {
+  display: inline-block;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.racer-name[data-marquee],
+.racer-split[data-marquee] {
+  text-overflow: clip;
+}
+
+.racer-name[data-marquee] .marquee-text,
+.racer-split[data-marquee] .marquee-text {
+  animation: racer-marquee var(--marquee-duration, 8s) ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes racer-marquee {
+  0%, 15% { transform: translateX(0); }
+  45%, 65% { transform: translateX(var(--marquee-shift, 0px)); }
+  95%, 100% { transform: translateX(0); }
+}
+
+/* Fixed width with tabular digits: a gap ticking past 10s / 1:00 never widens the row */
 .racer-gap-col {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  flex-shrink: 0;
-  min-width: 60px;
+  flex: 0 0 var(--leaderboard-gap-col-width, 128px);
+  width: var(--leaderboard-gap-col-width, 128px);
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
 }
 
 .racer-gap {
@@ -260,6 +289,22 @@
   font-size: 11px;
   font-weight: 700;
   color: #f1f5f9;
+  white-space: nowrap;
+  border-radius: 3px;
+  transition: color 0.4s ease, text-shadow 0.4s ease, background-color 0.4s ease;
+}
+
+/* Trailing runner has already lost more time to the leader than at their last split */
+.racer-gap.is-losing {
+  color: #fca5a5;
+  background-color: rgba(239, 68, 68, 0.12);
+  text-shadow: 0 0 6px rgba(248, 113, 113, 0.55);
+  animation: gap-losing-glow 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes gap-losing-glow {
+  0% { text-shadow: 0 0 4px rgba(248, 113, 113, 0.35); }
+  100% { text-shadow: 0 0 9px rgba(248, 113, 113, 0.8); }
 }
 
 .racer-gap.is-leader {

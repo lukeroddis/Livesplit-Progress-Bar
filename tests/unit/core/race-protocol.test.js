@@ -174,5 +174,120 @@
       assert(ctx.entrants.has("Alice"), "Alice remains in room");
       assert(!ctx.entrants.has("Bob"), "Bob was pruned from entrants Map");
     });
+
+    // Trimmed from a real therun.gg room: participantUpdate (new split "Guilt") followed by
+    // the participant-split room message naming the split just COMPLETED
+    function zakUpdate(splitIndex, currentSplitName, previousSplitName, currentTime) {
+      const preds = [{ splitIndex: 0, splitName: "Town 1", currentTime: null }];
+      for (let i = 1; i <= splitIndex; i++) {
+        preds.push({ splitIndex: i, splitName: `S${i}`, currentTime: i === splitIndex ? currentTime : i * 100000 });
+      }
+      return {
+        type: "participantUpdate",
+        data: {
+          raceId: "t95e",
+          user: "ZakTheRobot",
+          status: "started",
+          liveData: {
+            currentSplitIndex: splitIndex,
+            currentSplitName,
+            previousSplitName,
+            currentTime,
+            delta: 102929.912,
+            splitStartedAt: Date.now(),
+            totalSplits: 39,
+            splitPredictions: preds
+          }
+        }
+      };
+    }
+
+    function zakSplitMessage(splitName, time) {
+      return {
+        type: "message",
+        data: {
+          raceId: "t95e",
+          data: { splitName, percentage: 0.55, time, user: "ZakTheRobot" },
+          time: "2026-10-25T21:31:41.055Z",
+          type: "participant-split"
+        }
+      };
+    }
+
+    it("participant-split arriving after participantUpdate does not revert the current split name", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.parseRaceMessage(zakUpdate(20, "Timeflux Channeler 3", "Canal Hamlet", 2256044.9957), ctx);
+      rp.parseRaceMessage(zakUpdate(21, "Guilt", "Timeflux Channeler 3", 2500643.4137), ctx);
+      rp.parseRaceMessage(zakSplitMessage("Timeflux Channeler 3", 2500643.4137), ctx);
+
+      const zak = ctx.entrants.get("ZakTheRobot");
+      assertEqual(zak.currentSplitIndex, 21);
+      assertEqual(zak.currentSplitName, "Guilt", "Split name stays on the new split");
+      assertEqual(zak.lastSplitEffect.completedSplitName, "Timeflux Channeler 3");
+      assertEqual(zak.lastSplitEffect.newSplitName, "Guilt");
+    });
+
+    it("participant-split arriving before participantUpdate also ends on the new split name", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.parseRaceMessage(zakUpdate(20, "Timeflux Channeler 3", "Canal Hamlet", 2256044.9957), ctx);
+      rp.parseRaceMessage(zakSplitMessage("Timeflux Channeler 3", 2500643.4137), ctx);
+      assertEqual(ctx.entrants.get("ZakTheRobot").currentSplitName, "Timeflux Channeler 3", "Still on the split being completed");
+
+      rp.parseRaceMessage(zakUpdate(21, "Guilt", "Timeflux Channeler 3", 2500643.4137), ctx);
+      assertEqual(ctx.entrants.get("ZakTheRobot").currentSplitName, "Guilt");
+    });
+
+    it("runner first seen mid-race gets index-aligned split history from splitPredictions", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.parseRaceMessage(zakUpdate(21, "Guilt", "Timeflux Channeler 3", 2500643.4137), ctx);
+
+      const zak = ctx.entrants.get("ZakTheRobot");
+      assertEqual(zak.splitTimes.length, 21, "21 completed splits known");
+      assertEqual(zak.splitTimes[0], 100, "Split 1 time from splitPredictions[1]");
+      assert(Math.abs(zak.splitTimes[20] - 2500.643) < 0.001, "Latest split at index 20");
+      assert(Math.abs(zak.deltaSec - 102.93) < 0.001, "PB delta converted from ms");
+
+      const ranked = window.LiveSplit.RaceRanking.calculateRankedEntrants({ entrants: ctx.entrants, nowMs: Date.now() });
+      assert(ranked[0].elapsedSegmentSec < 5, `Segment time counts from the last split, got ${ranked[0].elapsedSegmentSec}`);
+    });
+
+    it("runner first seen long after their last split does not flash a split", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+      const msg = zakUpdate(21, "Guilt", "Timeflux Channeler 3", 2500643.4137);
+      msg.data.liveData.splitStartedAt = Date.now() - 60000;
+
+      rp.parseRaceMessage(msg, ctx);
+      assertEqual(ctx.entrants.get("ZakTheRobot").lastSplitEffect || null, null, "No stale split flash");
+    });
+
+    it("numeric deltas are always milliseconds, even under half a second", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.updateEntrantFromTelemetry({ user: "Close", liveData: { delta: 320, currentTime: 60000 } }, ctx);
+      assertEqual(ctx.entrants.get("Close").deltaSec, 0.32, "320ms reads as 0.32s, not 320s");
+
+      rp.updateEntrantFromTelemetry({ user: "Close", liveData: { delta: -45 } }, ctx);
+      assertEqual(ctx.entrants.get("Close").deltaSec, -0.045);
+    });
+
+    it("notifies onEntrantDiscovered once per new runner", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+      const discovered = [];
+      ctx.onEntrantDiscovered = (e) => discovered.push(e.username);
+
+      rp.updateEntrantFromTelemetry({ user: "Alice", status: "joined" }, ctx);
+      rp.updateEntrantFromTelemetry({ user: "Alice", status: "ready" }, ctx);
+      rp.updateEntrantFromTelemetry({ user: "Bob" }, ctx);
+      assertEqual(discovered, ["Alice", "Bob"]);
+    });
   });
 })();

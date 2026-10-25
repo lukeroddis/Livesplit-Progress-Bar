@@ -1,7 +1,8 @@
 /* HUD Component 4: Leaderboard Timing Tower */
+/* Fixed width so growing timers or long split names never resize the overlay;
+   size it with the component scale. Long names scroll inside their column instead. */
 #hud-comp-leaderboard {
-  min-width: 270px;
-  max-width: 380px;
+  width: var(--leaderboard-width, 340px);
   user-select: none;
   overflow: hidden;
 }

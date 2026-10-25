@@ -51,8 +51,11 @@
         entrants = rc.getRankedEntrants();
         assertEqual(entrants[1].gapDisplay, "+3.0s", "Gap remains fixed while on pace during split 1");
 
+        assertEqual(entrants[1].gapMode, "checkpoint", "Same split as leader shows the checkpoint gap");
+        assertEqual(entrants[1].isLosingToLeader, false);
+
         // Phase 4: Leader splits on split 1 at 58.0s, competitor still running split 1
-        // At 58.1s (0.1s after leader split), delta accumulates immediately: 3.0 + 0.1 = +3.1s
+        // The gap restarts from 0 at the leader's split: 0.1s after it shows +0.1s
         leader.currentSplitIndex = 2;
         leader.splitTimes = [28.0, 58.0];
         leader.currentTimeSec = 58.1;
@@ -62,13 +65,24 @@
         competitor.currentTimeSec = 58.1;
 
         entrants = rc.getRankedEntrants();
-        assertEqual(entrants[1].gapDisplay, "+3.1s", "Delta starts accumulating immediately when leader splits on subsequent split");
+        assertEqual(entrants[1].gapDisplay, "+0.1s", "Gap timer restarts from zero when the leader splits");
+        assertEqual(entrants[1].gapMode, "live");
+        assertEqual(entrants[1].gapReferenceSec, 3.0, "Gap at last split (+3.0s) is the time to beat");
+        assertEqual(entrants[1].isLosingToLeader, false, "Within the previous +3.0s gap: not losing time yet");
+        assert(Math.abs(entrants[1].gapToLeaderSec - 3.1) < 0.001, "gapToLeaderSec keeps the total time behind");
 
-        // At 65.0s (7.0s after leader split): 3.0s prevGap + 7.0s = +10.0s
+        // At 60.5s (2.5s after leader split): still inside the +3.0s gap
+        competitor.currentTimeSec = 60.5;
+        entrants = rc.getRankedEntrants();
+        assertEqual(entrants[1].gapDisplay, "+2.5s");
+        assertEqual(entrants[1].isLosingToLeader, false);
+
+        // At 65.0s (7.0s after leader split): exceeded the +3.0s gap -> losing time
         leader.currentTimeSec = 65.0;
         competitor.currentTimeSec = 65.0;
         entrants = rc.getRankedEntrants();
-        assertEqual(entrants[1].gapDisplay, "+10.0s", "Delta accumulates as competitor continues running split 1");
+        assertEqual(entrants[1].gapDisplay, "+7.0s", "Gap timer counts up since the leader's split");
+        assertEqual(entrants[1].isLosingToLeader, true, "Exceeding the previous gap flags lost time");
 
         // Phase 5: Leader gets TWO splits ahead (completed split 2 at 88.0s), competitor still on split 1 at 95.0s
         leader.currentSplitIndex = 3;
@@ -76,8 +90,11 @@
         competitor.currentTimeSec = 95.0;
 
         entrants = rc.getRankedEntrants();
-        // Competitor on split 1: 3.0s prevGap + (95.0 - 58.0) = 3.0 + 37.0 = +40.0s
-        assertEqual(entrants[1].gapDisplay, "+40.0s", "Appropriately tracks deficit when leader is two splits ahead");
+        // Timer restarts at the leader's latest split: 95.0 - 88.0 = +7.0s
+        assertEqual(entrants[1].gapDisplay, "+7.0s", "Gap timer restarts every time the leader splits");
+        assertEqual(entrants[1].splitsBehindLeader, 2, "Competitor is two splits behind");
+        // Real loss at split 1 is 95.0 - 58.0 = 37.0s > 3.0s: still losing time
+        assertEqual(entrants[1].isLosingToLeader, true, "Two splits behind uses the real accumulated loss");
 
         rc.stopSimulation();
       });

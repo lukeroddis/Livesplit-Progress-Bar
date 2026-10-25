@@ -65,6 +65,51 @@
         assert(row3.querySelector(".racer-avatar-badge").textContent.includes("⚡"), "renders emoji text");
       });
 
+      it("swaps in an avatar that arrives after the row was created", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const racer = { userId: "late_avatar", username: "LateAvatar", avatar: "", rank: 1, currentSplitName: "Stage 1" };
+        lb.renderLeaderboard([racer], true, false, false);
+        const row = document.querySelector('.leaderboard-row[data-user-id="late_avatar"]');
+        assert(row.querySelector(".racer-avatar-img") === null, "fallback emoji before the lookup returns");
+
+        lb.renderLeaderboard([Object.assign({}, racer, { avatar: "https://example.com/late.png" })], true, false, false);
+        const img = row.querySelector(".racer-avatar-img");
+        assert(img !== null, "avatar image rendered in place");
+        assertEqual(img.getAttribute("src"), "https://example.com/late.png");
+        assert(document.querySelector('.leaderboard-row[data-user-id="late_avatar"]') === row, "row element reused");
+      });
+
+      it("glows the leader gap only while the runner is losing time to the leader", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const leader = { userId: "gap_leader", username: "Leader", rank: 1, gapDisplay: "LEADER", currentSplitName: "Stage 3", currentSplitIndex: 2, currentTimeSec: 200 };
+        const chaser = {
+          userId: "gap_chaser", username: "Chaser", rank: 2, currentSplitName: "Stage 2", currentSplitIndex: 1, currentTimeSec: 200,
+          gapDisplay: "+1:30", gapMode: "live", gapReferenceSec: 83, splitsBehindLeader: 1, isLosingToLeader: true
+        };
+        lb.renderLeaderboard([leader, chaser], true, false, false);
+        const gapEl = document.querySelector('.leaderboard-row[data-user-id="gap_chaser"] .racer-gap');
+        assert(gapEl.classList.contains("is-losing"), "losing time glows red");
+        const gapCol = document.querySelector('.leaderboard-row[data-user-id="gap_chaser"] .racer-gap-col');
+        assert(gapCol.title.includes("Gap at last split: +1:23"), `tooltip names the time to beat, got ${gapCol.title}`);
+
+        lb.renderLeaderboard([leader, Object.assign({}, chaser, { gapDisplay: "+0:05", isLosingToLeader: false })], true, false, false);
+        assert(!gapEl.classList.contains("is-losing"), "glow cleared once the leader splits again");
+        assert(!document.querySelector('.leaderboard-row[data-user-id="gap_leader"] .racer-gap').classList.contains("is-losing"), "leader never glows");
+      });
+
+      it("writes name and split text into scrollable marquee spans", () => {
+        const lb = window.LiveSplit.Leaderboard;
+        const longSplit = "{Chapter 1 - Volcano} Guayota and a very long split name";
+        lb.renderLeaderboard([{ userId: "marquee_1", username: "Marquee", rank: 1, currentSplitName: "Short" }], true, false, false);
+        lb.renderLeaderboard([{ userId: "marquee_1", username: "Marquee", rank: 1, currentSplitName: longSplit }], true, false, false);
+        const splitEl = document.querySelector('.leaderboard-row[data-user-id="marquee_1"] .racer-split');
+        const inner = splitEl.querySelector(".marquee-text");
+        assert(inner !== null, "split label has a marquee span");
+        assertEqual(inner.textContent, longSplit);
+        assertEqual(splitEl.textContent, longSplit, "no stray text outside the marquee span");
+        assertEqual(document.querySelector('.leaderboard-row[data-user-id="marquee_1"] .racer-name .marquee-text').textContent, "Marquee");
+      });
+
       it("renders winner podium ribbon and FINISHED status badge when race completes", () => {
         const lb = window.LiveSplit.Leaderboard;
         const entrants = [

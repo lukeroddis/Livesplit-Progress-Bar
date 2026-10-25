@@ -538,7 +538,7 @@
             userId: "r_hour_chaser",
             username: "MarathonChaser",
             currentSplitIndex: 1,
-            currentTime: 7800000,
+            currentTime: 12000000,
             splitTimes: [7800.0],
             splits: [
               { splitTime: 7800000 },
@@ -553,7 +553,7 @@
 
         // Leader finished in 7800s (2h 10m 00s)
         assertEqual(leader.expectedSegmentDisplay, "2:10:00", "Final time 7800s formats as 2:10:00 instead of 130:00");
-        // Chaser completed Split 1 in 7800s vs Leader's 3600s -> 4200s (70m) gap -> +1:10:00
+        // Chaser is still on Split 2 at 12000s, 4200s (70m) after the leader finished -> +1:10:00
         assertEqual(chaser.gapDisplay, "+1:10:00", "70-minute gap (4200s) formats as +1:10:00 instead of +70:00");
         assertEqual(chaser.expectedSegmentDisplay, "1:10:00", "Expected 4200s segment formats as 1:10:00");
 

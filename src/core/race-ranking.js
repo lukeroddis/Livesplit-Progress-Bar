@@ -26,9 +26,16 @@
   function normalizeSplitTimes(times) {
     if (!times) return [];
     if (Array.isArray(times)) {
-      return times
-        .map(t => (typeof t === "number" ? t : parseFloat(t)))
-        .filter(t => typeof t === "number" && !isNaN(t));
+      // Index-aligned: a skipped or not-yet-known split stays a hole so later
+      // checkpoints keep their position (index k is always split k)
+      const arr = [];
+      times.forEach((t, i) => {
+        const val = typeof t === "number" ? t : parseFloat(t);
+        if (typeof val === "number" && !isNaN(val)) {
+          arr[i] = val;
+        }
+      });
+      return arr;
     }
     if (typeof times === "object") {
       const keys = Object.keys(times)
@@ -225,6 +232,66 @@
     }
 
     return null;
+  }
+
+  /**
+   * Leader gap as shown on the timing tower for an active runner behind the leader:
+   * - Same split as the leader: fixed gap at the last checkpoint both completed ("+1:23").
+   * - Leader on a later split: a timer counting up from 0 since the leader's most recent
+   *   split (restarting every time the leader splits). `isLosing` flags when the time lost
+   *   at the split the runner is on already exceeds their gap at the previous checkpoint,
+   *   i.e. they are losing time to the leader; it uses the real accumulated loss, so it
+   *   stays correct when the runner is two or more splits behind.
+   * Returns null when there is not enough checkpoint data (callers fall back to
+   * calculateMilestoneGap).
+   * @param {Object} runner - Trailing runner
+   * @param {Object} leader - Race leader (rank 1)
+   * @returns {{mode: string, sec: number, referenceSec: number|null, isLosing: boolean, splitsBehind: number}|null}
+   */
+  function calculateLeaderGapState(runner, leader) {
+    if (!runner || !leader || runner === leader || runner.isFinished || runner.isDNF) return null;
+
+    const splitsR = normalizeSplitTimes(runner.splitTimes);
+    const splitsL = normalizeSplitTimes(leader.splitTimes);
+    const idxR = Math.max(0, runner.currentSplitIndex || 0);
+    const idxL = leader.isFinished
+      ? Math.max(splitsL.length, leader.currentSplitIndex || 0)
+      : Math.max(0, leader.currentSplitIndex || 0);
+    const nowR = runner.currentTimeSec || 0;
+
+    // Gap at the runner's last completed checkpoint (the "time to beat" for this split)
+    let referenceSec = null;
+    if (idxR > 0) {
+      const tR = splitsR[idxR - 1];
+      const tL = splitsL[idxR - 1];
+      if (typeof tR !== "number" || typeof tL !== "number") return null;
+      referenceSec = tR - tL;
+    }
+
+    if (!leader.isFinished && idxL <= idxR) {
+      if (referenceSec === null) return null;
+      return { mode: "checkpoint", sec: Math.max(0, referenceSec), referenceSec, isLosing: false, splitsBehind: 0 };
+    }
+
+    const leaderLatest = (leader.isFinished && typeof leader.finalTimeSec === "number")
+      ? leader.finalTimeSec
+      : splitsL[idxL - 1];
+    if (typeof leaderLatest !== "number") return null;
+
+    // Time already lost at the split the runner is on (leader completed it at splitsL[idxR])
+    const leaderAtRunnerSplit = typeof splitsL[idxR] === "number"
+      ? splitsL[idxR]
+      : (idxL - idxR === 1 ? leaderLatest : null);
+    const lostAtSplit = leaderAtRunnerSplit !== null ? nowR - leaderAtRunnerSplit : null;
+    const isLosing = referenceSec !== null && lostAtSplit !== null && lostAtSplit > referenceSec;
+
+    return {
+      mode: "live",
+      sec: Math.max(0, nowR - leaderLatest),
+      referenceSec,
+      isLosing,
+      splitsBehind: Math.max(1, idxL - idxR)
+    };
   }
 
   /**
@@ -470,6 +537,11 @@
       runner.elapsedSegmentSec = elapsedSegSec;
       runner.elapsedSegmentDisplay = formatGapTime(elapsedSegSec).replace(/^\+/, "");
 
+      runner.gapMode = null;
+      runner.gapReferenceSec = null;
+      runner.isLosingToLeader = false;
+      runner.splitsBehindLeader = 0;
+
       if (idx === 0) {
         runner.gapToLeaderSec = 0;
         runner.intervalSec = 0;
@@ -477,13 +549,21 @@
         runner.intervalDisplay = "--";
       } else {
         const aheadRunner = list[idx - 1];
+        // gapToLeaderSec stays the total time behind; gapDisplay is the tower's leader gap
         const gap = calculateMilestoneGap(runner, leader, activeComparisonTargets);
         const interval = calculateMilestoneGap(runner, aheadRunner, activeComparisonTargets);
+        const gapState = calculateLeaderGapState(runner, leader);
 
         runner.gapToLeaderSec = gap;
         runner.intervalSec = interval;
 
-        if (gap !== null) {
+        if (gapState) {
+          runner.gapMode = gapState.mode;
+          runner.gapReferenceSec = gapState.referenceSec;
+          runner.isLosingToLeader = gapState.isLosing;
+          runner.splitsBehindLeader = gapState.splitsBehind;
+          runner.gapDisplay = `+${formatGapTime(gapState.sec)}`;
+        } else if (gap !== null) {
           runner.gapDisplay = `+${formatGapTime(gap)}`;
         } else {
           runner.gapDisplay = "--";
@@ -696,6 +776,7 @@
     getCompletedSplitCount,
     getSplitCheckpointTime,
     calculateMilestoneGap,
+    calculateLeaderGapState,
     calculateRankedEntrants
   };
 

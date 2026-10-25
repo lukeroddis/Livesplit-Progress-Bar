@@ -73,12 +73,46 @@
     return [];
   }
 
+  // therun.gg transmits milliseconds; values under 500 are treated as already-converted seconds
+  function msToSec(val) {
+    return val > 500 ? (val / 1000) : val;
+  }
+
+  /**
+   * Merges per-split cumulative times into an index-aligned splitTimes copy.
+   * splitPredictions entries are keyed one ahead (splitIndex k holds split k-1's time);
+   * live run `splits` entries carry their own index.
+   */
+  function mergeSplitPredictions(splitTimes, preds) {
+    const merged = Array.isArray(splitTimes) ? splitTimes.slice() : [];
+    preds.forEach((sp) => {
+      if (sp && typeof sp.splitIndex === "number" && sp.splitIndex >= 1 && sp.currentTime !== undefined && sp.currentTime !== null) {
+        const t = Number(sp.currentTime);
+        if (!isNaN(t) && t > 0) {
+          merged[sp.splitIndex - 1] = msToSec(t);
+        }
+      }
+    });
+    return merged;
+  }
+
+  function mergeRunSplits(splitTimes, splits) {
+    const merged = Array.isArray(splitTimes) ? splitTimes.slice() : [];
+    splits.forEach((s, idx) => {
+      if (s && typeof s.splitTime === "number" && !isNaN(s.splitTime) && s.splitTime > 0) {
+        merged[idx] = msToSec(s.splitTime);
+      }
+    });
+    return merged;
+  }
+
   /**
    * Normalizes incoming telemetry and updates or creates an entrant in the context entrants Map.
    * @param {Object} data - Raw participant telemetry data packet
    * @param {Object} ctx - Protocol context
+   * @param {Object} [opts] - { silent: true } applies a catch-up snapshot without split flash effects
    */
-  function updateEntrantFromTelemetry(data, ctx) {
+  function updateEntrantFromTelemetry(data, ctx, opts = {}) {
     if (!data || typeof data !== "object" || !ctx) return;
 
     const entrants = ctx.entrants || new Map();
@@ -127,10 +161,13 @@
       statusStr = "joined";
     }
 
-    // Look up entrant by uId or matching username to avoid duplicate entries across event types
+    // Look up entrant by uId or matching username to avoid duplicate entries across event types.
+    // Never the local host placeholder: it shares the host's username but is hidden in live
+    // rooms, where the host's therun.gg participant is their real row.
     let existing = entrants.get(uId);
     if (!existing && rawName) {
       for (const [id, e] of entrants.entries()) {
+        if (id === hostState.userId || e.userId === hostState.userId) continue;
         if (e.username && String(e.username).toLowerCase() === String(rawName).toLowerCase()) {
           existing = e;
           break;
@@ -157,6 +194,7 @@
 
     const rawPic = data.picture || data.avatar || (live && (live.picture || live.avatar)) || "";
 
+    const isNewEntrant = !existing;
     if (!existing) {
       existing = {
         userId: uId,
@@ -235,32 +273,26 @@
       existing.isReady = (statusStr === "ready");
     }
 
+    // Numeric deltas are always milliseconds (a 320ms delta must not read as 320s);
+    // string deltas are LiveSplit-style seconds ("+3.5")
     const rawDelta = (live && live.delta !== undefined) ? live.delta : data.delta;
-    if (typeof rawDelta === "number") {
+    if (typeof rawDelta === "number" && !isNaN(rawDelta)) {
       existing.delta = rawDelta;
-      existing.deltaSec = Math.abs(rawDelta) > 500 ? (rawDelta / 1000) : rawDelta;
+      existing.deltaSec = rawDelta / 1000;
     } else if (typeof rawDelta === "string" && !isNaN(parseFloat(rawDelta))) {
       const p = parseFloat(rawDelta);
       existing.delta = p;
-      existing.deltaSec = Math.abs(p) > 500 ? (p / 1000) : p;
+      existing.deltaSec = p;
     }
 
+    // Completed checkpoint times: explicit splitTimes, else splitPredictions (sent with every
+    // participantUpdate, so a runner first seen mid-race gets their full history)
     const rawSplitTimes = (live && Array.isArray(live.splitTimes)) ? live.splitTimes : data.splitTimes;
     const rawSplitPreds = (live && Array.isArray(live.splitPredictions)) ? live.splitPredictions : data.splitPredictions;
     if (Array.isArray(rawSplitTimes)) {
       existing.splitTimes = normalizeSplits(rawSplitTimes);
-    } else if (existing.isFinished && Array.isArray(rawSplitPreds) && rawSplitPreds.length > 0) {
-      // Finished race snapshot: splitPredictions contains final checkpoint times
-      const extracted = Array.isArray(existing.splitTimes) ? existing.splitTimes.slice() : [];
-      rawSplitPreds.forEach((sp) => {
-        if (sp && typeof sp.splitIndex === "number" && sp.splitIndex >= 1 && sp.currentTime !== undefined && sp.currentTime !== null) {
-          const t = Number(sp.currentTime);
-          if (!isNaN(t) && t > 0) {
-            extracted[sp.splitIndex - 1] = t > 500 ? (t / 1000) : t;
-          }
-        }
-      });
-      existing.splitTimes = extracted;
+    } else if (Array.isArray(rawSplitPreds) && rawSplitPreds.length > 0) {
+      existing.splitTimes = mergeSplitPredictions(existing.splitTimes, rawSplitPreds);
     }
 
     const rawSplitIdx = (live && typeof live.currentSplitIndex === "number")
@@ -273,7 +305,16 @@
       if (!Array.isArray(existing.splitTimes)) {
         existing.splitTimes = [];
       }
-      if (rawSplitIdx > existing.currentSplitIndex) {
+      // Catch-up snapshots, and runners first seen long after their last split, jump straight
+      // to their current split without a split flash
+      const splitStartedMs = (live && typeof live.splitStartedAt === "number") ? live.splitStartedAt : 0;
+      const isStaleSighting = isNewEntrant && splitStartedMs > 0 && Math.abs(Date.now() - splitStartedMs) >= 4000;
+      const isFreshSplit = !opts.silent && !isStaleSighting;
+      if (rawSplitIdx > existing.currentSplitIndex && !isFreshSplit) {
+        if (existing.currentTimeSec > 0 && typeof existing.splitTimes[rawSplitIdx - 1] !== "number") {
+          existing.splitTimes[rawSplitIdx - 1] = existing.currentTimeSec;
+        }
+      } else if (rawSplitIdx > existing.currentSplitIndex) {
         // Completed a split! Determine split type from telemetry
         let flashType = "green";
         if (rawIsGold) {
@@ -285,9 +326,10 @@
         } else if (data.gainedTime === false || (live && live.gainedTime === false)) {
           flashType = "red";
         }
-        const prevSplitName = existing.currentSplitName
-          || (activeSplitsList && activeSplitsList[existing.currentSplitIndex])
-          || `Split ${existing.currentSplitIndex + 1}`;
+        const prevSplitName = (live && live.previousSplitName)
+          || (!isNewEntrant && existing.currentSplitName)
+          || (activeSplitsList && activeSplitsList[rawSplitIdx - 1])
+          || `Split ${rawSplitIdx}`;
         const nextSplitName = rawSplitName
           || (activeSplitsList && activeSplitsList[rawSplitIdx])
           || `Split ${rawSplitIdx + 1}`;
@@ -323,15 +365,7 @@
     if (Array.isArray(rawSplits)) {
       existing.splits = rawSplits;
       if (!Array.isArray(rawSplitTimes) && (!Array.isArray(rawSplitPreds) || rawSplitPreds.length === 0)) {
-        const extracted = [];
-        rawSplits.forEach((s, idx) => {
-          if (s && typeof s.splitTime === "number" && !isNaN(s.splitTime) && s.splitTime > 0) {
-            extracted[idx] = s.splitTime > 500 ? (s.splitTime / 1000) : s.splitTime;
-          }
-        });
-        if (extracted.length > 0 && (!Array.isArray(existing.splitTimes) || existing.splitTimes.length === 0 || existing.isFinished)) {
-          existing.splitTimes = extracted;
-        }
+        existing.splitTimes = mergeRunSplits(existing.splitTimes, rawSplits);
       }
     }
 
@@ -471,6 +505,11 @@
     }
 
     entrants.set(uId, existing);
+
+    // Let the client catch the newcomer up (full split history and avatar from therun.gg)
+    if (isNewEntrant && typeof ctx.onEntrantDiscovered === "function") {
+      ctx.onEntrantDiscovered(existing);
+    }
   }
 
   /**
@@ -637,7 +676,12 @@
         text: "Race started! Good luck!",
         timestamp: Date.now()
       });
-    } else if (raceMsgType === "race-finish" || raceMsgType === "race-abort") {
+    }
+
+    // participant-* room events describe one runner; their inner data must not be parsed
+    // a second time by the generic runner-update fallback below
+    const isParticipantEvent = raceMsgType.startsWith("participant-");
+    if (raceMsgType === "race-finish" || raceMsgType === "race-abort") {
       setStatus(ctx, "finished");
       setCountdownTarget(ctx, null);
       setCountdownSec(ctx, null);
@@ -657,9 +701,11 @@
       const u = raceMsgData?.user || payload.user;
       if (u) updateEntrantFromTelemetry({ user: u, status: "abandoned" }, ctx);
     } else if (raceMsgType === "participant-split" && raceMsgData) {
+      // splitName is the split just COMPLETED, not the one the runner is now on. The
+      // participantUpdate carrying the new currentSplitName can arrive before or after this
+      // event, so this event must never overwrite the runner's current split name.
       updateEntrantFromTelemetry({
         user: raceMsgData.user,
-        currentSplitName: raceMsgData.splitName,
         currentTime: raceMsgData.time,
         runPercentage: raceMsgData.percentage
       }, ctx);
@@ -700,7 +746,10 @@
           }
         }
       }
-      participantsList.forEach(p => updateEntrantFromTelemetry(p, ctx));
+      // A snapshot is catch-up state, not a live split: no split flashes
+      participantsList.forEach(p => updateEntrantFromTelemetry(p, ctx, { silent: true }));
+    } else if (isParticipantEvent) {
+      // Already applied above
     } else if (innerData.participant && typeof innerData.participant === "object") {
       updateEntrantFromTelemetry(innerData.participant, ctx);
     } else if (payload.participant && typeof payload.participant === "object") {

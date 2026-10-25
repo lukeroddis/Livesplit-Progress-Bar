@@ -22,8 +22,20 @@
     it("normalizeSplitTimes standardizes arrays, objects, and strings into clean numeric arrays", () => {
       const rr = window.LiveSplit.RaceRanking;
 
-      // Array input with mixed string and number values
-      assertEqual(rr.normalizeSplitTimes([10.5, "20.2", "invalid", null, 30]), [10.5, 20.2, 30]);
+      // Array input with mixed string and number values: invalid entries stay holes so
+      // later checkpoints keep their split index
+      const arr = rr.normalizeSplitTimes([10.5, "20.2", "invalid", null, 30]);
+      assertEqual(arr.length, 5, "index-aligned length");
+      assertEqual(arr[0], 10.5);
+      assertEqual(arr[1], 20.2);
+      assertEqual(arr[2], undefined, "invalid entry is a hole");
+      assertEqual(arr[3], undefined, "null entry is a hole");
+      assertEqual(arr[4], 30, "split 5 stays at index 4");
+
+      // A runner first seen mid-race may only know their latest checkpoint
+      const sparse = [];
+      sparse[20] = 2500.6;
+      assertEqual(rr.normalizeSplitTimes(sparse)[20], 2500.6, "sparse checkpoint is not shifted to index 0");
 
       // Object input with numeric string keys
       const objTimes = { 0: 15.2, 1: "30.5", 2: 45.0 };
