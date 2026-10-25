@@ -164,7 +164,7 @@
         assertEqual(parsed.comparisonsDataGT["World Record"][0], 180.0); // 3m 00s = 180s
 
         // Has game time detection
-        assertEqual(parsed.hasAnyGameTime, true);
+        assertEqual(parsed.timingMethod, "GameTime");
 
         // Invalid XML inputs
         assertEqual(se.parseLssXml(""), null);
@@ -217,6 +217,17 @@
         assertEqual(se.detectTimingMethodFromComp(-1, 206.0, gt, rt), null);
         assertEqual(se.detectTimingMethodFromComp(0, null, gt, rt), null);
         assertEqual(se.detectTimingMethodFromComp(5, 206.0, gt, rt), null);
+      });
+
+      it("detectTimingMethodFromSplits uses the PB's method, then best segments", () => {
+        const detect = window.LiveSplit.SplitEngine.detectTimingMethodFromSplits;
+        assertEqual(detect([10, 20], [12, 24], [], []), "GameTime", "PB with both methods prefers GameTime");
+        assertEqual(detect([null, null], [12, 24], [9, 9], [11, 11]), "RealTime", "RealTime PB wins over GameTime golds");
+        assertEqual(detect([10, null], [], [], []), "GameTime", "GameTime-only PB");
+        assertEqual(detect([], [], [9, null], [11, 11]), "GameTime", "no PB: golds with GameTime");
+        assertEqual(detect([], [], [null], [11]), "RealTime", "no PB: RealTime golds");
+        assertEqual(detect(null, undefined, null, null), "RealTime", "nothing at all defaults to RealTime");
+        assertEqual(detect([0, -1], [0], [0], [0]), "RealTime", "zero / negative times do not count");
       });
     });
 

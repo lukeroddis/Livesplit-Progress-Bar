@@ -2,7 +2,7 @@
  * tests/unit/core/splits-loader.test.js
  * LiveSplit.SplitsLoader against real .lss files from tests/fixtures (window.TestFixtures):
  * - Final Fantasy X: GameTime + RealTime, extra "World Record" comparison, 33 splits
- * - Spyro 2: RealTime PB, but GameTime in best segments / history, 18 splits
+ * - Spyro 2: RealTime PB, but GameTime in best segments / history (old load-removed runs), 18 splits
  * - The Simpsons Hit & Run: GameTime only, 50 splits with subsplit names, 2 MB
  */
 
@@ -99,7 +99,7 @@
       assertEqual(app.called("loadInRunState").length, 1, "in-run state restored for a non-drop load");
     }));
 
-    it("loads Spyro 2, whose PB is RealTime-only but whose history has GameTime", () => withCleanStorage(() => {
+    it("detects RealTime for Spyro 2: the PB is RealTime even though old golds have GameTime", () => withCleanStorage(() => {
       const app = makeApp();
       app.parseLSS(SPYRO());
       const s = app.state;
@@ -109,6 +109,7 @@
       close(last(s.comparisonTimesRT), 32 * 60 + 17.937, "PB final RealTime");
       assert(!s.comparisonTimesGT.some((t) => t > 0), "the PB has no GameTime targets");
       assert(s.bestSegmentTimesGT.some((t) => t > 0), "best segments do have GameTime");
+      assertEqual(s.currentTimingMethod, "RealTime", "the PB's method wins over the golds'");
       assertCurvesOrdered(s.comparisonsDataRT, "Spyro RealTime curves");
     }));
 
@@ -226,6 +227,7 @@
       app.loadCachedSplits();
       const s = app.state;
       assertEqual(s.splitsList.length, 18);
+      assertEqual(s.currentTimingMethod, "RealTime", "PB-first detection on the cached path too");
       assertEqual(s.comparisonsDataGT["Friend"].length, 18, "GameTime curve filled from RealTime");
       assertEqual(app.called("applyActiveTimingMethod").length, 1);
       assertEqual(app.called("renderTrack").length, 1);

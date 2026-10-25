@@ -278,8 +278,7 @@
       if (!comparisonsList.includes(cName)) comparisonsList.push(cName);
     });
 
-    const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
-                           bestSegmentTimesGT.some(t => t !== null && t > 0);
+    const timingMethod = detectTimingMethodFromSplits(comparisonTimesGT, comparisonTimesRT, bestSegmentTimesGT, bestSegmentTimesRT);
 
     return {
       game,
@@ -292,9 +291,23 @@
       comparisonsDataGT,
       comparisonsDataRT,
       comparisonsList,
-      hasAnyGameTime,
+      timingMethod,
       rawXml: xmlText
     };
+  }
+
+  /**
+   * Picks the timing method a splits file was run with: the method its Personal Best was
+   * recorded in (GameTime when the PB has both), else whichever its best segments have.
+   * Best segments alone can mislead: old load-removed attempts leave GameTime golds on a
+   * RealTime PB. Arrays hold seconds or null.
+   * @returns {"GameTime"|"RealTime"}
+   */
+  function detectTimingMethodFromSplits(pbGT, pbRT, bestGT, bestRT) {
+    const hasTimes = (arr) => Array.isArray(arr) && arr.some(t => t !== null && t > 0);
+    if (hasTimes(pbGT)) return "GameTime";
+    if (hasTimes(pbRT)) return "RealTime";
+    return hasTimes(bestGT) ? "GameTime" : "RealTime";
   }
 
   /**
@@ -321,6 +334,7 @@
     sanitizeComparisonTimes,
     computeHistoricalCurves,
     parseLssXml,
+    detectTimingMethodFromSplits,
     detectTimingMethodFromComp
   };
 

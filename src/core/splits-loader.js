@@ -59,21 +59,18 @@
           state.comparisonsDataRT = parsed.comparisonsDataRT;
           state.comparisonsList = parsed.comparisonsList;
 
-          // Auto-detect timing method from the splits file:
-          // If splits have GameTime recorded (e.g. PC speedruns with load remover), default to GameTime.
-          // If no GameTime at all (e.g. console speedruns), default to RealTime.
-          const hasAnyGameTime = state.comparisonTimesGT.some(t => t !== null && t > 0) || 
-                                 state.bestSegmentTimesGT.some(t => t !== null && t > 0);
+          // Auto-detect the timing method the PB was run with (see SplitEngine.detectTimingMethodFromSplits)
+          const detectedMethod = parsed.timingMethod;
           const isManualMethod = (safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
           if (!isManualMethod) {
-            state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+            state.currentTimingMethod = detectedMethod;
             safeStorage.setItem(STORAGE_KEYS.TIMING_METHOD, state.currentTimingMethod);
           } else {
             const savedMethod = safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD);
             if (savedMethod === "RealTime" || savedMethod === "GameTime") {
               state.currentTimingMethod = savedMethod;
             } else {
-              state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+              state.currentTimingMethod = detectedMethod;
             }
           }
 
@@ -190,11 +187,11 @@
             if (hasRT && !hasGT) state.comparisonsDataGT[cName] = app.sanitizeComparisonTimes(cRT, state.comparisonTimesGT);
           });
 
-          const hasAnyGameTime = state.comparisonTimesGT.some(t => t !== null && t > 0) || 
-                                 state.bestSegmentTimesGT.some(t => t !== null && t > 0);
+          const detectedMethod = window.LiveSplit.SplitEngine.detectTimingMethodFromSplits(
+            state.comparisonTimesGT, state.comparisonTimesRT, state.bestSegmentTimesGT, state.bestSegmentTimesRT);
           const isManualMethod = (safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
           if (!isManualMethod) {
-            state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+            state.currentTimingMethod = detectedMethod;
             safeStorage.setItem(STORAGE_KEYS.TIMING_METHOD, state.currentTimingMethod);
           }
           app.applyActiveTimingMethod(state.currentTimingMethod);
