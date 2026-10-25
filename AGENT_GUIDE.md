@@ -22,16 +22,26 @@
      - [`storage.js`](src/core/storage.js): `safeStorage` wrapper with in-memory fallback for sandboxed OBS CEF sources, state persistence, and centralized keys.
      - [`time-utils.js`](src/core/time-utils.js): `timeStringToSeconds`, `formatTimerDisplay`, `formatTargetTime`, and `formatDeltaSeconds`.
      - [`split-engine.js`](src/core/split-engine.js): `.lss` XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
+     - [`split-evaluation.js`](src/core/split-evaluation.js): Pure completed-split classification (gold detection with 50ms buffer, ahead/behind gaining/losing state, leaderboard flash colour).
      - [`ghost-math.js`](src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
      - [`livesplit-client.js`](src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
      - [race-client.js](src/core/race-client.js): therun.gg/racetime.gg live telemetry bridge, F1-style continuous scoring, leader gap/interval calculations, and local simulated race engine.
    - **`src/ui/` Interface & Layout Modules**:
      - [`layout-engine.js`](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
-     - [`track-renderer.js`](src/ui/track-renderer.js): Sliding window math, schematic breaks, and zero-allocation 60 FPS element caching.
+     - [`track-renderer.js`](src/ui/track-renderer.js): Track DOM building, sliding window math and class application, schematic breaks, scroll-to-split, visible-split capacity, and zero-allocation 60 FPS element caching.
+     - [`track-density.js`](src/ui/track-density.js): `--node-spacing` from visible-splits preference, auto 40° angled split names, split-count controls and density/angle cycle badges.
+     - [`track-scroll.js`](src/ui/track-scroll.js): Mouse wheel and arrow-key track scrolling (windowed or native scroll).
+     - [`ghost-runner.js`](src/ui/ghost-runner.js): Active ghost selection/opacity, on-track ghost markers, race pin rendering hand-off, off-screen edge pills, leaderboard refresh.
+     - [`race-controls.js`](src/ui/race-controls.js): Race settings controls (standings/pins toggles, connect/disconnect with cooldown, test race) and race client event handling.
+     - [`ws-log-panel.js`](src/ui/ws-log-panel.js): Dev-mode race WebSocket telemetry log modal.
+     - [`settings-menu.js`](src/ui/settings-menu.js): Draggable quick-settings panel, position persistence and open/close toggle.
+     - [`dev-mode.js`](src/ui/dev-mode.js): Developer mode gating (`?dev`/`?debug`, Ctrl+Shift+D, version 5-click).
+     - [`splits-file-loader.js`](src/ui/splits-file-loader.js): `.lss` file picker and window drag-and-drop (`.lss`/`.xml` splits, `.json`/`.lshud` profiles).
      - [`interactions.js`](src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
      - [leaderboard.js](src/ui/leaderboard.js): Live race F1 timing tower controller, 60 FPS FLIP overtake reorder animations, and entrant mute controls.
    - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
-   - [overlay.js](overlay.js): Application bootstrap, high-frequency render ticks, and LiveSplit Server WebSocket bridge.
+   - [overlay.js](overlay.js): Application bootstrap and run/comparison state owner: LiveSplit Server WebSocket bridge, poll loop split-transition handlers, comparison/timing-method switching, and live segment progress. It wires the modules above via `createX({ getters })` factories and keeps the `window.*` exports used by layout.js and tests.
+   - **Adding a module**: register the script in `index.html`, `tests/test_runner.html` and `src/build-entry.js` in the same order (enforced by `test_modular_architecture`). Every script is an ES module in the Vite build, so share state through `window.LiveSplit.*` / explicit `window.*` exports and injected getters, never through top-level `let` across files.
    - [`vite.config.mjs`](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for the module build entry and enables the single-file plugin.
    - [`src/build-entry.js`](src/build-entry.js): Build-only entry that imports every source script in its original `<script>` order. It is not loaded when opening `index.html` directly.
    - [`scripts/verify-single-file.mjs`](scripts/verify-single-file.mjs): Postbuild contract check for the generated `dist/index.html`; run automatically by `npm run build`.
