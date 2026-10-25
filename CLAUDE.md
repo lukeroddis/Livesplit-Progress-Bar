@@ -50,3 +50,9 @@ Run `npm test` and `npm run build` before committing; both must be green.
 - Text files use LF (`.gitattributes`).
 - Other sessions may commit to the same branch: check `git log` before committing.
 - Commit messages: short imperative title, a body with what, why and how it was verified, ending with `Co-Authored-By: Claude <model> <noreply@anthropic.com>`.
+- **Other tools without a vendor-owned address** (e.g. Antigravity): do not add a trailer; put the attribution in the commit body instead:
+
+  ```text
+  🤖 Generated with Antigravity (Google DeepMind)
+  Reviewed, tested, and approved by Luke.
+  ```

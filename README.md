@@ -187,4 +187,4 @@ For post-v1.0.0 feature specifications and technical explorations, see:
 ## 📄 License & Attribution
 
 * **License**: Released under the [MIT License](LICENSE).
-* **Attribution**: Developed with AI pair programming using **Google DeepMind Antigravity**, reviewed and approved by [@lukeroddis](https://github.com/lukeroddis).
+* **Attribution**: Developed with AI pair programming using **Google DeepMind Antigravity** and **Claude**, reviewed and approved by [@lukeroddis](https://github.com/lukeroddis).
