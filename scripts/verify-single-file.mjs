@@ -39,8 +39,19 @@ try {
 }
 
 if (html) {
-  const tags = [...html.matchAll(/<(?:script|link|img|source|audio|video|iframe)\b[^>]*>/gi)]
-    .map((match) => match[0]);
+  // Character ranges of inline <script> bodies. Markup built by inlined JS
+  // (e.g. avatar `<img src="${escapeHtml(url)}">` template literals) appears
+  // there as text; its interpolated values are runtime data, not assets.
+  const scriptBodies = [...html.matchAll(/(<script\b[^>]*>)([\s\S]*?)<\/script>/gi)]
+    .map((match) => {
+      const start = match.index + match[1].length;
+      return [start, start + match[2].length];
+    });
+  const inScriptBody = (index) =>
+    scriptBodies.some(([start, end]) => index >= start && index < end);
+
+  const tagMatches = [...html.matchAll(/<(?:script|link|img|source|audio|video|iframe)\b[^>]*>/gi)];
+  const tags = tagMatches.map((match) => match[0]);
 
   const externalScripts = tags.filter(
     (tag) => /^<script\b/i.test(tag) && /\bsrc\s*=/i.test(tag)
@@ -50,11 +61,13 @@ if (html) {
   );
 
   const localAssetRefs = [];
-  for (const tag of tags) {
-    for (const match of tag.matchAll(/\b(?:src|href)\s*=\s*["']([^"']*)["']/gi)) {
+  for (const tagMatch of tagMatches) {
+    const fromScript = inScriptBody(tagMatch.index);
+    for (const match of tagMatch[0].matchAll(/\b(?:src|href)\s*=\s*["']([^"']*)["']/gi)) {
       const value = match[1].trim();
       if (!value) continue;
       if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(value)) continue;
+      if (fromScript && value.includes("${")) continue;
       localAssetRefs.push(value);
     }
   }
