@@ -209,7 +209,6 @@
         assert(typeof window.LiveSplit.Client === "object", "LiveSplit.Client exists");
         assert(typeof window.LiveSplit.TrackRenderer === "object", "LiveSplit.TrackRenderer exists");
         assert(typeof window.LiveSplit.LayoutEngine === "object", "LiveSplit.LayoutEngine exists");
-        assert(typeof window.LiveSplit.Interactions === "object", "LiveSplit.Interactions exists");
       });
 
       it("LiveSplit.Time parses and formats times correctly", () => {

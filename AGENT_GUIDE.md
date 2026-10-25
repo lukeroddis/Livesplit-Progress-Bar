@@ -41,7 +41,7 @@
      - `race-protocol.js`, `race-ranking.js`, `race-discovery.js`, `race-logger.js`: message parsing, F1 standings/gaps, auto-detect/standby, WS log.
      - [`race-simulation.js`](src/core/race-simulation.js): Offline race engine (start/stop/standby/reset/undo, 50ms loop, `SIM_RACE_ID`) composing [`race-sim-roster.js`](src/core/race-sim-roster.js) (rival presets + pure `buildCompetitorEntrant`), [`race-sim-lobby.js`](src/core/race-sim-lobby.js) (lobby schedules, countdown, `startRaceNow`) and [`race-sim-pacing.js`](src/core/race-sim-pacing.js) (rival pacing, virtual host). The race client reads the running course via `getSimulationCourseTargets()`.
    - **`src/ui/` Interface & Layout Modules**:
-     - [`layout-engine.js`](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
+     - [`layout-engine.js`](src/ui/layout-engine.js): `COMPONENTS`, the HUD component ids in layout order (default coordinates live in `layout.js`, anchor resolution in `timer-anchor.js`).
      - [`track-renderer.js`](src/ui/track-renderer.js): Track DOM building, sliding window math and class application, schematic breaks, scroll-to-split, visible-split capacity, and zero-allocation 60 FPS element caching.
      - [`track-density.js`](src/ui/track-density.js): `--node-spacing` from visible-splits preference, auto 40° angled split names, split-count controls and density/angle cycle badges.
      - [`track-scroll.js`](src/ui/track-scroll.js): Mouse wheel and arrow-key track scrolling (windowed or native scroll).
@@ -51,7 +51,6 @@
      - [`settings-menu.js`](src/ui/settings-menu.js): Draggable quick-settings panel, position persistence and open/close toggle.
      - [`dev-mode.js`](src/ui/dev-mode.js): Developer mode gating (`?dev`/`?debug`, Ctrl+Shift+D, version 5-click).
      - [`splits-file-loader.js`](src/ui/splits-file-loader.js): `.lss` file picker and window drag-and-drop (`.lss`/`.xml` splits, `.json`/`.lshud` profiles).
-     - [`interactions.js`](src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
      - [leaderboard.js](src/ui/leaderboard.js): Live race F1 timing tower orchestrator (visibility, pre-race detection, mute, Layout Mode preview) over [`leaderboard-row.js`](src/ui/leaderboard-row.js) (pure `describeRow` view model + in-place row DOM), [`leaderboard-banners.js`](src/ui/leaderboard-banners.js) (status badge, countdown / lobby / waiting banners), [`leaderboard-flip.js`](src/ui/leaderboard-flip.js) (FLIP overtake reorder) and [`leaderboard-marquee.js`](src/ui/leaderboard-marquee.js) (scrolling long names).
      - [`track-status.js`](src/ui/track-status.js): Track render, per-split completed/current classes, locked delta display, window shifting, 60 FPS live segment progress.
      - [`timing-controls.js`](src/ui/timing-controls.js): Timer display mode (Game/Real/Both), timing method focus, gold toggle and badges.
@@ -290,10 +289,12 @@ Before committing any changes, you must ensure:
 > | :--- | :--- |
 > | `tests/unit/<core\|ui\|utils>/<module>.test.js` | **Behaviour tests (default home for new tests).** One spec per module, run in headless Chrome against the real scripts. New files are discovered automatically. Cross-module race flows (leaderboard, standings, simulation, live connection, pins) live in `tests/unit/race/<topic>.test.js`. |
 > | `tests/test_structure.py` | Cross-file contracts: files parse (`node --check`), DOM ids exist in `index.html`, JS-toggled CSS classes exist in `src/styles/`. |
-> | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only). |
+> | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only) plus the ESLint run (`npm run lint`, `no-undef` / `no-unused-vars`, config in `eslint.config.mjs`). |
 > | `tests/test_release_bump.py` | `scripts/determine_bump.py` release classification. |
 > | `tests/browser/` | Runner page generator (`build_runner.py`), Chrome/CDP driver, coverage maths. |
 > | `tests/harness/` | `mini-test.js` (`describe`/`it`/`assert`; `async` tests run serially after sync specs) and `fake-livesplit.js`, a scriptable fake LiveSplit Server installed as `window.WebSocket` so tests never touch a real LiveSplit. Call `FakeLiveSplit.acceptConnection()` and set `FakeLiveSplit.state` to drive the poll loop (see `tests/unit/core/run-tracker.test.js`). |
+>
+> **Run modes:** `npm test` (everything, one-line coverage summary), `npm run test:quick` (skip the browser suite), `python tests/run_tests.py --spec race/` (only browser specs whose path contains the substring; repeatable), `npm run test:coverage` (per-file JS coverage table), `npm run lint`.
 >
 > Do **not** assert on source text (`"function foo" in overlay_js`): it breaks on every refactor and does not test behaviour. Do not re-implement JS logic in Python to test it; test the JS directly. `tests/test_runner.html` is generated (gitignored); edit `tests/test_runner.template.html` for harness changes. The browser suite needs Chrome/Chromium (required when `CI` is set); without `websockets` it falls back to `--dump-dom` and skips coverage.
 
