@@ -2841,6 +2841,10 @@ function connect() {
     }
 
     canQueryComparison = true;
+    const rcConn = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+    if (rcConn && typeof rcConn.setExternalHostConnected === "function") {
+      rcConn.setExternalHostConnected(true);
+    }
 
     // Query Game and Category from LiveSplit if not loaded from .lss
     if (!localStorage.getItem("livesplit_raw_lss")) {
@@ -2864,6 +2868,10 @@ function connect() {
 
   ws.onclose = () => {
     isPolling = false;
+    const rcDisconn = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+    if (rcDisconn && typeof rcDisconn.setExternalHostConnected === "function") {
+      rcDisconn.setExternalHostConnected(false);
+    }
     inflightResolver = null;
     const status = document.getElementById("connection-status");
     if (status) {
@@ -2936,6 +2944,9 @@ async function pollLoop() {
     if (isStrictInt) {
       const idx = parseInt(splitIdxStr.trim(), 10);
       const rc = window.LiveSplit && window.LiveSplit.RaceClient ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient) : window.LiveSplitRaceClient;
+      if (rc && typeof rc.setExternalHostConnected === "function") {
+        rc.setExternalHostConnected(true);
+      }
       const isSim = rc && typeof rc.isSimulating === "function" && rc.isSimulating();
       const wasRunning = (currentIndex > 0) || (currentIndex === 0 && lastElapsedSec > 1.0);
       const isSecondResetWithDNF = (idx === -1 && currentIndex === -1 && rc && typeof rc.isHostDNF === "function" && rc.isHostDNF());
@@ -3061,9 +3072,6 @@ async function pollLoop() {
           if (rcStart) {
             if (typeof rcStart.setHostDNF === "function" && rcStart.isHostDNF()) {
               rcStart.setHostDNF(false);
-            }
-            if (typeof rcStart.reset === "function") {
-              rcStart.reset();
             }
             if (typeof rcStart.handleHostRunStarted === "function") {
               rcStart.handleHostRunStarted();

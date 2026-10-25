@@ -185,6 +185,11 @@
     let heartbeatTimer = null;
     let lastConnectAttemptMs = 0;
     let isConnectInFlight = false;
+    let isExternalLiveSplitConnected = false;
+
+    function setExternalHostConnected(connected) {
+      isExternalLiveSplitConnected = Boolean(connected);
+    }
     let isStandby = false;
     let isSimStandby = false;
     let pendingSimConfig = null;
@@ -1749,7 +1754,9 @@
       }
 
       const raceMsgType = String((msg.type === "message" && payload && payload.type) || msg.type || "").toLowerCase().trim();
-      const raceMsgData = (payload && payload.data && typeof payload.data === "object") ? payload.data : null;
+      const raceMsgData = (payload && payload.data && typeof payload.data === "object")
+        ? payload.data
+        : ((msg.data && typeof msg.data === "object") ? msg.data : (payload && typeof payload === "object" ? payload : null));
 
       if (raceMsgType === "race-starting" || raceMsgType === "race_starting") {
         raceStatus = "starting";
@@ -1951,7 +1958,9 @@
         existing.avatar = rawPic;
       }
 
-      const rawCurrentTime = (live && typeof live.currentTime === "number") ? live.currentTime : data.currentTime;
+      const rawCurrentTime = (live && typeof live.currentTime === "number")
+        ? live.currentTime
+        : (typeof data.currentTime === "number" ? data.currentTime : (typeof data.time === "number" ? data.time : null));
       if (typeof rawCurrentTime === "number") {
         // therun.gg transmits milliseconds
         existing.currentTimeSec = rawCurrentTime > 500 ? (rawCurrentTime / 1000) : rawCurrentTime;
@@ -2553,7 +2562,7 @@
           return;
         }
 
-        const isExternalHostConnected = (lastExternalHostUpdate > 0);
+        const isExternalHostConnected = (isExternalLiveSplitConnected || lastExternalHostUpdate > 0);
 
         if (hostState.isDNF) {
           // Host has forfeited / DNF'd: competitors continue running to finish line
@@ -2809,6 +2818,21 @@
     }
 
     function reset() {
+      if (!isSimulating && (ws !== null || (raceId && raceId !== "sim_cup_2026"))) {
+        hostState.currentTimeSec = 0;
+        hostState.currentSplitIndex = 0;
+        hostState.currentSplitName = "Start";
+        hostState.score = 0;
+        hostState.isFinished = false;
+        hostState.finalTimeSec = null;
+        hostState.isDNF = false;
+        hostState.dnfTimeSec = null;
+        hostState.splitTimes = [];
+        const hostEntry = entrants.get(hostState.userId);
+        if (hostEntry) Object.assign(hostEntry, hostState);
+        notifyListeners("entrant_updated", null);
+        return;
+      }
       lastExternalHostUpdate = 0;
       simVirtualSec = 0;
       lastHostGameTimeSec = 0;
@@ -2920,6 +2944,8 @@
       handleUndoSplit,
       setEntrantDNF,
       setTimingMethod,
+      setExternalHostConnected,
+      isExternalHostConnected: () => isExternalLiveSplitConnected,
       getTimingMethod,
       startSimulation,
       stopSimulation,

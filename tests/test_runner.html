@@ -3591,6 +3591,68 @@
         assert(logs.length >= 0, "getWebSocketLogs returns logs array");
         assert(typeof window.getRaceWsLogs === "function", "window.getRaceWsLogs helper is exported");
       });
+
+      it("rc.reset() does not wipe remote live race participants", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        // Connect to a live race and inject remote participants
+        rc.connectToRace("live_test_room");
+        rc.handleRaceMessage({
+          type: "participant-split",
+          data: {
+            user: "Challenger1",
+            splitName: "Stage 3",
+            time: 95000,
+            percentage: 0.6
+          }
+        });
+
+        let entrants = rc.getRankedEntrants();
+        let chal = entrants.find(e => e.username === "Challenger1" || e.userId === "Challenger1");
+        assert(chal !== null && chal !== undefined, "Remote challenger exists in entrants");
+        assertEqual(chal.currentTimeSec, 95, "Challenger has 95s elapsed time");
+
+        // Host resets their local LiveSplit timer
+        rc.reset();
+
+        // Challenger MUST NOT be wiped out or reset to 0
+        entrants = rc.getRankedEntrants();
+        chal = entrants.find(e => e.username === "Challenger1" || e.userId === "Challenger1");
+        assert(chal !== null && chal !== undefined, "Remote challenger remains intact after host reset");
+        assertEqual(chal.currentTimeSec, 95, "Remote challenger time is preserved");
+
+        rc.disconnectFromRace();
+      });
+
+      it("Simulated racers wait at 00:00 when LiveSplit is connected at the starting line", () => {
+        const rc = window.LiveSplit.RaceClient;
+        rc.stopSimulation();
+        rc.disconnectFromRace();
+
+        // Signal that LiveSplit is connected at start line (idx = -1, currentTime = 0)
+        rc.setExternalHostConnected(true);
+        rc.startSimulation(["Split 1", "Split 2"], [30, 60], [30, 60], { withLobby: false });
+
+        // Force in_progress status (e.g. countdown ended and said GO!)
+        rc.handleRaceMessage({ type: "countdown", countdown: 0 });
+        assertEqual(rc.getRaceStatus(), "in_progress", "Race is in_progress");
+
+        // Since LiveSplit is connected and hostState.currentTimeSec is 0, racers should stay at 0
+        let comp = rc.getRankedEntrants().find(e => !e.isHost);
+        assertEqual(comp.currentTimeSec, 0, "Competitor stays at 00:00 waiting for host LiveSplit start");
+
+        // Now host starts LiveSplit
+        rc.handleHostRunStarted();
+        rc.updateHostProgress(5.0, 0, [], [30, 60], "Split 1", ["Split 1", "Split 2"], null, true, 5.0);
+
+        comp = rc.getRankedEntrants().find(e => !e.isHost);
+        assertEqual(comp.currentTimeSec, 5.0, "Competitor now synchronizes with host start");
+
+        rc.setExternalHostConnected(false);
+        rc.stopSimulation();
+      });
     });
     // --- RENDER RESULTS ---
     const resultsContainer = document.getElementById("results");
