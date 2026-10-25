@@ -26,6 +26,7 @@ import "./core/layout-profiles.js";
 import "./utils/dom-utils.js";
 import "./ui/layout-engine.js";
 import "./ui/track-renderer.js";
+import "./ui/track-style.js";
 import "./ui/interactions.js";
 import "./ui/leaderboard.js";
 import "./ui/race-track-markers.js";

@@ -153,23 +153,37 @@
     }
   }
 
-  function loadSavedTrackStyle() {
-    try {
-      const saved = localStorage.getItem(TRACK_STYLE_KEY);
-      if (saved) {
-        return Object.assign({}, DEFAULT_TRACK_STYLE, JSON.parse(saved));
-      }
-    } catch (e) {
-      console.warn("Failed to load saved track style", e);
+  let trackStyleEngine = null;
+  function getTrackStyleEngine() {
+    if (!trackStyleEngine && typeof window !== "undefined" && window.LiveSplit && window.LiveSplit.TrackStyle) {
+      trackStyleEngine = window.LiveSplit.TrackStyle.createTrackStyle({
+        getCurrentStyle: () => currentTrackStyle,
+        setCurrentStyle: (s) => { currentTrackStyle = s; },
+        getLayoutState: () => layoutState,
+        saveLayout,
+        applyComponentLayout: (id) => applyComponentLayout(id),
+        syncTrackModalUI,
+        removeGameLogo,
+        storageKey: TRACK_STYLE_KEY
+      });
     }
-    return Object.assign({}, DEFAULT_TRACK_STYLE);
+    return trackStyleEngine;
+  }
+
+  function loadSavedTrackStyle() {
+    const e = getTrackStyleEngine();
+    return e ? e.loadSavedStyle() : Object.assign({}, DEFAULT_TRACK_STYLE);
   }
 
   function saveTrackStyle() {
-    try {
-      localStorage.setItem(TRACK_STYLE_KEY, JSON.stringify(currentTrackStyle));
-    } catch (e) {
-      console.warn("Failed to save track style", e);
+    const e = getTrackStyleEngine();
+    if (e) e.saveStyle(currentTrackStyle);
+    else {
+      try {
+        localStorage.setItem(TRACK_STYLE_KEY, JSON.stringify(currentTrackStyle));
+      } catch (err) {
+        console.warn("Failed to save track style", err);
+      }
     }
   }
 
@@ -308,172 +322,46 @@
   }
 
   function enforceOpposingTrackPositions() {
-    if (!currentTrackStyle) return;
-    if (currentTrackStyle.orientation === "vertical") return;
-    const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
-    const track = document.getElementById("track");
-    const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
-    if (isAngled) {
-      if (currentTrackStyle.namePos === "top") {
-        currentTrackStyle.deltaPos = "bottom";
-      } else {
-        currentTrackStyle.deltaPos = "top";
-      }
-    }
+    const e = getTrackStyleEngine();
+    if (e) e.enforceOpposingTrackPositions();
   }
 
   function setTrackOrientation(orient) {
+    const e = getTrackStyleEngine();
+    if (e) {
+      e.setOrientation(orient);
+      return;
+    }
+    // Fallback if engine not initialized
     if (!currentTrackStyle) currentTrackStyle = loadSavedTrackStyle();
     if (!layoutState) layoutState = loadSavedLayout();
-    const newOrient = (orient === "vertical") ? "vertical" : "horizontal";
-    currentTrackStyle.orientation = newOrient;
-
-    if (newOrient === "vertical") {
-      if (currentTrackStyle.namePos === "top" || currentTrackStyle.namePos === "bottom") {
-        currentTrackStyle.namePos = (currentTrackStyle.namePos === "bottom") ? "right" : "left";
-      }
-      if (currentTrackStyle.deltaPos === "top" || currentTrackStyle.deltaPos === "bottom") {
-        currentTrackStyle.deltaPos = "right";
-      }
-      if (layoutState && layoutState.track && layoutState.track.docked === "bottom") {
-        layoutState.track.docked = "left";
-        layoutState.track.x = 0;
-        layoutState.track.y = 0;
-        saveLayout();
-      }
-    } else {
-      if (currentTrackStyle.namePos === "left" || currentTrackStyle.namePos === "right") {
-        currentTrackStyle.namePos = (currentTrackStyle.namePos === "right") ? "bottom" : "top";
-      }
-      if (currentTrackStyle.deltaPos === "left" || currentTrackStyle.deltaPos === "right") {
-        currentTrackStyle.deltaPos = "top";
-      }
-      if (layoutState && layoutState.track && (layoutState.track.docked === "left" || layoutState.track.docked === "right")) {
-        layoutState.track.docked = "bottom";
-        layoutState.track.x = 0;
-        layoutState.track.y = Math.max(0, (window.innerHeight || 1080) - 90);
-        saveLayout();
-      }
-    }
-
+    currentTrackStyle.orientation = (orient === "vertical") ? "vertical" : "horizontal";
     applyComponentLayout("track");
     applyTrackStyle();
     saveTrackStyle();
     syncTrackModalUI();
-
     const viewport = document.getElementById("track-viewport");
     if (viewport) {
       viewport.scrollLeft = 0;
       viewport.scrollTop = 0;
     }
-
-    if (window.updateTrackDensityAndAngle) {
-      window.updateTrackDensityAndAngle();
-    }
-    if (window.updateTrackStatus) {
-      window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-    }
-
+    if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+    if (window.updateTrackStatus) window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
     requestAnimationFrame(() => {
-      if (window.updateTrackDensityAndAngle) {
-        window.updateTrackDensityAndAngle();
-      }
-      if (window.updateTrackStatus) {
-        window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-      }
+      if (window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+      if (window.updateTrackStatus) window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
     });
   }
   window.setTrackOrientation = setTrackOrientation;
 
   function applyTrackStyle() {
-    if (!currentTrackStyle) return;
-    const root = document.documentElement;
-    const track = document.getElementById("track");
-    const elTrackComp = document.getElementById("hud-comp-track");
-    const elViewport = document.getElementById("track-viewport");
-    if (!root || !track) return;
-
-    const isVert = (currentTrackStyle.orientation === "vertical");
-
-    if (isVert) {
-      track.classList.add("vertical");
-      if (elTrackComp) elTrackComp.classList.add("vertical");
-      if (elViewport) elViewport.classList.add("vertical");
-    } else {
-      track.classList.remove("vertical");
-      if (elTrackComp) elTrackComp.classList.remove("vertical");
-      if (elViewport) elViewport.classList.remove("vertical");
-    }
-
-    if (!isVert) {
-      enforceOpposingTrackPositions();
-    }
-
-    // Set CSS custom variables
-    root.style.setProperty("--bar-height", `${currentTrackStyle.barHeight}px`);
-    root.style.setProperty("--dot-size", `${currentTrackStyle.dotSize}px`);
-    root.style.setProperty("--name-font-size", `${currentTrackStyle.nameFontSize}px`);
-    root.style.setProperty("--delta-font-size", `${currentTrackStyle.deltaFontSize}px`);
-    const logoHeight = (currentTrackStyle.logoHeight != null ? currentTrackStyle.logoHeight : 60);
-    root.style.setProperty("--game-logo-height", `${logoHeight}px`);
-    const pinLength = (currentTrackStyle.ghostPinLength != null ? currentTrackStyle.ghostPinLength : 16);
-    root.style.setProperty("--ghost-needle-length", `${pinLength}px`);
-    track.style.setProperty("--ghost-needle-length", `${pinLength}px`);
-    track.classList.toggle("ghost-on-track", pinLength === 0);
-
-    const pinSize = (currentTrackStyle.ghostPinSize != null ? currentTrackStyle.ghostPinSize : 26);
-    root.style.setProperty("--ghost-pin-size", `${pinSize}px`);
-    track.style.setProperty("--ghost-pin-size", `${pinSize}px`);
-
-    const opacityVal = (currentTrackStyle.bgOpacity != null ? currentTrackStyle.bgOpacity : 55);
-    const blurPx = (currentTrackStyle.bgBlur != null ? currentTrackStyle.bgBlur : 8);
-    root.style.setProperty("--bg-opacity", (opacityVal / 100).toFixed(2));
-    root.style.setProperty("--bg-blur", `${blurPx}px`);
-
-    // Toggle .has-bg on components
-    const isBgActive = opacityVal > 0;
-    const elTitle = document.getElementById("hud-comp-title");
-    const elTimers = document.getElementById("hud-comp-timers");
-
-    if (elTitle) elTitle.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTitle !== false);
-    if (elTimers) elTimers.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTimers !== false);
-    if (elTrackComp) elTrackComp.classList.toggle("has-bg", isBgActive && currentTrackStyle.bgTrack !== false);
-    const elLeaderboard = document.getElementById("hud-comp-leaderboard");
-    if (elLeaderboard) elLeaderboard.classList.toggle("has-bg", isBgActive);
-
-    // Remove existing positional classes and set active ones
-    track.classList.remove(
-      "pos-name-top", "pos-name-bottom", "pos-name-left", "pos-name-right",
-      "pos-delta-top", "pos-delta-bottom", "pos-delta-left", "pos-delta-right"
-    );
-    track.classList.add(`pos-name-${currentTrackStyle.namePos}`, `pos-delta-${currentTrackStyle.deltaPos}`);
-
-    syncTrackModalUI();
-
-    if (window.updateTrackDensityAndAngle) {
-      window.updateTrackDensityAndAngle();
-    }
-    if (window.updateTrackStatus) {
-      window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-    }
+    const e = getTrackStyleEngine();
+    if (e) e.applyStyle();
   }
 
   function setVisibleSplits(val) {
-    if (val === "all" || val === "auto") {
-      localStorage.setItem("livesplit_visible_splits", val);
-    } else {
-      let num = parseInt(val, 10);
-      if (isNaN(num) || num < 2) num = 2;
-      if (num > 60) num = 60;
-      localStorage.setItem("livesplit_visible_splits", String(num));
-    }
-    if (window.updateTrackDensityAndAngle) {
-      window.updateTrackDensityAndAngle();
-    }
-    if (window.updateTrackStatus) {
-      window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-    }
-    syncTrackModalUI();
+    const e = getTrackStyleEngine();
+    if (e) e.setVisibleSplits(val);
   }
   window.setVisibleSplits = setVisibleSplits;
 
@@ -864,10 +752,15 @@
   }
 
   function resetTrackStyle() {
-    currentTrackStyle = Object.assign({}, DEFAULT_TRACK_STYLE);
-    saveTrackStyle();
-    applyTrackStyle();
-    removeGameLogo();
+    const e = getTrackStyleEngine();
+    if (e) {
+      e.resetStyle();
+    } else {
+      currentTrackStyle = Object.assign({}, DEFAULT_TRACK_STYLE);
+      saveTrackStyle();
+      applyTrackStyle();
+      removeGameLogo();
+    }
   }
 
   function applyComponentLayout(compId) {

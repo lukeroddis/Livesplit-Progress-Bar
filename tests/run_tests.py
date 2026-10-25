@@ -41,6 +41,7 @@ def test_file_integrity():
         os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
+        os.path.join("src", "ui", "track-style.js"),
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
@@ -77,6 +78,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
+        os.path.join("src", "ui", "track-style.js"),
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
@@ -189,6 +191,7 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
+        os.path.join("src", "ui", "track-style.js"),
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "ui", "leaderboard.js"),
         os.path.join("src", "ui", "race-track-markers.js"),
@@ -891,14 +894,18 @@ def test_ghost_pin_length_zero_track():
         "style.css: ghost needle must be hidden when on track"
     assert "--track-padding-bottom" in css, "style.css missing --track-padding-bottom definition"
 
-    # 5. Static verification of layout.js
+    # 5. Static verification of layout.js / track-style.js
     js_path = os.path.join(ROOT_DIR, "layout.js")
     with open(js_path, "r", encoding="utf-8") as f:
         js = f.read()
+    ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    if os.path.exists(ts_path):
+        with open(ts_path, "r", encoding="utf-8") as tsf:
+            js += tsf.read()
     assert 'track.classList.toggle("ghost-on-track", pinLength === 0)' in js, \
-        "layout.js missing track ghost-on-track toggle"
+        "layout.js or track-style.js missing track ghost-on-track toggle"
     assert 'track.style.setProperty("--ghost-needle-length"' in js, \
-        "layout.js missing track.style.setProperty for --ghost-needle-length"
+        "layout.js or track-style.js missing track.style.setProperty for --ghost-needle-length"
     assert "0px (On Track)" in js, "layout.js missing '0px (On Track)' badge label"
 
     print("✓ Zero-length ghost pin and needle sizing unit tests passed.")
@@ -1548,6 +1555,10 @@ def test_track_scrolling_consistency_and_mousewheel():
         overlay_src = f.read()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
+    ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    if os.path.exists(ts_path):
+        with open(ts_path, "r", encoding="utf-8") as tsf:
+            layout_src += tsf.read()
     with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
         html_src = f.read()
     with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
@@ -1703,6 +1714,10 @@ def test_timer_anchor_and_expansion_modes():
         css_src = f.read()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
+    ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    if os.path.exists(ts_path):
+        with open(ts_path, "r", encoding="utf-8") as tsf:
+            layout_src += tsf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
         schema_src = f.read()
 
@@ -1809,6 +1824,10 @@ def test_always_show_last_split_and_schematic_break():
         overlay_src = f.read()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
+    ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    if os.path.exists(ts_path):
+        with open(ts_path, "r", encoding="utf-8") as tsf:
+            layout_src += tsf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2071,6 +2090,10 @@ def test_architectural_safeguards_and_bug_fixes():
         overlay_src = f.read()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
+    ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    if os.path.exists(ts_path):
+        with open(ts_path, "r", encoding="utf-8") as tsf:
+            layout_src += tsf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2246,6 +2269,10 @@ def test_track_orientation_and_split_density_reflow():
     """Verify track orientation switching preserves split density, uses reflow geometry fallbacks, and updates track window at currentIndex = -1."""
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_src = f.read()
+    ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    if os.path.exists(ts_path):
+        with open(ts_path, "r", encoding="utf-8") as tsf:
+            layout_src += tsf.read()
     with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
         overlay_src = f.read()
 
@@ -2377,6 +2404,10 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         css = f.read()
     with open(os.path.join(ROOT_DIR, "layout.js"), "r", encoding="utf-8") as f:
         layout_js = f.read()
+    ts_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    if os.path.exists(ts_path):
+        with open(ts_path, "r", encoding="utf-8") as tsf:
+            layout_js += tsf.read()
     with open(os.path.join(ROOT_DIR, "src", "ui", "layout-engine.js"), "r", encoding="utf-8") as f:
         layout_engine_js = f.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2882,6 +2913,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "layout-profiles.js"),
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),
+            os.path.join("src", "ui", "track-style.js"),
             os.path.join("src", "ui", "interactions.js"),
             os.path.join("src", "ui", "leaderboard.js"),
             os.path.join("src", "ui", "race-track-markers.js"),
@@ -3152,6 +3184,25 @@ def test_timer_anchor_modularization():
     print("✓ Timer Anchor & Expansion Controller modularization passed.")
 
 
+def test_track_style_modularization():
+    """Verify modularization of track style and orientation controller."""
+    style_path = os.path.join(ROOT_DIR, "src", "ui", "track-style.js")
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+
+    assert os.path.exists(style_path), "src/ui/track-style.js must exist"
+
+    with open(style_path, "r", encoding="utf-8") as rf:
+        style_code = rf.read()
+    with open(layout_path, "r", encoding="utf-8") as lcf:
+        layout_code = lcf.read()
+
+    assert "window.LiveSplit.TrackStyle" in style_code, "track-style.js must export LiveSplit.TrackStyle"
+    assert "createTrackStyle" in style_code, "track-style.js must define createTrackStyle"
+    assert "LiveSplit.TrackStyle.createTrackStyle" in layout_code, "layout.js must instantiate TrackStyle"
+
+    print("✓ Track Style & Orientation Controller modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3203,7 +3254,8 @@ def main():
         test_layout_profiles_modularization()
         test_game_logo_modularization()
         test_timer_anchor_modularization()
-        run_browser_tests_and_coverage(python_test_count=46)
+        test_track_style_modularization()
+        run_browser_tests_and_coverage(python_test_count=47)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
