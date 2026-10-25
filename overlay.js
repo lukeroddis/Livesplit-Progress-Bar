@@ -4429,10 +4429,114 @@ function initOverlay() {
   updateTrackDensityAndAngle();
   updateGhostBadge();
 
+  initDevMode();
+
   const verEl = document.getElementById("overlay-version");
   if (verEl) verEl.innerText = APP_VERSION;
 
   connect();
+}
+
+// ============================================================
+// Developer & Diagnostics Mode (Feature Gating)
+// ============================================================
+let isDevMode = false;
+
+function isDevModeActive() {
+  return isDevMode;
+}
+
+function showDevModeToast(enabled) {
+  let toast = document.getElementById("hud-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "hud-toast";
+    toast.className = "hud-toast";
+    document.body.appendChild(toast);
+  }
+  toast.style.display = "";
+  toast.innerHTML = enabled
+    ? `<span style="color: #f59e0b;">🛠️ Developer Mode:</span> <span>Enabled (Test Race &amp; WS Logs visible)</span>`
+    : `<span style="color: #94a3b8;">🛠️ Developer Mode:</span> <span>Disabled (Production view)</span>`;
+  toast.classList.add("show");
+  if (comparisonToastTimer) clearTimeout(comparisonToastTimer);
+  comparisonToastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2200);
+}
+
+function setDevMode(enabled, save = true) {
+  isDevMode = !!enabled;
+  if (isDevMode) {
+    document.body.classList.add("dev-mode");
+  } else {
+    document.body.classList.remove("dev-mode");
+  }
+  if (save) {
+    try {
+      if (typeof safeStorage !== "undefined") {
+        safeStorage.setItem("livesplit_dev_mode", isDevMode ? "true" : "false");
+      } else {
+        localStorage.setItem("livesplit_dev_mode", isDevMode ? "true" : "false");
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+function toggleDevMode() {
+  setDevMode(!isDevMode, true);
+  showDevModeToast(isDevMode);
+  return isDevMode;
+}
+
+function initDevMode() {
+  let queryDev = false;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    queryDev = urlParams.has("debug") || urlParams.has("dev");
+  } catch (e) {
+    queryDev = false;
+  }
+
+  let storedDev = false;
+  try {
+    const raw = (typeof safeStorage !== "undefined")
+      ? safeStorage.getItem("livesplit_dev_mode")
+      : localStorage.getItem("livesplit_dev_mode");
+    storedDev = (raw === "true");
+  } catch (e) {
+    storedDev = false;
+  }
+
+  setDevMode(queryDev || storedDev, false);
+
+  // Keyboard hotkey: Ctrl + Shift + D (or Cmd + Shift + D on macOS)
+  window.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "d" || e.key === "D")) {
+      e.preventDefault();
+      toggleDevMode();
+    }
+  });
+
+  // Settings footer version label 5-click easter egg
+  const verEl = document.getElementById("overlay-version");
+  if (verEl) {
+    verEl.style.cursor = "pointer";
+    let verClicks = 0;
+    let verTimer = null;
+    verEl.addEventListener("click", () => {
+      verClicks++;
+      if (verTimer) clearTimeout(verTimer);
+      verTimer = setTimeout(() => { verClicks = 0; }, 2500);
+      if (verClicks >= 5) {
+        verClicks = 0;
+        toggleDevMode();
+      }
+    });
+  }
 }
 
 if (document.readyState === "loading") {
@@ -4490,6 +4594,9 @@ window.shiftTrackWindow = shiftTrackWindow;
 window.isTrackWindowed = isTrackWindowed;
 window.getTrackManualScrollOffset = () => trackManualScrollOffset;
 window.showComparisonToast = showComparisonToast;
+window.isDevMode = isDevModeActive;
+window.setDevMode = setDevMode;
+window.toggleDevMode = toggleDevMode;
 window.initOverlay = initOverlay;
 window.getLastElapsedSec = () => lastElapsedSec;
 window.LiveSplit = window.LiveSplit || {};

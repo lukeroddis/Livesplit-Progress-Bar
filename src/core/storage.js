@@ -35,7 +35,8 @@
     DISCARD_GOLD_ON_RESET: "livesplit_discard_gold_on_reset",
     CACHED_SPLITS: "livesplit_cached_splits",
     GAME_NAME: "livesplit_game",
-    CATEGORY_NAME: "livesplit_category"
+    CATEGORY_NAME: "livesplit_category",
+    DEV_MODE: "livesplit_dev_mode"
   };
 
   // Safe storage wrapper providing in-memory fallback if localStorage is disabled or restricted

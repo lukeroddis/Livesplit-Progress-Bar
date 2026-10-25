@@ -177,6 +177,7 @@ Query these **strictly upon split index transition, start, or reset**:
 | `livesplit_sync_hotkeys` | Boolean string (`"true"` / `"false"`) | Whether comparison and timing method auto-sync with LiveSplit hotkeys. |
 | `livesplit_active_ghosts` | JSON Array (`string[]`) | Active multi-ghost comparison runner identifiers (`["wr", "pb", ...]`). |
 | `livesplit_lss_xml` | String (XML) | Cached `.lss` content for offline/instant reload. |
+| `livesplit_dev_mode` | Boolean string (`"true"` / `"false"`) | Enables developer tools (Test Race simulation, WS debug logs, diagnostics). |
 
 ### Layout Profile Schema v1 Specification
 
@@ -306,3 +307,42 @@ To keep the overlay modular, maintainable, and high-performing as new race and t
   * `src/ui/timer-display.js`: Timer formatting and milestone styling.
 * **Benefits**: Leaves [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) as a lightweight coordination shell (< 1,500 lines) that simply wires together domain modules and schedules the 60 FPS animation frame.
 
+---
+
+## 8. Developer & Diagnostics Mode (Feature Gating)
+
+To maintain a clean, distraction-free interface for standard livestreaming while preserving powerful testing and inspection tools during development, developer features are tagged with the `.dev-only` class:
+* **🧪 Test Race (`#race-sim-badge`)**: Local high-fidelity race simulation test engine.
+* **📜 WS Logs (`#btn-open-ws-logs`)**: Real-time incoming/outgoing WebSocket telemetry stream inspector and JSON payload exporter.
+
+### Methods to Activate Developer Mode
+
+Developer Mode can be activated via any of the following 4 methods:
+
+1. **URL Query Parameter (Recommended for OBS & Testing Links)**:
+   Append `?debug=true` or `?dev=true` (or `?debug=1` / `?dev=1`) to the overlay URL:
+   ```text
+   http://localhost:8080/index.html?debug=true
+   ```
+   *OBS Studio Browser Source Tip*: Open the Browser Source properties in OBS and add `?debug=true` to the URL.
+
+2. **Global Keyboard Hotkey**:
+   Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> (or <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> on macOS) anywhere on the overlay. A HUD toast notification will confirm:
+   `🛠️ Developer Mode: Enabled (Test Race & WS Logs visible)`.
+
+3. **In-App Quick Unlock (Settings Footer Easter Egg)**:
+   Open the Settings menu (<kbd>S</kbd> or click the gear), scroll to the footer, and **click the version label (`#overlay-version`, e.g. `v1.0.3`) 5 times** within 2.5 seconds.
+
+4. **Console Helper**:
+   Open browser Developer Tools (<kbd>F12</kbd>) and execute:
+   ```javascript
+   window.toggleDevMode(); // Toggles between Enabled and Disabled
+   // or explicitly:
+   window.setDevMode(true);  // Enable
+   window.setDevMode(false); // Disable
+   ```
+
+### Implementation Details & Architecture
+* **CSS Visibility Gating**: In [`style.css`](style.css), `.dev-only` elements have `display: none !important;` by default. When active, `body.dev-mode` is added to the DOM and `.dev-only` elements render with `display: flex !important;`.
+* **State Persistence**: The active mode is saved to `safeStorage` under the key `livesplit_dev_mode` (`"true"` / `"false"`), surviving page refreshes.
+* **Layout Symmetry**: In production mode (`body:not(.dev-mode)`), the Live Race Telemetry settings grid automatically reflows so the remaining tiles fill the grid evenly.
