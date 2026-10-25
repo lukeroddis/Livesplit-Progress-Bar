@@ -14,6 +14,8 @@
   "use strict";
 
   const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+  // safeStorage: a splits file too big for the storage quota must still load (in-memory fallback)
+  const { safeStorage } = window.LiveSplit.Storage;
 
   function installSplitsLoader(app) {
     const { state } = app;
@@ -38,11 +40,11 @@
         const category = xml.querySelector("CategoryName")?.textContent?.trim();
         if (game) {
           app.setGameName(game);
-          localStorage.setItem(STORAGE_KEYS.GAME_NAME, game);
+          safeStorage.setItem(STORAGE_KEYS.GAME_NAME, game);
         }
         if (category) {
           app.setCategoryName(category);
-          localStorage.setItem(STORAGE_KEYS.CATEGORY_NAME, category);
+          safeStorage.setItem(STORAGE_KEYS.CATEGORY_NAME, category);
         }
 
         // Pure XML parsing & curve computation is delegated to LiveSplit.SplitEngine
@@ -62,12 +64,12 @@
           // If no GameTime at all (e.g. console speedruns), default to RealTime.
           const hasAnyGameTime = state.comparisonTimesGT.some(t => t !== null && t > 0) || 
                                  state.bestSegmentTimesGT.some(t => t !== null && t > 0);
-          const isManualMethod = (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
+          const isManualMethod = (safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
           if (!isManualMethod) {
             state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
-            localStorage.setItem(STORAGE_KEYS.TIMING_METHOD, state.currentTimingMethod);
+            safeStorage.setItem(STORAGE_KEYS.TIMING_METHOD, state.currentTimingMethod);
           } else {
-            const savedMethod = localStorage.getItem(STORAGE_KEYS.TIMING_METHOD);
+            const savedMethod = safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD);
             if (savedMethod === "RealTime" || savedMethod === "GameTime") {
               state.currentTimingMethod = savedMethod;
             } else {
@@ -78,17 +80,17 @@
           // Cache raw LSS and parsed data
           state.baselineBestSegmentTimesGT = [...state.bestSegmentTimesGT];
           state.baselineBestSegmentTimesRT = [...state.bestSegmentTimesRT];
-          localStorage.setItem(STORAGE_KEYS.BASELINE_GOLDS_GT, JSON.stringify(state.baselineBestSegmentTimesGT));
-          localStorage.setItem(STORAGE_KEYS.BASELINE_GOLDS_RT, JSON.stringify(state.baselineBestSegmentTimesRT));
-          localStorage.setItem(STORAGE_KEYS.RAW_LSS, xmlText);
-          localStorage.setItem(STORAGE_KEYS.SEGMENTS, JSON.stringify(state.splitsList));
-          localStorage.setItem(STORAGE_KEYS.TARGETS_GT, JSON.stringify(state.comparisonTimesGT));
-          localStorage.setItem(STORAGE_KEYS.TARGETS_RT, JSON.stringify(state.comparisonTimesRT));
-          localStorage.setItem(STORAGE_KEYS.GOLDS_GT, JSON.stringify(state.bestSegmentTimesGT));
-          localStorage.setItem(STORAGE_KEYS.GOLDS_RT, JSON.stringify(state.bestSegmentTimesRT));
-          localStorage.setItem(STORAGE_KEYS.COMPARISONS_LIST, JSON.stringify(state.comparisonsList));
-          localStorage.setItem(STORAGE_KEYS.COMPARISONS_GT, JSON.stringify(state.comparisonsDataGT));
-          localStorage.setItem(STORAGE_KEYS.COMPARISONS_RT, JSON.stringify(state.comparisonsDataRT));
+          safeStorage.setItem(STORAGE_KEYS.BASELINE_GOLDS_GT, JSON.stringify(state.baselineBestSegmentTimesGT));
+          safeStorage.setItem(STORAGE_KEYS.BASELINE_GOLDS_RT, JSON.stringify(state.baselineBestSegmentTimesRT));
+          safeStorage.setItem(STORAGE_KEYS.RAW_LSS, xmlText);
+          safeStorage.setItem(STORAGE_KEYS.SEGMENTS, JSON.stringify(state.splitsList));
+          safeStorage.setItem(STORAGE_KEYS.TARGETS_GT, JSON.stringify(state.comparisonTimesGT));
+          safeStorage.setItem(STORAGE_KEYS.TARGETS_RT, JSON.stringify(state.comparisonTimesRT));
+          safeStorage.setItem(STORAGE_KEYS.GOLDS_GT, JSON.stringify(state.bestSegmentTimesGT));
+          safeStorage.setItem(STORAGE_KEYS.GOLDS_RT, JSON.stringify(state.bestSegmentTimesRT));
+          safeStorage.setItem(STORAGE_KEYS.COMPARISONS_LIST, JSON.stringify(state.comparisonsList));
+          safeStorage.setItem(STORAGE_KEYS.COMPARISONS_GT, JSON.stringify(state.comparisonsDataGT));
+          safeStorage.setItem(STORAGE_KEYS.COMPARISONS_RT, JSON.stringify(state.comparisonsDataRT));
 
           app.updateGoldBadge();
           app.applyActiveComparison(state.currentComparison, false, false);
@@ -98,7 +100,7 @@
           app.renderTrack();
           const dropDesc = document.getElementById("dropzone-desc");
           if (dropDesc) {
-            const gName = game || localStorage.getItem(STORAGE_KEYS.GAME_NAME) || "";
+            const gName = game || safeStorage.getItem(STORAGE_KEYS.GAME_NAME) || "";
             dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${state.splitsList.length} splits loaded ✓`;
             dropDesc.style.color = "#38bdf8";
           }
@@ -112,8 +114,8 @@
     }
 
     function loadCachedSplits() {
-      state.cachedEnableGolds = (localStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) !== "false");
-      const savedTimerMode = localStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE);
+      state.cachedEnableGolds = (safeStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) !== "false");
+      const savedTimerMode = safeStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE);
       const params = new URLSearchParams(window.location.search);
       const urlTimer = params.get("timer") || params.get("time");
       if (urlTimer && ["gametime", "realtime", "both"].includes(urlTimer.toLowerCase())) {
@@ -122,8 +124,8 @@
         state.timerDisplayMode = savedTimerMode;
       }
 
-      const isManualMethod = (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
-      const savedMethod = localStorage.getItem(STORAGE_KEYS.TIMING_METHOD);
+      const isManualMethod = (safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
+      const savedMethod = safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD);
       if (isManualMethod && (savedMethod === "RealTime" || savedMethod === "GameTime")) {
         state.currentTimingMethod = savedMethod;
       } else if (state.timerDisplayMode === "gametime") {
@@ -132,33 +134,33 @@
         state.currentTimingMethod = "RealTime";
       }
 
-      const savedComp = localStorage.getItem(STORAGE_KEYS.CURRENT_COMPARISON);
+      const savedComp = safeStorage.getItem(STORAGE_KEYS.CURRENT_COMPARISON);
       if (savedComp) {
         state.currentComparison = savedComp;
       }
 
-      const savedGame = localStorage.getItem(STORAGE_KEYS.GAME_NAME);
-      const savedCategory = localStorage.getItem(STORAGE_KEYS.CATEGORY_NAME);
+      const savedGame = safeStorage.getItem(STORAGE_KEYS.GAME_NAME);
+      const savedCategory = safeStorage.getItem(STORAGE_KEYS.CATEGORY_NAME);
       if (savedGame) app.setGameName(savedGame);
       if (savedCategory) app.setCategoryName(savedCategory);
 
-      const rawLss = localStorage.getItem(STORAGE_KEYS.RAW_LSS);
+      const rawLss = safeStorage.getItem(STORAGE_KEYS.RAW_LSS);
       if (rawLss) {
         parseLSS(rawLss);
         return;
       }
 
-      const cachedSegments = localStorage.getItem(STORAGE_KEYS.SEGMENTS);
+      const cachedSegments = safeStorage.getItem(STORAGE_KEYS.SEGMENTS);
       if (cachedSegments) {
         try {
           state.splitsList = JSON.parse(cachedSegments);
-          state.comparisonTimesGT = JSON.parse(localStorage.getItem(STORAGE_KEYS.TARGETS_GT) || "[]");
-          state.comparisonTimesRT = JSON.parse(localStorage.getItem(STORAGE_KEYS.TARGETS_RT) || "[]");
-          state.bestSegmentTimesGT = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOLDS_GT) || "[]");
-          state.bestSegmentTimesRT = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOLDS_RT) || "[]");
+          state.comparisonTimesGT = JSON.parse(safeStorage.getItem(STORAGE_KEYS.TARGETS_GT) || "[]");
+          state.comparisonTimesRT = JSON.parse(safeStorage.getItem(STORAGE_KEYS.TARGETS_RT) || "[]");
+          state.bestSegmentTimesGT = JSON.parse(safeStorage.getItem(STORAGE_KEYS.GOLDS_GT) || "[]");
+          state.bestSegmentTimesRT = JSON.parse(safeStorage.getItem(STORAGE_KEYS.GOLDS_RT) || "[]");
 
-          const cachedBaseGT = localStorage.getItem(STORAGE_KEYS.BASELINE_GOLDS_GT);
-          const cachedBaseRT = localStorage.getItem(STORAGE_KEYS.BASELINE_GOLDS_RT);
+          const cachedBaseGT = safeStorage.getItem(STORAGE_KEYS.BASELINE_GOLDS_GT);
+          const cachedBaseRT = safeStorage.getItem(STORAGE_KEYS.BASELINE_GOLDS_RT);
           if (cachedBaseGT && cachedBaseRT) {
             state.baselineBestSegmentTimesGT = JSON.parse(cachedBaseGT);
             state.baselineBestSegmentTimesRT = JSON.parse(cachedBaseRT);
@@ -167,11 +169,11 @@
             state.baselineBestSegmentTimesRT = [...state.bestSegmentTimesRT];
           }
 
-          const cachedCompsList = localStorage.getItem(STORAGE_KEYS.COMPARISONS_LIST);
+          const cachedCompsList = safeStorage.getItem(STORAGE_KEYS.COMPARISONS_LIST);
           if (cachedCompsList) state.comparisonsList = JSON.parse(cachedCompsList);
-          const cachedCompsGT = localStorage.getItem(STORAGE_KEYS.COMPARISONS_GT);
+          const cachedCompsGT = safeStorage.getItem(STORAGE_KEYS.COMPARISONS_GT);
           if (cachedCompsGT) state.comparisonsDataGT = JSON.parse(cachedCompsGT);
-          const cachedCompsRT = localStorage.getItem(STORAGE_KEYS.COMPARISONS_RT);
+          const cachedCompsRT = safeStorage.getItem(STORAGE_KEYS.COMPARISONS_RT);
           if (cachedCompsRT) state.comparisonsDataRT = JSON.parse(cachedCompsRT);
 
           if (!state.comparisonsDataGT["Personal Best"]) state.comparisonsDataGT["Personal Best"] = [...state.comparisonTimesGT];
@@ -190,10 +192,10 @@
 
           const hasAnyGameTime = state.comparisonTimesGT.some(t => t !== null && t > 0) || 
                                  state.bestSegmentTimesGT.some(t => t !== null && t > 0);
-          const isManualMethod = (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
+          const isManualMethod = (safeStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
           if (!isManualMethod) {
             state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
-            localStorage.setItem(STORAGE_KEYS.TIMING_METHOD, state.currentTimingMethod);
+            safeStorage.setItem(STORAGE_KEYS.TIMING_METHOD, state.currentTimingMethod);
           }
           app.applyActiveTimingMethod(state.currentTimingMethod);
 
@@ -203,7 +205,7 @@
           app.renderTrack();
           const dropDesc = document.getElementById("dropzone-desc");
           if (dropDesc && state.splitsList.length > 0) {
-            const gName = localStorage.getItem(STORAGE_KEYS.GAME_NAME) || "";
+            const gName = safeStorage.getItem(STORAGE_KEYS.GAME_NAME) || "";
             dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${state.splitsList.length} splits loaded ✓`;
             dropDesc.style.color = "#38bdf8";
           }

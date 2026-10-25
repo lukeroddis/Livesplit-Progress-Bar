@@ -3,6 +3,8 @@ Generates tests/test_runner.html from tests/test_runner.template.html.
 
 - App scripts come from index.html (same order as the real page)
 - Spec files are discovered from tests/unit/**/*.test.js
+- Files in tests/fixtures/ are inlined as window.TestFixtures[<file name>] = <text>
+  (the runner opens from file://, where fetch() cannot read local files)
 
 Adding a module or a spec file therefore needs no runner edits. Run directly to
 refresh the page for manual debugging in a browser:
@@ -10,6 +12,7 @@ refresh the page for manual debugging in a browser:
     python tests/browser/build_runner.py
 """
 
+import json
 import os
 import sys
 
@@ -21,17 +24,33 @@ TEMPLATE_PATH = os.path.join("tests", "test_runner.template.html")
 RUNNER_PATH = os.path.join(ROOT_DIR, "tests", "test_runner.html")
 APP_MARKER = "<!-- @APP_SCRIPTS: generated from index.html -->"
 UNIT_MARKER = "<!-- @UNIT_TESTS: generated from tests/unit/**/*.test.js -->"
+FIXTURES_MARKER = "<!-- @FIXTURES: generated from tests/fixtures/* -->"
+FIXTURES_DIR = os.path.join(ROOT_DIR, "tests", "fixtures")
 
 
 def _script_tags(paths, indent="  "):
     return "\n".join(f'{indent}<script src="{p}"></script>' for p in paths)
 
 
+def _fixtures_script():
+    fixtures = {}
+    if os.path.isdir(FIXTURES_DIR):
+        for name in sorted(os.listdir(FIXTURES_DIR)):
+            path = os.path.join(FIXTURES_DIR, name)
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8-sig") as f:
+                    fixtures[name] = f.read()
+    # "<\/" keeps a fixture containing "</script>" from closing the tag early
+    payload = json.dumps(fixtures, ensure_ascii=False).replace("</", r"<\/")
+    return f"  <script>window.TestFixtures = {payload};</script>"
+
+
 def build_runner(spec_filters=None):
     """Writes tests/test_runner.html (optionally only specs whose path contains a filter) and returns its path."""
     template = read_text(TEMPLATE_PATH).replace("\r\n", "\n")
-    assert APP_MARKER in template and UNIT_MARKER in template, "test runner template is missing a placeholder"
+    assert all(m in template for m in (APP_MARKER, UNIT_MARKER, FIXTURES_MARKER)), "test runner template is missing a placeholder"
     html = template.replace(f"  {APP_MARKER}", _script_tags(f"../{s}" for s in index_scripts()))
+    html = html.replace(f"  {FIXTURES_MARKER}", _fixtures_script())
     specs = unit_test_scripts()
     if spec_filters:
         specs = [s for s in specs if any(f.replace("\\", "/") in s for f in spec_filters)]

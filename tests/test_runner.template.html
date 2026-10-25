@@ -186,6 +186,7 @@
   <script src="harness/mini-test.js"></script>
   <script src="harness/fake-livesplit.js"></script>
   <script src="harness/fake-therun.js"></script>
+  <script src="harness/test-utils.js"></script>
 
   <!-- Error Tracking & Application Scripts -->
   <script>window.__scriptErrors = []; window.addEventListener("error", e => { window.__scriptErrors.push(e.message + " in " + e.filename + ":" + e.lineno); });</script>
@@ -196,6 +197,9 @@
       try { window.initOverlay(); } catch (e) { window.__initOverlayError = e; }
     }
   </script>
+
+  <!-- Test Fixtures (window.TestFixtures) -->
+  <!-- @FIXTURES: generated from tests/fixtures/* -->
 
   <!-- Modular Unit Test Suites -->
   <!-- @UNIT_TESTS: generated from tests/unit/**/*.test.js -->
