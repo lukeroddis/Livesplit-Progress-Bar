@@ -129,18 +129,8 @@ function loadInRunState() {
 }
 
 // High-frequency render loop optimizations & memory caches
-const ALL_DELTA_CLASSES = [
-  "delta-ahead-gaining", "delta-ahead-losing", 
-  "delta-behind-gaining", "delta-behind-losing", 
-  "delta-gold", "delta-uncoloured"
-];
-const ALL_SPLIT_STATE_CLASSES = [
-  "completed", "current", "target-time", 
-  "ahead-gaining", "ahead-losing", 
-  "behind-gaining", "behind-losing", 
-  "gold", "uncoloured", "overdue",
-  ...ALL_DELTA_CLASSES
-];
+const ALL_DELTA_CLASSES = window.LiveSplit.TrackRenderer.ALL_DELTA_CLASSES;
+const ALL_SPLIT_STATE_CLASSES = window.LiveSplit.TrackRenderer.ALL_SPLIT_STATE_CLASSES;
 let cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
 let commandQueue = Promise.resolve();
 
@@ -763,148 +753,33 @@ async function syncLiveSplitMetadata() {
 
 // ============================================================
 // 8. PROGRESS BAR TRACK RENDERER & STATUS DISPATCHER
+//    (DOM building, windowing and scrolling live in src/ui/track-renderer.js)
 // ============================================================
+const getVisibleSplitsCapacity = window.LiveSplit.TrackRenderer.getVisibleSplitsCapacity;
+
 function renderTrack() {
   if (liveElementCache) liveElementCache.invalidate();
   ghostRunner.clearTextThresholdCache();
   const track = document.getElementById("track");
-  track.innerHTML = "";
-
-  // 1. Initial Start Node
-  const startItem = document.createElement("div");
-  startItem.className = "split-item origin-node completed";
-  if (currentIndex >= 0) {
-    startItem.classList.add("active");
-  }
-  startItem.id = "node-start";
-
-  const startDelta = document.createElement("div");
-  startDelta.className = "split-delta";
-  startDelta.innerHTML = `<span class="split-time-val target-time">0:00</span>`;
-
-  const startName = document.createElement("div");
-  startName.className = "split-name";
-  startName.innerText = "Start";
-
-  const startDot = document.createElement("div");
-  startDot.className = "dot";
-
-  startItem.appendChild(startDelta);
-  startItem.appendChild(startName);
-  startItem.appendChild(startDot);
-  track.appendChild(startItem);
-
-  // 2. All Splits
-  splitsList.forEach((name, i) => {
-    const item = document.createElement("div");
-    item.className = "split-item";
-    item.id = `item-${i}`;
-
-    const segBg = document.createElement("div");
-    segBg.className = "segment-bar-bg";
-
-    const segFill = document.createElement("div");
-    segFill.className = "segment-bar-fill";
-    segFill.id = `fill-${i}`;
-    segBg.appendChild(segFill);
-
-    const discEl = document.createElement("div");
-    discEl.className = "discontinuity-break";
-    discEl.title = "Hidden intermediate splits";
-    discEl.innerHTML = `<span class="disc-slash"></span><span class="disc-slash"></span>`;
-    segBg.appendChild(discEl);
-
-    const deltaEl = document.createElement("div");
-    deltaEl.className = "split-delta";
-    deltaEl.id = `delta-${i}`;
-    const targetVal = formatTargetTime(comparisonTimes[i]);
-    deltaEl.innerHTML = `<span class="split-delta-val" id="delta-val-${i}"></span><span class="split-time-val target-time" id="time-val-${i}">${targetVal || "-"}</span>`;
-
-    const nameEl = document.createElement("div");
-    nameEl.className = "split-name";
-    nameEl.innerText = name;
-
-    const dot = document.createElement("div");
-    dot.className = "dot";
-
-    item.appendChild(segBg);
-    item.appendChild(deltaEl);
-    item.appendChild(nameEl);
-    item.appendChild(dot);
-    track.appendChild(item);
-  });
-
-  // Inject or preserve live ghost marker inside #track
-  let ghostMarker = document.getElementById("ghost-marker");
-  if (!ghostMarker) {
-    ghostMarker = document.createElement("div");
-    ghostMarker.className = "ghost-marker";
-    ghostMarker.id = "ghost-marker";
-  }
-  ghostMarker.style.display = "none";
-  ghostMarker.innerHTML = `
-    <div class="ghost-icon-wrap"><span id="ghost-icon">🏆</span></div>
-    <div class="ghost-needle"></div>
-  `;
-  track.appendChild(ghostMarker);
+  const targetLabels = splitsList.map((_, i) => formatTargetTime(comparisonTimes[i]));
+  window.LiveSplit.TrackRenderer.buildTrackDom(track, splitsList, targetLabels, currentIndex >= 0);
   track.style.setProperty("--ghost-opacity", ghostRunner.getGhostOpacity());
 
   updateTrackDensityAndAngle();
   updateTrackStatus(currentIndex);
 }
 
-function getVisibleSplitsCapacity() {
+// Sliding-window mode is on when "Always Show Last Split" is enabled (and not "Fit All")
+function isTrackWindowingEnabled() {
+  const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
   const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
-  if (splitPref !== "auto" && splitPref !== "all") {
-    const num = parseInt(splitPref, 10);
-    if (!isNaN(num) && num > 0) return num;
-  }
-  const viewport = document.getElementById("track-viewport");
-  const track = document.getElementById("track");
-  const trackComp = document.getElementById("hud-comp-track");
-  const isVertical = track?.classList.contains("vertical");
-  const isDockedVertical = isVertical && (trackComp?.classList.contains("docked-left") || trackComp?.classList.contains("docked-right"));
-  const isDockedHorizontal = !isVertical && trackComp?.classList.contains("docked-bottom");
-
-  const viewportW = (isDockedHorizontal && (!viewport || viewport.clientWidth < 500))
-    ? (window.innerWidth || 1920)
-    : (viewport?.clientWidth || window.innerWidth || 1920);
-
-  const viewportH = (isDockedVertical && (!viewport || viewport.clientHeight < 300))
-    ? (window.innerHeight || 1080)
-    : (viewport?.clientHeight || window.innerHeight || 800);
-
-  const pLeft = 24;
-  const pRight = 24;
-  const availW = Math.max(300, viewportW - (pLeft + pRight));
-  return isVertical 
-    ? Math.max(4, Math.floor((viewportH - 40) / 64)) 
-    : Math.max(4, Math.floor(availW / 125));
+  return alwaysShowLast && splitPref !== "all";
 }
 
 function isTrackWindowed() {
   const N = splitsList.length;
-  if (N <= 1) return false;
-  const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
-  const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
-  if (!alwaysShowLast || splitPref === "all") return false;
-
-  const V = getVisibleSplitsCapacity();
-  return (N + 1 > V);
-}
-
-function getDefaultTrackWindowPosition(idx, N, V, W) {
-  const half = Math.floor((W - 1) / 2);
-  const idealStart = idx - half;
-  const maxK = Math.max(0, N - V + 1);
-
-  if (idealStart + (W - 1) >= N - 1) {
-    return maxK;
-  }
-  if (idealStart <= -1) {
-    return 0;
-  }
-  return Math.max(0, Math.min(maxK, idealStart + 1));
+  if (N <= 1 || !isTrackWindowingEnabled()) return false;
+  return (N + 1 > getVisibleSplitsCapacity());
 }
 
 function shiftTrackWindow(direction) {
@@ -913,10 +788,7 @@ function shiftTrackWindow(direction) {
   if (!isTrackWindowed()) return false;
 
   const V = getVisibleSplitsCapacity();
-  const W = Math.max(2, V - 1);
-  const maxK = Math.max(0, N - V + 1);
-  const defaultK = getDefaultTrackWindowPosition(currentIndex, N, V, W);
-  const currentK = Math.max(0, Math.min(maxK, defaultK + trackManualScrollOffset));
+  const { k: currentK, defaultK, maxK } = window.LiveSplit.TrackRenderer.getTrackWindowPosition(currentIndex, N, V, trackManualScrollOffset);
   const newK = Math.max(0, Math.min(maxK, currentK + direction));
 
   if (newK !== currentK) {
@@ -930,116 +802,22 @@ function shiftTrackWindow(direction) {
   return false;
 }
 
+// Applies the sliding window (pinned final split + discontinuity break); returns true when windowed
 function updateTrackWindow(idx) {
   const N = splitsList.length;
-  const nodeStart = document.getElementById("node-start");
-  if (N <= 1) {
-    if (nodeStart) {
-      nodeStart.classList.remove("is-omitted", "first-visible-node");
-    }
-    const item0 = document.getElementById("item-0");
-    if (item0) {
-      item0.classList.remove("is-omitted", "has-discontinuity", "first-visible-node");
-    }
-    return false;
+  const enabled = N > 1 && isTrackWindowingEnabled();
+  const V = enabled ? getVisibleSplitsCapacity() : N + 1;
+  const win = window.LiveSplit.TrackRenderer.calculateTrackWindow(idx, N, V, trackManualScrollOffset, enabled);
+  window.LiveSplit.TrackRenderer.applyTrackWindow(N, win);
+  return win.isWindowed;
+}
+
+function clearDeltaSpan(i) {
+  const deltaSpan = document.getElementById(`delta-val-${i}`);
+  if (deltaSpan) {
+    deltaSpan.innerText = "";
+    deltaSpan.className = "split-delta-val";
   }
-
-  const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
-  const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
-
-  if (!alwaysShowLast || splitPref === "all") {
-    // Show all splits (continuous linear track)
-    if (nodeStart) {
-      nodeStart.classList.remove("is-omitted", "first-visible-node");
-    }
-    for (let i = 0; i < N; i++) {
-      const el = document.getElementById(`item-${i}`);
-      if (el) el.classList.remove("is-omitted", "has-discontinuity", "first-visible-node");
-    }
-    return false;
-  }
-
-  const V = getVisibleSplitsCapacity();
-
-  // If total nodes (Start node + all N splits = N + 1) fit within V capacity:
-  if (N + 1 <= V) {
-    if (nodeStart) {
-      nodeStart.classList.remove("is-omitted", "first-visible-node");
-    }
-    for (let i = 0; i < N; i++) {
-      const el = document.getElementById(`item-${i}`);
-      if (el) el.classList.remove("is-omitted", "has-discontinuity", "first-visible-node");
-    }
-    return false;
-  }
-
-  // N + 1 > V: Pin the final split (N - 1) in the last visible slot.
-  // Sliding portion has W = V - 1 slots.
-  const W = Math.max(2, V - 1);
-  const maxK = Math.max(0, N - V + 1);
-  const defaultK = getDefaultTrackWindowPosition(idx, N, V, W);
-  const k = Math.max(0, Math.min(maxK, defaultK + trackManualScrollOffset));
-
-  let startNodeVisible = false;
-  let windowStart = 0;
-  let windowEnd = 0;
-  let hasDiscontinuity = true;
-
-  if (k === 0) {
-    // Earliest view: Start node is visible in slot 0.
-    // Takes 1 slot, so W - 1 splits are visible in slots 1..(W - 1).
-    startNodeVisible = true;
-    windowStart = 0;
-    windowEnd = Math.max(0, W - 2);
-    hasDiscontinuity = (windowEnd < N - 1);
-  } else if (k >= maxK) {
-    // Finale view: active window encompasses the final split.
-    // Display the last V splits continuously with no discontinuity break!
-    hasDiscontinuity = false;
-    startNodeVisible = false;
-    windowStart = Math.max(0, N - V);
-    windowEnd = N - 1;
-  } else {
-    // Mid-run: Start node is omitted.
-    startNodeVisible = false;
-    windowStart = k - 1;
-    windowEnd = windowStart + (W - 1);
-    hasDiscontinuity = (windowEnd < N - 1);
-  }
-
-  // Update node-start visibility
-  if (nodeStart) {
-    if (startNodeVisible) {
-      nodeStart.classList.remove("is-omitted");
-    } else {
-      nodeStart.classList.add("is-omitted");
-    }
-  }
-
-  // Update splits visibility
-  for (let i = 0; i < N; i++) {
-    const el = document.getElementById(`item-${i}`);
-    if (!el) continue;
-
-    if (i >= windowStart && i <= windowEnd) {
-      el.classList.remove("is-omitted");
-      el.classList.remove("has-discontinuity");
-      el.classList.toggle("first-visible-node", !startNodeVisible && i === windowStart);
-    } else if (i === N - 1) {
-      el.classList.remove("is-omitted");
-      el.classList.remove("first-visible-node");
-      if (hasDiscontinuity) {
-        el.classList.add("has-discontinuity");
-      } else {
-        el.classList.remove("has-discontinuity");
-      }
-    } else {
-      el.classList.add("is-omitted");
-      el.classList.remove("has-discontinuity", "first-visible-node");
-    }
-  }
-
-  return true;
 }
 
 function updateTrackStatus(idx) {
@@ -1053,6 +831,7 @@ function updateTrackStatus(idx) {
   }
 
   const isVertical = document.getElementById("track")?.classList.contains("vertical");
+  const resetSegmentFill = window.LiveSplit.TrackRenderer.resetSegmentFill;
 
   for (let i = 0; i < splitsList.length; i++) {
     const item = document.getElementById(`item-${i}`);
@@ -1061,91 +840,43 @@ function updateTrackStatus(idx) {
 
     item.classList.remove("current");
 
-    if (idx >= 0) {
-      if (i < idx) {
-        item.classList.add("completed");
-        if (lockedDeltas[i]) {
-          const { deltaInfo, stateClass, splitTimeSec } = lockedDeltas[i];
-          setDeltaDisplay(i, deltaInfo, stateClass, splitTimeSec);
-        } else if (fill) {
-          fill.style.width = "100%";
-          fill.style.height = "100%";
-          fill.className = "segment-bar-fill uncoloured";
-          item.classList.add("uncoloured");
-          if (fill.parentElement) fill.parentElement.classList.remove("overdue");
-        }
-      } else if (i === idx) {
-        item.classList.add("current");
-        item.classList.remove("completed");
-        if (!lockedDeltas[i]) {
-          const deltaSpan = document.getElementById(`delta-val-${i}`);
-          if (deltaSpan) {
-            deltaSpan.innerText = "";
-            deltaSpan.className = "split-delta-val";
-          }
-        }
-      } else {
-        item.classList.remove("completed");
-        if (fill) {
-          fill.style.width = isVertical ? "100%" : "0%";
-          fill.style.height = isVertical ? "0%" : "100%";
-          fill.className = "segment-bar-fill";
-          if (fill.parentElement) fill.parentElement.classList.remove("overdue");
-        }
-        const deltaSpan = document.getElementById(`delta-val-${i}`);
-        if (deltaSpan) {
-          deltaSpan.innerText = "";
-          deltaSpan.className = "split-delta-val";
-        }
-      }
-    } else {
+    if (idx < 0) {
+      // Before the run: clear all state and show comparison targets
       item.classList.remove(...ALL_SPLIT_STATE_CLASSES);
-      if (fill) {
-        fill.style.width = isVertical ? "100%" : "0%";
-        fill.style.height = isVertical ? "0%" : "100%";
-        fill.className = "segment-bar-fill";
-        if (fill.parentElement) fill.parentElement.classList.remove("overdue");
-      }
-      const deltaSpan = document.getElementById(`delta-val-${i}`);
+      if (fill) resetSegmentFill(fill, isVertical);
+      clearDeltaSpan(i);
       const timeSpan = document.getElementById(`time-val-${i}`);
-      if (deltaSpan) {
-        deltaSpan.innerText = "";
-        deltaSpan.className = "split-delta-val";
-      }
       if (timeSpan) {
         const targetVal = formatTargetTime(comparisonTimes[i]);
         timeSpan.innerText = targetVal || "-";
         timeSpan.className = "split-time-val target-time";
       }
+    } else if (i < idx) {
+      item.classList.add("completed");
+      if (lockedDeltas[i]) {
+        const { deltaInfo, stateClass, splitTimeSec } = lockedDeltas[i];
+        setDeltaDisplay(i, deltaInfo, stateClass, splitTimeSec);
+      } else if (fill) {
+        fill.style.width = "100%";
+        fill.style.height = "100%";
+        fill.className = "segment-bar-fill uncoloured";
+        item.classList.add("uncoloured");
+        if (fill.parentElement) fill.parentElement.classList.remove("overdue");
+      }
+    } else if (i === idx) {
+      item.classList.add("current");
+      item.classList.remove("completed");
+      if (!lockedDeltas[i]) clearDeltaSpan(i);
+    } else {
+      item.classList.remove("completed");
+      if (fill) resetSegmentFill(fill, isVertical);
+      clearDeltaSpan(i);
     }
   }
 
   // Update sliding window & discontinuity after status classes are updated
   const isWindowed = updateTrackWindow(idx);
-
-  const viewport = document.getElementById("track-viewport");
-  if (viewport && typeof viewport.scrollTo === "function") {
-    if (isWindowed) {
-      viewport.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-    } else if (idx < 0) {
-      if (isVertical) {
-        viewport.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        viewport.scrollTo({ left: 0, behavior: 'smooth' });
-      }
-    } else {
-      const activeItem = document.getElementById(`item-${idx}`);
-      if (activeItem) {
-        if (isVertical) {
-          const scrollTarget = activeItem.offsetTop + (activeItem.offsetHeight / 2) - (viewport.clientHeight / 2);
-          viewport.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-        } else {
-          const scrollTarget = activeItem.offsetLeft + (activeItem.offsetWidth / 2) - (viewport.clientWidth / 2);
-          viewport.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' });
-        }
-      }
-    }
-  }
+  window.LiveSplit.TrackRenderer.scrollTrackToIndex(idx, isWindowed, isVertical);
 }
 
 // ============================================================
@@ -2095,6 +1826,7 @@ window.updateGhostRunner = updateGhostRunner;
 window.updateTrackWindow = updateTrackWindow;
 window.shiftTrackWindow = shiftTrackWindow;
 window.isTrackWindowed = isTrackWindowed;
+window.getVisibleSplitsCapacity = getVisibleSplitsCapacity;
 window.getTrackManualScrollOffset = () => trackManualScrollOffset;
 window.showComparisonToast = showComparisonToast;
 window.isDevMode = isDevModeActive;

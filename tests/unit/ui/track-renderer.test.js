@@ -185,4 +185,31 @@
         assert(!threw, "updateTrackDensityAndAngle runs without error at currentIndex = -1");
       });
     });
+
+    describe("Track Window Math: LiveSplit.TrackRenderer.calculateTrackWindow", () => {
+      const tr = window.LiveSplit.TrackRenderer;
+
+      it("does not window when disabled, when everything fits, or with a single split", () => {
+        assertEqual(tr.calculateTrackWindow(5, 20, 8, 0, false).isWindowed, false);
+        assertEqual(tr.calculateTrackWindow(2, 6, 8, 0, true).isWindowed, false);
+        assertEqual(tr.calculateTrackWindow(0, 1, 2, 0, true).isWindowed, false);
+      });
+
+      it("shows the Start node and a discontinuity at the beginning of a long run", () => {
+        const w = tr.calculateTrackWindow(0, 20, 8, 0, true);
+        assertEqual([w.isWindowed, w.startNodeVisible, w.windowStart, w.windowEnd, w.hasDiscontinuity], [true, true, 0, 5, true]);
+      });
+
+      it("centres the active split mid-run and pins the final split", () => {
+        const w = tr.calculateTrackWindow(10, 20, 8, 0, true);
+        assertEqual([w.startNodeVisible, w.windowStart, w.windowEnd, w.hasDiscontinuity], [false, 7, 13, true]);
+      });
+
+      it("shows the last V splits continuously in the finale and clamps manual offsets", () => {
+        const w = tr.calculateTrackWindow(19, 20, 8, 0, true);
+        assertEqual([w.windowStart, w.windowEnd, w.hasDiscontinuity], [12, 19, false]);
+        const pos = tr.getTrackWindowPosition(10, 20, 8, 99);
+        assertEqual([pos.k, pos.defaultK, pos.maxK], [13, 8, 13]);
+      });
+    });
 })();
