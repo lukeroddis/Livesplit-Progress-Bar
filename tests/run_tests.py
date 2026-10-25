@@ -418,10 +418,12 @@ def test_format_timer_display_unit():
         "overlay.js must implement formatTimerDisplay"
     assert "window.formatTimerDisplay = formatTimerDisplay;" in overlay_src, \
         "overlay.js must export formatTimerDisplay"
-    assert "formatTimerDisplay(igt)" in overlay_src, \
-        "overlay.js must use formatTimerDisplay for Game Time"
-    assert "formatTimerDisplay(rta)" in overlay_src, \
-        "overlay.js must use formatTimerDisplay for Real Time"
+    assert "el.innerText = formatTimerDisplay(raw)" in overlay_src, \
+        "overlay.js pollTimer must use formatTimerDisplay"
+    assert 'pollTimer("getcurrentgametime", "timer-igt")' in overlay_src, \
+        "overlay.js must poll Game Time through pollTimer"
+    assert 'pollTimer("getcurrentrealtime", "timer-rta")' in overlay_src, \
+        "overlay.js must poll Real Time through pollTimer"
 
     print("✓ formatTimerDisplay LiveSplit milestone formatting unit tests passed.")
 
@@ -1596,7 +1598,8 @@ def test_skipped_split_and_incomplete_data_handling():
         "overlay.js must set delta text to '-' when data is incomplete or split is skipped"
 
     # 5. Multiple skipped splits loop
-    assert "for (let s = currentIndex; s < idx - 1; s++)" in overlay_src, \
+    assert "markSkippedSplits(currentIndex, idx - 1)" in overlay_src and \
+        "for (let s = fromIdx; s < toIdxExclusive; s++)" in overlay_src, \
         "overlay.js must mark all skipped intermediate splits as uncoloured when jumping multiple splits"
 
     # 6. Undo split handles skipped splits rollback
@@ -1653,7 +1656,7 @@ def test_in_run_state_persistence():
 
     # 4. Persistence call site integration checks:
     # - saveInRunState called on split completion
-    assert "setDeltaDisplay(prevIdx, displayDelta, stateClass, splitTimeSec);\n          saveInRunState();" in overlay_src, \
+    assert re.search(r"setDeltaDisplay\(prevIdx, displayDelta, stateClass, splitTimeSec\);\s*saveInRunState\(\);", overlay_src), \
         "overlay.js must call saveInRunState() upon recording completed split delta"
 
     # - saveInRunState called on undo split
@@ -2161,6 +2164,17 @@ def test_modular_architecture():
     for mod in expected_modules:
         assert f'src="{mod}"' in html_src, f"index.html must include script tag for {mod}"
         assert f'src="../{mod}"' in runner_src, f"test_runner.html must include script tag for ../{mod}"
+
+    # Every index.html script must load in the same order in the test runner and the Vite build entry
+    html_scripts = re.findall(r'<script\s+src="([^"]+)"', html_src)
+    runner_scripts = [s[3:] for s in re.findall(r'<script\s+src="(\.\./[^"]+)"', runner_src)]
+    with open(os.path.join(ROOT_DIR, "src", "build-entry.js"), "r", encoding="utf-8") as f:
+        entry_scripts = [os.path.normpath(os.path.join("src", p)).replace("\\", "/")
+                         for p in re.findall(r'^import "(\.{1,2}/[^"]+\.js)";', f.read(), re.MULTILINE)]
+    assert runner_scripts == html_scripts, \
+        f"test_runner.html script order must match index.html:\n  html:   {html_scripts}\n  runner: {runner_scripts}"
+    assert entry_scripts == html_scripts, \
+        f"src/build-entry.js import order must match index.html:\n  html:  {html_scripts}\n  entry: {entry_scripts}"
 
     # 2. Verify module namespace exports
     storage_path = os.path.join(ROOT_DIR, "src", "core", "storage.js")
