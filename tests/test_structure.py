@@ -93,29 +93,38 @@ def test_dom_ids_exist_in_index_html(rel_path):
     assert not missing, f"{rel_path} references ids missing from index.html: {missing}"
 
 
-def _object_assign_app_names(src):
-    """Names provided via Object.assign(app, { a, b: c, ... }) blocks."""
+def _registered_names(src, registry):
+    """Names provided via Object.assign(<registry>, { a, b: c, ... }) blocks."""
     names = set()
-    for block in re.findall(r"Object\.assign\(app,\s*\{(.*?)\}\);", src, re.S):
+    for block in re.findall(r"Object\.assign\(" + registry + r",\s*\{(.*?)\}\);", src, re.S):
         for entry in re.findall(r"^\s*(\w+)\s*(?::|,|$)", block, re.M):
             names.add(entry)
     return names
 
 
-def test_app_registry_calls_are_provided():
-    """Every app.<name> a controller uses must be registered by an install*(app) or overlay.js."""
-    provided = {"state"}
+# registry variable -> (file that owns it, regex marking files installed onto it, names seeded at creation)
+REGISTRIES = {
+    "app": ("overlay.js", r"function install\w+\(app\)", {"state"}),
+    "ctx": ("src/core/race-client.js", r"function install\w+\(ctx\)", {"raceState"}),
+}
+
+
+@pytest.mark.parametrize("registry", sorted(REGISTRIES))
+def test_registry_calls_are_provided(registry):
+    """Every <registry>.<name> a controller uses must be registered by an install*(registry) or its owner."""
+    owner, install_re, provided = REGISTRIES[registry]
+    provided = set(provided)
     used = {}
     for rel in index_scripts():
         src = read_text(rel)
-        if "install" not in src and rel != "overlay.js":
+        if rel != owner and not re.search(install_re, src):
             continue
-        provided |= _object_assign_app_names(src)
-        provided |= set(re.findall(r"const \{\s*state,\s*(\w+)\s*\} = app;", src))
-        for name in re.findall(r"(?<![\w$])app\.(\w+)", src):
+        provided |= _registered_names(src, registry)
+        provided |= set(re.findall(r"const \{\s*\w+,\s*(\w+)\s*\} = " + registry + ";", src))
+        for name in re.findall(r"(?<![\w$.])" + registry + r"\.(\w+)", src):
             used.setdefault(name, set()).add(rel)
     missing = {n: sorted(f) for n, f in used.items() if n not in provided}
-    assert not missing, f"app.<name> used but never registered: {missing}"
+    assert not missing, f"{registry}.<name> used but never registered: {missing}"
 
 
 def test_css_classes_toggled_by_js_are_styled():

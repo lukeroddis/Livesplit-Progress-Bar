@@ -12,6 +12,9 @@
 (function () {
   "use strict";
 
+  // Room id the local simulation reports while running (never a real therun.gg code)
+  const SIM_RACE_ID = "sim_cup_2026";
+
   // Preset virtual competitors for realistic simulation mode (9 competitors + 1 host = 10 racers total)
   // Balanced around Host as median pace (P5/P6): 4 faster rivals ahead (-0.5% to -5.0%), 5 rivals behind (+0.8% to +6.5%)
   // Over a 3.5h run, this produces the requested +/- 10 min spread; over a 15m run, it scales adaptively to +/- 45-60s.
@@ -632,7 +635,7 @@
       stopSimulation();
 
       isSimulating = true;
-      setRaceId("sim_cup_2026");
+      setRaceId(SIM_RACE_ID);
 
       const withLobby = !!(opts && opts.withLobby);
       const isProgressive = withLobby && (opts.progressive !== false) && !opts.immediate && !opts.immediateEntrants;
@@ -723,7 +726,7 @@
         tickSimulatedCompetitors(activeHostSec, 0);
       }
 
-      notifyListeners("race_connected", { raceId: "sim_cup_2026", isSimulated: true });
+      notifyListeners("race_connected", { raceId: SIM_RACE_ID, isSimulated: true });
 
       if (withLobby) {
         startSimLobbySequence(isProgressive);
@@ -955,6 +958,7 @@
   // Namespace export
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.RaceSimulation = {
+    SIM_RACE_ID,
     SIMULATED_COMPETITORS,
     createRaceSimulation
   };

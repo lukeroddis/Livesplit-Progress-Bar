@@ -14,11 +14,8 @@
 
   const MUTED_COLOR = "rgba(148, 163, 184, 0.9)";
 
-  function isValidRaceCodeInput(v) {
-    if (!v || typeof v !== "string") return false;
-    const s = v.trim();
-    return s.length >= 2 && s.length <= 24 && /^[a-zA-Z0-9_-]+$/.test(s);
-  }
+  // Same rule the race client enforces before building any request URL
+  const isValidRaceCodeInput = (v) => window.LiveSplit.RaceIdentity.isValidRaceCode(v);
 
   function bindLeaderboardToggle(refreshLeaderboard) {
     const btnToggleLeaderboard = document.getElementById("btn-toggle-leaderboard");

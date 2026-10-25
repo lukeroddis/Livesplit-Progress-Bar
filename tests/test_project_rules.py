@@ -67,6 +67,12 @@ def test_storage_keys_come_from_storage_js():
     offenders = {rel: keys for rel, keys in offenders.items() if keys}
     assert not offenders, f"Use window.LiveSplit.Storage.KEYS instead of raw key strings: {offenders}"
 
+    # Any literal key passed straight to storage (catches keys without the livesplit_ prefix too)
+    literal_calls = {rel: re.findall(r"""(?:localStorage|safeStorage)\.(?:get|set|remove)Item\(\s*(["'`][^"'`]*["'`])""", src)
+                     for rel, src in all_app_js().items() if rel != "src/core/storage.js"}
+    literal_calls = {rel: calls for rel, calls in literal_calls.items() if calls}
+    assert not literal_calls, f"Storage calls with literal keys (add them to STORAGE_KEYS): {literal_calls}"
+
 
 @pytest.mark.parametrize("label, pattern, owner", [
     ("default track style", r"DEFAULT_TRACK_STYLE\s*=\s*(?:Object\.freeze\()?\{", "src/ui/track-style.js"),

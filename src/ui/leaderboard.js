@@ -87,7 +87,7 @@
    * Returns fallback preview entrants for Edit Mode when not in a race.
    */
   function getPreviewEntrants() {
-    const savedName = ((typeof localStorage !== "undefined" && localStorage.getItem("therun_username")) || "").trim();
+    const savedName = ((typeof localStorage !== "undefined" && localStorage.getItem(window.LiveSplit.Storage.KEYS.THERUN_USERNAME)) || "").trim();
     const isUrl = savedName.includes("://") || savedName.includes("/");
     const hostDisplayName = (!isUrl && savedName) ? savedName : "You";
     return [

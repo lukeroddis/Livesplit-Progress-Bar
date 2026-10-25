@@ -32,6 +32,7 @@
     ACTIVE_GHOSTS: "livesplit_active_ghosts",
     GHOST_OPACITY: "livesplit_ghost_opacity",
     RACE_PINS_VISIBLE: "livesplit_race_pins_visible",
+    THERUN_USERNAME: "therun_username",
 
     // Timing & comparison preferences
     TIMER_DISPLAY_MODE: "livesplit_timer_display_mode",
