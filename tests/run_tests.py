@@ -2766,6 +2766,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             has_websockets = False
 
     if not has_websockets:
+        print("ℹ️ Note: Python 'websockets' package not detected; skipping V8 coverage collection. Run 'pip install websockets' to view file-by-file coverage.")
         # Fallback to direct dump-dom execution
         proc = subprocess.run([
             chrome_bin,
