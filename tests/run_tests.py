@@ -45,6 +45,7 @@ def test_file_integrity():
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
         os.path.join("src", "ui", "timer-display.js"),
+        os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
@@ -80,6 +81,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
         os.path.join("src", "ui", "timer-display.js"),
+        os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
@@ -192,6 +194,7 @@ def test_dom_id_consistency():
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "ui", "toast-manager.js"),
         os.path.join("src", "ui", "timer-display.js"),
+        os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]:
@@ -2884,6 +2887,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "ui", "race-track-markers.js"),
             os.path.join("src", "ui", "toast-manager.js"),
             os.path.join("src", "ui", "timer-display.js"),
+            os.path.join("src", "ui", "timer-anchor.js"),
             os.path.join("src", "ui", "game-logo.js"),
             os.path.join("src", "utils", "dom-utils.js")
         ]
@@ -3129,6 +3133,25 @@ def test_game_logo_modularization():
     print("✓ Custom Game Logo Controller modularization passed.")
 
 
+def test_timer_anchor_modularization():
+    """Verify modularization of timer anchor and expansion controller."""
+    anchor_path = os.path.join(ROOT_DIR, "src", "ui", "timer-anchor.js")
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+
+    assert os.path.exists(anchor_path), "src/ui/timer-anchor.js must exist"
+
+    with open(anchor_path, "r", encoding="utf-8") as rf:
+        anchor_code = rf.read()
+    with open(layout_path, "r", encoding="utf-8") as lcf:
+        layout_code = lcf.read()
+
+    assert "window.LiveSplit.TimerAnchor" in anchor_code, "timer-anchor.js must export LiveSplit.TimerAnchor"
+    assert "createTimerAnchor" in anchor_code, "timer-anchor.js must define createTimerAnchor"
+    assert "LiveSplit.TimerAnchor.createTimerAnchor" in layout_code, "layout.js must instantiate TimerAnchor"
+
+    print("✓ Timer Anchor & Expansion Controller modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3179,7 +3202,8 @@ def main():
         test_race_logger_modularization()
         test_layout_profiles_modularization()
         test_game_logo_modularization()
-        run_browser_tests_and_coverage(python_test_count=45)
+        test_timer_anchor_modularization()
+        run_browser_tests_and_coverage(python_test_count=46)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

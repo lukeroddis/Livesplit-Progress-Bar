@@ -800,57 +800,47 @@
     syncTimerAnchorUI();
   }
 
+  let timerAnchorEngine = null;
+  function getTimerAnchorEngine() {
+    if (!timerAnchorEngine && typeof window !== "undefined" && window.LiveSplit && window.LiveSplit.TimerAnchor) {
+      timerAnchorEngine = window.LiveSplit.TimerAnchor.createTimerAnchor({
+        getLayoutState: () => layoutState,
+        getDefaultLayout,
+        saveLayout,
+        applyComponentLayout: (id) => applyComponentLayout(id)
+      });
+    }
+    return timerAnchorEngine;
+  }
+
   function getTimerAnchor() {
-    return (layoutState && layoutState.timers && layoutState.timers.anchor) || localStorage.getItem("livesplit_timer_anchor") || "auto";
+    const e = getTimerAnchorEngine();
+    return e ? e.getAnchor() : ((layoutState && layoutState.timers && layoutState.timers.anchor) || localStorage.getItem("livesplit_timer_anchor") || "auto");
   }
 
   function setTimerAnchor(anchor) {
-    if (anchor !== "auto" && anchor !== "right" && anchor !== "left") return;
-    if (!layoutState.timers) layoutState.timers = getDefaultLayout().timers;
-    layoutState.timers.anchor = anchor;
-    const w = window.innerWidth || 1920;
-    const el = document.getElementById("hud-comp-timers");
-    const compWidth = el ? el.offsetWidth : 300;
-    if (anchor === "right") {
-      layoutState.timers.right = Math.max(0, w - (layoutState.timers.x + compWidth));
-    } else if (anchor === "left") {
-      delete layoutState.timers.right;
+    const e = getTimerAnchorEngine();
+    if (e) {
+      e.setAnchor(anchor);
+    } else {
+      if (anchor !== "auto" && anchor !== "right" && anchor !== "left") return;
+      if (!layoutState.timers) layoutState.timers = getDefaultLayout().timers;
+      layoutState.timers.anchor = anchor;
+      localStorage.setItem("livesplit_timer_anchor", anchor);
+      applyComponentLayout("timers");
+      saveLayout();
+      syncTimerAnchorUI();
     }
-    localStorage.setItem("livesplit_timer_anchor", anchor);
-    applyComponentLayout("timers");
-    saveLayout();
-    syncTimerAnchorUI();
   }
 
   function cycleTimerAnchor() {
-    const cur = getTimerAnchor();
-    const next = (cur === "auto") ? "right" : (cur === "right" ? "left" : "auto");
-    setTimerAnchor(next);
+    const e = getTimerAnchorEngine();
+    if (e) e.cycleAnchor();
   }
 
   function syncTimerAnchorUI() {
-    const cur = getTimerAnchor();
-    document.querySelectorAll("#ctrl-timer-expansion .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-val") === cur);
-    });
-    const badge = document.getElementById("badge-anchor-timers");
-    if (badge) {
-      if (cur === "right") {
-        badge.innerText = "⇤ Exp Left";
-        badge.title = "Timer Expansion: Forced Expand Left (anchored to right edge). Click to cycle.";
-      } else if (cur === "left") {
-        badge.innerText = "⇥ Exp Right";
-        badge.title = "Timer Expansion: Forced Expand Right (anchored to left edge). Click to cycle.";
-      } else {
-        const w = window.innerWidth || 1920;
-        const x = (layoutState && layoutState.timers && layoutState.timers.x) || 0;
-        const el = document.getElementById("hud-comp-timers");
-        const compWidth = el ? el.offsetWidth : 300;
-        const isRight = (x + compWidth / 2) > (w / 2);
-        badge.innerText = isRight ? "⇤ Auto (L)" : "⇥ Auto (R)";
-        badge.title = `Timer Expansion: Auto (${isRight ? "expanding left" : "expanding right"}). Click to cycle.`;
-      }
-    }
+    const e = getTimerAnchorEngine();
+    if (e) e.syncUI();
   }
 
   function openTrackModal() {
@@ -1740,19 +1730,11 @@
       });
     });
 
-    // Timer Expansion & Alignment segmented control listener
-    document.querySelectorAll("#ctrl-timer-expansion .seg-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const val = btn.getAttribute("data-val");
-        if (val) setTimerAnchor(val);
-      });
-    });
-
-    // Header badge click in edit mode to cycle anchor
-    document.getElementById("badge-anchor-timers")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      cycleTimerAnchor();
-    });
+    // Timer Expansion & Alignment controller listeners
+    const anchorEngine = getTimerAnchorEngine();
+    if (anchorEngine) {
+      anchorEngine.bindEvents();
+    }
 
     // Ghost Runner dropdown listener
     document.getElementById("select-ghost-comparison")?.addEventListener("change", (e) => {
