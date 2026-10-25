@@ -17,52 +17,31 @@ const DEFAULT_SPLITS = [
 const DEFAULT_TARGETS = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300];
 const DEFAULT_BESTS = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30];
 
-let splitsList = [];
-let comparisonTimes = [];
-let bestSegmentTimes = [];
-let comparisonTimesGT = [];
-let comparisonTimesRT = [];
-let bestSegmentTimesGT = [];
-let bestSegmentTimesRT = [];
-let baselineBestSegmentTimesGT = [];
-let baselineBestSegmentTimesRT = [];
-let comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
-let currentComparison = "Personal Best";
-let comparisonsDataGT = {};
-let comparisonsDataRT = {};
-let completedSplitTimes = {};
-let completedSplitTimesRT = {};
-let completedSplitTimesGT = {};
-let currentTimingMethod = "GameTime";
-let timerDisplayMode = "both"; // 'gametime' | 'realtime' | 'both'
-let lockedDeltas = {}; 
+// Run & comparison state shared with the extracted controllers (src/core/overlay-state.js)
+const state = window.LiveSplit.OverlayState.createOverlayState();
+
 let ws = null;
-let currentIndex = -1;
 let isPolling = false;
 let inflightResolver = null;
-let lastSplitRecordedSec = 0;
-let previousDeltaSeconds = 0;
-let lastElapsedSec = 0;
-let trackManualScrollOffset = 0;
 
 const IN_RUN_STATE_KEY = "livesplit_in_run_state";
 
 function saveInRunState() {
   try {
-    const state = {
-      currentIndex,
-      lockedDeltas,
-      completedSplitTimes,
-      completedSplitTimesRT,
-      completedSplitTimesGT,
-      lastSplitRecordedSec,
-      previousDeltaSeconds,
-      lastElapsedSec,
-      splitsCount: splitsList.length,
+    const snapshot = {
+      currentIndex: state.currentIndex,
+      lockedDeltas: state.lockedDeltas,
+      completedSplitTimes: state.completedSplitTimes,
+      completedSplitTimesRT: state.completedSplitTimesRT,
+      completedSplitTimesGT: state.completedSplitTimesGT,
+      lastSplitRecordedSec: state.lastSplitRecordedSec,
+      previousDeltaSeconds: state.previousDeltaSeconds,
+      lastElapsedSec: state.lastElapsedSec,
+      splitsCount: state.splitsList.length,
       game: localStorage.getItem("livesplit_game") || "",
       category: localStorage.getItem("livesplit_category") || ""
     };
-    localStorage.setItem(IN_RUN_STATE_KEY, JSON.stringify(state));
+    localStorage.setItem(IN_RUN_STATE_KEY, JSON.stringify(snapshot));
   } catch (e) {
     console.warn("Failed to persist in-run state to localStorage:", e);
   }
@@ -70,7 +49,7 @@ function saveInRunState() {
 
 function clearInRunState() {
   try {
-    trackManualScrollOffset = 0;
+    state.trackManualScrollOffset = 0;
     localStorage.removeItem(IN_RUN_STATE_KEY);
     const rtaEl = document.getElementById("timer-rta");
     const igtEl = document.getElementById("timer-igt");
@@ -87,7 +66,7 @@ function loadInRunState() {
     if (!raw) return false;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === "object") {
-      if (typeof parsed.splitsCount === "number" && splitsList.length > 0 && parsed.splitsCount !== splitsList.length) {
+      if (typeof parsed.splitsCount === "number" && state.splitsList.length > 0 && parsed.splitsCount !== state.splitsList.length) {
         clearInRunState();
         return false;
       }
@@ -101,24 +80,24 @@ function loadInRunState() {
         clearInRunState();
         return false;
       }
-      lockedDeltas = parsed.lockedDeltas || {};
-      completedSplitTimes = parsed.completedSplitTimes || {};
-      completedSplitTimesRT = parsed.completedSplitTimesRT || {};
-      completedSplitTimesGT = parsed.completedSplitTimesGT || {};
-      lastSplitRecordedSec = Number(parsed.lastSplitRecordedSec) || 0;
-      previousDeltaSeconds = Number(parsed.previousDeltaSeconds) || 0;
+      state.lockedDeltas = parsed.lockedDeltas || {};
+      state.completedSplitTimes = parsed.completedSplitTimes || {};
+      state.completedSplitTimesRT = parsed.completedSplitTimesRT || {};
+      state.completedSplitTimesGT = parsed.completedSplitTimesGT || {};
+      state.lastSplitRecordedSec = Number(parsed.lastSplitRecordedSec) || 0;
+      state.previousDeltaSeconds = Number(parsed.previousDeltaSeconds) || 0;
       if (typeof parsed.lastElapsedSec === "number") {
-        lastElapsedSec = parsed.lastElapsedSec;
-        if (lastElapsedSec > 0) {
+        state.lastElapsedSec = parsed.lastElapsedSec;
+        if (state.lastElapsedSec > 0) {
           const rtaEl = document.getElementById("timer-rta");
           const igtEl = document.getElementById("timer-igt");
-          const disp = formatTimerDisplay(lastElapsedSec);
+          const disp = formatTimerDisplay(state.lastElapsedSec);
           if (rtaEl) rtaEl.innerText = disp;
           if (igtEl) igtEl.innerText = disp;
         }
       }
       if (typeof parsed.currentIndex === "number") {
-        currentIndex = parsed.currentIndex;
+        state.currentIndex = parsed.currentIndex;
       }
       return true;
     }
@@ -131,7 +110,6 @@ function loadInRunState() {
 // High-frequency render loop optimizations & memory caches
 const ALL_DELTA_CLASSES = window.LiveSplit.TrackRenderer.ALL_DELTA_CLASSES;
 const ALL_SPLIT_STATE_CLASSES = window.LiveSplit.TrackRenderer.ALL_SPLIT_STATE_CLASSES;
-let cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
 let commandQueue = Promise.resolve();
 
 // ============================================================
@@ -167,11 +145,11 @@ function updatePageTitle() {
 }
 
 function updateTimingMethodBadge() {
-  return window.LiveSplit.TimerDisplay.updateTimingMethodBadge(timerDisplayMode, currentTimingMethod);
+  return window.LiveSplit.TimerDisplay.updateTimingMethodBadge(state.timerDisplayMode, state.currentTimingMethod);
 }
 
 function updateTimerDisplayHierarchy() {
-  return window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy(timerDisplayMode, currentTimingMethod);
+  return window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy(state.timerDisplayMode, state.currentTimingMethod);
 }
 
 // ============================================================
@@ -182,55 +160,55 @@ function getShortComparisonName(name) {
 }
 
 function normalizeComparisonName(raw) {
-  return window.LiveSplit.SplitEngine.normalizeComparisonName(raw, comparisonsList);
+  return window.LiveSplit.SplitEngine.normalizeComparisonName(raw, state.comparisonsList);
 }
 
 function initDefaultComparisons() {
-  comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
-  comparisonsDataGT["Personal Best"] = [...DEFAULT_TARGETS];
-  comparisonsDataRT["Personal Best"] = [...DEFAULT_TARGETS];
+  state.comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+  state.comparisonsDataGT["Personal Best"] = [...DEFAULT_TARGETS];
+  state.comparisonsDataRT["Personal Best"] = [...DEFAULT_TARGETS];
 
   let sumBest = 0;
-  comparisonsDataGT["Best Segments"] = DEFAULT_BESTS.map(b => (sumBest += b));
-  comparisonsDataRT["Best Segments"] = [...comparisonsDataGT["Best Segments"]];
+  state.comparisonsDataGT["Best Segments"] = DEFAULT_BESTS.map(b => (sumBest += b));
+  state.comparisonsDataRT["Best Segments"] = [...state.comparisonsDataGT["Best Segments"]];
 
-  comparisonsDataGT["Average Segments"] = DEFAULT_TARGETS.map(t => Math.round(t * 1.08));
-  comparisonsDataRT["Average Segments"] = [...comparisonsDataGT["Average Segments"]];
+  state.comparisonsDataGT["Average Segments"] = DEFAULT_TARGETS.map(t => Math.round(t * 1.08));
+  state.comparisonsDataRT["Average Segments"] = [...state.comparisonsDataGT["Average Segments"]];
 
-  comparisonsDataGT["Worst Segments"] = DEFAULT_TARGETS.map(t => Math.round(t * 1.25));
-  comparisonsDataRT["Worst Segments"] = [...comparisonsDataGT["Worst Segments"]];
+  state.comparisonsDataGT["Worst Segments"] = DEFAULT_TARGETS.map(t => Math.round(t * 1.25));
+  state.comparisonsDataRT["Worst Segments"] = [...state.comparisonsDataGT["Worst Segments"]];
 }
 
 function applyActiveTimingMethod(method) {
   if (method && (method === "GameTime" || method === "RealTime")) {
-    currentTimingMethod = method;
+    state.currentTimingMethod = method;
   }
   updateTimingMethodBadge();
   updateTimerDisplayHierarchy();
 
-  const isRT = currentTimingMethod === "RealTime";
+  const isRT = state.currentTimingMethod === "RealTime";
   const activeTargets = isRT 
-    ? (comparisonsDataRT[currentComparison] || comparisonTimesRT)
-    : (comparisonsDataGT[currentComparison] || comparisonTimesGT);
+    ? (state.comparisonsDataRT[state.currentComparison] || state.comparisonTimesRT)
+    : (state.comparisonsDataGT[state.currentComparison] || state.comparisonTimesGT);
   const fallbackTargets = isRT
-    ? (comparisonsDataGT[currentComparison] || comparisonTimesGT)
-    : (comparisonsDataRT[currentComparison] || comparisonTimesRT);
+    ? (state.comparisonsDataGT[state.currentComparison] || state.comparisonTimesGT)
+    : (state.comparisonsDataRT[state.currentComparison] || state.comparisonTimesRT);
 
-  comparisonTimes = splitsList.map((_, i) => {
+  state.comparisonTimes = state.splitsList.map((_, i) => {
     return activeTargets[i] ?? fallbackTargets[i] ?? null;
   });
 
-  bestSegmentTimes = splitsList.map((_, i) => {
+  state.bestSegmentTimes = state.splitsList.map((_, i) => {
     return isRT
-      ? (bestSegmentTimesRT[i] ?? bestSegmentTimesGT[i] ?? null)
-      : (bestSegmentTimesGT[i] ?? bestSegmentTimesRT[i] ?? null);
+      ? (state.bestSegmentTimesRT[i] ?? state.bestSegmentTimesGT[i] ?? null)
+      : (state.bestSegmentTimesGT[i] ?? state.bestSegmentTimesRT[i] ?? null);
   });
 
-  for (let i = 0; i < splitsList.length; i++) {
-    if (!lockedDeltas[i]) {
+  for (let i = 0; i < state.splitsList.length; i++) {
+    if (!state.lockedDeltas[i]) {
       const timeSpan = document.getElementById(`time-val-${i}`);
       if (timeSpan) {
-        const targetVal = formatTargetTime(comparisonTimes[i]);
+        const targetVal = formatTargetTime(state.comparisonTimes[i]);
         timeSpan.innerText = targetVal || "-";
       }
     }
@@ -238,44 +216,44 @@ function applyActiveTimingMethod(method) {
 
   const rc = getRaceClient();
   if (rc && typeof rc.setTimingMethod === "function") {
-    rc.setTimingMethod(currentTimingMethod);
+    rc.setTimingMethod(state.currentTimingMethod);
   }
 }
 
 function applyActiveComparison(compName, updateLiveSplit = false, showToast = true) {
   const norm = normalizeComparisonName(compName) || "Personal Best";
-  currentComparison = norm;
-  localStorage.setItem("livesplit_current_comparison", currentComparison);
+  state.currentComparison = norm;
+  localStorage.setItem("livesplit_current_comparison", state.currentComparison);
 
-  const isRT = currentTimingMethod === "RealTime";
+  const isRT = state.currentTimingMethod === "RealTime";
   const activeTargets = isRT 
-    ? (comparisonsDataRT[currentComparison] || comparisonTimesRT)
-    : (comparisonsDataGT[currentComparison] || comparisonTimesGT);
+    ? (state.comparisonsDataRT[state.currentComparison] || state.comparisonTimesRT)
+    : (state.comparisonsDataGT[state.currentComparison] || state.comparisonTimesGT);
   const fallbackTargets = isRT
-    ? (comparisonsDataGT[currentComparison] || comparisonTimesGT)
-    : (comparisonsDataRT[currentComparison] || comparisonTimesRT);
+    ? (state.comparisonsDataGT[state.currentComparison] || state.comparisonTimesGT)
+    : (state.comparisonsDataRT[state.currentComparison] || state.comparisonTimesRT);
 
-  comparisonTimes = splitsList.map((_, i) => {
+  state.comparisonTimes = state.splitsList.map((_, i) => {
     return activeTargets[i] ?? fallbackTargets[i] ?? null;
   });
 
   const badge = document.getElementById("comparison-badge");
   if (badge) {
-    badge.innerText = `Comp: ${getShortComparisonName(currentComparison)}`;
+    badge.innerText = `Comp: ${getShortComparisonName(state.currentComparison)}`;
   }
 
   const selComp = document.getElementById("select-active-comparison");
-  if (selComp && selComp.value !== currentComparison) {
-    selComp.value = currentComparison;
+  if (selComp && selComp.value !== state.currentComparison) {
+    selComp.value = state.currentComparison;
   }
 
   let prevDiff = 0;
-  for (let i = 0; i < splitsList.length; i++) {
-    const splitTimeSec = completedSplitTimes[i] ?? lockedDeltas[i]?.splitTimeSec;
+  for (let i = 0; i < state.splitsList.length; i++) {
+    const splitTimeSec = state.completedSplitTimes[i] ?? state.lockedDeltas[i]?.splitTimeSec;
     if (splitTimeSec !== null && splitTimeSec !== undefined && !isNaN(splitTimeSec) && splitTimeSec > 0) {
       // Completed split: recalculate delta and segment status against newly active comparison
-      const targetSec = (i < comparisonTimes.length && comparisonTimes[i] !== null && comparisonTimes[i] > 0)
-        ? comparisonTimes[i]
+      const targetSec = (i < state.comparisonTimes.length && state.comparisonTimes[i] !== null && state.comparisonTimes[i] > 0)
+        ? state.comparisonTimes[i]
         : null;
 
       if (targetSec !== null) {
@@ -283,7 +261,7 @@ function applyActiveComparison(compName, updateLiveSplit = false, showToast = tr
         const deltaChange = diff - prevDiff;
         const gainedTime = deltaChange <= 0.001;
         const isAhead = diff <= 0;
-        const isGold = (lockedDeltas[i]?.stateClass === "gold");
+        const isGold = (state.lockedDeltas[i]?.stateClass === "gold");
 
         let stateClass = "uncoloured";
         if (isGold) {
@@ -296,15 +274,15 @@ function applyActiveComparison(compName, updateLiveSplit = false, showToast = tr
         prevDiff = diff;
 
         const displayDelta = { text: formatDeltaSeconds(diff), isAhead, signedSeconds: diff };
-        lockedDeltas[i] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
+        state.lockedDeltas[i] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
         setDeltaDisplay(i, displayDelta, stateClass, splitTimeSec);
       } else {
         const displayDelta = { text: "-", isAhead: false, signedSeconds: 0 };
         const stateClass = "uncoloured";
-        lockedDeltas[i] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
+        state.lockedDeltas[i] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
         setDeltaDisplay(i, displayDelta, stateClass, splitTimeSec);
       }
-    } else if (lockedDeltas[i]?.stateClass === "uncoloured" && (completedSplitTimes[i] === null || completedSplitTimes[i] === undefined)) {
+    } else if (state.lockedDeltas[i]?.stateClass === "uncoloured" && (state.completedSplitTimes[i] === null || state.completedSplitTimes[i] === undefined)) {
       // Skipped split: retain uncoloured placeholder
       const skipDelta = { text: "-", isAhead: false, signedSeconds: 0 };
       setDeltaDisplay(i, skipDelta, "uncoloured", null);
@@ -312,7 +290,7 @@ function applyActiveComparison(compName, updateLiveSplit = false, showToast = tr
       // Upcoming split: update target comparison time
       const timeSpan = document.getElementById(`time-val-${i}`);
       if (timeSpan) {
-        const targetVal = formatTargetTime(comparisonTimes[i]);
+        const targetVal = formatTargetTime(state.comparisonTimes[i]);
         timeSpan.innerText = targetVal || "-";
         timeSpan.className = "split-time-val target-time";
       }
@@ -324,20 +302,20 @@ function applyActiveComparison(compName, updateLiveSplit = false, showToast = tr
     }
   }
 
-  if (currentIndex >= 0 && currentIndex < splitsList.length) {
-    previousDeltaSeconds = prevDiff;
+  if (state.currentIndex >= 0 && state.currentIndex < state.splitsList.length) {
+    state.previousDeltaSeconds = prevDiff;
   }
 
-  if (currentIndex >= 0) {
+  if (state.currentIndex >= 0) {
     saveInRunState();
   }
 
   if (updateLiveSplit && ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(`setcomparison ${currentComparison}`);
+    ws.send(`setcomparison ${state.currentComparison}`);
   }
 
   if (showToast) {
-    showComparisonToast(currentComparison);
+    showComparisonToast(state.currentComparison);
   }
 }
 
@@ -346,12 +324,12 @@ function showComparisonToast(compName) {
 }
 
 function cycleComparison(reverse = false) {
-  if (comparisonsList.length === 0) return;
-  const currentIdx = comparisonsList.indexOf(currentComparison);
+  if (state.comparisonsList.length === 0) return;
+  const currentIdx = state.comparisonsList.indexOf(state.currentComparison);
   const nextIdx = reverse
-    ? (currentIdx - 1 + comparisonsList.length) % comparisonsList.length
-    : (currentIdx + 1) % comparisonsList.length;
-  const nextComp = comparisonsList[nextIdx];
+    ? (currentIdx - 1 + state.comparisonsList.length) % state.comparisonsList.length
+    : (currentIdx + 1) % state.comparisonsList.length;
+  const nextComp = state.comparisonsList[nextIdx];
   applyActiveComparison(nextComp, true);
 }
 
@@ -394,13 +372,13 @@ function parseLSS(xmlText, isNewDrop = false) {
   try {
     if (isNewDrop) {
       clearInRunState();
-      currentIndex = -1;
-      lockedDeltas = {};
-      completedSplitTimes = {};
-      completedSplitTimesRT = {};
-      lastSplitRecordedSec = 0;
-      previousDeltaSeconds = 0;
-      lastElapsedSec = 0;
+      state.currentIndex = -1;
+      state.lockedDeltas = {};
+      state.completedSplitTimes = {};
+      state.completedSplitTimesRT = {};
+      state.lastSplitRecordedSec = 0;
+      state.previousDeltaSeconds = 0;
+      state.lastElapsedSec = 0;
     }
 
     const parser = new DOMParser();
@@ -420,50 +398,50 @@ function parseLSS(xmlText, isNewDrop = false) {
     // Pure XML parsing & curve computation is delegated to LiveSplit.SplitEngine
     const parsed = window.LiveSplit.SplitEngine.parseLssXml(xmlText);
     if (parsed) {
-      splitsList = parsed.splitsList;
-      comparisonTimesGT = parsed.comparisonTimesGT;
-      comparisonTimesRT = parsed.comparisonTimesRT;
-      bestSegmentTimesGT = parsed.bestSegmentTimesGT;
-      bestSegmentTimesRT = parsed.bestSegmentTimesRT;
-      comparisonsDataGT = parsed.comparisonsDataGT;
-      comparisonsDataRT = parsed.comparisonsDataRT;
-      comparisonsList = parsed.comparisonsList;
+      state.splitsList = parsed.splitsList;
+      state.comparisonTimesGT = parsed.comparisonTimesGT;
+      state.comparisonTimesRT = parsed.comparisonTimesRT;
+      state.bestSegmentTimesGT = parsed.bestSegmentTimesGT;
+      state.bestSegmentTimesRT = parsed.bestSegmentTimesRT;
+      state.comparisonsDataGT = parsed.comparisonsDataGT;
+      state.comparisonsDataRT = parsed.comparisonsDataRT;
+      state.comparisonsList = parsed.comparisonsList;
 
       // Auto-detect timing method from the splits file:
       // If splits have GameTime recorded (e.g. PC speedruns with load remover), default to GameTime.
       // If no GameTime at all (e.g. console speedruns), default to RealTime.
-      const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
-                             bestSegmentTimesGT.some(t => t !== null && t > 0);
+      const hasAnyGameTime = state.comparisonTimesGT.some(t => t !== null && t > 0) || 
+                             state.bestSegmentTimesGT.some(t => t !== null && t > 0);
       const isManualMethod = (localStorage.getItem("livesplit_timing_method_manual") === "true");
       if (!isManualMethod) {
-        currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
-        localStorage.setItem("livesplit_timing_method", currentTimingMethod);
+        state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+        localStorage.setItem("livesplit_timing_method", state.currentTimingMethod);
       } else {
         const savedMethod = localStorage.getItem("livesplit_timing_method");
         if (savedMethod === "RealTime" || savedMethod === "GameTime") {
-          currentTimingMethod = savedMethod;
+          state.currentTimingMethod = savedMethod;
         } else {
-          currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+          state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
         }
       }
 
       // Cache raw LSS and parsed data
-      baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
-      baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
-      localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(baselineBestSegmentTimesGT));
-      localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(baselineBestSegmentTimesRT));
+      state.baselineBestSegmentTimesGT = [...state.bestSegmentTimesGT];
+      state.baselineBestSegmentTimesRT = [...state.bestSegmentTimesRT];
+      localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(state.baselineBestSegmentTimesGT));
+      localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(state.baselineBestSegmentTimesRT));
       localStorage.setItem("livesplit_raw_lss", xmlText);
-      localStorage.setItem("livesplit_segments", JSON.stringify(splitsList));
-      localStorage.setItem("livesplit_targets_gt", JSON.stringify(comparisonTimesGT));
-      localStorage.setItem("livesplit_targets_rt", JSON.stringify(comparisonTimesRT));
-      localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
-      localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
-      localStorage.setItem("livesplit_comparisons_list", JSON.stringify(comparisonsList));
-      localStorage.setItem("livesplit_comparisons_gt", JSON.stringify(comparisonsDataGT));
-      localStorage.setItem("livesplit_comparisons_rt", JSON.stringify(comparisonsDataRT));
+      localStorage.setItem("livesplit_segments", JSON.stringify(state.splitsList));
+      localStorage.setItem("livesplit_targets_gt", JSON.stringify(state.comparisonTimesGT));
+      localStorage.setItem("livesplit_targets_rt", JSON.stringify(state.comparisonTimesRT));
+      localStorage.setItem("livesplit_golds_gt", JSON.stringify(state.bestSegmentTimesGT));
+      localStorage.setItem("livesplit_golds_rt", JSON.stringify(state.bestSegmentTimesRT));
+      localStorage.setItem("livesplit_comparisons_list", JSON.stringify(state.comparisonsList));
+      localStorage.setItem("livesplit_comparisons_gt", JSON.stringify(state.comparisonsDataGT));
+      localStorage.setItem("livesplit_comparisons_rt", JSON.stringify(state.comparisonsDataRT));
 
       updateGoldBadge();
-      applyActiveComparison(currentComparison, false, false);
+      applyActiveComparison(state.currentComparison, false, false);
       if (!isNewDrop) {
         loadInRunState();
       }
@@ -471,7 +449,7 @@ function parseLSS(xmlText, isNewDrop = false) {
       const dropDesc = document.getElementById("dropzone-desc");
       if (dropDesc) {
         const gName = game || localStorage.getItem("livesplit_game") || "";
-        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${splitsList.length} splits loaded ✓`;
+        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${state.splitsList.length} splits loaded ✓`;
         dropDesc.style.color = "#38bdf8";
       }
       if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
@@ -489,7 +467,7 @@ function parseLSS(xmlText, isNewDrop = false) {
 function updateGoldBadge() {
   const badge = document.getElementById("gold-toggle-badge");
   if (badge) {
-    const isEnabled = cachedEnableGolds;
+    const isEnabled = state.cachedEnableGolds;
     badge.innerText = isEnabled ? "Golds: ON" : "Golds: OFF";
     badge.style.color = isEnabled ? "#facc15" : "rgba(148, 163, 184, 0.7)";
   }
@@ -499,7 +477,7 @@ function toggleGoldSegments() {
   const current = (localStorage.getItem("livesplit_enable_golds") !== "false");
   const nextVal = (!current) ? "true" : "false";
   localStorage.setItem("livesplit_enable_golds", nextVal);
-  cachedEnableGolds = (nextVal !== "false");
+  state.cachedEnableGolds = (nextVal !== "false");
   updateGoldBadge();
 }
 
@@ -507,37 +485,37 @@ function setTimerDisplayMode(mode, focusMethod) {
   if (mode !== "gametime" && mode !== "realtime" && mode !== "both") {
     mode = "both";
   }
-  timerDisplayMode = mode;
+  state.timerDisplayMode = mode;
   localStorage.setItem("livesplit_timer_display_mode", mode);
   localStorage.setItem("livesplit_timing_method_manual", "true");
 
   if (focusMethod === "GameTime" || focusMethod === "RealTime") {
-    currentTimingMethod = focusMethod;
+    state.currentTimingMethod = focusMethod;
     localStorage.setItem("livesplit_timing_method", focusMethod);
   } else if (mode === "gametime") {
-    currentTimingMethod = "GameTime";
+    state.currentTimingMethod = "GameTime";
     localStorage.setItem("livesplit_timing_method", "GameTime");
   } else if (mode === "realtime") {
-    currentTimingMethod = "RealTime";
+    state.currentTimingMethod = "RealTime";
     localStorage.setItem("livesplit_timing_method", "RealTime");
   } else {
     // mode === "both" without explicit focus: preserve active or saved method
     const savedMethod = localStorage.getItem("livesplit_timing_method");
     if (savedMethod === "GameTime" || savedMethod === "RealTime") {
-      currentTimingMethod = savedMethod;
+      state.currentTimingMethod = savedMethod;
     }
   }
 
-  applyActiveTimingMethod(currentTimingMethod);
+  applyActiveTimingMethod(state.currentTimingMethod);
   updateTimerDisplayHierarchy();
   updateTimingMethodBadge();
 
   // Sync modal segmented controls if open
-  window.LiveSplit.TimerDisplay.syncModalControls(mode, currentTimingMethod);
+  window.LiveSplit.TimerDisplay.syncModalControls(mode, state.currentTimingMethod);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
-    if (currentTimingMethod === "GameTime") ws.send("switchto gametime");
-    else if (currentTimingMethod === "RealTime") ws.send("switchto realtime");
+    if (state.currentTimingMethod === "GameTime") ws.send("switchto gametime");
+    else if (state.currentTimingMethod === "RealTime") ws.send("switchto realtime");
   }
 }
 
@@ -545,23 +523,23 @@ function setTimingMethodFocus(method) {
   if (method !== "GameTime" && method !== "RealTime") return;
   localStorage.setItem("livesplit_timing_method_manual", "true");
   localStorage.setItem("livesplit_timing_method", method);
-  currentTimingMethod = method;
+  state.currentTimingMethod = method;
 
   // If a single timer is active and user chooses opposite method, expand to both
-  if (timerDisplayMode === "gametime" && method === "RealTime") {
-    timerDisplayMode = "both";
+  if (state.timerDisplayMode === "gametime" && method === "RealTime") {
+    state.timerDisplayMode = "both";
     localStorage.setItem("livesplit_timer_display_mode", "both");
-  } else if (timerDisplayMode === "realtime" && method === "GameTime") {
-    timerDisplayMode = "both";
+  } else if (state.timerDisplayMode === "realtime" && method === "GameTime") {
+    state.timerDisplayMode = "both";
     localStorage.setItem("livesplit_timer_display_mode", "both");
   }
 
-  applyActiveTimingMethod(currentTimingMethod);
+  applyActiveTimingMethod(state.currentTimingMethod);
   updateTimerDisplayHierarchy();
   updateTimingMethodBadge();
 
   // Sync modal controls
-  window.LiveSplit.TimerDisplay.syncModalControls(timerDisplayMode, currentTimingMethod);
+  window.LiveSplit.TimerDisplay.syncModalControls(state.timerDisplayMode, state.currentTimingMethod);
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     if (method === "GameTime") ws.send("switchto gametime");
@@ -571,34 +549,34 @@ function setTimingMethodFocus(method) {
 
 function toggleTimingMethod() {
   // Cycles Game -> Real -> Both (Game) -> Both (Real)
-  const next = window.LiveSplit.TimerDisplay.calculateNextTimingMode(timerDisplayMode, currentTimingMethod);
+  const next = window.LiveSplit.TimerDisplay.calculateNextTimingMode(state.timerDisplayMode, state.currentTimingMethod);
   setTimerDisplayMode(next.mode, next.focusMethod);
 }
 
 function loadCachedSplits() {
-  cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
+  state.cachedEnableGolds = (localStorage.getItem("livesplit_enable_golds") !== "false");
   const savedTimerMode = localStorage.getItem("livesplit_timer_display_mode");
   const params = new URLSearchParams(window.location.search);
   const urlTimer = params.get("timer") || params.get("time");
   if (urlTimer && ["gametime", "realtime", "both"].includes(urlTimer.toLowerCase())) {
-    timerDisplayMode = urlTimer.toLowerCase();
+    state.timerDisplayMode = urlTimer.toLowerCase();
   } else if (savedTimerMode && ["gametime", "realtime", "both"].includes(savedTimerMode)) {
-    timerDisplayMode = savedTimerMode;
+    state.timerDisplayMode = savedTimerMode;
   }
 
   const isManualMethod = (localStorage.getItem("livesplit_timing_method_manual") === "true");
   const savedMethod = localStorage.getItem("livesplit_timing_method");
   if (isManualMethod && (savedMethod === "RealTime" || savedMethod === "GameTime")) {
-    currentTimingMethod = savedMethod;
-  } else if (timerDisplayMode === "gametime") {
-    currentTimingMethod = "GameTime";
-  } else if (timerDisplayMode === "realtime") {
-    currentTimingMethod = "RealTime";
+    state.currentTimingMethod = savedMethod;
+  } else if (state.timerDisplayMode === "gametime") {
+    state.currentTimingMethod = "GameTime";
+  } else if (state.timerDisplayMode === "realtime") {
+    state.currentTimingMethod = "RealTime";
   }
 
   const savedComp = localStorage.getItem("livesplit_current_comparison");
   if (savedComp) {
-    currentComparison = savedComp;
+    state.currentComparison = savedComp;
   }
 
   const savedGame = localStorage.getItem("livesplit_game");
@@ -615,60 +593,60 @@ function loadCachedSplits() {
   const cachedSegments = localStorage.getItem("livesplit_segments");
   if (cachedSegments) {
     try {
-      splitsList = JSON.parse(cachedSegments);
-      comparisonTimesGT = JSON.parse(localStorage.getItem("livesplit_targets_gt") || "[]");
-      comparisonTimesRT = JSON.parse(localStorage.getItem("livesplit_targets_rt") || "[]");
-      bestSegmentTimesGT = JSON.parse(localStorage.getItem("livesplit_golds_gt") || "[]");
-      bestSegmentTimesRT = JSON.parse(localStorage.getItem("livesplit_golds_rt") || "[]");
+      state.splitsList = JSON.parse(cachedSegments);
+      state.comparisonTimesGT = JSON.parse(localStorage.getItem("livesplit_targets_gt") || "[]");
+      state.comparisonTimesRT = JSON.parse(localStorage.getItem("livesplit_targets_rt") || "[]");
+      state.bestSegmentTimesGT = JSON.parse(localStorage.getItem("livesplit_golds_gt") || "[]");
+      state.bestSegmentTimesRT = JSON.parse(localStorage.getItem("livesplit_golds_rt") || "[]");
       
       const cachedBaseGT = localStorage.getItem("livesplit_baseline_golds_gt");
       const cachedBaseRT = localStorage.getItem("livesplit_baseline_golds_rt");
       if (cachedBaseGT && cachedBaseRT) {
-        baselineBestSegmentTimesGT = JSON.parse(cachedBaseGT);
-        baselineBestSegmentTimesRT = JSON.parse(cachedBaseRT);
+        state.baselineBestSegmentTimesGT = JSON.parse(cachedBaseGT);
+        state.baselineBestSegmentTimesRT = JSON.parse(cachedBaseRT);
       } else {
-        baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
-        baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
+        state.baselineBestSegmentTimesGT = [...state.bestSegmentTimesGT];
+        state.baselineBestSegmentTimesRT = [...state.bestSegmentTimesRT];
       }
 
       const cachedCompsList = localStorage.getItem("livesplit_comparisons_list");
-      if (cachedCompsList) comparisonsList = JSON.parse(cachedCompsList);
+      if (cachedCompsList) state.comparisonsList = JSON.parse(cachedCompsList);
       const cachedCompsGT = localStorage.getItem("livesplit_comparisons_gt");
-      if (cachedCompsGT) comparisonsDataGT = JSON.parse(cachedCompsGT);
+      if (cachedCompsGT) state.comparisonsDataGT = JSON.parse(cachedCompsGT);
       const cachedCompsRT = localStorage.getItem("livesplit_comparisons_rt");
-      if (cachedCompsRT) comparisonsDataRT = JSON.parse(cachedCompsRT);
+      if (cachedCompsRT) state.comparisonsDataRT = JSON.parse(cachedCompsRT);
 
-      if (!comparisonsDataGT["Personal Best"]) comparisonsDataGT["Personal Best"] = [...comparisonTimesGT];
-      if (!comparisonsDataRT["Personal Best"]) comparisonsDataRT["Personal Best"] = [...comparisonTimesRT];
+      if (!state.comparisonsDataGT["Personal Best"]) state.comparisonsDataGT["Personal Best"] = [...state.comparisonTimesGT];
+      if (!state.comparisonsDataRT["Personal Best"]) state.comparisonsDataRT["Personal Best"] = [...state.comparisonTimesRT];
 
       // Cross-fill and sanitize custom comparisons
-      const allCachedCustom = new Set([...Object.keys(comparisonsDataGT), ...Object.keys(comparisonsDataRT)]);
+      const allCachedCustom = new Set([...Object.keys(state.comparisonsDataGT), ...Object.keys(state.comparisonsDataRT)]);
       allCachedCustom.forEach(cName => {
-        const cGT = comparisonsDataGT[cName];
-        const cRT = comparisonsDataRT[cName];
+        const cGT = state.comparisonsDataGT[cName];
+        const cRT = state.comparisonsDataRT[cName];
         const hasGT = cGT && cGT.some(t => t !== null && t > 0);
         const hasRT = cRT && cRT.some(t => t !== null && t > 0);
-        if (hasGT && !hasRT) comparisonsDataRT[cName] = sanitizeComparisonTimes(cGT, comparisonTimesRT);
-        if (hasRT && !hasGT) comparisonsDataGT[cName] = sanitizeComparisonTimes(cRT, comparisonTimesGT);
+        if (hasGT && !hasRT) state.comparisonsDataRT[cName] = sanitizeComparisonTimes(cGT, state.comparisonTimesRT);
+        if (hasRT && !hasGT) state.comparisonsDataGT[cName] = sanitizeComparisonTimes(cRT, state.comparisonTimesGT);
       });
 
-      const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
-                             bestSegmentTimesGT.some(t => t !== null && t > 0);
+      const hasAnyGameTime = state.comparisonTimesGT.some(t => t !== null && t > 0) || 
+                             state.bestSegmentTimesGT.some(t => t !== null && t > 0);
       const isManualMethod = (localStorage.getItem("livesplit_timing_method_manual") === "true");
       if (!isManualMethod) {
-        currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
-        localStorage.setItem("livesplit_timing_method", currentTimingMethod);
+        state.currentTimingMethod = hasAnyGameTime ? "GameTime" : "RealTime";
+        localStorage.setItem("livesplit_timing_method", state.currentTimingMethod);
       }
-      applyActiveTimingMethod(currentTimingMethod);
+      applyActiveTimingMethod(state.currentTimingMethod);
 
       updateGoldBadge();
-      applyActiveComparison(currentComparison, false, false);
+      applyActiveComparison(state.currentComparison, false, false);
       loadInRunState();
       renderTrack();
       const dropDesc = document.getElementById("dropzone-desc");
-      if (dropDesc && splitsList.length > 0) {
+      if (dropDesc && state.splitsList.length > 0) {
         const gName = localStorage.getItem("livesplit_game") || "";
-        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${splitsList.length} splits loaded ✓`;
+        dropDesc.innerText = `Active: ${gName ? gName + " • " : ""}${state.splitsList.length} splits loaded ✓`;
         dropDesc.style.color = "#38bdf8";
       }
       if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
@@ -681,17 +659,17 @@ function loadCachedSplits() {
   }
 
   // Fallback generic splits template
-  splitsList = [...DEFAULT_SPLITS];
-  comparisonTimesGT = [...DEFAULT_TARGETS];
-  comparisonTimesRT = [...DEFAULT_TARGETS];
-  bestSegmentTimesGT = [...DEFAULT_BESTS];
-  bestSegmentTimesRT = [...DEFAULT_BESTS];
-  baselineBestSegmentTimesGT = [...DEFAULT_BESTS];
-  baselineBestSegmentTimesRT = [...DEFAULT_BESTS];
+  state.splitsList = [...DEFAULT_SPLITS];
+  state.comparisonTimesGT = [...DEFAULT_TARGETS];
+  state.comparisonTimesRT = [...DEFAULT_TARGETS];
+  state.bestSegmentTimesGT = [...DEFAULT_BESTS];
+  state.bestSegmentTimesRT = [...DEFAULT_BESTS];
+  state.baselineBestSegmentTimesGT = [...DEFAULT_BESTS];
+  state.baselineBestSegmentTimesRT = [...DEFAULT_BESTS];
   initDefaultComparisons();
 
   updateGoldBadge();
-  applyActiveComparison(currentComparison, false, false);
+  applyActiveComparison(state.currentComparison, false, false);
   loadInRunState();
   renderTrack();
   if (window.hudLayout && window.hudLayout.syncTrackModalUI) {
@@ -761,12 +739,12 @@ function renderTrack() {
   if (liveElementCache) liveElementCache.invalidate();
   ghostRunner.clearTextThresholdCache();
   const track = document.getElementById("track");
-  const targetLabels = splitsList.map((_, i) => formatTargetTime(comparisonTimes[i]));
-  window.LiveSplit.TrackRenderer.buildTrackDom(track, splitsList, targetLabels, currentIndex >= 0);
+  const targetLabels = state.splitsList.map((_, i) => formatTargetTime(state.comparisonTimes[i]));
+  window.LiveSplit.TrackRenderer.buildTrackDom(track, state.splitsList, targetLabels, state.currentIndex >= 0);
   track.style.setProperty("--ghost-opacity", ghostRunner.getGhostOpacity());
 
   updateTrackDensityAndAngle();
-  updateTrackStatus(currentIndex);
+  updateTrackStatus(state.currentIndex);
 }
 
 // Sliding-window mode is on when "Always Show Last Split" is enabled (and not "Fit All")
@@ -777,25 +755,25 @@ function isTrackWindowingEnabled() {
 }
 
 function isTrackWindowed() {
-  const N = splitsList.length;
+  const N = state.splitsList.length;
   if (N <= 1 || !isTrackWindowingEnabled()) return false;
   return (N + 1 > getVisibleSplitsCapacity());
 }
 
 function shiftTrackWindow(direction) {
-  const N = splitsList.length;
+  const N = state.splitsList.length;
   if (N <= 1) return false;
   if (!isTrackWindowed()) return false;
 
   const V = getVisibleSplitsCapacity();
-  const { k: currentK, defaultK, maxK } = window.LiveSplit.TrackRenderer.getTrackWindowPosition(currentIndex, N, V, trackManualScrollOffset);
+  const { k: currentK, defaultK, maxK } = window.LiveSplit.TrackRenderer.getTrackWindowPosition(state.currentIndex, N, V, state.trackManualScrollOffset);
   const newK = Math.max(0, Math.min(maxK, currentK + direction));
 
   if (newK !== currentK) {
-    trackManualScrollOffset = newK - defaultK;
-    updateTrackWindow(currentIndex);
-    if (lastElapsedSec > 0) {
-      updateGhostRunner(lastElapsedSec);
+    state.trackManualScrollOffset = newK - defaultK;
+    updateTrackWindow(state.currentIndex);
+    if (state.lastElapsedSec > 0) {
+      updateGhostRunner(state.lastElapsedSec);
     }
     return true;
   }
@@ -804,10 +782,10 @@ function shiftTrackWindow(direction) {
 
 // Applies the sliding window (pinned final split + discontinuity break); returns true when windowed
 function updateTrackWindow(idx) {
-  const N = splitsList.length;
+  const N = state.splitsList.length;
   const enabled = N > 1 && isTrackWindowingEnabled();
   const V = enabled ? getVisibleSplitsCapacity() : N + 1;
-  const win = window.LiveSplit.TrackRenderer.calculateTrackWindow(idx, N, V, trackManualScrollOffset, enabled);
+  const win = window.LiveSplit.TrackRenderer.calculateTrackWindow(idx, N, V, state.trackManualScrollOffset, enabled);
   window.LiveSplit.TrackRenderer.applyTrackWindow(N, win);
   return win.isWindowed;
 }
@@ -821,10 +799,10 @@ function clearDeltaSpan(i) {
 }
 
 function updateTrackStatus(idx) {
-  if (idx !== currentIndex) {
-    trackManualScrollOffset = 0;
+  if (idx !== state.currentIndex) {
+    state.trackManualScrollOffset = 0;
   }
-  currentIndex = idx;
+  state.currentIndex = idx;
   const nodeStart = document.getElementById("node-start");
   if (nodeStart) {
     nodeStart.classList.toggle("active", idx >= 0);
@@ -833,7 +811,7 @@ function updateTrackStatus(idx) {
   const isVertical = document.getElementById("track")?.classList.contains("vertical");
   const resetSegmentFill = window.LiveSplit.TrackRenderer.resetSegmentFill;
 
-  for (let i = 0; i < splitsList.length; i++) {
+  for (let i = 0; i < state.splitsList.length; i++) {
     const item = document.getElementById(`item-${i}`);
     const fill = document.getElementById(`fill-${i}`);
     if (!item) continue;
@@ -847,14 +825,14 @@ function updateTrackStatus(idx) {
       clearDeltaSpan(i);
       const timeSpan = document.getElementById(`time-val-${i}`);
       if (timeSpan) {
-        const targetVal = formatTargetTime(comparisonTimes[i]);
+        const targetVal = formatTargetTime(state.comparisonTimes[i]);
         timeSpan.innerText = targetVal || "-";
         timeSpan.className = "split-time-val target-time";
       }
     } else if (i < idx) {
       item.classList.add("completed");
-      if (lockedDeltas[i]) {
-        const { deltaInfo, stateClass, splitTimeSec } = lockedDeltas[i];
+      if (state.lockedDeltas[i]) {
+        const { deltaInfo, stateClass, splitTimeSec } = state.lockedDeltas[i];
         setDeltaDisplay(i, deltaInfo, stateClass, splitTimeSec);
       } else if (fill) {
         fill.style.width = "100%";
@@ -866,7 +844,7 @@ function updateTrackStatus(idx) {
     } else if (i === idx) {
       item.classList.add("current");
       item.classList.remove("completed");
-      if (!lockedDeltas[i]) clearDeltaSpan(i);
+      if (!state.lockedDeltas[i]) clearDeltaSpan(i);
     } else {
       item.classList.remove("completed");
       if (fill) resetSegmentFill(fill, isVertical);
@@ -891,19 +869,19 @@ function getLiveElements(idx) {
 }
 
 function updateLiveSegmentProgress(currentSec) {
-  if (currentIndex < 0 || currentIndex >= splitsList.length || currentSec === null) return;
+  if (state.currentIndex < 0 || state.currentIndex >= state.splitsList.length || currentSec === null) return;
 
-  const { fill, deltaSpan, isVertical } = getLiveElements(currentIndex);
+  const { fill, deltaSpan, isVertical } = getLiveElements(state.currentIndex);
 
-  const prevTargetSec = (currentIndex > 0 && comparisonTimes[currentIndex - 1] !== null)
-    ? comparisonTimes[currentIndex - 1]
+  const prevTargetSec = (state.currentIndex > 0 && state.comparisonTimes[state.currentIndex - 1] !== null)
+    ? state.comparisonTimes[state.currentIndex - 1]
     : 0;
 
-  const currentTargetSec = comparisonTimes[currentIndex];
+  const currentTargetSec = state.comparisonTimes[state.currentIndex];
   if (!currentTargetSec || currentTargetSec <= prevTargetSec) return;
 
   const expectedDuration = currentTargetSec - prevTargetSec;
-  const elapsedInSegment = Math.max(0, currentSec - lastSplitRecordedSec);
+  const elapsedInSegment = Math.max(0, currentSec - state.lastSplitRecordedSec);
 
   if (expectedDuration <= 0) return;
 
@@ -931,13 +909,13 @@ function updateLiveSegmentProgress(currentSec) {
   // 2. Live Delta on Current Split:
   // Displays and updates live once the runner begins losing time to the Best Segment
   if (deltaSpan) {
-    const isGoldsEnabled = cachedEnableGolds;
-    const bestSec = (currentIndex < bestSegmentTimes.length && bestSegmentTimes[currentIndex] !== null && bestSegmentTimes[currentIndex] > 0)
-      ? bestSegmentTimes[currentIndex]
+    const isGoldsEnabled = state.cachedEnableGolds;
+    const bestSec = (state.currentIndex < state.bestSegmentTimes.length && state.bestSegmentTimes[state.currentIndex] !== null && state.bestSegmentTimes[state.currentIndex] > 0)
+      ? state.bestSegmentTimes[state.currentIndex]
       : null;
 
     const liveDeltaSec = currentSec - currentTargetSec;
-    const deltaChange = liveDeltaSec - previousDeltaSeconds;
+    const deltaChange = liveDeltaSec - state.previousDeltaSeconds;
     const gainedTime = deltaChange <= 0.001;
 
     // Losing time condition:
@@ -972,11 +950,11 @@ function updateLiveSegmentProgress(currentSec) {
 // 10. LIVE GHOST RUNNER ENGINE & MULTI-GHOST MARKERS (src/ui/ghost-runner.js)
 // ============================================================
 const ghostRunner = window.LiveSplit.GhostRunner.createGhostRunner({
-  getSplitsList: () => splitsList,
-  getComparisonTimes: () => comparisonTimes,
-  getCurrentIndex: () => currentIndex,
-  getLastSplitRecordedSec: () => lastSplitRecordedSec,
-  getLastElapsedSec: () => lastElapsedSec,
+  getSplitsList: () => state.splitsList,
+  getComparisonTimes: () => state.comparisonTimes,
+  getCurrentIndex: () => state.currentIndex,
+  getLastSplitRecordedSec: () => state.lastSplitRecordedSec,
+  getLastElapsedSec: () => state.lastElapsedSec,
   getGhostInfo: (ghostId) => getGhostComparisonInfo(ghostId),
   getRaceClient
 });
@@ -994,11 +972,11 @@ const setGhostOpacity = ghostRunner.setGhostOpacity;
 function getGhostComparisonInfo(targetGhost = null) {
   return window.LiveSplit.GhostMath.getGhostComparisonInfo(
     targetGhost || ghostRunner.getPrimaryGhost(),
-    currentTimingMethod,
-    comparisonsDataGT,
-    comparisonsDataRT,
-    comparisonTimesGT,
-    comparisonTimesRT
+    state.currentTimingMethod,
+    state.comparisonsDataGT,
+    state.comparisonsDataRT,
+    state.comparisonTimesGT,
+    state.comparisonTimesRT
   );
 }
 
@@ -1010,7 +988,7 @@ function calculateGhostProgress(currentSec, times) {
 // 11. DELTA DISPLAY ENGINE & UNDO SPLIT ROLLBACK CONTROLLER
 // ============================================================
 function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
-  if (index < 0 || index >= splitsList.length) return;
+  if (index < 0 || index >= state.splitsList.length) return;
   const el = document.getElementById(`delta-${index}`);
   const item = document.getElementById(`item-${index}`);
   const fill = document.getElementById(`fill-${index}`);
@@ -1039,7 +1017,7 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
       timeSpan.innerText = formatTargetTime(splitTimeSec);
       timeSpan.className = "split-time-val";
     } else {
-      const targetVal = formatTargetTime(comparisonTimes[index]);
+      const targetVal = formatTargetTime(state.comparisonTimes[index]);
       timeSpan.innerText = (stateClass === "uncoloured" && (splitTimeSec === null || splitTimeSec === undefined))
         ? "-"
         : (targetVal || "-");
@@ -1060,11 +1038,11 @@ function setDeltaDisplay(index, deltaInfo, stateClass, splitTimeSec) {
 function handleUndoSplit(newIdx, oldIdx) {
   const isVertical = document.getElementById("track")?.classList.contains("vertical");
 
-  for (let i = newIdx; i < splitsList.length; i++) {
-    delete lockedDeltas[i];
-    delete completedSplitTimes[i];
-    delete completedSplitTimesRT[i];
-    delete completedSplitTimesGT[i];
+  for (let i = newIdx; i < state.splitsList.length; i++) {
+    delete state.lockedDeltas[i];
+    delete state.completedSplitTimes[i];
+    delete state.completedSplitTimesRT[i];
+    delete state.completedSplitTimesGT[i];
 
     const deltaSpan = document.getElementById(`delta-val-${i}`);
     const timeSpan = document.getElementById(`time-val-${i}`);
@@ -1080,7 +1058,7 @@ function handleUndoSplit(newIdx, oldIdx) {
       deltaSpan.className = "split-delta-val";
     }
     if (timeSpan) {
-      const targetVal = formatTargetTime(comparisonTimes[i]);
+      const targetVal = formatTargetTime(state.comparisonTimes[i]);
       timeSpan.innerText = targetVal || "-";
       timeSpan.className = "split-time-val target-time";
     }
@@ -1095,30 +1073,30 @@ function handleUndoSplit(newIdx, oldIdx) {
     }
 
     // Revert temporary in-run gold segment improvements back to baseline
-    if (baselineBestSegmentTimesGT.length > 0 && baselineBestSegmentTimesRT.length > 0) {
-      bestSegmentTimesGT[i] = baselineBestSegmentTimesGT[i];
-      bestSegmentTimesRT[i] = baselineBestSegmentTimesRT[i];
-      const isRT = currentTimingMethod === "RealTime";
-      bestSegmentTimes[i] = isRT
-        ? (bestSegmentTimesRT[i] ?? bestSegmentTimesGT[i] ?? null)
-        : (bestSegmentTimesGT[i] ?? bestSegmentTimesRT[i] ?? null);
+    if (state.baselineBestSegmentTimesGT.length > 0 && state.baselineBestSegmentTimesRT.length > 0) {
+      state.bestSegmentTimesGT[i] = state.baselineBestSegmentTimesGT[i];
+      state.bestSegmentTimesRT[i] = state.baselineBestSegmentTimesRT[i];
+      const isRT = state.currentTimingMethod === "RealTime";
+      state.bestSegmentTimes[i] = isRT
+        ? (state.bestSegmentTimesRT[i] ?? state.bestSegmentTimesGT[i] ?? null)
+        : (state.bestSegmentTimesGT[i] ?? state.bestSegmentTimesRT[i] ?? null);
     }
   }
 
   // Roll back lastSplitRecordedSec to the last actual completed split
-  lastSplitRecordedSec = 0;
+  state.lastSplitRecordedSec = 0;
   for (let k = newIdx - 1; k >= 0; k--) {
-    if (completedSplitTimes[k] != null) {
-      lastSplitRecordedSec = completedSplitTimes[k];
+    if (state.completedSplitTimes[k] != null) {
+      state.lastSplitRecordedSec = state.completedSplitTimes[k];
       break;
     }
   }
 
   // Roll back previousDeltaSeconds to the last completed split with comparison data
-  previousDeltaSeconds = 0;
+  state.previousDeltaSeconds = 0;
   for (let k = newIdx - 1; k >= 0; k--) {
-    if (lockedDeltas[k] && lockedDeltas[k].deltaInfo && lockedDeltas[k].stateClass !== "uncoloured") {
-      previousDeltaSeconds = lockedDeltas[k].deltaInfo.signedSeconds || 0;
+    if (state.lockedDeltas[k] && state.lockedDeltas[k].deltaInfo && state.lockedDeltas[k].stateClass !== "uncoloured") {
+      state.previousDeltaSeconds = state.lockedDeltas[k].deltaInfo.signedSeconds || 0;
       break;
     }
   }
@@ -1133,12 +1111,12 @@ function handleUndoSplit(newIdx, oldIdx) {
 
 function detectTimingMethodFromComp(splitIdx, compSec) {
   // window.comparisonTimesGT/RT are test hooks that override the parsed curves when set.
-  const gtArr = (Array.isArray(window.comparisonTimesGT) && window.comparisonTimesGT.length > 0) ? window.comparisonTimesGT : comparisonTimesGT;
-  const rtArr = (Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0) ? window.comparisonTimesRT : comparisonTimesRT;
+  const gtArr = (Array.isArray(window.comparisonTimesGT) && window.comparisonTimesGT.length > 0) ? window.comparisonTimesGT : state.comparisonTimesGT;
+  const rtArr = (Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0) ? window.comparisonTimesRT : state.comparisonTimesRT;
   const detected = window.LiveSplit.SplitEngine.detectTimingMethodFromComp(splitIdx, compSec, gtArr, rtArr);
   if (detected) {
     const isManual = (localStorage.getItem("livesplit_timing_method_manual") === "true");
-    if (!isManual && detected !== currentTimingMethod) {
+    if (!isManual && detected !== state.currentTimingMethod) {
       applyActiveTimingMethod(detected);
       localStorage.setItem("livesplit_timing_method", detected);
     }
@@ -1149,7 +1127,6 @@ function detectTimingMethodFromComp(splitIdx, compSec) {
 // ============================================================
 // 12. WEBSOCKET CONNECTION & HIGH-FREQUENCY POLL LOOP
 // ============================================================
-let canQueryComparison = true;
 
 function connect() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
@@ -1165,7 +1142,7 @@ function connect() {
       status.closest(".connection-status-pill")?.classList.add("connected");
     }
 
-    canQueryComparison = true;
+    state.canQueryComparison = true;
     const rcConn = getRaceClient();
     if (rcConn && typeof rcConn.setExternalHostConnected === "function") {
       rcConn.setExternalHostConnected(true);
@@ -1210,37 +1187,35 @@ function connect() {
   ws.onerror = () => ws.close();
 }
 
-let pollTick = 0;
-let pendingHostSplitFlash = null;
 
 // Clears per-run progress (deltas, split times, delta baseline) and the persisted in-run snapshot.
 // Resets also drop the elapsed time and any queued host split flash; a fresh start keeps them.
 function resetRunProgress({ isReset = true } = {}) {
   clearInRunState();
-  lockedDeltas = {};
-  completedSplitTimes = {};
-  completedSplitTimesRT = {};
-  completedSplitTimesGT = {};
-  lastSplitRecordedSec = 0;
-  previousDeltaSeconds = 0;
+  state.lockedDeltas = {};
+  state.completedSplitTimes = {};
+  state.completedSplitTimesRT = {};
+  state.completedSplitTimesGT = {};
+  state.lastSplitRecordedSec = 0;
+  state.previousDeltaSeconds = 0;
   if (isReset) {
-    lastElapsedSec = 0;
-    pendingHostSplitFlash = null;
+    state.lastElapsedSec = 0;
+    state.pendingHostSplitFlash = null;
   }
 }
 
 // Follows LiveSplit's active comparison when hotkey sync is enabled (disables itself if unsupported)
 async function syncComparisonFromLiveSplit(timeoutMs, isProbe = false) {
   const isSyncEnabled = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
-  if (!isSyncEnabled || !canQueryComparison) return;
+  if (!isSyncEnabled || !state.canQueryComparison) return;
   const lsComp = await sendCommand("getcomparisonname", timeoutMs, isProbe);
   if (lsComp && lsComp !== "-" && lsComp.trim()) {
     const norm = normalizeComparisonName(lsComp.trim());
-    if (norm && norm !== currentComparison) {
+    if (norm && norm !== state.currentComparison) {
       applyActiveComparison(norm, false);
     }
   } else if (lsComp === null) {
-    canQueryComparison = false;
+    state.canQueryComparison = false;
   }
 }
 
@@ -1249,32 +1224,32 @@ async function fetchComparisonTimeFor(idx) {
   const compSec = timeStringToSeconds(await sendCommand("getcomparisonsplittime"));
   if (compSec === null || compSec <= 0) return null;
   detectTimingMethodFromComp(idx, compSec);
-  comparisonTimes[idx] = compSec;
-  if (currentTimingMethod === "RealTime") comparisonTimesRT[idx] = compSec;
-  else comparisonTimesGT[idx] = compSec;
+  state.comparisonTimes[idx] = compSec;
+  if (state.currentTimingMethod === "RealTime") state.comparisonTimesRT[idx] = compSec;
+  else state.comparisonTimesGT[idx] = compSec;
   return compSec;
 }
 
 // Discard uncommitted in-run gold split segments by default upon reset
 function restoreBaselineGoldsOnReset() {
   const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
-  if (!discardOnReset || baselineBestSegmentTimesGT.length === 0) return;
-  bestSegmentTimesGT = [...baselineBestSegmentTimesGT];
-  bestSegmentTimesRT = [...baselineBestSegmentTimesRT];
-  const isRT = currentTimingMethod === "RealTime";
-  bestSegmentTimes = splitsList.map((_, i) => {
+  if (!discardOnReset || state.baselineBestSegmentTimesGT.length === 0) return;
+  state.bestSegmentTimesGT = [...state.baselineBestSegmentTimesGT];
+  state.bestSegmentTimesRT = [...state.baselineBestSegmentTimesRT];
+  const isRT = state.currentTimingMethod === "RealTime";
+  state.bestSegmentTimes = state.splitsList.map((_, i) => {
     return isRT
-      ? (bestSegmentTimesRT[i] ?? bestSegmentTimesGT[i] ?? null)
-      : (bestSegmentTimesGT[i] ?? bestSegmentTimesRT[i] ?? null);
+      ? (state.bestSegmentTimesRT[i] ?? state.bestSegmentTimesGT[i] ?? null)
+      : (state.bestSegmentTimesGT[i] ?? state.bestSegmentTimesRT[i] ?? null);
   });
-  localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
-  localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+  localStorage.setItem("livesplit_golds_gt", JSON.stringify(state.bestSegmentTimesGT));
+  localStorage.setItem("livesplit_golds_rt", JSON.stringify(state.bestSegmentTimesRT));
 }
 
 // Returns every split node to its pre-run look (empty delta, target time, empty fill)
 function resetTrackSplitDisplays() {
   const isVert = document.getElementById("track")?.classList.contains("vertical");
-  for (let i = 0; i < splitsList.length; i++) {
+  for (let i = 0; i < state.splitsList.length; i++) {
     const deltaSpan = document.getElementById(`delta-val-${i}`);
     const timeSpan = document.getElementById(`time-val-${i}`);
     const fill = document.getElementById(`fill-${i}`);
@@ -1284,7 +1259,7 @@ function resetTrackSplitDisplays() {
       deltaSpan.className = "split-delta-val";
     }
     if (timeSpan) {
-      const targetVal = formatTargetTime(comparisonTimes[i]);
+      const targetVal = formatTargetTime(state.comparisonTimes[i]);
       timeSpan.innerText = targetVal || "-";
       timeSpan.className = "split-time-val target-time";
     }
@@ -1340,7 +1315,7 @@ async function handleRunStarted() {
   }
 
   // Fetch target time for the first split from LiveSplit
-  if (splitsList.length > 0) {
+  if (state.splitsList.length > 0) {
     await fetchComparisonTimeFor(0);
   }
 }
@@ -1348,102 +1323,102 @@ async function handleRunStarted() {
 // If the runner skipped multiple splits in one leap, mark skipped intermediate splits as uncoloured
 function markSkippedSplits(fromIdx, toIdxExclusive) {
   for (let s = fromIdx; s < toIdxExclusive; s++) {
-    delete completedSplitTimes[s];
-    delete completedSplitTimesRT[s];
+    delete state.completedSplitTimes[s];
+    delete state.completedSplitTimesRT[s];
     const skipDelta = { ...window.LiveSplit.SplitEvaluation.DASH_DELTA };
-    lockedDeltas[s] = { deltaInfo: skipDelta, stateClass: "uncoloured", splitTimeSec: null };
+    state.lockedDeltas[s] = { deltaInfo: skipDelta, stateClass: "uncoloured", splitTimeSec: null };
     setDeltaDisplay(s, skipDelta, "uncoloured", null);
   }
 }
 
 // Stores the split's cumulative time on the active curve and mirrors it onto the other timing method
 function recordCompletedSplitTimes(prevIdx, splitTimeSec, igtSec, rtaSec) {
-  if (currentTimingMethod === "RealTime") {
-    completedSplitTimesRT[prevIdx] = splitTimeSec;
+  if (state.currentTimingMethod === "RealTime") {
+    state.completedSplitTimesRT[prevIdx] = splitTimeSec;
     if (igtSec !== null && igtSec > 0) {
-      completedSplitTimesGT[prevIdx] = igtSec;
-    } else if (completedSplitTimesGT[prevIdx] != null) {
+      state.completedSplitTimesGT[prevIdx] = igtSec;
+    } else if (state.completedSplitTimesGT[prevIdx] != null) {
       // retain existing GT
-    } else if (completedSplitTimes[prevIdx] != null) {
-      completedSplitTimesGT[prevIdx] = completedSplitTimes[prevIdx];
+    } else if (state.completedSplitTimes[prevIdx] != null) {
+      state.completedSplitTimesGT[prevIdx] = state.completedSplitTimes[prevIdx];
     } else {
-      completedSplitTimesGT[prevIdx] = splitTimeSec;
+      state.completedSplitTimesGT[prevIdx] = splitTimeSec;
     }
   } else {
-    completedSplitTimesGT[prevIdx] = splitTimeSec;
-    completedSplitTimesRT[prevIdx] = (rtaSec !== null && rtaSec > 0) ? rtaSec : splitTimeSec;
+    state.completedSplitTimesGT[prevIdx] = splitTimeSec;
+    state.completedSplitTimesRT[prevIdx] = (rtaSec !== null && rtaSec > 0) ? rtaSec : splitTimeSec;
   }
-  completedSplitTimes[prevIdx] = (currentTimingMethod === "RealTime")
-    ? completedSplitTimesRT[prevIdx]
-    : completedSplitTimesGT[prevIdx];
+  state.completedSplitTimes[prevIdx] = (state.currentTimingMethod === "RealTime")
+    ? state.completedSplitTimesRT[prevIdx]
+    : state.completedSplitTimesGT[prevIdx];
 }
 
 function previousCompletedSplitSec(prevIdx) {
   for (let k = prevIdx - 1; k >= 0; k--) {
-    if (completedSplitTimes[k] != null) return completedSplitTimes[k];
+    if (state.completedSplitTimes[k] != null) return state.completedSplitTimes[k];
   }
   return 0;
 }
 
 function recordGoldSegment(prevIdx, segmentDurationSec) {
-  bestSegmentTimes[prevIdx] = segmentDurationSec;
-  if (currentTimingMethod === "RealTime") {
-    bestSegmentTimesRT[prevIdx] = segmentDurationSec;
+  state.bestSegmentTimes[prevIdx] = segmentDurationSec;
+  if (state.currentTimingMethod === "RealTime") {
+    state.bestSegmentTimesRT[prevIdx] = segmentDurationSec;
   } else {
-    bestSegmentTimesGT[prevIdx] = segmentDurationSec;
+    state.bestSegmentTimesGT[prevIdx] = segmentDurationSec;
   }
 
   // Only write to persistent storage immediately if the user opted out of discarding on reset
   const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
   if (!discardOnReset) {
-    if (currentTimingMethod === "RealTime") {
-      localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+    if (state.currentTimingMethod === "RealTime") {
+      localStorage.setItem("livesplit_golds_rt", JSON.stringify(state.bestSegmentTimesRT));
     } else {
-      localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
+      localStorage.setItem("livesplit_golds_gt", JSON.stringify(state.bestSegmentTimesGT));
     }
   }
 }
 
 // Final split beat the overall PB: adopt this run's splits as targets and commit earned golds to baseline
 function commitPersonalBestIfBeaten(splitTimeSec) {
-  const overallPbSec = comparisonTimes[splitsList.length - 1];
+  const overallPbSec = state.comparisonTimes[state.splitsList.length - 1];
   if (!(overallPbSec === null || overallPbSec === undefined || splitTimeSec < overallPbSec)) return;
 
-  for (let i = 0; i < splitsList.length; i++) {
-    if (completedSplitTimes[i] != null) {
-      comparisonTimes[i] = completedSplitTimes[i];
-      if (currentTimingMethod === "RealTime") {
-        comparisonTimesRT[i] = completedSplitTimes[i];
+  for (let i = 0; i < state.splitsList.length; i++) {
+    if (state.completedSplitTimes[i] != null) {
+      state.comparisonTimes[i] = state.completedSplitTimes[i];
+      if (state.currentTimingMethod === "RealTime") {
+        state.comparisonTimesRT[i] = state.completedSplitTimes[i];
       } else {
-        comparisonTimesGT[i] = completedSplitTimes[i];
+        state.comparisonTimesGT[i] = state.completedSplitTimes[i];
       }
     }
   }
 
-  baselineBestSegmentTimesGT = [...bestSegmentTimesGT];
-  baselineBestSegmentTimesRT = [...bestSegmentTimesRT];
-  localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(baselineBestSegmentTimesGT));
-  localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(baselineBestSegmentTimesRT));
-  localStorage.setItem("livesplit_golds_gt", JSON.stringify(bestSegmentTimesGT));
-  localStorage.setItem("livesplit_golds_rt", JSON.stringify(bestSegmentTimesRT));
+  state.baselineBestSegmentTimesGT = [...state.bestSegmentTimesGT];
+  state.baselineBestSegmentTimesRT = [...state.bestSegmentTimesRT];
+  localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(state.baselineBestSegmentTimesGT));
+  localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(state.baselineBestSegmentTimesRT));
+  localStorage.setItem("livesplit_golds_gt", JSON.stringify(state.bestSegmentTimesGT));
+  localStorage.setItem("livesplit_golds_rt", JSON.stringify(state.bestSegmentTimesRT));
 
-  if (currentTimingMethod === "RealTime") {
-    localStorage.setItem("livesplit_targets_rt", JSON.stringify(comparisonTimesRT));
+  if (state.currentTimingMethod === "RealTime") {
+    localStorage.setItem("livesplit_targets_rt", JSON.stringify(state.comparisonTimesRT));
   } else {
-    localStorage.setItem("livesplit_targets_gt", JSON.stringify(comparisonTimesGT));
+    localStorage.setItem("livesplit_targets_gt", JSON.stringify(state.comparisonTimesGT));
   }
 }
 
 // Split index advanced: evaluate the split(s) just left and arm the next split's target
 async function handleSplitAdvanced(idx, igtSec, rtaSec) {
-  markSkippedSplits(currentIndex, idx - 1);
+  markSkippedSplits(state.currentIndex, idx - 1);
 
   const prevIdx = idx - 1;
 
   // A split was completed IF AND ONLY IF LiveSplit recorded a new positive split time
   // that is strictly greater than the last recorded split time of this run!
   const parsedLastSplit = timeStringToSeconds(await sendCommand("getlastsplittime"));
-  const isSplitCompleted = (parsedLastSplit !== null && parsedLastSplit > 0 && parsedLastSplit > (lastSplitRecordedSec + 0.001));
+  const isSplitCompleted = (parsedLastSplit !== null && parsedLastSplit > 0 && parsedLastSplit > (state.lastSplitRecordedSec + 0.001));
 
   let splitTimeSec = null;
   let stateClass = "uncoloured";
@@ -1451,15 +1426,15 @@ async function handleSplitAdvanced(idx, igtSec, rtaSec) {
 
   if (isSplitCompleted) {
     splitTimeSec = parsedLastSplit;
-    lastSplitRecordedSec = splitTimeSec;
+    state.lastSplitRecordedSec = splitTimeSec;
     recordCompletedSplitTimes(prevIdx, splitTimeSec, igtSec, rtaSec);
 
     const finalDeltaInfo = formatDeltaLive(await sendCommand("getdelta"));
-    const targetSec = (prevIdx < comparisonTimes.length && comparisonTimes[prevIdx] !== null && comparisonTimes[prevIdx] > 0)
-      ? comparisonTimes[prevIdx]
+    const targetSec = (prevIdx < state.comparisonTimes.length && state.comparisonTimes[prevIdx] !== null && state.comparisonTimes[prevIdx] > 0)
+      ? state.comparisonTimes[prevIdx]
       : null;
-    const bestSec = (prevIdx < bestSegmentTimes.length && bestSegmentTimes[prevIdx] !== null && bestSegmentTimes[prevIdx] > 0)
-      ? bestSegmentTimes[prevIdx]
+    const bestSec = (prevIdx < state.bestSegmentTimes.length && state.bestSegmentTimes[prevIdx] !== null && state.bestSegmentTimes[prevIdx] > 0)
+      ? state.bestSegmentTimes[prevIdx]
       : null;
 
     const result = window.LiveSplit.SplitEvaluation.evaluateCompletedSplit({
@@ -1468,38 +1443,38 @@ async function handleSplitAdvanced(idx, igtSec, rtaSec) {
       targetSec,
       bestSec,
       finalDeltaInfo,
-      previousDeltaSeconds,
-      goldsEnabled: cachedEnableGolds,
+      previousDeltaSeconds: state.previousDeltaSeconds,
+      goldsEnabled: state.cachedEnableGolds,
       formatDeltaSeconds
     });
     if (result.isGold) recordGoldSegment(prevIdx, result.segmentDurationSec);
     stateClass = result.stateClass;
     displayDelta = result.displayDelta;
-    previousDeltaSeconds = result.previousDeltaSeconds;
+    state.previousDeltaSeconds = result.previousDeltaSeconds;
 
-    if (prevIdx === splitsList.length - 1 && splitTimeSec > 0) {
+    if (prevIdx === state.splitsList.length - 1 && splitTimeSec > 0) {
       commitPersonalBestIfBeaten(splitTimeSec);
     }
   } else {
-    delete completedSplitTimes[prevIdx];
-    delete completedSplitTimesRT[prevIdx];
-    delete completedSplitTimesGT[prevIdx];
+    delete state.completedSplitTimes[prevIdx];
+    delete state.completedSplitTimesRT[prevIdx];
+    delete state.completedSplitTimesGT[prevIdx];
   }
 
-  lockedDeltas[prevIdx] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
+  state.lockedDeltas[prevIdx] = { deltaInfo: displayDelta, stateClass, splitTimeSec };
   setDeltaDisplay(prevIdx, displayDelta, stateClass, splitTimeSec);
   saveInRunState();
 
   // Trigger leaderboard split flash glow for host
-  pendingHostSplitFlash = {
+  state.pendingHostSplitFlash = {
     type: window.LiveSplit.SplitEvaluation.getSplitFlashType(stateClass),
     timestamp: Date.now(),
-    completedSplitName: (prevIdx >= 0 && prevIdx < splitsList.length) ? splitsList[prevIdx] : `Split ${prevIdx + 1}`,
-    newSplitName: (idx < splitsList.length) ? splitsList[idx] : "Finished"
+    completedSplitName: (prevIdx >= 0 && prevIdx < state.splitsList.length) ? state.splitsList[prevIdx] : `Split ${prevIdx + 1}`,
+    newSplitName: (idx < state.splitsList.length) ? state.splitsList[idx] : "Finished"
   };
 
   // Query target comparison time once for the next newly active split
-  if (idx < splitsList.length) {
+  if (idx < state.splitsList.length) {
     const nextCompSec = await fetchComparisonTimeFor(idx);
     const nextTimeSpan = nextCompSec !== null ? document.getElementById(`time-val-${idx}`) : null;
     if (nextTimeSpan) {
@@ -1512,28 +1487,28 @@ async function handleSplitAdvanced(idx, igtSec, rtaSec) {
 function reportHostProgress(currentTotalSec, rtaSec) {
   const rc = getRaceClient();
   if (!rc || typeof rc.updateHostProgress !== "function") return;
-  const hostSplitName = (currentIndex < 0)
+  const hostSplitName = (state.currentIndex < 0)
     ? "Start"
-    : (currentIndex < splitsList.length ? splitsList[currentIndex] : "Finished");
+    : (state.currentIndex < state.splitsList.length ? state.splitsList[state.currentIndex] : "Finished");
   const realTimeSec = (rtaSec !== null && rtaSec > 0) ? rtaSec : currentTotalSec;
-  const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : comparisonTimes;
-  const rtCompletedSplits = (Object.keys(completedSplitTimesRT).length > 0) ? completedSplitTimesRT : completedSplitTimes;
-  const gtCompletedSplits = (Object.keys(completedSplitTimesGT).length > 0) ? completedSplitTimesGT : completedSplitTimes;
+  const rtComparisons = (state.comparisonTimesRT && state.comparisonTimesRT.length > 0) ? state.comparisonTimesRT : state.comparisonTimes;
+  const rtCompletedSplits = (Object.keys(state.completedSplitTimesRT).length > 0) ? state.completedSplitTimesRT : state.completedSplitTimes;
+  const gtCompletedSplits = (Object.keys(state.completedSplitTimesGT).length > 0) ? state.completedSplitTimesGT : state.completedSplitTimes;
   rc.updateHostProgress(
     currentTotalSec,
-    currentIndex,
+    state.currentIndex,
     gtCompletedSplits,
-    comparisonTimes,
+    state.comparisonTimes,
     hostSplitName,
-    splitsList,
-    pendingHostSplitFlash,
+    state.splitsList,
+    state.pendingHostSplitFlash,
     true,
     realTimeSec,
     rtComparisons,
     rtCompletedSplits,
-    currentTimingMethod
+    state.currentTimingMethod
   );
-  pendingHostSplitFlash = null;
+  state.pendingHostSplitFlash = null;
 }
 
 // Reads one LiveSplit timer, mirrors it into its HUD element, and returns seconds (or null)
@@ -1551,20 +1526,20 @@ async function handleSplitIndex(idx, igtSec, rtaSec, currentTotalSec) {
     rc.setExternalHostConnected(true);
   }
   const isSim = rc && typeof rc.isSimulating === "function" && rc.isSimulating();
-  const wasRunning = (currentIndex > 0) || (currentIndex === 0 && lastElapsedSec > 1.0);
-  const isSecondResetWithDNF = (idx === -1 && currentIndex === -1 && rc && typeof rc.isHostDNF === "function" && rc.isHostDNF());
+  const wasRunning = (state.currentIndex > 0) || (state.currentIndex === 0 && state.lastElapsedSec > 1.0);
+  const isSecondResetWithDNF = (idx === -1 && state.currentIndex === -1 && rc && typeof rc.isHostDNF === "function" && rc.isHostDNF());
 
-  if ((idx === -1 && currentIndex !== -1) || (idx === 0 && currentIndex > 0) || isSecondResetWithDNF) {
+  if ((idx === -1 && state.currentIndex !== -1) || (idx === 0 && state.currentIndex > 0) || isSecondResetWithDNF) {
     const isSimHostForfeit = !isSecondResetWithDNF && isSim && wasRunning && typeof rc.setHostDNF === "function" && !rc.isHostDNF();
     await handleRunReset(idx, rc, { isSecondResetWithDNF, isSimHostForfeit });
-  } else if (idx !== currentIndex) {
-    if (currentIndex === -1 && idx === 0) {
+  } else if (idx !== state.currentIndex) {
+    if (state.currentIndex === -1 && idx === 0) {
       await handleRunStarted();
-    } else if (currentIndex >= 0 && idx > currentIndex) {
+    } else if (state.currentIndex >= 0 && idx > state.currentIndex) {
       await handleSplitAdvanced(idx, igtSec, rtaSec);
-    } else if (currentIndex >= 0 && idx < currentIndex) {
+    } else if (state.currentIndex >= 0 && idx < state.currentIndex) {
       // LiveSplit Undo Split triggered
-      handleUndoSplit(idx, currentIndex);
+      handleUndoSplit(idx, state.currentIndex);
     }
     updateTrackStatus(idx);
     if (idx >= 0) {
@@ -1583,8 +1558,8 @@ async function pollLoop() {
   while (ws && ws.readyState === WebSocket.OPEN) {
     try {
       // 0. Periodic Auto-Sync with LiveSplit hotkeys (every ~500ms)
-      pollTick = (pollTick + 1) % 15;
-      if (pollTick === 0) {
+      state.pollTick = (state.pollTick + 1) % 15;
+      if (state.pollTick === 0) {
         await syncComparisonFromLiveSplit(120, true);
       }
 
@@ -1593,11 +1568,11 @@ async function pollLoop() {
       const rtaSec = await pollTimer("getcurrentrealtime", "timer-rta");
 
       // Total elapsed seconds for the active timing method (with fallback)
-      const currentTotalSec = (currentTimingMethod === "RealTime")
+      const currentTotalSec = (state.currentTimingMethod === "RealTime")
         ? (rtaSec ?? igtSec)
         : (igtSec ?? rtaSec);
       if (currentTotalSec !== null) {
-        lastElapsedSec = currentTotalSec;
+        state.lastElapsedSec = currentTotalSec;
       }
 
       // 3. Split Index (strict integer check to avoid corrupting run if non-integer text is received)
@@ -1622,8 +1597,8 @@ window.LiveSplit.SplitsFileLoader.bindSplitsFileLoaders({
 });
 
 const trackDensity = window.LiveSplit.TrackDensity.createTrackDensityController({
-  getSplitCount: () => splitsList.length,
-  onOrientationChange: () => { trackManualScrollOffset = 0; },
+  getSplitCount: () => state.splitsList.length,
+  onOrientationChange: () => { state.trackManualScrollOffset = 0; },
   refresh: () => updateTrackDensityAndAngle()
 });
 const cycleVisibleSplits = trackDensity.cycleVisibleSplits;
@@ -1632,7 +1607,7 @@ const cycleSplitAngle = trackDensity.cycleSplitAngle;
 function updateTrackDensityAndAngle() {
   ghostRunner.clearTextThresholdCache();
   if (trackDensity.update()) {
-    updateTrackStatus(currentIndex);
+    updateTrackStatus(state.currentIndex);
   }
 }
 
@@ -1670,12 +1645,12 @@ function initOverlay() {
   window.LiveSplit.RaceControls.bindRaceControls({
     raceClient,
     refreshLeaderboard,
-    refreshGhosts: () => updateGhostRunner(lastElapsedSec),
+    refreshGhosts: () => updateGhostRunner(state.lastElapsedSec),
     getSimulationInputs: () => {
-      const gtComparisons = (comparisonTimesGT && comparisonTimesGT.length > 0) ? comparisonTimesGT : comparisonTimes;
-      const rtComparisons = (comparisonTimesRT && comparisonTimesRT.length > 0) ? comparisonTimesRT : gtComparisons;
-      const isAlreadyRunning = (currentIndex >= 0 && typeof lastElapsedSec === "number" && lastElapsedSec > 0);
-      return { splitsList, gtComparisons, rtComparisons, isAlreadyRunning };
+      const gtComparisons = (state.comparisonTimesGT && state.comparisonTimesGT.length > 0) ? state.comparisonTimesGT : state.comparisonTimes;
+      const rtComparisons = (state.comparisonTimesRT && state.comparisonTimesRT.length > 0) ? state.comparisonTimesRT : gtComparisons;
+      const isAlreadyRunning = (state.currentIndex >= 0 && typeof state.lastElapsedSec === "number" && state.lastElapsedSec > 0);
+      return { splitsList: state.splitsList, gtComparisons, rtComparisons, isAlreadyRunning };
     }
   });
   window.LiveSplit.WsLogPanel.bindWsLogPanel(raceClient);
@@ -1748,7 +1723,7 @@ function initOverlay() {
   document.getElementById("cb-always-show-last-split")?.addEventListener("change", (e) => {
     localStorage.setItem("livesplit_always_show_last_split", e.target.checked ? "true" : "false");
     updateTrackDensityAndAngle();
-    updateTrackStatus(currentIndex);
+    updateTrackStatus(state.currentIndex);
   });
 
   initSettingsMenuDraggable();
@@ -1782,8 +1757,8 @@ if (document.readyState === "loading") {
 // Global exports for layout.js and unit tests
 window.APP_VERSION = APP_VERSION;
 window.applyActiveComparison = applyActiveComparison;
-window.getCurrentComparison = () => currentComparison;
-window.getComparisonsList = () => comparisonsList;
+window.getCurrentComparison = () => state.currentComparison;
+window.getComparisonsList = () => state.comparisonsList;
 window.cycleComparison = cycleComparison;
 window.timeStringToSeconds = timeStringToSeconds;
 window.formatTargetTime = formatTargetTime;
@@ -1804,10 +1779,10 @@ window.setGhostOpacity = setGhostOpacity;
 window.sanitizeComparisonTimes = sanitizeComparisonTimes;
 window.detectTimingMethodFromComp = detectTimingMethodFromComp;
 window.applyActiveTimingMethod = applyActiveTimingMethod;
-window.getCurrentTimingMethod = () => currentTimingMethod;
+window.getCurrentTimingMethod = () => state.currentTimingMethod;
 window.setTimerDisplayMode = setTimerDisplayMode;
 window.setTimingMethodFocus = setTimingMethodFocus;
-window.getTimerDisplayMode = () => timerDisplayMode;
+window.getTimerDisplayMode = () => state.timerDisplayMode;
 window.toggleTimingMethod = toggleTimingMethod;
 window.resetSettingsMenuPosition = resetSettingsMenuPosition;
 window.toggleSettingsMenu = toggleSettingsMenu;
@@ -1818,8 +1793,8 @@ window.formatTimerDisplay = formatTimerDisplay;
 window.saveInRunState = saveInRunState;
 window.clearInRunState = clearInRunState;
 window.loadInRunState = loadInRunState;
-window.getLockedDeltas = () => lockedDeltas;
-window.getCurrentIndex = () => currentIndex;
+window.getLockedDeltas = () => state.lockedDeltas;
+window.getCurrentIndex = () => state.currentIndex;
 window.updateTrackStatus = updateTrackStatus;
 window.updateGhostBadge = updateGhostBadge;
 window.updateGhostRunner = updateGhostRunner;
@@ -1827,7 +1802,7 @@ window.updateTrackWindow = updateTrackWindow;
 window.shiftTrackWindow = shiftTrackWindow;
 window.isTrackWindowed = isTrackWindowed;
 window.getVisibleSplitsCapacity = getVisibleSplitsCapacity;
-window.getTrackManualScrollOffset = () => trackManualScrollOffset;
+window.getTrackManualScrollOffset = () => state.trackManualScrollOffset;
 window.showComparisonToast = showComparisonToast;
 window.isDevMode = isDevModeActive;
 window.showDevModeToast = window.LiveSplit.ToastManager.showDevModeToast;
@@ -1836,6 +1811,6 @@ window.toggleDevMode = toggleDevMode;
 window.updateTimingMethodBadge = updateTimingMethodBadge;
 window.updateTimerDisplayHierarchy = updateTimerDisplayHierarchy;
 window.initOverlay = initOverlay;
-window.getLastElapsedSec = () => lastElapsedSec;
+window.getLastElapsedSec = () => state.lastElapsedSec;
 window.LiveSplit = window.LiveSplit || {};
-window.LiveSplit.getLastElapsedSec = () => lastElapsedSec;
+window.LiveSplit.getLastElapsedSec = () => state.lastElapsedSec;
