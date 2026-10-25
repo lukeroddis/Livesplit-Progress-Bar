@@ -24,7 +24,14 @@
      - [`split-engine.js`](src/core/split-engine.js): `.lss` XML parsing, statistical curves (Best/Average/Worst), comparison normalization, and timing method detection.
      - [`split-evaluation.js`](src/core/split-evaluation.js): Pure completed-split classification (gold detection with 50ms buffer, ahead/behind gaining/losing state, leaderboard flash colour).
      - [`ghost-math.js`](src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
-     - [`livesplit-client.js`](src/core/livesplit-client.js): Sequential command queue, socket lifecycle, and protocol safeguards.
+     - [`livesplit-client.js`](src/core/livesplit-client.js): Sequential command queue with probe timeouts and desync guard.
+     - [`livesplit-connection.js`](src/core/livesplit-connection.js): LiveSplit Server socket lifecycle (duplicate guard, auto-reconnect, status pill, `sendRaw` for reply-less commands).
+     - [`overlay-state.js`](src/core/overlay-state.js): The shared overlay `state` object (splits, comparison curves per timing method, active comparison/method, live run progress).
+     - [`run-tracker.js`](src/core/run-tracker.js): 33ms poll loop and split transitions (reset, start, split advance with skips/golds/PB commit, undo, host progress).
+     - [`run-persistence.js`](src/core/run-persistence.js): In-run state save/restore across reloads with split-count/game/category guards.
+     - [`comparison-controller.js`](src/core/comparison-controller.js): Active comparison and timing-method curve switching, default curves, timing detection, ghost comparison lookup.
+     - [`splits-loader.js`](src/core/splits-loader.js): Applies parsed `.lss` data to state and restores cached splits on startup.
+     - [`window-api.js`](src/core/window-api.js): The `window.*` API consumed by layout.js, layout modules and tests.
      - [race-client.js](src/core/race-client.js): therun.gg/racetime.gg live telemetry bridge, F1-style continuous scoring, leader gap/interval calculations, and local simulated race engine.
    - **`src/ui/` Interface & Layout Modules**:
      - [`layout-engine.js`](src/ui/layout-engine.js): Component geometry, default coordinates, and timer expansion anchor resolution.
@@ -39,9 +46,14 @@
      - [`splits-file-loader.js`](src/ui/splits-file-loader.js): `.lss` file picker and window drag-and-drop (`.lss`/`.xml` splits, `.json`/`.lshud` profiles).
      - [`interactions.js`](src/ui/interactions.js): Scroll wheel / arrow key navigation, comparison hotkeys, and input guards.
      - [leaderboard.js](src/ui/leaderboard.js): Live race F1 timing tower controller, 60 FPS FLIP overtake reorder animations, and entrant mute controls.
+     - [`track-status.js`](src/ui/track-status.js): Track render, per-split completed/current classes, locked delta display, window shifting, 60 FPS live segment progress.
+     - [`timing-controls.js`](src/ui/timing-controls.js): Timer display mode (Game/Real/Both), timing method focus, gold toggle and badges.
+     - [`hud-titles.js`](src/ui/hud-titles.js): Game/category labels, tab title, LiveSplit metadata sync.
+     - [`hud-bindings.js`](src/ui/hud-bindings.js): Badge clicks, settings pill, comparison hotkeys, timer block focus.
    - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
-   - [overlay.js](overlay.js): Application bootstrap and run/comparison state owner: LiveSplit Server WebSocket bridge, poll loop split-transition handlers, comparison/timing-method switching, and live segment progress. It wires the modules above via `createX({ getters })` factories and keeps the `window.*` exports used by layout.js and tests.
-   - **Adding a module**: add one `<script>` tag to `index.html` in load order; nothing else needs registering. Every script is an ES module in the Vite build, so share state through `window.LiveSplit.*` / explicit `window.*` exports and injected getters, never through top-level `let` across files.
+   - [overlay.js](overlay.js): Composition root (~280 lines). Creates `state` and the shared `app` registry, installs the overlay controllers, wires the stateful UI helpers (connection, ghost runner, track density, menus) and boots the overlay.
+   - **Controller pattern**: overlay controllers export `installX(app)`, which adds their functions to `app` and reads/writes `app.state`. Cross-controller calls go through `app.<fn>` at call time, so controllers can load in any order before overlay.js. Self-contained UI helpers keep the `createX({ getters })` factory style. `test_app_registry_calls_are_provided` fails if a controller calls an `app.<fn>` nobody registers.
+   - **Adding a module**: add one `<script>` tag to `index.html` before `layout.js`/`overlay.js`; nothing else needs registering. Every script is an ES module in the Vite build, so share state through `app` / `window.LiveSplit.*` / explicit `window.*` exports and injected getters, never through top-level `let` across files.
    - [`vite.config.mjs`](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for a virtual module entry generated from those same tags, and enables the single-file plugin.
    - [`scripts/verify-single-file.mjs`](scripts/verify-single-file.mjs): Postbuild contract check for the generated `dist/index.html`; run automatically by `npm run build`.
    - `dist/index.html`: Generated, fully self-contained distribution file. It is git-ignored and attached to GitHub releases.
@@ -271,6 +283,7 @@ Before committing any changes, you must ensure:
 > | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only). |
 > | `tests/test_release_bump.py` | `scripts/determine_bump.py` release classification. |
 > | `tests/browser/` | Runner page generator (`build_runner.py`), Chrome/CDP driver, coverage maths. |
+> | `tests/harness/` | `mini-test.js` (`describe`/`it`/`assert`; `async` tests run serially after sync specs) and `fake-livesplit.js`, a scriptable fake LiveSplit Server installed as `window.WebSocket` so tests never touch a real LiveSplit. Call `FakeLiveSplit.acceptConnection()` and set `FakeLiveSplit.state` to drive the poll loop (see `tests/unit/core/run-tracker.test.js`). |
 >
 > Do **not** assert on source text (`"function foo" in overlay_js`): it breaks on every refactor and does not test behaviour. Do not re-implement JS logic in Python to test it; test the JS directly. `tests/test_runner.html` is generated (gitignored); edit `tests/test_runner.template.html` for harness changes. The browser suite needs Chrome/Chromium (required when `CI` is set); without `websockets` it falls back to `--dump-dom` and skips coverage.
 

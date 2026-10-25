@@ -74,6 +74,7 @@
 
   <!-- Hidden dummy DOM required for script imports -->
   <div style="display:none;">
+    <span class="connection-status-pill"><span id="connection-status">DISCONNECTED</span></span>
     <div id="game-name"></div>
     <div id="category-name"></div>
     <div id="timer-rta"></div>
@@ -183,6 +184,7 @@
 
   <!-- Test Framework Harness -->
   <script src="harness/mini-test.js"></script>
+  <script src="harness/fake-livesplit.js"></script>
 
   <!-- Error Tracking & Application Scripts -->
   <script>window.__scriptErrors = []; window.addEventListener("error", e => { window.__scriptErrors.push(e.message + " in " + e.filename + ":" + e.lineno); });</script>

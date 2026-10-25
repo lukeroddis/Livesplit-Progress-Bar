@@ -2,7 +2,9 @@
  * tests/harness/mini-test.js - Lightweight In-Browser Test Framework
  * 
  * Provides standard describe(), it(), assert(), assertEqual() test primitives
- * with synchronous test execution, suite reporting, and DOM card rendering.
+ * with suite reporting and DOM card rendering. Synchronous tests run immediately;
+ * async test functions are queued and run one at a time after all
+ * spec files have loaded, and renderResults() waits for those before reporting.
  */
 
 (function () {
@@ -12,6 +14,7 @@
   let currentSuite = null;
   let totalPassed = 0;
   let totalFailed = 0;
+  const asyncQueue = [];
 
   function describe(name, fn) {
     currentSuite = { name, tests: [] };
@@ -24,13 +27,38 @@
       currentSuite = { name: "Default Suite", tests: [] };
       suites.push(currentSuite);
     }
+    const suite = currentSuite;
+    if (testFn.constructor && testFn.constructor.name === "AsyncFunction") {
+      // Started later, one at a time, after every spec file has run its sync tests
+      asyncQueue.push({ suite, name, testFn });
+      return;
+    }
     try {
       testFn();
-      currentSuite.tests.push({ name, pass: true });
-      totalPassed++;
+      record(suite, name, null);
     } catch (err) {
-      currentSuite.tests.push({ name, pass: false, error: err.message });
+      record(suite, name, err);
+    }
+  }
+
+  function record(suite, name, err) {
+    if (err) {
+      suite.tests.push({ name, pass: false, error: err.message });
       totalFailed++;
+    } else {
+      suite.tests.push({ name, pass: true });
+      totalPassed++;
+    }
+  }
+
+  async function settleAsyncTests() {
+    for (const entry of asyncQueue) {
+      try {
+        await entry.testFn();
+        record(entry.suite, entry.name, null);
+      } catch (err) {
+        record(entry.suite, entry.name, err);
+      }
     }
   }
 
@@ -48,7 +76,8 @@
     }
   }
 
-  function renderResults() {
+  async function renderResults() {
+    await settleAsyncTests();
     const resultsContainer = document.getElementById("results");
     if (resultsContainer) {
       resultsContainer.innerHTML = "";
