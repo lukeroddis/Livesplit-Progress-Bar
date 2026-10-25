@@ -32,6 +32,8 @@ def test_file_integrity():
         os.path.join("src", "core", "split-engine.js"),
         os.path.join("src", "core", "ghost-math.js"),
         os.path.join("src", "core", "livesplit-client.js"),
+        os.path.join("src", "core", "race-simulation.js"),
+        os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -57,6 +59,8 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "split-engine.js"),
         os.path.join("src", "core", "ghost-math.js"),
         os.path.join("src", "core", "livesplit-client.js"),
+        os.path.join("src", "core", "race-simulation.js"),
+        os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -158,10 +162,11 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "split-engine.js"),
         os.path.join("src", "core", "ghost-math.js"),
         os.path.join("src", "core", "livesplit-client.js"),
+        os.path.join("src", "core", "race-simulation.js"),
+        os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
-        os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "leaderboard.js"),
         os.path.join("src", "ui", "race-track-markers.js"),
         os.path.join("src", "utils", "dom-utils.js")
@@ -2432,7 +2437,11 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "transform: none !important;" in css, "style.css must lock .leaderboard-row with transform: none !important"
     with open(os.path.join(ROOT_DIR, "src", "core", "race-client.js"), "r", encoding="utf-8") as rf:
         race_code = rf.read()
-    assert "if (hostState.currentTimeSec > 0)" in race_code, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
+    with open(os.path.join(ROOT_DIR, "src", "core", "race-simulation.js"), "r", encoding="utf-8") as sf:
+        sim_code = sf.read()
+    race_sim_combined = race_code + sim_code
+    assert "window.LiveSplit.RaceSimulation" in sim_code, "src/core/race-simulation.js must export LiveSplit.RaceSimulation"
+    assert "if (hostState.currentTimeSec > 0)" in race_sim_combined, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
     assert "setHostUsername" in race_code, "race-client.js must export setHostUsername"
     assert "getHostUsername" in race_code, "race-client.js must export getHostUsername"
 
@@ -2487,7 +2496,7 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert 'containerEl.addEventListener("dblclick"' in leaderboard_code, "leaderboard.js must support double click on leaderboard rows to hide/show pins"
     assert "calculateMilestoneGap" in race_code, "race-client.js must calculate milestone-based checkpoint gaps"
     assert "normalizeSplitTimes" in race_code, "race-client.js must define normalizeSplitTimes for robust splitTimes object/array handling"
-    assert "simulationCourseTargets" in race_code, "race-client.js must establish persistent simulationCourseTargets"
+    assert "simulationCourseTargets" in race_sim_combined, "race simulation must establish persistent simulationCourseTargets"
     assert "expectedSegmentSec" in race_code, "race-client.js must calculate expectedSegmentSec for current split"
     assert "lastCompletedIdx" in race_code, "race-client.js must update leaderboard positions strictly on split checkpoints"
     assert "raceClockSec" in race_code, "race-client.js must synchronize live race clock to Real Time (RTA)"
@@ -2512,8 +2521,8 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "rc.handleUndoSplit" in overlay_js, "overlay.js handleUndoSplit must invoke rc.handleUndoSplit"
     assert "rowsEl.insertBefore(row, currentChild)" in leaderboard_code, "leaderboard.js must use targeted insertBefore reconciliation"
     assert "row.style.animationDelay" in leaderboard_code, "leaderboard.js must lock animationDelay to elapsed progress"
-    assert "simVirtualSec" in race_code, "race-client.js must track and reset simVirtualSec"
-    assert "pbCheckpointTimes" in race_code, "race-client.js must generate pbCheckpointTimes for competitors"
+    assert "simVirtualSec" in race_sim_combined, "race simulation must track and reset simVirtualSec"
+    assert "pbCheckpointTimes" in race_sim_combined, "race simulation must generate pbCheckpointTimes for competitors"
     assert "isSecondResetWithDNF" in overlay_js, "overlay.js must handle double reset to clear DNF"
     assert ".racer-ribbon" in css, "style.css must style .racer-ribbon"
     assert "@keyframes ribbon-slide-in" in css, "style.css must define @keyframes ribbon-slide-in"
@@ -2825,6 +2834,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "ghost-math.js"),
             os.path.join("src", "core", "storage.js"),
             os.path.join("src", "core", "livesplit-client.js"),
+            os.path.join("src", "core", "race-simulation.js"),
             os.path.join("src", "core", "race-client.js"),
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),

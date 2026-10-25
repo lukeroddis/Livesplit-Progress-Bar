@@ -16,6 +16,7 @@ import "./core/time-utils.js";
 import "./core/split-engine.js";
 import "./core/ghost-math.js";
 import "./core/livesplit-client.js";
+import "./core/race-simulation.js";
 import "./core/race-client.js";
 import "./utils/dom-utils.js";
 import "./ui/layout-engine.js";

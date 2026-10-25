@@ -294,11 +294,11 @@ To keep the overlay modular, maintainable, and high-performing as new race and t
   * Single audit point for input sanitization against malicious competitor usernames, split titles, and remote avatar assets.
 
 ### 3. Decouple Simulation Engine ([`src/core/race-simulation.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-simulation.js))
-* **Current State**: Local offline race simulation (`startSimulation`, `tickSimulatedCompetitors`, `stopSimulation`) resides inside [`src/core/race-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-client.js) (~1,700 lines). While sharing local state was convenient during initial development, it mixes network protocol logic with virtual simulation mechanics.
-* **Target Architecture**: Extract the simulated competitor generator, pacing curves, and virtual clock ticks into `src/core/race-simulation.js`. The simulation engine can plug into `RaceClient` as a data source adapter that emits synthetic messages identical to therun.gg/racetime.gg WebSocket events.
+* **Status**: Completed. Local offline race simulation mechanics (9 preset virtual competitors, dynamic lobby sequences, 3-second countdown state machine, virtual clock progression, PB variance curves, split glow pulses) have been extracted into `src/core/race-simulation.js` (~725 lines, ~70% line coverage).
+* **Architecture**: Exported on `window.LiveSplit.RaceSimulation`. Plugs into `LiveSplit.RaceClient` via an adapter context callback interface while keeping the public `RaceClient` simulation API completely backward-compatible (`startSimulation`, `stopSimulation`, `isSimulating`, `armSimulationStandby`, `isSimStandby`).
 * **Benefits**:
-  * Keeps [`src/core/race-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-client.js) strictly focused on live WebSocket communication, message parsing, and F1 interval math (< 1,200 lines).
-  * Simplifies unit testing of network reconnects and auto-detection without having to initialize simulation state machines.
+  * Reduces [`src/core/race-client.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/core/race-client.js) complexity by >650 lines, keeping it strictly focused on live telemetry, WebSockets, auto-detection, and F1 standings calculations.
+  * Allows independent unit testing of simulated competitor drift curves and countdown sequencing without WebSocket connection overhead.
 
 ### 4. Modularize Overlay UI Sub-Controllers
 * **Current State**: [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) still contains timer milestone formatters (`formatTimerDisplay`), comparison toast managers (`showComparisonToast`), and global keyboard listener bindings.
