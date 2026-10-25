@@ -85,8 +85,6 @@
       activeSplitsList: [],
       activeComparisonTimes: [],
       activeComparisonTimesRT: [],
-      simulationCourseTargets: [],
-      simulationCourseTargetsRT: [],
 
       // Last host telemetry received from LiveSplit
       lastExternalHostUpdate: 0,

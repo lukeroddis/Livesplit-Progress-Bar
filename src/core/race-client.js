@@ -62,8 +62,7 @@
       raceState.isExternalLiveSplitConnected = Boolean(connected);
     }
 
-    // Course targets, virtual clock, and PB checkpoints are delegated to LiveSplit.RaceSimulation
-    // (simulationCourseTargets, simVirtualSec, pbCheckpointTimes, if (hostState.currentTimeSec > 0))
+    // Offline simulation engine (course, rivals, virtual clock), created on first use
     let simEngine = null;
     function getSimEngine() {
       if (!simEngine && typeof window !== "undefined" && window.LiveSplit && window.LiveSplit.RaceSimulation) {
@@ -156,6 +155,12 @@
     /**
      * Returns all entrants (host + competitors), sorted into F1 standings order.
      */
+    // Course the running simulation races on (empty when not simulating)
+    function getSimulationCourseTargets() {
+      const se = getSimEngine();
+      return (se && se.isSimulating()) ? se.getCourseTargets() : [];
+    }
+
     function getRankedEntrants() {
       const seRank = getSimEngine();
       return window.LiveSplit.RaceRanking.calculateRankedEntrants({
@@ -166,7 +171,7 @@
         currentTimingMethod: raceState.currentTimingMethod,
         activeSplitsList: raceState.activeSplitsList,
         activeComparisonTargets: ctx.getActiveComparisonTargets(),
-        simulationCourseTargets: raceState.simulationCourseTargets,
+        simulationCourseTargets: getSimulationCourseTargets(),
         lastKnownRanks: raceState.lastKnownRanks,
         checkpointRankHistory: raceState.checkpointRankHistory
       });
@@ -323,6 +328,7 @@
 
     // Client-level functions the controllers call through ctx.<name>
     Object.assign(ctx, {
+      getSimulationCourseTargets,
       getLogger,
       recordWsLog,
       getWebSocketLogs,

@@ -680,5 +680,15 @@
 
         rc.disconnectFromRace();
       });
+      it("times a simulated runner's segment from the simulation course when no split times were reported", () => {
+        const rc = window.LiveSplit.RaceClient.createRaceClient();
+        const course = [30, 60, 90];
+        rc.startSimulation(["A", "B", "C"], course, course, {});
+        // Host on split 3 at 70s with no completed split times: the previous split comes from the course (60s)
+        rc.updateHostProgress(70, 2, [], course, "C", ["A", "B", "C"], null, true, 70, course, [], "GameTime");
+        const host = rc.getRankedEntrants().find(e => e.isHost);
+        rc.stopSimulation();
+        assertEqual(host.elapsedSegmentSec, 10, `elapsed segment ${host.elapsedSegmentSec}s`);
+      });
     });
 })();

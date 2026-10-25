@@ -173,7 +173,8 @@
         if (raceState.activeComparisonTimes && raceState.activeComparisonTimes.length > 0) return raceState.activeComparisonTimes;
         if (raceState.activeComparisonTimesRT && raceState.activeComparisonTimesRT.length > 0) return raceState.activeComparisonTimesRT;
       }
-      if (raceState.simulationCourseTargets && raceState.simulationCourseTargets.length > 0) return raceState.simulationCourseTargets;
+      const simCourse = ctx.getSimulationCourseTargets();
+      if (simCourse.length > 0) return simCourse;
       return [30, 60, 90, 120, 150, 180, 210, 240];
     }
 
