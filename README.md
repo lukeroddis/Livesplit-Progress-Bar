@@ -163,11 +163,11 @@ npm run build
 
 ---
 
-## 🛠️ Developer & AI Agent Guide
+## 🛠️ Developer Guide
 
 For WebSocket architecture details, LiveSplit protocol constraints, algorithm specifications, and layout schema definitions, refer to:
 
-👉 **[Agent & Developer Architecture Guide (AGENT_GUIDE.md)](AGENT_GUIDE.md)**
+👉 **[Developer Guide (DEVELOPER_GUIDE.md)](DEVELOPER_GUIDE.md)**
 
 ---
 

@@ -1,6 +1,6 @@
-# LiveSplit Minimal Overlay — Agent & Developer Guide
+# LiveSplit Minimal Overlay — Developer Guide
 
-> **Audience**: AI Agents (Antigravity, Copilot, etc.) and human core maintainers working on this codebase.  
+> **Audience**: Contributors and maintainers working on this codebase.  
 > **Purpose**: Establish architectural rules, LiveSplit Server protocol nuances, data schemas, and testing guidelines to avoid regressions, avoid duplicated work, and maintain code stability.
 
 ---
@@ -278,7 +278,7 @@ Before committing any changes, you must ensure:
    - Any new element added in [index.html](index.html) must have a consistent `id`.
    - Any `document.getElementById` added in JS must match an ID in `index.html`.
 4. **Do Not Break Exported Helpers**:
-   - The following functions in [overlay.js](overlay.js) are exported on `window` for layout interop and test runners:
+   - The following functions are exported on `window` by [window-api.js](src/core/window-api.js) for layout interop and test runners:
      `timeStringToSeconds`, `formatTargetTime`, `formatDeltaSeconds`, `formatDeltaLive`, `normalizeComparisonName`, `getShortComparisonName`, `applyActiveComparison`, `cycleComparison`.
 5. **Git Pre-Push Hook**:
    - Repository uses `.githooks/pre-push`. Ensure `git config core.hooksPath .githooks` is active.
@@ -300,26 +300,10 @@ Before committing any changes, you must ensure:
 
 ---
 
-## 6. Commit Message Attribution Standard
+## 6. Commit Messages
 
-`Co-authored-by:` trailers are matched by email to GitHub accounts, so only use one whose address belongs to the tool's vendor, never a guessable username or `username@users.noreply.github.com` (that previously credited an unrelated GitHub user).
-
-- **Claude Code**: use Anthropic's standard trailer, which maps to Anthropic's own address:
-
-  ```text
-  <Short imperative commit title>
-
-  <Detailed summary of changes, rationale, and verification performed>
-
-  Co-Authored-By: Claude <model> <noreply@anthropic.com>
-  ```
-
-- **Other tools without a vendor-owned address** (e.g. Antigravity): do not add a trailer; put the attribution in the commit body instead:
-
-  ```text
-  🤖 Generated with Antigravity (Google DeepMind)
-  Reviewed, tested, and approved by Luke.
-  ```
+- Short imperative title, then a body explaining what changed, why, and how it was verified.
+- `Co-authored-by:` trailers are matched to GitHub accounts by email. Only add one whose address belongs to the co-author (a guessable `username@users.noreply.github.com` previously credited an unrelated GitHub user); otherwise credit them in the commit body.
 
 ---
 

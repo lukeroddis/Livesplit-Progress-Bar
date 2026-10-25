@@ -19,7 +19,7 @@ def db():
 
 @pytest.mark.parametrize("paths", [
     ["README.md"],
-    ["AGENT_GUIDE.md"],
+    ["DEVELOPER_GUIDE.md"],
     ["tests/test_runner.template.html"],
     ["tests/run_tests.py"],
     ["tests/unit/core/split-engine.test.js"],

@@ -5,7 +5,7 @@
  * - Reset, run start, split advance (skips, golds, PB commit) and undo transitions
  * - Host progress reporting to the race client
  *
- * Protocol rules (AGENT_GUIDE section 2): only getcurrentgametime / getcurrentrealtime /
+ * Protocol rules (DEVELOPER_GUIDE section 2): only getcurrentgametime / getcurrentrealtime /
  * getsplitindex are polled; transition queries run once per split change.
  *
  * Installed onto the shared overlay `app` registry: reads/writes `app.state`

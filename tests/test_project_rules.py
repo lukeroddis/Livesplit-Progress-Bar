@@ -1,5 +1,5 @@
 """
-Project-wide rules from AGENT_GUIDE.md that behaviour tests cannot express.
+Project-wide rules from DEVELOPER_GUIDE.md that behaviour tests cannot express.
 
 Keep this list short: prefer a JS unit test in tests/unit for anything that is
 behaviour. Rules belong here when they guard the distribution contract or a
@@ -34,7 +34,7 @@ def test_license_is_mit():
 
 
 def test_gettimingmethod_is_never_sent():
-    """Blacklisted: legacy LiveSplit.Server.dll hangs the command queue on it (AGENT_GUIDE §2)."""
+    """Blacklisted: legacy LiveSplit.Server.dll hangs the command queue on it (DEVELOPER_GUIDE §2)."""
     offenders = [rel for rel, src in all_app_js().items() if "gettimingmethod" in src]
     assert not offenders, f"gettimingmethod must never be queried: {offenders}"
 
@@ -50,7 +50,7 @@ def test_overlay_init_is_not_bound_to_window_onload():
     (r'<img[^>]+src="https?://', "index.html"),
 ] + [(p, css) for css in index_stylesheets() for p in (r'@import', r'url\(\s*["\']?https?://')])
 def test_no_external_runtime_assets(pattern, where):
-    """The release must run from file:// in OBS with no network assets (AGENT_GUIDE §1)."""
+    """The release must run from file:// in OBS with no network assets (DEVELOPER_GUIDE §1)."""
     matches = re.findall(pattern, read_text(where))
     assert not matches, f"{where} references external assets: {matches}"
 
