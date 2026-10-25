@@ -57,7 +57,7 @@ npm test         # Python + in-browser test suite
 npm run build    # → dist/index.html (single self-contained file)
 ```
 
-The application source remains classic, dependency-free scripts. `vite.config.mjs` swaps the script tags for [src/build-entry.js](src/build-entry.js) during a build, and `vite-plugin-singlefile` inlines the resulting JS and CSS. The `postbuild` check ([scripts/verify-single-file.mjs](scripts/verify-single-file.mjs)) fails the build if `dist/` contains anything other than `index.html` or if the output references an external asset. The source [index.html](index.html) can still be opened directly for quick debugging, but the supported distribution is the built single file.
+The application source remains classic, dependency-free scripts. `vite.config.mjs` swaps the script tags for a generated module entry (built from the same `index.html` script list) during a build, and `vite-plugin-singlefile` inlines the resulting JS and CSS. The `postbuild` check ([scripts/verify-single-file.mjs](scripts/verify-single-file.mjs)) fails the build if `dist/` contains anything other than `index.html` or if the output references an external asset. The source [index.html](index.html) can still be opened directly for quick debugging, but the supported distribution is the built single file.
 
 ---
 
@@ -143,14 +143,17 @@ For multi-scene or automated OBS setups, configure sources instantly with query 
 The repository includes an automated test suite verifying data parsers, ghost interpolation, DOM consistency, and layout schema compatibility:
 
 ```bash
-# Run automated tests and static checkers (or: npm test)
+# One-time: install the dev test tools (pytest, websockets for coverage)
+python -m pip install -r requirements-dev.txt
+
+# Run the full suite (or: npm test). Extra args go to pytest, e.g. -k browser
 python tests/run_tests.py
 
 # Verify the single-file build contract
 npm run build
 ```
 
-* **In-Browser Test Runner**: Open [tests/test_runner.html](tests/test_runner.html) in any browser to inspect assertions visually with live status badges.
+* **In-Browser Test Runner**: Run `npm run test:runner` (or any test run), then open `tests/test_runner.html` in a browser to inspect assertions visually. The page is generated from [index.html](index.html) and every `tests/unit/**/*.test.js` spec.
 * **Automated Pre-Push Hook**: Local tests run automatically before every `git push` via `.githooks/pre-push`.
 * **GitHub Actions CI**: Automated tests and the single-file build run on every push and pull request via [.github/workflows/ci.yml](.github/workflows/ci.yml).
 * **Release Build**: Releases publish a standalone `livesplit-minimal-overlay-<tag>.html` built and verified by CI.

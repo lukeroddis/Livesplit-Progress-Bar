@@ -11,7 +11,7 @@
    - **Rule**: All runtime code must remain local and pure client-side. Vite and `vite-plugin-singlefile` are **devDependencies only**; do **not** add runtime npm dependencies, CDN imports, or remote asset URLs.
    - **Distribution**: `npm run build` is the supported release path. It must produce exactly one fully self-contained `dist/index.html` with JavaScript and CSS inlined and no external or local asset references. The postbuild check ([`verify-single-file.mjs`](scripts/verify-single-file.mjs)) enforces this.
    - **Rationale**: The released single file must run from `file://` in OBS Studio's CEF Browser Source and desktop browsers with no server or companion files.
-   - **Source shape**: Keep the application as classic scripts so the existing test runner and direct `file://` debugging continue to work. [`src/build-entry.js`](src/build-entry.js) imports them in `<script>` order; keep it synchronized when adding or removing source scripts.
+   - **Source shape**: Keep the application as classic scripts so the generated test runner and direct `file://` debugging continue to work. [index.html](index.html) is the only list of scripts: the Vite build entry and the test runner page are both generated from its `<script>` tags.
 2. **Zero-Allocation 60 FPS Render Loop**:
    - Never allocate new DOM nodes or perform expensive querySelectors inside the 33ms animation tick (`requestAnimationFrame`).
    - Only modify `textContent` and `style` transforms on cached element references during live timing.
@@ -41,9 +41,8 @@
      - [leaderboard.js](src/ui/leaderboard.js): Live race F1 timing tower controller, 60 FPS FLIP overtake reorder animations, and entrant mute controls.
    - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
    - [overlay.js](overlay.js): Application bootstrap and run/comparison state owner: LiveSplit Server WebSocket bridge, poll loop split-transition handlers, comparison/timing-method switching, and live segment progress. It wires the modules above via `createX({ getters })` factories and keeps the `window.*` exports used by layout.js and tests.
-   - **Adding a module**: register the script in `index.html`, `tests/test_runner.html` and `src/build-entry.js` in the same order (enforced by `test_modular_architecture`). Every script is an ES module in the Vite build, so share state through `window.LiveSplit.*` / explicit `window.*` exports and injected getters, never through top-level `let` across files.
-   - [`vite.config.mjs`](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for the module build entry and enables the single-file plugin.
-   - [`src/build-entry.js`](src/build-entry.js): Build-only entry that imports every source script in its original `<script>` order. It is not loaded when opening `index.html` directly.
+   - **Adding a module**: add one `<script>` tag to `index.html` in load order; nothing else needs registering. Every script is an ES module in the Vite build, so share state through `window.LiveSplit.*` / explicit `window.*` exports and injected getters, never through top-level `let` across files.
+   - [`vite.config.mjs`](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for a virtual module entry generated from those same tags, and enables the single-file plugin.
    - [`scripts/verify-single-file.mjs`](scripts/verify-single-file.mjs): Postbuild contract check for the generated `dist/index.html`; run automatically by `npm run build`.
    - `dist/index.html`: Generated, fully self-contained distribution file. It is git-ignored and attached to GitHub releases.
 
@@ -263,7 +262,17 @@ Before committing any changes, you must ensure:
 5. **Git Pre-Push Hook**:
    - Repository uses `.githooks/pre-push`. Ensure `git config core.hooksPath .githooks` is active.
 
-> **Test Suite Architecture**: In-browser unit tests are modularized under `tests/unit/core/` and `tests/unit/ui/` with a lightweight test framework harness in `tests/harness/mini-test.js`. When adding tests for a module, add or edit the corresponding spec file (e.g. `tests/unit/core/race-client.test.js`, `tests/unit/ui/leaderboard.test.js`) rather than modifying `test_runner.html` directly. The browser suite requires Chrome/Chromium; without `websockets` it falls back to `--dump-dom` and skips coverage. A Vitest/browser-test consolidation is future work; prefer behavior-level tests for new code.
+> **Test Suite Architecture** (`python tests/run_tests.py` / `npm test` → pytest; install with `pip install -r requirements-dev.txt`):
+>
+> | Where | What goes there |
+> | :--- | :--- |
+> | `tests/unit/<core\|ui\|utils>/<module>.test.js` | **Behaviour tests (default home for new tests).** One spec per module, run in headless Chrome against the real scripts. New files are discovered automatically. |
+> | `tests/test_structure.py` | Cross-file contracts: files parse (`node --check`), DOM ids exist in `index.html`, JS-toggled CSS classes exist in `style.css`. |
+> | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only). |
+> | `tests/test_release_bump.py` | `scripts/determine_bump.py` release classification. |
+> | `tests/browser/` | Runner page generator (`build_runner.py`), Chrome/CDP driver, coverage maths. |
+>
+> Do **not** assert on source text (`"function foo" in overlay_js`): it breaks on every refactor and does not test behaviour. Do not re-implement JS logic in Python to test it; test the JS directly. `tests/test_runner.html` is generated (gitignored); edit `tests/test_runner.template.html` for harness changes. The browser suite needs Chrome/Chromium (required when `CI` is set); without `websockets` it falls back to `--dump-dom` and skips coverage.
 
 ---
 
