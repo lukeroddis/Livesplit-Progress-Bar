@@ -279,11 +279,11 @@ Reviewed, tested, and approved by Luke.
 To keep the overlay modular, maintainable, and high-performing as new race and telemetry features are added, the following modularisation opportunities have been identified for future implementation:
 
 ### 1. Extract Race Track Markers ([`src/ui/race-track-markers.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/race-track-markers.js))
-* **Current State**: [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) has grown to ~4,100 lines. The competitor marker management logic (`getOrCreateRaceMarker`, `removeDanglingRaceMarkers`, and `updateGhostRunnerMarkers`) is currently embedded directly in the main animation loop of [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js).
-* **Target Architecture**: Move track marker lifecycle management into a dedicated `src/ui/race-track-markers.js` module, mirroring the design of [`src/ui/leaderboard.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/leaderboard.js).
+* **Status**: Completed. Competitor marker management (`getOrCreateRaceMarker`, `removeDanglingRaceMarkers`, `layoutTrackPins`, `renderRaceCompetitorMarkers`, `clearMarkers`) is isolated in `src/ui/race-track-markers.js` with comprehensive unit tests (83.5% line coverage), reducing [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) by ~250 lines while preserving zero-allocation 60 FPS animation loop performance.
+* **Architecture**: Dedicated `src/ui/race-track-markers.js` module, mirroring the design of [`src/ui/leaderboard.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/ui/leaderboard.js).
 * **Benefits**:
   * Isolates competitor DOM creation, needle clustering math, off-screen edge pill indicators, and CSS custom property (`--racer-color`, `--ghost-pin-size`) updates.
-  * Reduces [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) by ~300 lines.
+  * Reduces [`overlay.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/overlay.js) complexity.
   * Enables independent unit testing of marker DOM caching and lifecycle management.
 
 ### 2. Shared DOM Sanitization & Security Utility ([`src/utils/dom-utils.js`](file:///c:/Users/Luke/Livesplit-Progress-Bar/src/utils/dom-utils.js))

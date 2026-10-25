@@ -504,8 +504,8 @@ function escapeHtml(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/[\x22]/g, "&quot;")
+    .replace(/[\x27]/g, "&#039;");
 }
 
 function formatTimerDisplay(rawTime) {
@@ -1968,64 +1968,13 @@ function getOrCreateGhostMarker(ghostInfo) {
   return marker;
 }
 
-const raceMarkerMap = new Map();
-
 function getOrCreateRaceMarker(racer) {
-  const markerId = `ghost-marker-race-${racer.userId}`;
-  let marker = raceMarkerMap.get(markerId);
-  if (!marker || !document.contains(marker)) {
-    marker = document.getElementById(markerId);
-    if (marker) raceMarkerMap.set(markerId, marker);
+  if (window.LiveSplit && window.LiveSplit.RaceTrackMarkers && typeof window.LiveSplit.RaceTrackMarkers.getOrCreateRaceMarker === "function") {
+    const marker = window.LiveSplit.RaceTrackMarkers.getOrCreateRaceMarker(racer);
+    if (marker) knownGhostMarkers.add(marker);
+    return marker;
   }
-  const track = document.getElementById("track");
-  if (!track) return null;
-
-  const color = racer.color || "#38bdf8";
-  const rawAvatar = racer.avatar || "";
-  const isSafeImg = typeof rawAvatar === "string" && (
-    rawAvatar.startsWith("https://") ||
-    rawAvatar.startsWith("http://") ||
-    rawAvatar.startsWith("data:image/")
-  );
-  const isLikelyUrl = typeof rawAvatar === "string" && (
-    rawAvatar.includes(":") || rawAvatar.includes("/")
-  );
-  const fallbackIcon = rawAvatar && !isLikelyUrl ? rawAvatar : "🏎️";
-  const avatarHtml = isSafeImg
-    ? `<img class="racer-avatar-img" src="${escapeHtml(rawAvatar)}" alt="" />`
-    : `<span class="ghost-icon racer-avatar">${escapeHtml(fallbackIcon)}</span>`;
-
-  if (!marker) {
-    marker = document.createElement("div");
-    marker.id = markerId;
-    marker.className = "ghost-marker race-competitor";
-    marker.style.setProperty("--racer-color", color);
-    marker.innerHTML = `
-      <div class="ghost-icon-wrap racer-avatar-wrap">${avatarHtml}</div>
-      <div class="ghost-needle racer-needle"></div>
-      <div class="racer-tag">${escapeHtml(racer.username || "")}</div>
-    `;
-    track.appendChild(marker);
-    raceMarkerMap.set(markerId, marker);
-  } else {
-    if (!track.contains(marker)) {
-      track.appendChild(marker);
-    }
-    marker.style.setProperty("--racer-color", color);
-    const wrap = marker.querySelector(".racer-avatar-wrap");
-    if (wrap) wrap.innerHTML = avatarHtml;
-    const tag = marker.querySelector(".racer-tag");
-    if (tag && tag.textContent !== (racer.username || "")) {
-      tag.textContent = racer.username || "";
-    }
-  }
-  if (racer.isDNF) {
-    marker.classList.add("is-dnf");
-  } else {
-    marker.classList.remove("is-dnf");
-  }
-  knownGhostMarkers.add(marker);
-  return marker;
+  return null;
 }
 
 function refreshLeaderboard() {
@@ -2245,239 +2194,36 @@ function updateGhostRunner(currentSec) {
   });
 
   // 2. Render live race competitors (therun.gg / racetime.gg / simulation)
-  function getCompetitorTrackRef(sc) {
-    const s = Math.max(0, sc || 0);
-    const idx = Math.floor(s);
-    const rat = Math.max(0, Math.min(1.0, s - idx));
-    const tP = idx > 0 ? (comparisonTimes[idx - 1] || (idx * 30)) : 0;
-    const tN = (idx < comparisonTimes.length) ? (comparisonTimes[idx] || ((idx + 1) * 30)) : (tP + 30);
-    return tP + rat * (tN - tP);
+  if (window.LiveSplit && window.LiveSplit.RaceTrackMarkers && typeof window.LiveSplit.RaceTrackMarkers.renderRaceCompetitorMarkers === "function") {
+    window.LiveSplit.RaceTrackMarkers.renderRaceCompetitorMarkers({
+      raceEntrants,
+      splitsList,
+      comparisonTimes,
+      currentIndex,
+      runnerSegProgress,
+      currentSec,
+      visibleMin,
+      visibleMax,
+      getSegmentCoords,
+      formatDeltaSeconds,
+      leftOffscreenGhosts,
+      rightOffscreenGhosts,
+      visibleOnscreenMarkers,
+      renderedMarkerIds,
+      trackElem: track
+    });
+    const activeIds = new Set(raceEntrants.map(e => e.userId));
+    window.LiveSplit.RaceTrackMarkers.removeDanglingRaceMarkers(activeIds);
   }
 
-  raceEntrants.forEach((racer) => {
-    let segIdx = 0;
-    let ratio = 0;
-    const numSplits = splitsList.length;
-
-    if (racer.isFinished) {
-      segIdx = numSplits - 1;
-      ratio = 1.0;
-    } else if (racer.isDNF && typeof racer.dnfScore === "number") {
-      segIdx = Math.floor(racer.dnfScore);
-      ratio = racer.dnfScore - segIdx;
-    } else if (racer.totalSplits > 0 && racer.totalSplits !== numSplits && typeof racer.runPercentage === "number" && racer.runPercentage > 0) {
-      // Spectator mode / split count mismatch: map normalized run percentage across local progress bar
-      const mappedScore = Math.max(0, Math.min(numSplits - 0.001, racer.runPercentage * numSplits));
-      segIdx = Math.floor(mappedScore);
-      ratio = mappedScore - segIdx;
-    } else {
-      segIdx = Math.floor(racer.score || 0);
-      ratio = (racer.score || 0) - segIdx;
-    }
-    segIdx = Math.max(0, Math.min(numSplits - 1, segIdx));
-    ratio = Math.max(0, Math.min(1.0, ratio));
-
-    const coords = getSegmentCoords(segIdx);
-    if (!coords) return;
-
-    const marker = getOrCreateRaceMarker(racer);
-    if (!marker) return;
-    renderedMarkerIds.add(marker.id);
-
-    const ghostCoord = coords.startCoord + ratio * (coords.endCoord - coords.startCoord);
-
-    const hostScore = Math.max(0, currentIndex) + runnerSegProgress;
-    const isAhead = (hostScore >= (racer.score || 0));
-
-    const hostCourseSec = getCompetitorTrackRef(hostScore);
-    const racerCourseSec = racer.isFinished && typeof racer.finalTimeSec === "number"
-      ? racer.finalTimeSec
-      : getCompetitorTrackRef(racer.score || 0);
-    const deltaSec = currentSec - (racer.currentTimeSec || 0) !== 0 && hostScore === (racer.score || 0)
-      ? 0
-      : (hostCourseSec - racerCourseSec);
-    const deltaStr = formatDeltaSeconds(-deltaSec);
-
-    if (ghostCoord < visibleMin) {
-      marker.style.display = "none";
-      marker.style.removeProperty("--ghost-stack-offset");
-      marker.style.removeProperty("--ghost-splay-x");
-      marker.style.removeProperty("--ghost-needle-angle");
-      marker.style.removeProperty("--ghost-needle-height");
-      leftOffscreenGhosts.push({
-        ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
-        deltaStr,
-        isAhead
-      });
-    } else if (ghostCoord > visibleMax) {
-      marker.style.display = "none";
-      marker.style.removeProperty("--ghost-stack-offset");
-      marker.style.removeProperty("--ghost-splay-x");
-      marker.style.removeProperty("--ghost-needle-angle");
-      marker.style.removeProperty("--ghost-needle-height");
-      rightOffscreenGhosts.push({
-        ghostInfo: { id: racer.userId, icon: racer.avatar || "🏎️", color: racer.color },
-        deltaStr,
-        isAhead
-      });
-    } else {
-      visibleOnscreenMarkers.push({
-        marker,
-        coord: ghostCoord,
-        coords
-      });
-    }
-  });
-
-  // 3. Intelligent Mini-Leaderboard Track Pins with Orthogonal Drop Lines (Image 2)
-  // Clustered pins align horizontally in race order (Furthest Behind on left -> Furthest Ahead on right).
-  // Pin heads float side-by-side with zero overlap above split text.
-  // Orthogonal leader lines connect behind the pin heads down to each runner's actual track coordinate,
-  // with least drawing precedence so text and badges are always 100% readable.
-  const trackElem = document.getElementById("track");
-  const configuredPinSize = trackElem ? (parseFloat(getComputedStyle(trackElem).getPropertyValue("--ghost-pin-size")) || 26) : 26;
-  const COLLISION_THRESHOLD = configuredPinSize + 2; // px - zero overlap
-
-  visibleOnscreenMarkers.sort((a, b) => {
-    if (Math.abs(a.coord - b.coord) > 0.001) {
-      return a.coord - b.coord;
-    }
-    const idA = a.marker.id || "";
-    const idB = b.marker.id || "";
-    return idA.localeCompare(idB);
-  });
-
-  if (isVertical) {
-    // In vertical track orientation, tier pins horizontally to the right
-    const activeTiers = [];
-    visibleOnscreenMarkers.forEach((item) => {
-      let tier = 0;
-      while (activeTiers[tier] !== undefined && (item.coord - activeTiers[tier]) < COLLISION_THRESHOLD) {
-        tier++;
-      }
-      tier = Math.min(tier, 2);
-      activeTiers[tier] = item.coord;
-
-      const marker = item.marker;
-      marker.style.display = "flex";
-      const offsetX = tier * (configuredPinSize + 2);
-      marker.style.transform = `translateY(${item.coord}px) translateY(-50%) translateX(calc(-50% + ${offsetX}px))`;
-      marker.style.zIndex = `${20 + tier}`;
-      marker.style.removeProperty("--ghost-stack-offset");
-      marker.style.removeProperty("--ghost-splay-x");
-      marker.style.removeProperty("--ghost-needle-angle");
-      marker.style.removeProperty("--ghost-needle-height");
-      marker.classList.remove("splay-left", "splay-right");
-    });
-  } else {
-    // Horizontal track orientation: Globally Non-Overlapping Mini-Leaderboard Strip with Orthogonal Drop Lines
-    // Iterative cluster merging guarantees ZERO badge overlap across the entire track under all race conditions.
-    const leftBound = visibleMin + (configuredPinSize / 2) + 2;
-    const rightBound = visibleMax - (configuredPinSize / 2) - 2;
-    const maxAllowedSpan = Math.max(1, rightBound - leftBound);
-
-    let badgeSpacing = configuredPinSize + 2;
-    const totalPins = visibleOnscreenMarkers.length;
-    if (totalPins > 1 && (totalPins - 1) * badgeSpacing > maxAllowedSpan) {
-      badgeSpacing = Math.max(12, maxAllowedSpan / (totalPins - 1));
-    }
-
-    const getClusterSpan = (c) => (c.items.length - 1) * badgeSpacing;
-    const getClusterRawCenter = (c) => c.items.reduce((acc, it) => acc + it.coord, 0) / c.items.length;
-    const getClusterClampedCenter = (c) => {
-      const span = getClusterSpan(c);
-      let center = getClusterRawCenter(c);
-      const half = span / 2;
-      if (center - half < leftBound) center = leftBound + half;
-      if (center + half > rightBound) center = rightBound - half;
-      return center;
-    };
-    const getClusterFirstBadge = (c) => getClusterClampedCenter(c) - getClusterSpan(c) / 2;
-    const getClusterLastBadge = (c) => getClusterClampedCenter(c) + getClusterSpan(c) / 2;
-
-    // 1. Initialize each marker as its own cluster
-    let clusters = visibleOnscreenMarkers.map((item) => ({
-      items: [item]
-    }));
-
-    // 2. Iteratively merge any adjacent clusters whose badge bounds overlap (< badgeSpacing)
-    let merged = true;
-    let iterations = 0;
-    while (merged && iterations < 50) {
-      merged = false;
-      iterations++;
-      const nextClusters = [];
-      let i = 0;
-      while (i < clusters.length) {
-        if (i < clusters.length - 1) {
-          const cA = clusters[i];
-          const cB = clusters[i + 1];
-          if (getClusterFirstBadge(cB) - getClusterLastBadge(cA) < badgeSpacing - 0.5) {
-            nextClusters.push({
-              items: cA.items.concat(cB.items)
-            });
-            i += 2;
-            merged = true;
-            continue;
-          }
-        }
-        nextClusters.push(clusters[i]);
-        i++;
-      }
-      clusters = nextClusters;
-    }
-
-    const baseNeedleLength = 16; // default baseline needle length in px
-    let globalIndex = 0;
-
-    clusters.forEach((cluster) => {
-      const N = cluster.items.length;
-      const center = getClusterClampedCenter(cluster);
-      const span = getClusterSpan(cluster);
-
-      const badgePositions = [];
-      for (let k = 0; k < N; k++) {
-        badgePositions.push(center - (span / 2) + k * badgeSpacing);
-      }
-
-      cluster.items.forEach((item, k) => {
-        const marker = item.marker;
-        marker.style.display = "flex";
-        marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
-
-        // Leader (on right) has highest z-index so badges layer naturally
-        const iconWrap = marker.querySelector(".ghost-icon-wrap");
-        if (iconWrap) iconWrap.style.zIndex = `${30 + globalIndex}`;
-        globalIndex++;
-
-        const deltaX = Math.round((badgePositions[k] - item.coord) * 10) / 10;
-
-        const distPrev = Math.abs(item.coord - item.coords.startCoord);
-        const distNext = Math.abs(item.coords.endCoord - item.coord);
-        const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
-        const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
-        const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
-        marker.classList.toggle("compact", isHoveringText);
-
-        // Stems extend full length down to track dot/bar (passing behind split text at z-index: 5)
-
-        marker.style.removeProperty("--ghost-needle-angle");
-        marker.style.removeProperty("--ghost-stack-offset");
-        marker.style.removeProperty("--ghost-needle-height");
-
-        if (deltaX > 1) {
-          marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
-          marker.classList.add("splay-right");
-          marker.classList.remove("splay-left");
-        } else if (deltaX < -1) {
-          marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
-          marker.classList.add("splay-left");
-          marker.classList.remove("splay-right");
-        } else {
-          marker.style.removeProperty("--ghost-splay-x");
-          marker.classList.remove("splay-left", "splay-right");
-        }
-      });
+  // 3. Intelligent Mini-Leaderboard Track Pins with Orthogonal Drop Lines
+  if (window.LiveSplit && window.LiveSplit.RaceTrackMarkers && typeof window.LiveSplit.RaceTrackMarkers.layoutTrackPins === "function") {
+    window.LiveSplit.RaceTrackMarkers.layoutTrackPins(visibleOnscreenMarkers, {
+      isVertical,
+      visibleMin,
+      visibleMax,
+      trackElem: track,
+      getNodeTextThreshold
     });
   }
 

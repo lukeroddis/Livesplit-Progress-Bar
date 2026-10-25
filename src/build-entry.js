@@ -21,5 +21,6 @@ import "./ui/layout-engine.js";
 import "./ui/track-renderer.js";
 import "./ui/interactions.js";
 import "./ui/leaderboard.js";
+import "./ui/race-track-markers.js";
 import "../layout.js";
 import "../overlay.js";

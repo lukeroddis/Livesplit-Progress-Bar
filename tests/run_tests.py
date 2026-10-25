@@ -34,7 +34,8 @@ def test_file_integrity():
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
-        os.path.join("src", "ui", "interactions.js")
+        os.path.join("src", "ui", "interactions.js"),
+        os.path.join("src", "ui", "race-track-markers.js")
     ]
     for fname in required:
         path = os.path.join(ROOT_DIR, fname)
@@ -57,7 +58,8 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
-        os.path.join("src", "ui", "interactions.js")
+        os.path.join("src", "ui", "interactions.js"),
+        os.path.join("src", "ui", "race-track-markers.js")
     ]
     
     for fname in files_to_check:
@@ -158,7 +160,8 @@ def test_dom_id_consistency():
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "interactions.js"),
         os.path.join("src", "core", "race-client.js"),
-        os.path.join("src", "ui", "leaderboard.js")
+        os.path.join("src", "ui", "leaderboard.js"),
+            os.path.join("src", "ui", "race-track-markers.js")
     ]:
         path = os.path.join(ROOT_DIR, js_file)
         with open(path, "r", encoding="utf-8") as f:
@@ -2461,11 +2464,14 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "background: transparent !important;" in css, "style.css splayed needles must enforce transparent background to eliminate blurring bug"
     assert "box-shadow: none !important;" in css, "style.css splayed needles must eliminate box-shadow to prevent blurring glow"
     assert ".ghost-marker .racer-tag" in css, "style.css must support tooltips for all ghost markers"
+    markers_file = os.path.join(ROOT_DIR, "src", "ui", "race-track-markers.js")
+    with open(markers_file, "r", encoding="utf-8") as mf:
+        markers_code = mf.read()
     assert ".ghost-marker:hover .racer-tag" in css, "style.css must reveal tooltip on hovering any ghost marker"
     assert '<div class="racer-tag">${ghostInfo.name' in overlay_js, "overlay.js getOrCreateGhostMarker must inject tooltip racer-tag with ghostInfo.name"
-    assert "configuredPinSize + 2" in overlay_js, "overlay.js must ensure zero pinhead overlap by spacing pinheads at least configuredPinSize + 2"
-    assert "getClusterClampedCenter" in overlay_js, "overlay.js must use iterative cluster merging to prevent multi-cluster badge collapse"
-    assert "getClusterFirstBadge(cB) - getClusterLastBadge(cA)" in overlay_js, "overlay.js must merge overlapping cluster badge bounds"
+    assert "configuredPinSize + 2" in (overlay_js + markers_code), "race track markers must ensure zero pinhead overlap by spacing pinheads at least configuredPinSize + 2"
+    assert "getClusterClampedCenter" in (overlay_js + markers_code), "race track markers must use iterative cluster merging to prevent multi-cluster badge collapse"
+    assert "getClusterFirstBadge(cB) - getClusterLastBadge(cA)" in (overlay_js + markers_code), "race track markers must merge overlapping cluster badge bounds"
 
     # 11. Two-phase split transition, tile double-click hiding, milestone gaps, and position persistence
     assert "is-completed-${effect.type}" in leaderboard_code, "leaderboard.js must apply celebratory glow class in Phase 1"
@@ -2516,9 +2522,12 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "completedSplitTimesGT" in overlay_js, "overlay.js must track completedSplitTimesGT"
 
     # 13. Security sanitization, TDZ prevention, and WebSocket self-healing checks
+    markers_file = os.path.join(ROOT_DIR, "src", "ui", "race-track-markers.js")
+    with open(markers_file, "r", encoding="utf-8") as mf:
+        markers_code = mf.read()
     assert "function escapeHtml" in overlay_js, "overlay.js must define escapeHtml for XSS defense"
-    assert "escapeHtml(racer.username" in overlay_js, "overlay.js getOrCreateRaceMarker must escape racer.username"
-    assert 'rawAvatar.startsWith("https://")' in overlay_js, "overlay.js getOrCreateRaceMarker must validate avatar URL protocols"
+    assert "escapeHtml(racer.username" in (overlay_js + markers_code), "race track markers getOrCreateRaceMarker must escape racer.username"
+    assert 'rawAvatar.startsWith("https://")' in (overlay_js + markers_code), "race track markers getOrCreateRaceMarker must validate avatar URL protocols"
     assert "let hostSplitName = currentSplitName;" in race_code, "race-client.js updateHostProgress must declare hostSplitName"
     assert race_code.index("let hostSplitName = currentSplitName;") < race_code.index("if (splitFlash && splitFlash.type)"), "race-client.js updateHostProgress must declare hostSplitName before splitFlash to prevent TDZ ReferenceError"
     assert "!ws || ws.readyState !== WebSocket.OPEN" in race_code, "race-client.js pollUserStatus must auto-reconnect if socket dropped on active raceId"
@@ -2811,7 +2820,8 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),
             os.path.join("src", "ui", "interactions.js"),
-            os.path.join("src", "ui", "leaderboard.js")
+            os.path.join("src", "ui", "leaderboard.js"),
+            os.path.join("src", "ui", "race-track-markers.js")
         ]
 
         for tf in target_files:
