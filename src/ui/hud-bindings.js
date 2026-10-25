@@ -30,7 +30,8 @@
     function bindBadges() {
       document.getElementById("gold-toggle-badge")?.addEventListener("click", app.toggleGoldSegments);
       document.getElementById("timing-method-badge")?.addEventListener("click", app.toggleTimingMethod);
-      document.getElementById("comparison-badge")?.addEventListener("click", app.cycleComparison);
+      // Wrapped so the click event is not passed as cycleComparison's `reverse` flag
+      document.getElementById("comparison-badge")?.addEventListener("click", () => app.cycleComparison());
       document.getElementById("ghost-badge")?.addEventListener("click", app.cycleGhostComparison);
       document.getElementById("split-density-badge")?.addEventListener("click", app.cycleVisibleSplits);
       document.getElementById("split-angle-badge")?.addEventListener("click", app.cycleSplitAngle);
