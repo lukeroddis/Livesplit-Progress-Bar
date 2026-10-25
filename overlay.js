@@ -20,9 +20,7 @@ const DEFAULT_BESTS = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30];
 // Run & comparison state shared with the extracted controllers (src/core/overlay-state.js)
 const state = window.LiveSplit.OverlayState.createOverlayState();
 
-let ws = null;
 let isPolling = false;
-let inflightResolver = null;
 
 const IN_RUN_STATE_KEY = "livesplit_in_run_state";
 
@@ -110,7 +108,6 @@ function loadInRunState() {
 // High-frequency render loop optimizations & memory caches
 const ALL_DELTA_CLASSES = window.LiveSplit.TrackRenderer.ALL_DELTA_CLASSES;
 const ALL_SPLIT_STATE_CLASSES = window.LiveSplit.TrackRenderer.ALL_SPLIT_STATE_CLASSES;
-let commandQueue = Promise.resolve();
 
 // ============================================================
 // 2. HUD TITLE LABELS & TIMER DISPLAY HIERARCHY
@@ -310,8 +307,8 @@ function applyActiveComparison(compName, updateLiveSplit = false, showToast = tr
     saveInRunState();
   }
 
-  if (updateLiveSplit && ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(`setcomparison ${state.currentComparison}`);
+  if (updateLiveSplit) {
+    sendRaw(`setcomparison ${state.currentComparison}`);
   }
 
   if (showToast) {
@@ -513,10 +510,8 @@ function setTimerDisplayMode(mode, focusMethod) {
   // Sync modal segmented controls if open
   window.LiveSplit.TimerDisplay.syncModalControls(mode, state.currentTimingMethod);
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    if (state.currentTimingMethod === "GameTime") ws.send("switchto gametime");
-    else if (state.currentTimingMethod === "RealTime") ws.send("switchto realtime");
-  }
+  if (state.currentTimingMethod === "GameTime") sendRaw("switchto gametime");
+  else if (state.currentTimingMethod === "RealTime") sendRaw("switchto realtime");
 }
 
 function setTimingMethodFocus(method) {
@@ -541,10 +536,8 @@ function setTimingMethodFocus(method) {
   // Sync modal controls
   window.LiveSplit.TimerDisplay.syncModalControls(state.timerDisplayMode, state.currentTimingMethod);
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    if (method === "GameTime") ws.send("switchto gametime");
-    else if (method === "RealTime") ws.send("switchto realtime");
-  }
+  if (method === "GameTime") sendRaw("switchto gametime");
+  else if (method === "RealTime") sendRaw("switchto realtime");
 }
 
 function toggleTimingMethod() {
@@ -680,40 +673,42 @@ function loadCachedSplits() {
 // ============================================================
 // 7. LIVESPLIT SERVER CLIENT & SEQUENTIAL COMMAND QUEUE
 // ============================================================
+// Connection lifecycle and the sequential command queue live in src/core/livesplit-connection.js
+const connection = window.LiveSplit.LiveSplitConnection.createLiveSplitConnection({
+  url: WS_URL,
+  onOpen: async () => {
+    state.canQueryComparison = true;
+    const rcConn = getRaceClient();
+    if (rcConn && typeof rcConn.setExternalHostConnected === "function") {
+      rcConn.setExternalHostConnected(true);
+    }
+
+    // Query Game and Category from LiveSplit if not loaded from .lss
+    if (!localStorage.getItem("livesplit_raw_lss")) {
+      await syncLiveSplitMetadata();
+    }
+
+    if (!isPolling) {
+      isPolling = true;
+      pollLoop();
+    }
+  },
+  onClose: () => {
+    isPolling = false;
+    const rcDisconn = getRaceClient();
+    if (rcDisconn && typeof rcDisconn.setExternalHostConnected === "function") {
+      rcDisconn.setExternalHostConnected(false);
+    }
+  }
+});
+
 function sendCommand(cmd, timeoutMs = 400, isProbe = false) {
-  const execute = () => new Promise((resolve) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      resolve(null);
-      return;
-    }
+  return connection.sendCommand(cmd, timeoutMs, isProbe);
+}
 
-    let timer = setTimeout(() => {
-      inflightResolver = null;
-      if (!isProbe) {
-        console.warn(`LiveSplit command "${cmd}" timed out after ${timeoutMs}ms. Resetting WebSocket to prevent stream desynchronization.`);
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      }
-      resolve(null);
-    }, timeoutMs);
-
-    inflightResolver = (res) => {
-      clearTimeout(timer);
-      resolve(res);
-    };
-
-    try {
-      ws.send(cmd.trim());
-    } catch (e) {
-      clearTimeout(timer);
-      inflightResolver = null;
-      resolve(null);
-    }
-  });
-
-  commandQueue = commandQueue.then(execute, execute);
-  return commandQueue;
+// Fire-and-forget command (LiveSplit sends no reply), skipped while disconnected
+function sendRaw(cmd) {
+  connection.sendRaw(cmd);
 }
 
 async function syncLiveSplitMetadata() {
@@ -1129,62 +1124,7 @@ function detectTimingMethodFromComp(splitIdx, compSec) {
 // ============================================================
 
 function connect() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    return;
-  }
-  ws = new WebSocket(WS_URL);
-
-  ws.onopen = async () => {
-    const status = document.getElementById("connection-status");
-    if (status) {
-      status.innerText = "CONNECTED";
-      status.style.color = "#4ade80";
-      status.closest(".connection-status-pill")?.classList.add("connected");
-    }
-
-    state.canQueryComparison = true;
-    const rcConn = getRaceClient();
-    if (rcConn && typeof rcConn.setExternalHostConnected === "function") {
-      rcConn.setExternalHostConnected(true);
-    }
-
-    // Query Game and Category from LiveSplit if not loaded from .lss
-    if (!localStorage.getItem("livesplit_raw_lss")) {
-      await syncLiveSplitMetadata();
-    }
-
-    if (!isPolling) {
-      isPolling = true;
-      pollLoop();
-    }
-  };
-
-  ws.onmessage = (event) => {
-    const text = event.data.trim();
-    if (inflightResolver) {
-      const res = inflightResolver;
-      inflightResolver = null;
-      res(text);
-    }
-  };
-
-  ws.onclose = () => {
-    isPolling = false;
-    const rcDisconn = getRaceClient();
-    if (rcDisconn && typeof rcDisconn.setExternalHostConnected === "function") {
-      rcDisconn.setExternalHostConnected(false);
-    }
-    inflightResolver = null;
-    const status = document.getElementById("connection-status");
-    if (status) {
-      status.innerText = "DISCONNECTED";
-      status.style.color = "#ef4444";
-      status.closest(".connection-status-pill")?.classList.remove("connected");
-    }
-    setTimeout(connect, 1500);
-  };
-
-  ws.onerror = () => ws.close();
+  connection.connect();
 }
 
 
@@ -1555,7 +1495,7 @@ async function handleSplitIndex(idx, igtSec, rtaSec, currentTotalSec) {
 }
 
 async function pollLoop() {
-  while (ws && ws.readyState === WebSocket.OPEN) {
+  while (connection.isOpen()) {
     try {
       // 0. Periodic Auto-Sync with LiveSplit hotkeys (every ~500ms)
       state.pollTick = (state.pollTick + 1) % 15;

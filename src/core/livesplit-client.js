@@ -74,17 +74,23 @@
           if (inflightResolver) {
             const resolve = inflightResolver;
             inflightResolver = null;
-            resolve(event.data);
+            resolve(typeof event.data === "string" ? event.data.trim() : event.data);
           }
         };
       }
+    }
+
+    // Drops the pending response handler (used when the socket closes mid-command)
+    function clearInflight() {
+      inflightResolver = null;
     }
 
     return {
       getSocket,
       setSocket,
       isConnected,
-      sendCommand
+      sendCommand,
+      clearInflight
     };
   }
 
