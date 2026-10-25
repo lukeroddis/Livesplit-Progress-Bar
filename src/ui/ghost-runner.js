@@ -58,6 +58,14 @@
     m.style.removeProperty("--ghost-needle-height");
   }
 
+  // Ghost icons are emoji; race competitors carry their therun.gg avatar URL
+  function edgeIconMarkup(icon) {
+    return window.LiveSplit.DOMUtils.buildAvatarMarkup(icon, "🏎️", {
+      imgClass: "ghost-edge-avatar",
+      emojiClass: "ghost-edge-emoji"
+    });
+  }
+
   function renderEdgePill(el, ghosts, arrow, arrowFirst) {
     if (ghosts.length === 0 || !el) {
       if (el) el.style.display = "none";
@@ -68,7 +76,7 @@
     if (ghosts.length === 1) {
       const g = ghosts[0];
       const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
-      const icon = `<span id="ghost-edge-${side}-icon" ${iconCol}>${g.ghostInfo.icon}</span>`;
+      const icon = `<span id="ghost-edge-${side}-icon" ${iconCol}>${edgeIconMarkup(g.ghostInfo.icon)}</span>`;
       const val = `<span id="ghost-edge-${side}-val" style="color:${g.isAhead ? "#22c55e" : "#ef4444"};">${g.deltaStr}</span>`;
       el.innerHTML = arrowFirst
         ? `<span>${arrow}</span> ${icon} ${val}`
@@ -78,7 +86,7 @@
     const items = ghosts.map(g => {
       const col = g.isAhead ? "#22c55e" : "#ef4444";
       const iconCol = g.ghostInfo.color ? `style="color:${g.ghostInfo.color};"` : "";
-      return `<span ${iconCol}>${g.ghostInfo.icon}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
+      return `<span ${iconCol}>${edgeIconMarkup(g.ghostInfo.icon)}</span> <span style="color:${col}; font-weight:700;">${g.deltaStr}</span>`;
     }).join(" &nbsp;");
     el.innerHTML = arrowFirst
       ? `<span style="opacity:0.7;">${arrow}</span> ${items}`
@@ -543,6 +551,7 @@
 
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.GhostRunner = {
-    createGhostRunner
+    createGhostRunner,
+    renderEdgePill
   };
 })();

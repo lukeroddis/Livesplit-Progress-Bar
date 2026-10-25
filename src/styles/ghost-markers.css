@@ -229,6 +229,15 @@
   animation: pulse-ghost 2s infinite ease-in-out;
 }
 
+.ghost-edge-pill .ghost-edge-avatar {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+}
+
 .ghost-edge-left {
   left: 12px;
 }
