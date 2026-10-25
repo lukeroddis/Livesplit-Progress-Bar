@@ -39,5 +39,8 @@ import "./ui/layout-modal.js";
 import "./ui/layout-params.js";
 import "./ui/settings-menu.js";
 import "./ui/dev-mode.js";
+import "./ui/splits-file-loader.js";
+import "./ui/track-density.js";
+import "./ui/track-scroll.js";
 import "../layout.js";
 import "../overlay.js";

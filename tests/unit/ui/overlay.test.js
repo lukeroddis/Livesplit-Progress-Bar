@@ -6,6 +6,12 @@
 (function () {
   "use strict";
 
+    describe("Overlay Bootstrap", () => {
+      it("initOverlay completes without throwing", () => {
+        const err = window.__initOverlayError;
+        assert(!err, `initOverlay threw: ${err && (err.stack || err.message)}`);
+      });
+    });
 
     describe("LiveSplit Undo Split & Connection Safety", () => {
       it("exports handleUndoSplit on window", () => {
