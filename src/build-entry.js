@@ -37,5 +37,7 @@ import "./ui/timer-anchor.js";
 import "./ui/game-logo.js";
 import "./ui/layout-modal.js";
 import "./ui/layout-params.js";
+import "./ui/settings-menu.js";
+import "./ui/dev-mode.js";
 import "../layout.js";
 import "../overlay.js";

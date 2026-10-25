@@ -885,9 +885,7 @@ def test_start_node_and_bar_fill_geometry():
         "style.css must enforce 100% height for horizontal progress bar fill"
 
     # 3. overlay.js must toggle .active on #node-start based on idx >= 0
-    js_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(js_path, "r", encoding="utf-8") as f:
-        js = f.read()
+    js = read_overlay_sources()
     assert 'nodeStart.classList.toggle("active", idx >= 0)' in js, \
         "overlay.js missing nodeStart active toggle"
 
@@ -908,9 +906,7 @@ def test_quick_settings_menu_architecture():
     with open(css_path, "r", encoding="utf-8") as f:
         css = f.read()
 
-    js_path = os.path.join(ROOT_DIR, "overlay.js")
-    with open(js_path, "r", encoding="utf-8") as f:
-        js = f.read()
+    js = read_overlay_sources()
 
     # 1. HTML structure requirements
     required_classes = [
@@ -3054,7 +3050,9 @@ def test_overlay_subcontrollers_modularization():
 
     # Overlay delegation checks
     assert "window.LiveSplit.ToastManager.showComparisonToast" in overlay_code, "overlay.js must delegate showComparisonToast to ToastManager"
-    assert "window.LiveSplit.ToastManager.showDevModeToast" in overlay_code, "overlay.js must delegate showDevModeToast to ToastManager"
+    with open(os.path.join(ROOT_DIR, "src", "ui", "dev-mode.js"), "r", encoding="utf-8") as f:
+        dev_mode_code = f.read()
+    assert "window.LiveSplit.ToastManager.showDevModeToast" in dev_mode_code, "dev-mode.js must delegate showDevModeToast to ToastManager"
     assert "window.LiveSplit.TimerDisplay.updateTimingMethodBadge" in overlay_code, "overlay.js must delegate updateTimingMethodBadge to TimerDisplay"
     assert "window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy" in overlay_code, "overlay.js must delegate updateTimerDisplayHierarchy to TimerDisplay"
     assert "window.LiveSplit.TimerDisplay.calculateNextTimingMode" in overlay_code, "overlay.js must delegate toggleTimingMethod to TimerDisplay"
