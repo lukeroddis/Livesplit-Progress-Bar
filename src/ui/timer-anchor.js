@@ -12,7 +12,9 @@
 (function () {
   "use strict";
 
-  const DEFAULT_STORAGE_KEY = "livesplit_timer_anchor";
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
+  const DEFAULT_STORAGE_KEY = STORAGE_KEYS.TIMER_ANCHOR;
 
   function createTimerAnchor(options = {}) {
     const {

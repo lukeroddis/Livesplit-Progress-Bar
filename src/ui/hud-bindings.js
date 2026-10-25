@@ -15,6 +15,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function isTypingTarget(target) {
     return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
   }
@@ -100,7 +102,7 @@
       });
 
       document.getElementById("cb-always-show-last-split")?.addEventListener("change", (e) => {
-        localStorage.setItem("livesplit_always_show_last_split", e.target.checked ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.ALWAYS_SHOW_LAST, e.target.checked ? "true" : "false");
         app.updateTrackDensityAndAngle();
         app.updateTrackStatus(state.currentIndex);
       });

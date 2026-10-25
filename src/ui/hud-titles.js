@@ -12,6 +12,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function installHudTitles(app) {
     const { state } = app;
 
@@ -49,11 +51,11 @@
       const cat = await app.sendCommand("getcategoryname");
       if (game && game.trim() && game !== "-") {
         setGameName(game.trim());
-        localStorage.setItem("livesplit_game", game.trim());
+        localStorage.setItem(STORAGE_KEYS.GAME_NAME, game.trim());
       }
       if (cat && cat.trim() && cat !== "-") {
         setCategoryName(cat.trim());
-        localStorage.setItem("livesplit_category", cat.trim());
+        localStorage.setItem(STORAGE_KEYS.CATEGORY_NAME, cat.trim());
       }
     }
 

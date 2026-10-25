@@ -11,7 +11,9 @@
 (function () {
   "use strict";
 
-  const SETTINGS_POS_KEY = "livesplit_settings_pos";
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
+  const SETTINGS_POS_KEY = STORAGE_KEYS.SETTINGS_POS;
 
   function resetSettingsMenuPosition() {
     const panel = document.getElementById("footer-bar");

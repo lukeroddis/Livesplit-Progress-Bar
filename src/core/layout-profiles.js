@@ -11,9 +11,11 @@
 (function () {
   "use strict";
 
-  const PROFILES_INDEX_KEY = "livesplit_profiles_index";
-  const ACTIVE_PROFILE_KEY = "livesplit_active_profile";
-  const PROFILE_KEY_PREFIX = "livesplit_profile_";
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
+  const PROFILES_INDEX_KEY = STORAGE_KEYS.PROFILES_INDEX;
+  const ACTIVE_PROFILE_KEY = STORAGE_KEYS.ACTIVE_PROFILE;
+  const PROFILE_KEY_PREFIX = STORAGE_KEYS.PROFILE_PREFIX;
 
   function createLayoutProfiles(options = {}) {
     let api = null;
@@ -34,8 +36,8 @@
       syncTrackModalUI = () => {},
       saveGameLogo = () => {},
       removeGameLogo = () => {},
-      COMPONENTS = ["title", "timers", "track", "leaderboard"],
-      LOGO_STORAGE_KEY = "livesplit_custom_logo"
+      COMPONENTS = window.LiveSplit.LayoutEngine.COMPONENTS,
+      LOGO_STORAGE_KEY = STORAGE_KEYS.CUSTOM_LOGO
     } = options;
 
     function getProfilesList() {
@@ -134,17 +136,17 @@
         components: currentState ? JSON.parse(JSON.stringify(currentState)) : defaultLayout,
         style: currentStyle ? Object.assign({}, currentStyle) : Object.assign({}, defaultStyle),
         preferences: {
-          timerDisplayMode: ((typeof window !== "undefined" && window.getTimerDisplayMode) ? window.getTimerDisplayMode() : localStorage.getItem("livesplit_timer_display_mode")) || "both",
-          timingMethodFocus: ((typeof window !== "undefined" && window.getCurrentTimingMethod) ? window.getCurrentTimingMethod() : localStorage.getItem("livesplit_timing_method")) || "GameTime",
+          timerDisplayMode: ((typeof window !== "undefined" && window.getTimerDisplayMode) ? window.getTimerDisplayMode() : localStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE)) || "both",
+          timingMethodFocus: ((typeof window !== "undefined" && window.getCurrentTimingMethod) ? window.getCurrentTimingMethod() : localStorage.getItem(STORAGE_KEYS.TIMING_METHOD)) || "GameTime",
           timerAnchor: getTimerAnchor(),
-          ghostComparison: localStorage.getItem("livesplit_ghost_comparison") || "off",
-          activeGhosts: ((typeof window !== "undefined" && window.getActiveGhostComparisons) ? window.getActiveGhostComparisons() : (localStorage.getItem("livesplit_active_ghosts") ? JSON.parse(localStorage.getItem("livesplit_active_ghosts")) : [(localStorage.getItem("livesplit_ghost_comparison") || "off")])),
-          ghostOpacity: parseInt(localStorage.getItem("livesplit_ghost_opacity"), 10) || 85,
-          splitDensity: localStorage.getItem("livesplit_visible_splits") || "auto",
-          splitAngle: localStorage.getItem("livesplit_split_angle") || "auto",
-          showLastSplit: (localStorage.getItem("livesplit_always_show_last_split") !== "false"),
-          discardGoldsOnReset: (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false"),
-          syncHotkeys: (localStorage.getItem("livesplit_sync_hotkeys") !== "false")
+          ghostComparison: localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off",
+          activeGhosts: ((typeof window !== "undefined" && window.getActiveGhostComparisons) ? window.getActiveGhostComparisons() : (localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS) ? JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS)) : [(localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off")])),
+          ghostOpacity: parseInt(localStorage.getItem(STORAGE_KEYS.GHOST_OPACITY), 10) || 85,
+          splitDensity: localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto",
+          splitAngle: localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto",
+          showLastSplit: (localStorage.getItem(STORAGE_KEYS.ALWAYS_SHOW_LAST) !== "false"),
+          discardGoldsOnReset: (localStorage.getItem(STORAGE_KEYS.DISCARD_GOLDS_ON_RESET) !== "false"),
+          syncHotkeys: (localStorage.getItem(STORAGE_KEYS.SYNC_HOTKEYS) !== "false")
         },
         customLogo: localStorage.getItem(LOGO_STORAGE_KEY) || null
       };
@@ -167,7 +169,7 @@
       }
       if (!data.components || !data.components.leaderboard) {
         try {
-          const dedicated = localStorage.getItem("livesplit_leaderboard_layout");
+          const dedicated = localStorage.getItem(STORAGE_KEYS.LEADERBOARD_LAYOUT);
           if (dedicated) {
             newLayoutState.leaderboard = Object.assign({}, defLayout.leaderboard, JSON.parse(dedicated));
           }
@@ -195,9 +197,9 @@
         setTimerAnchor(prefs.timerAnchor);
       }
       if (Array.isArray(prefs.activeGhosts)) {
-        localStorage.setItem("livesplit_active_ghosts", JSON.stringify(prefs.activeGhosts));
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_GHOSTS, JSON.stringify(prefs.activeGhosts));
         if (prefs.activeGhosts.length > 0) {
-          localStorage.setItem("livesplit_ghost_comparison", prefs.activeGhosts[0]);
+          localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, prefs.activeGhosts[0]);
         }
         if (typeof window !== "undefined" && window.updateGhostBadge) window.updateGhostBadge();
       } else if (prefs.ghostComparison != null && typeof window !== "undefined" && window.setGhostComparison) {
@@ -210,11 +212,11 @@
         setVisibleSplits(prefs.splitDensity);
       }
       if (prefs.splitAngle != null) {
-        localStorage.setItem("livesplit_split_angle", prefs.splitAngle);
+        localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, prefs.splitAngle);
         if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
       }
       if (prefs.showLastSplit != null) {
-        localStorage.setItem("livesplit_always_show_last_split", prefs.showLastSplit ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.ALWAYS_SHOW_LAST, prefs.showLastSplit ? "true" : "false");
         const cbLast = document.getElementById("cb-always-show-last-split");
         if (cbLast) cbLast.checked = Boolean(prefs.showLastSplit);
         if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
@@ -223,10 +225,10 @@
         }
       }
       if (prefs.discardGoldsOnReset != null) {
-        localStorage.setItem("livesplit_discard_golds_on_reset", prefs.discardGoldsOnReset ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.DISCARD_GOLDS_ON_RESET, prefs.discardGoldsOnReset ? "true" : "false");
       }
       if (prefs.syncHotkeys != null) {
-        localStorage.setItem("livesplit_sync_hotkeys", prefs.syncHotkeys ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.SYNC_HOTKEYS, prefs.syncHotkeys ? "true" : "false");
       }
 
       // 4. Custom Game Logo

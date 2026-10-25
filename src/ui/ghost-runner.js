@@ -14,6 +14,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   const escapeHtml = (str) => window.LiveSplit.DOMUtils.escapeHtml(str);
   const formatDeltaSeconds = (sec) => window.LiveSplit.Time.formatDeltaSeconds(sec);
 
@@ -37,7 +39,7 @@
   };
 
   function loadActiveGhostComparisons() {
-    const savedMulti = localStorage.getItem("livesplit_active_ghosts");
+    const savedMulti = localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS);
     if (savedMulti) {
       try {
         const parsed = JSON.parse(savedMulti);
@@ -45,7 +47,7 @@
         if (Array.isArray(parsed) && parsed.length === 0) return ["off"];
       } catch (e) {}
     }
-    const single = localStorage.getItem("livesplit_ghost_comparison") || "off";
+    const single = localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off";
     return single === "off" ? ["off"] : [single];
   }
 
@@ -106,15 +108,15 @@
 
     let activeGhostComparisons = loadActiveGhostComparisons();
     let ghostComparison = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
-    let ghostOpacity = parseFloat(localStorage.getItem("livesplit_ghost_opacity") || "85") / 100;
+    let ghostOpacity = parseFloat(localStorage.getItem(STORAGE_KEYS.GHOST_OPACITY) || "85") / 100;
     const nodeThresholdCache = new Map();
     const knownGhostMarkers = new Set();
 
     function saveActiveGhostComparisons() {
-      localStorage.setItem("livesplit_active_ghosts", JSON.stringify(activeGhostComparisons));
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_GHOSTS, JSON.stringify(activeGhostComparisons));
       const primary = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
       ghostComparison = primary;
-      localStorage.setItem("livesplit_ghost_comparison", primary);
+      localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, primary);
     }
 
     function getNodeTextThreshold(nodeEl, isNext = false) {
@@ -515,7 +517,7 @@
       const parsed = parseInt(pct, 10);
       if (!isNaN(parsed) && parsed >= 30 && parsed <= 100) {
         ghostOpacity = parsed / 100;
-        localStorage.setItem("livesplit_ghost_opacity", parsed.toString());
+        localStorage.setItem(STORAGE_KEYS.GHOST_OPACITY, parsed.toString());
         const track = document.getElementById("track");
         if (track) track.style.setProperty("--ghost-opacity", ghostOpacity);
       }

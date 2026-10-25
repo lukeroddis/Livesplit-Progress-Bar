@@ -13,6 +13,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function installTrackStatus(app) {
     const { state } = app;
 
@@ -30,8 +32,8 @@
 
     // Sliding-window mode is on when "Always Show Last Split" is enabled (and not "Fit All")
     function isTrackWindowingEnabled() {
-      const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
-      const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+      const alwaysShowLast = localStorage.getItem(STORAGE_KEYS.ALWAYS_SHOW_LAST) !== "false";
+      const splitPref = localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto";
       return alwaysShowLast && splitPref !== "all";
     }
 

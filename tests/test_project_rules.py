@@ -62,6 +62,26 @@ def test_no_module_syntax_in_classic_scripts():
     assert not offenders, f"ES module syntax found in classic scripts: {offenders}"
 
 
+def test_storage_keys_come_from_storage_js():
+    """localStorage keys live in STORAGE_KEYS (src/core/storage.js); a mistyped literal silently loses a setting."""
+    offenders = {rel: sorted(set(re.findall(r"""["'`](livesplit_\w*)""", src)))
+                 for rel, src in all_app_js().items() if rel != "src/core/storage.js"}
+    offenders = {rel: keys for rel, keys in offenders.items() if keys}
+    assert not offenders, f"Use window.LiveSplit.Storage.KEYS instead of raw key strings: {offenders}"
+
+
+@pytest.mark.parametrize("label, pattern, owner", [
+    ("default track style", r"DEFAULT_TRACK_STYLE\s*=\s*(?:Object\.freeze\()?\{", "src/ui/track-style.js"),
+    ("default comparison names", r'\[\s*"Personal Best",\s*"Best Segments",\s*"Average Segments",\s*"Worst Segments"\s*\]', "src/core/split-engine.js"),
+    ("HUD component ids", r'\[\s*"title",\s*"timers",\s*"track",\s*"leaderboard"\s*\]', "src/ui/layout-engine.js"),
+    ("LiveSplit Server URL", r'"ws://localhost:16834/livesplit"', "src/core/livesplit-client.js"),
+])
+def test_shared_constant_has_one_owner(label, pattern, owner):
+    """Shared defaults are defined once and read from their owner module, so copies cannot drift."""
+    found = [rel for rel, src in all_app_js().items() if re.search(pattern, src)]
+    assert found == [owner], f"{label} must only be defined in {owner}; found in {found}"
+
+
 def test_layout_schema_is_valid_and_declares_active_ghosts():
     schema = json.loads(read_text("schema/layout-v1.json"))
     assert schema.get("title") == "LiveSplit Minimal Overlay Layout Profile"

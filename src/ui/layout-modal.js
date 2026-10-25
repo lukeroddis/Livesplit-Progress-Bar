@@ -19,6 +19,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function createLayoutModal(options = {}) {
     const {
       getCurrentTrackStyle = () => null,
@@ -38,7 +40,7 @@
       syncTimerAnchorUI = () => {},
       getGameLogoController = () => null,
       getProfilesEngine = () => null,
-      COMPONENTS = ["title", "timers", "track", "leaderboard"]
+      COMPONENTS = window.LiveSplit.LayoutEngine.COMPONENTS
     } = options;
 
     function openTrackModal() {
@@ -66,7 +68,7 @@
       if (!currentTrackStyle) return;
 
       const isVert = (currentTrackStyle.orientation === "vertical");
-      const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+      const anglePref = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
       const track = document.getElementById("track");
       const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
 
@@ -156,7 +158,7 @@
       if (angleSelect) angleSelect.value = anglePref;
 
       // Visible splits sync across toolbar and modal
-      const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+      const splitPref = localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto";
       const spinInput = document.getElementById("input-visible-splits");
       const modalSpinInput = document.getElementById("modal-input-visible-splits");
       const valBadge = document.getElementById("val-visible-splits");
@@ -217,13 +219,13 @@
       // Discard in-run golds on reset checkbox
       const cbDiscard = document.getElementById("cb-discard-golds-reset");
       if (cbDiscard) {
-        cbDiscard.checked = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
+        cbDiscard.checked = (localStorage.getItem(STORAGE_KEYS.DISCARD_GOLDS_ON_RESET) !== "false");
       }
 
       // Always Show Last Split checkbox
       const cbLast = document.getElementById("cb-always-show-last-split");
       if (cbLast) {
-        cbLast.checked = (localStorage.getItem("livesplit_always_show_last_split") !== "false");
+        cbLast.checked = (localStorage.getItem(STORAGE_KEYS.ALWAYS_SHOW_LAST) !== "false");
       }
 
       // Active Comparison dropdown sync
@@ -247,15 +249,15 @@
       // Auto-sync with LiveSplit hotkeys checkbox
       const cbSync = document.getElementById("cb-sync-livesplit-hotkeys");
       if (cbSync) {
-        cbSync.checked = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
+        cbSync.checked = (localStorage.getItem(STORAGE_KEYS.SYNC_HOTKEYS) !== "false");
       }
 
       // Ghost Runner pills & dropdown sync
       const activeGhosts = (typeof window !== "undefined" && window.getActiveGhostComparisons)
         ? window.getActiveGhostComparisons()
-        : (localStorage.getItem("livesplit_active_ghosts")
-          ? JSON.parse(localStorage.getItem("livesplit_active_ghosts"))
-          : [(localStorage.getItem("livesplit_ghost_comparison") || "off")]);
+        : (localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS)
+          ? JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS))
+          : [(localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off")]);
       const activeList = Array.isArray(activeGhosts) ? activeGhosts.filter(g => g && g !== "off") : [];
       const activeKey = activeList.length === 0 ? "off" : activeList.join(",");
 
@@ -355,7 +357,7 @@
       // Ghost Runner opacity slider
       const sGhostOp = document.getElementById("slider-ghost-opacity");
       const vGhostOp = document.getElementById("val-ghost-opacity");
-      const ghostOpVal = parseInt(localStorage.getItem("livesplit_ghost_opacity") || "85", 10);
+      const ghostOpVal = parseInt(localStorage.getItem(STORAGE_KEYS.GHOST_OPACITY) || "85", 10);
       if (sGhostOp && vGhostOp) {
         sGhostOp.value = ghostOpVal;
         vGhostOp.innerText = `${ghostOpVal}%`;
@@ -364,7 +366,7 @@
       // Visible Timers segmented control sync
       const curTimerMode = (typeof window !== "undefined" && window.getTimerDisplayMode)
         ? window.getTimerDisplayMode()
-        : (localStorage.getItem("livesplit_timer_display_mode") || "both");
+        : (localStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE) || "both");
       document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.getAttribute("data-val") === curTimerMode);
       });
@@ -372,7 +374,7 @@
       // Primary Timer & Splits Target segmented control sync
       const curFocus = (typeof window !== "undefined" && window.getCurrentTimingMethod)
         ? window.getCurrentTimingMethod()
-        : (localStorage.getItem("livesplit_timing_method") || "GameTime");
+        : (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD) || "GameTime");
       document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.getAttribute("data-val") === curFocus);
       });
@@ -415,11 +417,11 @@
 
       // Toolbar Spin Box & Pills for Visible Splits
       document.getElementById("btn-splits-dec")?.addEventListener("click", () => {
-        const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+        const cur = parseInt(localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS), 10) || 8;
         setVisibleSplits(Math.max(2, cur - 1));
       });
       document.getElementById("btn-splits-inc")?.addEventListener("click", () => {
-        const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+        const cur = parseInt(localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS), 10) || 8;
         setVisibleSplits(Math.min(60, cur + 1));
       });
 
@@ -443,11 +445,11 @@
 
       // Modal Spin Box & Pills
       document.getElementById("modal-splits-dec")?.addEventListener("click", () => {
-        const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+        const cur = parseInt(localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS), 10) || 8;
         setVisibleSplits(Math.max(2, cur - 1));
       });
       document.getElementById("modal-splits-inc")?.addEventListener("click", () => {
-        const cur = parseInt(localStorage.getItem("livesplit_visible_splits"), 10) || 8;
+        const cur = parseInt(localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS), 10) || 8;
         setVisibleSplits(Math.min(60, cur + 1));
       });
 
@@ -474,7 +476,7 @@
       if (angleSelect) {
         angleSelect.addEventListener("change", () => {
           const val = angleSelect.value;
-          localStorage.setItem("livesplit_split_angle", val);
+          localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, val);
           const currentTrackStyle = getCurrentTrackStyle();
           if (val === "angled" && currentTrackStyle) {
             currentTrackStyle.deltaPos = (currentTrackStyle.namePos === "top") ? "bottom" : "top";
@@ -489,7 +491,7 @@
       document.querySelectorAll("#ctrl-modal-angle .seg-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           const val = btn.getAttribute("data-val");
-          localStorage.setItem("livesplit_split_angle", val);
+          localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, val);
           const currentTrackStyle = getCurrentTrackStyle();
           if (val === "angled" && currentTrackStyle) {
             currentTrackStyle.deltaPos = (currentTrackStyle.namePos === "top") ? "bottom" : "top";
@@ -532,7 +534,7 @@
           const currentTrackStyle = getCurrentTrackStyle();
           if (!currentTrackStyle) return;
           currentTrackStyle.namePos = btn.getAttribute("data-val");
-          const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+          const anglePref = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
           const track = document.getElementById("track");
           const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
           if (isAngled) {
@@ -547,7 +549,7 @@
         btn.addEventListener("click", () => {
           const currentTrackStyle = getCurrentTrackStyle();
           if (!currentTrackStyle) return;
-          const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+          const anglePref = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
           const track = document.getElementById("track");
           const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
           if (isAngled) {
@@ -654,7 +656,7 @@
 
       // Discard in-run golds on reset checkbox listener
       document.getElementById("cb-discard-golds-reset")?.addEventListener("change", (e) => {
-        localStorage.setItem("livesplit_discard_golds_on_reset", e.target.checked ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.DISCARD_GOLDS_ON_RESET, e.target.checked ? "true" : "false");
       });
 
       // Active comparison dropdown listener
@@ -666,12 +668,12 @@
 
       // Auto-sync with LiveSplit hotkeys listener
       document.getElementById("cb-sync-livesplit-hotkeys")?.addEventListener("change", (e) => {
-        localStorage.setItem("livesplit_sync_hotkeys", e.target.checked ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.SYNC_HOTKEYS, e.target.checked ? "true" : "false");
       });
 
       // Always Show Last Split checkbox listener
       document.getElementById("cb-always-show-last-split")?.addEventListener("change", (e) => {
-        localStorage.setItem("livesplit_always_show_last_split", e.target.checked ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.ALWAYS_SHOW_LAST, e.target.checked ? "true" : "false");
         if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
         if (typeof window !== "undefined" && window.updateTrackStatus) window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
       });
@@ -708,7 +710,7 @@
         if (typeof window !== "undefined" && window.setGhostComparison) {
           window.setGhostComparison(e.target.value);
         } else {
-          localStorage.setItem("livesplit_ghost_comparison", e.target.value);
+          localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, e.target.value);
         }
       });
 
@@ -753,7 +755,7 @@
           }
         });
         sliderGhostOp.addEventListener("change", () => {
-          localStorage.setItem("livesplit_ghost_opacity", sliderGhostOp.value);
+          localStorage.setItem(STORAGE_KEYS.GHOST_OPACITY, sliderGhostOp.value);
         });
       }
 

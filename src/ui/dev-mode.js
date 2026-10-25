@@ -10,7 +10,9 @@
 (function () {
   "use strict";
 
-  const DEV_MODE_KEY = "livesplit_dev_mode";
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
+  const DEV_MODE_KEY = STORAGE_KEYS.DEV_MODE;
   let isDevMode = false;
 
   function isDevModeActive() {

@@ -13,10 +13,13 @@
 (function () {
   "use strict";
 
-  const TRACK_STYLE_KEY = "livesplit_track_style";
-  const SPLIT_DENSITY_KEY = "livesplit_visible_splits";
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
 
-  const DEFAULT_TRACK_STYLE = {
+  const TRACK_STYLE_KEY = STORAGE_KEYS.TRACK_STYLE;
+  const SPLIT_DENSITY_KEY = STORAGE_KEYS.VISIBLE_SPLITS;
+
+  // Single source of default track styling (layout.js and layout profiles read it from here)
+  const DEFAULT_TRACK_STYLE = Object.freeze({
     orientation: "horizontal", // 'horizontal' | 'vertical'
     namePos: "top",        // 'top' | 'bottom' | 'left' | 'right'
     deltaPos: "bottom",    // 'top' | 'bottom' | 'left' | 'right'
@@ -32,7 +35,7 @@
     bgTimers: true,        // boolean
     bgTrack: true,         // boolean
     logoHeight: 60         // px (25 to 140)
-  };
+  });
 
   /**
    * Pure mapping helper to switch orientation and recalculate name/delta positions.
@@ -107,7 +110,7 @@
       const currentTrackStyle = getCurrentStyle();
       if (!currentTrackStyle) return;
       if (currentTrackStyle.orientation === "vertical") return;
-      const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
+      const anglePref = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
       const track = document.getElementById("track");
       const isAngled = (anglePref === "angled" || (track && track.classList.contains("angled-text")));
       if (isAngled) {

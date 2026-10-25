@@ -8,7 +8,8 @@
 (function () {
   "use strict";
 
-  const DEFAULT_COMPARISONS = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+  // Built-in LiveSplit comparisons, in display order (overlay state and controllers copy this list)
+  const DEFAULT_COMPARISONS = Object.freeze(["Personal Best", "Best Segments", "Average Segments", "Worst Segments"]);
 
   /**
    * Returns a compact badge label for common comparison types.
@@ -162,7 +163,7 @@
     const bestSegmentTimesRT = [];
     const segmentHistoriesGT = [];
     const segmentHistoriesRT = [];
-    const comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+    const comparisonsList = [...DEFAULT_COMPARISONS];
 
     // Collect custom comparisons from header
     const declaredComps = Array.from(xml.querySelectorAll("Comparisons > Comparison"));

@@ -11,6 +11,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   const ALL_DELTA_CLASSES = [
     "delta-ahead-gaining", "delta-ahead-losing", 
     "delta-behind-gaining", "delta-behind-losing", 
@@ -151,7 +153,7 @@
    * derived from the viewport (64px rows vertical, 125px columns horizontal).
    */
   function getVisibleSplitsCapacity() {
-    const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
+    const splitPref = localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto";
     if (splitPref !== "auto" && splitPref !== "all") {
       const num = parseInt(splitPref, 10);
       if (!isNaN(num) && num > 0) return num;

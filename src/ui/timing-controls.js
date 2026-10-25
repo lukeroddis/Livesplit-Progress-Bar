@@ -13,6 +13,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function installTimingControls(app) {
     const { state } = app;
 
@@ -34,9 +36,9 @@
     }
 
     function toggleGoldSegments() {
-      const current = (localStorage.getItem("livesplit_enable_golds") !== "false");
+      const current = (localStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) !== "false");
       const nextVal = (!current) ? "true" : "false";
-      localStorage.setItem("livesplit_enable_golds", nextVal);
+      localStorage.setItem(STORAGE_KEYS.ENABLE_GOLDS, nextVal);
       state.cachedEnableGolds = (nextVal !== "false");
       updateGoldBadge();
     }
@@ -46,21 +48,21 @@
         mode = "both";
       }
       state.timerDisplayMode = mode;
-      localStorage.setItem("livesplit_timer_display_mode", mode);
-      localStorage.setItem("livesplit_timing_method_manual", "true");
+      localStorage.setItem(STORAGE_KEYS.TIMER_DISPLAY_MODE, mode);
+      localStorage.setItem(STORAGE_KEYS.TIMING_METHOD_MANUAL, "true");
 
       if (focusMethod === "GameTime" || focusMethod === "RealTime") {
         state.currentTimingMethod = focusMethod;
-        localStorage.setItem("livesplit_timing_method", focusMethod);
+        localStorage.setItem(STORAGE_KEYS.TIMING_METHOD, focusMethod);
       } else if (mode === "gametime") {
         state.currentTimingMethod = "GameTime";
-        localStorage.setItem("livesplit_timing_method", "GameTime");
+        localStorage.setItem(STORAGE_KEYS.TIMING_METHOD, "GameTime");
       } else if (mode === "realtime") {
         state.currentTimingMethod = "RealTime";
-        localStorage.setItem("livesplit_timing_method", "RealTime");
+        localStorage.setItem(STORAGE_KEYS.TIMING_METHOD, "RealTime");
       } else {
         // mode === "both" without explicit focus: preserve active or saved method
-        const savedMethod = localStorage.getItem("livesplit_timing_method");
+        const savedMethod = localStorage.getItem(STORAGE_KEYS.TIMING_METHOD);
         if (savedMethod === "GameTime" || savedMethod === "RealTime") {
           state.currentTimingMethod = savedMethod;
         }
@@ -79,17 +81,17 @@
 
     function setTimingMethodFocus(method) {
       if (method !== "GameTime" && method !== "RealTime") return;
-      localStorage.setItem("livesplit_timing_method_manual", "true");
-      localStorage.setItem("livesplit_timing_method", method);
+      localStorage.setItem(STORAGE_KEYS.TIMING_METHOD_MANUAL, "true");
+      localStorage.setItem(STORAGE_KEYS.TIMING_METHOD, method);
       state.currentTimingMethod = method;
 
       // If a single timer is active and user chooses opposite method, expand to both
       if (state.timerDisplayMode === "gametime" && method === "RealTime") {
         state.timerDisplayMode = "both";
-        localStorage.setItem("livesplit_timer_display_mode", "both");
+        localStorage.setItem(STORAGE_KEYS.TIMER_DISPLAY_MODE, "both");
       } else if (state.timerDisplayMode === "realtime" && method === "GameTime") {
         state.timerDisplayMode = "both";
-        localStorage.setItem("livesplit_timer_display_mode", "both");
+        localStorage.setItem(STORAGE_KEYS.TIMER_DISPLAY_MODE, "both");
       }
 
       app.applyActiveTimingMethod(state.currentTimingMethod);

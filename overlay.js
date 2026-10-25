@@ -22,9 +22,9 @@
  */
 
 // safeStorage is provided by src/core/storage.js (window.safeStorage).
+const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
 
 const APP_VERSION = "v1.0.3";
-const WS_URL = "ws://localhost:16834/livesplit";
 
 // Generic fallback splits used if no .lss is loaded
 const DEFAULT_SPLITS = [
@@ -106,7 +106,6 @@ function showComparisonToast(compName) {
 let isPolling = false;
 
 const connection = window.LiveSplit.LiveSplitConnection.createLiveSplitConnection({
-  url: WS_URL,
   onOpen: async () => {
     state.canQueryComparison = true;
     const rcConn = getRaceClient();
@@ -115,7 +114,7 @@ const connection = window.LiveSplit.LiveSplitConnection.createLiveSplitConnectio
     }
 
     // Query Game and Category from LiveSplit if not loaded from .lss
-    if (!localStorage.getItem("livesplit_raw_lss")) {
+    if (!localStorage.getItem(STORAGE_KEYS.RAW_LSS)) {
       await app.syncLiveSplitMetadata();
     }
 

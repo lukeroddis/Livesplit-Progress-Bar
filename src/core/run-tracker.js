@@ -15,6 +15,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function installRunTracker(app) {
     const { state } = app;
 
@@ -110,7 +112,7 @@
 
     // Follows LiveSplit's active comparison when hotkey sync is enabled (disables itself if unsupported)
     async function syncComparisonFromLiveSplit(timeoutMs, isProbe = false) {
-      const isSyncEnabled = (localStorage.getItem("livesplit_sync_hotkeys") !== "false");
+      const isSyncEnabled = (localStorage.getItem(STORAGE_KEYS.SYNC_HOTKEYS) !== "false");
       if (!isSyncEnabled || !state.canQueryComparison) return;
       const lsComp = await app.sendCommand("getcomparisonname", timeoutMs, isProbe);
       if (lsComp && lsComp !== "-" && lsComp.trim()) {
@@ -136,7 +138,7 @@
 
     // Discard uncommitted in-run gold split segments by default upon reset
     function restoreBaselineGoldsOnReset() {
-      const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
+      const discardOnReset = (localStorage.getItem(STORAGE_KEYS.DISCARD_GOLDS_ON_RESET) !== "false");
       if (!discardOnReset || state.baselineBestSegmentTimesGT.length === 0) return;
       state.bestSegmentTimesGT = [...state.baselineBestSegmentTimesGT];
       state.bestSegmentTimesRT = [...state.baselineBestSegmentTimesRT];
@@ -146,8 +148,8 @@
           ? (state.bestSegmentTimesRT[i] ?? state.bestSegmentTimesGT[i] ?? null)
           : (state.bestSegmentTimesGT[i] ?? state.bestSegmentTimesRT[i] ?? null);
       });
-      localStorage.setItem("livesplit_golds_gt", JSON.stringify(state.bestSegmentTimesGT));
-      localStorage.setItem("livesplit_golds_rt", JSON.stringify(state.bestSegmentTimesRT));
+      localStorage.setItem(STORAGE_KEYS.GOLDS_GT, JSON.stringify(state.bestSegmentTimesGT));
+      localStorage.setItem(STORAGE_KEYS.GOLDS_RT, JSON.stringify(state.bestSegmentTimesRT));
     }
 
     // Returns every split node to its pre-run look (empty delta, target time, empty fill)
@@ -273,12 +275,12 @@
       }
 
       // Only write to persistent storage immediately if the user opted out of discarding on reset
-      const discardOnReset = (localStorage.getItem("livesplit_discard_golds_on_reset") !== "false");
+      const discardOnReset = (localStorage.getItem(STORAGE_KEYS.DISCARD_GOLDS_ON_RESET) !== "false");
       if (!discardOnReset) {
         if (state.currentTimingMethod === "RealTime") {
-          localStorage.setItem("livesplit_golds_rt", JSON.stringify(state.bestSegmentTimesRT));
+          localStorage.setItem(STORAGE_KEYS.GOLDS_RT, JSON.stringify(state.bestSegmentTimesRT));
         } else {
-          localStorage.setItem("livesplit_golds_gt", JSON.stringify(state.bestSegmentTimesGT));
+          localStorage.setItem(STORAGE_KEYS.GOLDS_GT, JSON.stringify(state.bestSegmentTimesGT));
         }
       }
     }
@@ -301,15 +303,15 @@
 
       state.baselineBestSegmentTimesGT = [...state.bestSegmentTimesGT];
       state.baselineBestSegmentTimesRT = [...state.bestSegmentTimesRT];
-      localStorage.setItem("livesplit_baseline_golds_gt", JSON.stringify(state.baselineBestSegmentTimesGT));
-      localStorage.setItem("livesplit_baseline_golds_rt", JSON.stringify(state.baselineBestSegmentTimesRT));
-      localStorage.setItem("livesplit_golds_gt", JSON.stringify(state.bestSegmentTimesGT));
-      localStorage.setItem("livesplit_golds_rt", JSON.stringify(state.bestSegmentTimesRT));
+      localStorage.setItem(STORAGE_KEYS.BASELINE_GOLDS_GT, JSON.stringify(state.baselineBestSegmentTimesGT));
+      localStorage.setItem(STORAGE_KEYS.BASELINE_GOLDS_RT, JSON.stringify(state.baselineBestSegmentTimesRT));
+      localStorage.setItem(STORAGE_KEYS.GOLDS_GT, JSON.stringify(state.bestSegmentTimesGT));
+      localStorage.setItem(STORAGE_KEYS.GOLDS_RT, JSON.stringify(state.bestSegmentTimesRT));
 
       if (state.currentTimingMethod === "RealTime") {
-        localStorage.setItem("livesplit_targets_rt", JSON.stringify(state.comparisonTimesRT));
+        localStorage.setItem(STORAGE_KEYS.TARGETS_RT, JSON.stringify(state.comparisonTimesRT));
       } else {
-        localStorage.setItem("livesplit_targets_gt", JSON.stringify(state.comparisonTimesGT));
+        localStorage.setItem(STORAGE_KEYS.TARGETS_GT, JSON.stringify(state.comparisonTimesGT));
       }
     }
 

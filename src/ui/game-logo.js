@@ -12,7 +12,9 @@
 (function () {
   "use strict";
 
-  const DEFAULT_LOGO_STORAGE_KEY = "livesplit_custom_logo";
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
+  const DEFAULT_LOGO_STORAGE_KEY = STORAGE_KEYS.CUSTOM_LOGO;
 
   function createGameLogo(options = {}) {
     const storageKey = options.storageKey || DEFAULT_LOGO_STORAGE_KEY;

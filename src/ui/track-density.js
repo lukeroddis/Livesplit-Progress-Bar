@@ -9,6 +9,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   /**
    * @param {Object} options
    * @param {Function} options.getSplitCount - Returns the number of loaded splits
@@ -191,9 +193,9 @@
         ? (window.innerHeight || 1080)
         : (viewport.clientHeight || window.innerHeight || 800);
 
-      const splitPref = localStorage.getItem("livesplit_visible_splits") || "auto";
-      const anglePref = localStorage.getItem("livesplit_split_angle") || "auto";
-      const alwaysShowLast = localStorage.getItem("livesplit_always_show_last_split") !== "false";
+      const splitPref = localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto";
+      const anglePref = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
+      const alwaysShowLast = localStorage.getItem(STORAGE_KEYS.ALWAYS_SHOW_LAST) !== "false";
       const splitCount = getSplitCount();
 
       const spacing = computeSpacing(isVertical, splitPref, alwaysShowLast, viewportWidth, viewportHeight, splitCount);
@@ -205,7 +207,7 @@
     }
 
     function cycleVisibleSplits() {
-      const current = localStorage.getItem("livesplit_visible_splits") || "auto";
+      const current = localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto";
       const sequence = ["auto", "6", "8", "10", "12", "16", "all"];
       const curIdx = sequence.indexOf(current);
       const nextIdx = (curIdx !== -1) ? ((curIdx + 1) % sequence.length) : 0;
@@ -213,17 +215,17 @@
       if (window.setVisibleSplits) {
         window.setVisibleSplits(nextVal);
       } else {
-        localStorage.setItem("livesplit_visible_splits", nextVal);
+        localStorage.setItem(STORAGE_KEYS.VISIBLE_SPLITS, nextVal);
         refresh();
       }
     }
 
     function cycleSplitAngle() {
-      const current = localStorage.getItem("livesplit_split_angle") || "auto";
+      const current = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
       const sequence = ["auto", "angled", "horizontal"];
       const nextIdx = (sequence.indexOf(current) + 1) % sequence.length;
       const nextVal = sequence[nextIdx];
-      localStorage.setItem("livesplit_split_angle", nextVal);
+      localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, nextVal);
       if (window.hudLayout) {
         if (nextVal === "angled") {
           const style = window.hudLayout.getTrackStyle();

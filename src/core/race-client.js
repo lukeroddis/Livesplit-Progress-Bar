@@ -11,6 +11,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   const THERUN_LIVE_API = "https://therun.gg/api/live";
   const THERUN_RACE_API = "https://races.therun.gg";
   const THERUN_WS_BASE = "wss://ws.therun.gg?race=";
@@ -112,7 +114,7 @@
     let racePinsVisible = (function () {
       try {
         if (typeof localStorage !== "undefined") {
-          return localStorage.getItem("livesplit_race_pins_visible") !== "false";
+          return localStorage.getItem(STORAGE_KEYS.RACE_PINS_VISIBLE) !== "false";
         }
       } catch (_) {}
       return true;
@@ -989,7 +991,7 @@
       racePinsVisible = !!visible;
       try {
         if (typeof localStorage !== "undefined") {
-          localStorage.setItem("livesplit_race_pins_visible", racePinsVisible ? "true" : "false");
+          localStorage.setItem(STORAGE_KEYS.RACE_PINS_VISIBLE, racePinsVisible ? "true" : "false");
         }
       } catch (_) {}
       notifyListeners("race_pins_visibility_changed", { visible: racePinsVisible });

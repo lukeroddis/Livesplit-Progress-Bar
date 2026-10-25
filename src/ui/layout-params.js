@@ -9,6 +9,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function parseUrlParameters(options = {}) {
     const {
       getLayoutState = () => ({}),
@@ -69,7 +71,7 @@
     }
     if (angleParam && typeof localStorage !== "undefined") {
       const a = angleParam.toLowerCase().trim();
-      localStorage.setItem("livesplit_split_angle", (a === "40" || a === "angled") ? "angled" : ((a === "flat" || a === "horizontal") ? "horizontal" : "auto"));
+      localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, (a === "40" || a === "angled") ? "angled" : ((a === "flat" || a === "horizontal") ? "horizontal" : "auto"));
     }
 
     const timerAnchorParam = params.get("timeranchor") || params.get("anchor");
@@ -84,7 +86,7 @@
     if (lastSplitParam) {
       const val = (lastSplitParam.toLowerCase().trim() !== "false" && lastSplitParam.trim() !== "0");
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem("livesplit_always_show_last_split", val ? "true" : "false");
+        localStorage.setItem(STORAGE_KEYS.ALWAYS_SHOW_LAST, val ? "true" : "false");
       }
       if (typeof document !== "undefined") {
         const cbLast = document.getElementById("cb-always-show-last-split");
@@ -164,7 +166,7 @@
       if (typeof window !== "undefined" && window.setGhostComparison) {
         window.setGhostComparison(g);
       } else if (typeof localStorage !== "undefined") {
-        localStorage.setItem("livesplit_ghost_comparison", g);
+        localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, g);
       }
     }
 

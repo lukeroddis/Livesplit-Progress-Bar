@@ -11,7 +11,7 @@
 (function () {
   "use strict";
 
-  const DEFAULT_COMPARISON_NAMES = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
 
   function createOverlayState() {
     return {
@@ -25,7 +25,7 @@
       bestSegmentTimesRT: [],
       baselineBestSegmentTimesGT: [],
       baselineBestSegmentTimesRT: [],
-      comparisonsList: [...DEFAULT_COMPARISON_NAMES],
+      comparisonsList: [...window.LiveSplit.SplitEngine.DEFAULT_COMPARISONS],
       comparisonsDataGT: {},
       comparisonsDataRT: {},
       currentComparison: "Personal Best",
@@ -33,7 +33,7 @@
       // Timing method & display preferences
       currentTimingMethod: "GameTime",
       timerDisplayMode: "both", // 'gametime' | 'realtime' | 'both'
-      cachedEnableGolds: (localStorage.getItem("livesplit_enable_golds") !== "false"),
+      cachedEnableGolds: (localStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) !== "false"),
 
       // Live run progress
       currentIndex: -1,
@@ -55,7 +55,6 @@
 
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.OverlayState = {
-    DEFAULT_COMPARISON_NAMES,
     createOverlayState
   };
 })();

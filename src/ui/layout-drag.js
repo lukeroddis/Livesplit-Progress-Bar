@@ -73,7 +73,7 @@
       saveLayout = () => {},
       applyComponentLayout = () => {},
       syncTimerAnchorUI = () => {},
-      components = ["title", "timers", "track", "leaderboard"]
+      components = window.LiveSplit.LayoutEngine.COMPONENTS
     } = options;
 
     let activePointerOp = null;

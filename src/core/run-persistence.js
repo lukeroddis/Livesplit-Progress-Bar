@@ -12,10 +12,12 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function installRunPersistence(app) {
     const { state } = app;
 
-    const IN_RUN_STATE_KEY = "livesplit_in_run_state";
+    const IN_RUN_STATE_KEY = STORAGE_KEYS.IN_RUN_STATE;
 
     function saveInRunState() {
       try {
@@ -29,8 +31,8 @@
           previousDeltaSeconds: state.previousDeltaSeconds,
           lastElapsedSec: state.lastElapsedSec,
           splitsCount: state.splitsList.length,
-          game: localStorage.getItem("livesplit_game") || "",
-          category: localStorage.getItem("livesplit_category") || ""
+          game: localStorage.getItem(STORAGE_KEYS.GAME_NAME) || "",
+          category: localStorage.getItem(STORAGE_KEYS.CATEGORY_NAME) || ""
         };
         localStorage.setItem(IN_RUN_STATE_KEY, JSON.stringify(snapshot));
       } catch (e) {
@@ -61,8 +63,8 @@
             clearInRunState();
             return false;
           }
-          const curGame = localStorage.getItem("livesplit_game") || "";
-          const curCat = localStorage.getItem("livesplit_category") || "";
+          const curGame = localStorage.getItem(STORAGE_KEYS.GAME_NAME) || "";
+          const curCat = localStorage.getItem(STORAGE_KEYS.CATEGORY_NAME) || "";
           if (parsed.game && curGame && parsed.game !== curGame) {
             clearInRunState();
             return false;

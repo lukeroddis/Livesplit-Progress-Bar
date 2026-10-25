@@ -5,29 +5,14 @@
  */
 
 (function () {
-  const STORAGE_KEY = "livesplit_hud_layout";
-  const TRACK_STYLE_KEY = "livesplit_track_style";
-  const COMPONENTS = ["title", "timers", "track", "leaderboard"];
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+  const STORAGE_KEY = STORAGE_KEYS.HUD_LAYOUT;
+  const TRACK_STYLE_KEY = STORAGE_KEYS.TRACK_STYLE;
+  const COMPONENTS = window.LiveSplit.LayoutEngine.COMPONENTS;
 
-  const DEFAULT_TRACK_STYLE = {
-    orientation: "horizontal", // 'horizontal' | 'vertical'
-    namePos: "top",        // 'top' | 'bottom' | 'left' | 'right'
-    deltaPos: "bottom",    // 'top' | 'bottom' | 'left' | 'right'
-    nameFontSize: 17,      // px
-    deltaFontSize: 15,     // px
-    barHeight: 6,          // px
-    dotSize: 15,           // px
-    ghostPinLength: 16,    // px (0 to 36)
-    ghostPinSize: 26,      // px (18 to 44)
-    bgOpacity: 55,         // % (0 to 95)
-    bgBlur: 8,             // px (0 to 20)
-    bgTitle: true,         // boolean
-    bgTimers: true,        // boolean
-    bgTrack: true,         // boolean
-    logoHeight: 60         // px (25 to 140)
-  };
+  const DEFAULT_TRACK_STYLE = window.LiveSplit.TrackStyle.DEFAULT_TRACK_STYLE;
 
-  const LOGO_STORAGE_KEY = "livesplit_custom_logo";
+  const LOGO_STORAGE_KEY = STORAGE_KEYS.CUSTOM_LOGO;
 
   let layoutState = null;
   let currentTrackStyle = null;
@@ -109,13 +94,13 @@
         }
         if (!parsed.leaderboard) {
           try {
-            const dedicated = localStorage.getItem("livesplit_leaderboard_layout");
+            const dedicated = localStorage.getItem(STORAGE_KEYS.LEADERBOARD_LAYOUT);
             if (dedicated) {
               merged.leaderboard = Object.assign({}, defaults.leaderboard, JSON.parse(dedicated));
             }
           } catch (_) {}
         }
-        const savedAnchor = localStorage.getItem("livesplit_timer_anchor");
+        const savedAnchor = localStorage.getItem(STORAGE_KEYS.TIMER_ANCHOR);
         if (savedAnchor && merged.timers) {
           merged.timers.anchor = savedAnchor;
         }
@@ -126,7 +111,7 @@
     }
     const def = getDefaultLayout();
     try {
-      const dedicated = localStorage.getItem("livesplit_leaderboard_layout");
+      const dedicated = localStorage.getItem(STORAGE_KEYS.LEADERBOARD_LAYOUT);
       if (dedicated) {
         def.leaderboard = Object.assign({}, def.leaderboard, JSON.parse(dedicated));
       }
@@ -138,7 +123,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(layoutState));
       if (layoutState && layoutState.leaderboard) {
-        localStorage.setItem("livesplit_leaderboard_layout", JSON.stringify(layoutState.leaderboard));
+        localStorage.setItem(STORAGE_KEYS.LEADERBOARD_LAYOUT, JSON.stringify(layoutState.leaderboard));
       }
       const activeProf = getActiveProfileName();
       if (activeProf && activeProf !== "Default") {
@@ -190,9 +175,9 @@
   // ============================================================
   // EXTENSIBLE LAYOUT PROFILES & BACKWARD-COMPATIBLE SCHEMAS
   // ============================================================
-  const PROFILES_INDEX_KEY = "livesplit_profiles_index";
-  const ACTIVE_PROFILE_KEY = "livesplit_active_profile";
-  const PROFILE_KEY_PREFIX = "livesplit_profile_";
+  const PROFILES_INDEX_KEY = STORAGE_KEYS.PROFILES_INDEX;
+  const ACTIVE_PROFILE_KEY = STORAGE_KEYS.ACTIVE_PROFILE;
+  const PROFILE_KEY_PREFIX = STORAGE_KEYS.PROFILE_PREFIX;
 
   let profilesEngine = null;
   function getProfilesEngine() {
@@ -412,7 +397,7 @@
 
   function getTimerAnchor() {
     const e = getTimerAnchorEngine();
-    return e ? e.getAnchor() : ((layoutState && layoutState.timers && layoutState.timers.anchor) || localStorage.getItem("livesplit_timer_anchor") || "auto");
+    return e ? e.getAnchor() : ((layoutState && layoutState.timers && layoutState.timers.anchor) || localStorage.getItem(STORAGE_KEYS.TIMER_ANCHOR) || "auto");
   }
 
   function setTimerAnchor(anchor) {
@@ -423,7 +408,7 @@
       if (anchor !== "auto" && anchor !== "right" && anchor !== "left") return;
       if (!layoutState.timers) layoutState.timers = getDefaultLayout().timers;
       layoutState.timers.anchor = anchor;
-      localStorage.setItem("livesplit_timer_anchor", anchor);
+      localStorage.setItem(STORAGE_KEYS.TIMER_ANCHOR, anchor);
       applyComponentLayout("timers");
       saveLayout();
       syncTimerAnchorUI();

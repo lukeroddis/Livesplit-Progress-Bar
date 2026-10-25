@@ -14,6 +14,8 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
+
   function installComparisonController(app) {
     const { state } = app;
 
@@ -22,7 +24,7 @@
     }
 
     function initDefaultComparisons() {
-      state.comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+      state.comparisonsList = [...window.LiveSplit.SplitEngine.DEFAULT_COMPARISONS];
       state.comparisonsDataGT["Personal Best"] = [...app.DEFAULT_TARGETS];
       state.comparisonsDataRT["Personal Best"] = [...app.DEFAULT_TARGETS];
 
@@ -81,7 +83,7 @@
     function applyActiveComparison(compName, updateLiveSplit = false, showToast = true) {
       const norm = normalizeComparisonName(compName) || "Personal Best";
       state.currentComparison = norm;
-      localStorage.setItem("livesplit_current_comparison", state.currentComparison);
+      localStorage.setItem(STORAGE_KEYS.CURRENT_COMPARISON, state.currentComparison);
 
       const isRT = state.currentTimingMethod === "RealTime";
       const activeTargets = isRT 
@@ -204,10 +206,10 @@
       const rtArr = (Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0) ? window.comparisonTimesRT : state.comparisonTimesRT;
       const detected = window.LiveSplit.SplitEngine.detectTimingMethodFromComp(splitIdx, compSec, gtArr, rtArr);
       if (detected) {
-        const isManual = (localStorage.getItem("livesplit_timing_method_manual") === "true");
+        const isManual = (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
         if (!isManual && detected !== state.currentTimingMethod) {
           applyActiveTimingMethod(detected);
-          localStorage.setItem("livesplit_timing_method", detected);
+          localStorage.setItem(STORAGE_KEYS.TIMING_METHOD, detected);
         }
       }
       return detected;

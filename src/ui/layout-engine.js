@@ -8,25 +8,9 @@
 (function () {
   "use strict";
 
-  const COMPONENTS = ["title", "timers", "track", "leaderboard"];
+  // HUD component ids, in layout order (layout.js and profiles read this list)
+  const COMPONENTS = Object.freeze(["title", "timers", "track", "leaderboard"]);
 
-  const DEFAULT_TRACK_STYLE = {
-    orientation: "horizontal", // 'horizontal' | 'vertical'
-    namePos: "top",        // 'top' | 'bottom' | 'left' | 'right'
-    deltaPos: "bottom",    // 'top' | 'bottom' | 'left' | 'right'
-    nameFontSize: 17,      // px
-    deltaFontSize: 15,     // px
-    barHeight: 6,          // px
-    dotSize: 15,           // px
-    ghostPinLength: 16,    // px (0 to 36)
-    ghostPinSize: 26,      // px (18 to 44)
-    bgOpacity: 55,         // % (0 to 95)
-    bgBlur: 8,             // px (0 to 20)
-    bgTitle: true,         // boolean
-    bgTimers: true,        // boolean
-    bgTrack: true,         // boolean
-    logoHeight: 60         // px (25 to 140)
-  };
 
   /**
    * Calculates initial layout coordinates scaled to screen viewport dimensions.
@@ -88,7 +72,6 @@
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.LayoutEngine = {
     COMPONENTS,
-    DEFAULT_TRACK_STYLE,
     getDefaultLayout,
     resolveTimerAnchor
   };
