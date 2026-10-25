@@ -253,7 +253,7 @@ Before committing any changes, you must ensure:
 5. **Git Pre-Push Hook**:
    - Repository uses `.githooks/pre-push`. Ensure `git config core.hooksPath .githooks` is active.
 
-> **Known test-suite limitations**: The browser runner exercises the real `SplitEngine`, `GhostMath`, and `Time` modules (added in #12), but `tests/run_tests.py` still reimplements several JavaScript algorithms in Python, and many checks assert source strings or regexes rather than behavior. The browser suite requires Chrome/Chromium; without `websockets` it falls back to `--dump-dom` and skips coverage. A Vitest/browser-test consolidation is future work; prefer behavior-level tests for new code.
+> **Test Suite Architecture**: In-browser unit tests are modularized under `tests/unit/core/` and `tests/unit/ui/` with a lightweight test framework harness in `tests/harness/mini-test.js`. When adding tests for a module, add or edit the corresponding spec file (e.g. `tests/unit/core/race-client.test.js`, `tests/unit/ui/leaderboard.test.js`) rather than modifying `test_runner.html` directly. The browser suite requires Chrome/Chromium; without `websockets` it falls back to `--dump-dom` and skips coverage. A Vitest/browser-test consolidation is future work; prefer behavior-level tests for new code.
 
 ---
 
