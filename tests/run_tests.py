@@ -50,6 +50,7 @@ def test_file_integrity():
         os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "ui", "layout-modal.js"),
+        os.path.join("src", "ui", "layout-params.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     for fname in required:
@@ -89,6 +90,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "ui", "layout-modal.js"),
+        os.path.join("src", "ui", "layout-params.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]
     
@@ -205,6 +207,7 @@ def test_dom_id_consistency():
         os.path.join("src", "ui", "timer-anchor.js"),
         os.path.join("src", "ui", "game-logo.js"),
         os.path.join("src", "ui", "layout-modal.js"),
+        os.path.join("src", "ui", "layout-params.js"),
         os.path.join("src", "utils", "dom-utils.js")
     ]:
         path = os.path.join(ROOT_DIR, js_file)
@@ -1299,6 +1302,10 @@ def test_custom_game_logo_feature():
     if os.path.exists(lm_path):
         with open(lm_path, "r", encoding="utf-8") as lmf:
             layout_src += lmf.read()
+    lp_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    if os.path.exists(lp_path):
+        with open(lp_path, "r", encoding="utf-8") as lpf:
+            layout_src += lpf.read()
 
     # HTML checks
     assert 'id="game-logo"' in html_src, "index.html must contain #game-logo"
@@ -1456,6 +1463,10 @@ def test_layout_profiles_and_extensible_schema():
     if os.path.exists(lm_path):
         with open(lm_path, "r", encoding="utf-8") as lmf:
             layout_src += lmf.read()
+    lp_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    if os.path.exists(lp_path):
+        with open(lp_path, "r", encoding="utf-8") as lpf:
+            layout_src += lpf.read()
 
     # Must NOT contain hardcoded personal dead-link schema URLs
     assert "https://lukeroddis.github.io" not in layout_src, \
@@ -1590,6 +1601,10 @@ def test_track_scrolling_consistency_and_mousewheel():
     if os.path.exists(modal_path):
         with open(modal_path, "r", encoding="utf-8") as mf:
             layout_src += mf.read()
+    params_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    if os.path.exists(params_path):
+        with open(params_path, "r", encoding="utf-8") as pf:
+            layout_src += pf.read()
     with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
         html_src = f.read()
     with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
@@ -1757,6 +1772,10 @@ def test_timer_anchor_and_expansion_modes():
     if os.path.exists(modal_path):
         with open(modal_path, "r", encoding="utf-8") as mf:
             layout_src += mf.read()
+    params_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    if os.path.exists(params_path):
+        with open(params_path, "r", encoding="utf-8") as pf:
+            layout_src += pf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
         schema_src = f.read()
 
@@ -1875,6 +1894,10 @@ def test_always_show_last_split_and_schematic_break():
     if os.path.exists(modal_path):
         with open(modal_path, "r", encoding="utf-8") as mf:
             layout_src += mf.read()
+    params_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    if os.path.exists(params_path):
+        with open(params_path, "r", encoding="utf-8") as pf:
+            layout_src += pf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2149,6 +2172,10 @@ def test_architectural_safeguards_and_bug_fixes():
     if os.path.exists(modal_path):
         with open(modal_path, "r", encoding="utf-8") as mf:
             layout_src += mf.read()
+    params_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    if os.path.exists(params_path):
+        with open(params_path, "r", encoding="utf-8") as pf:
+            layout_src += pf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2336,6 +2363,10 @@ def test_track_orientation_and_split_density_reflow():
     if os.path.exists(modal_path):
         with open(modal_path, "r", encoding="utf-8") as mf:
             layout_src += mf.read()
+    params_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    if os.path.exists(params_path):
+        with open(params_path, "r", encoding="utf-8") as pf:
+            layout_src += pf.read()
     with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
         overlay_src = f.read()
 
@@ -2990,6 +3021,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "ui", "timer-anchor.js"),
             os.path.join("src", "ui", "game-logo.js"),
             os.path.join("src", "ui", "layout-modal.js"),
+            os.path.join("src", "ui", "layout-params.js"),
             os.path.join("src", "utils", "dom-utils.js")
         ]
 
@@ -3310,6 +3342,25 @@ def test_layout_modal_modularization():
     print("✓ Layout Modal & Settings Controller modularization passed.")
 
 
+def test_layout_params_modularization():
+    """Verify modularization of URL parameters parser and view router."""
+    params_path = os.path.join(ROOT_DIR, "src", "ui", "layout-params.js")
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+
+    assert os.path.exists(params_path), "src/ui/layout-params.js must exist"
+
+    with open(params_path, "r", encoding="utf-8") as rf:
+        params_code = rf.read()
+    with open(layout_path, "r", encoding="utf-8") as lcf:
+        layout_code = lcf.read()
+
+    assert "window.LiveSplit.LayoutParams" in params_code, "layout-params.js must export LiveSplit.LayoutParams"
+    assert "parseUrlParameters" in params_code, "layout-params.js must define parseUrlParameters"
+    assert "LiveSplit.LayoutParams.parseUrlParameters" in layout_code, "layout.js must call LayoutParams.parseUrlParameters"
+
+    print("✓ Layout URL Parameters & View Router modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3364,7 +3415,8 @@ def main():
         test_track_style_modularization()
         test_layout_drag_modularization()
         test_layout_modal_modularization()
-        run_browser_tests_and_coverage(python_test_count=49)
+        test_layout_params_modularization()
+        run_browser_tests_and_coverage(python_test_count=50)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
