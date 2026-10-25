@@ -40,6 +40,7 @@ def test_file_integrity():
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
+        os.path.join("src", "ui", "layout-drag.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "track-style.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -77,6 +78,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
+        os.path.join("src", "ui", "layout-drag.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "track-style.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -190,6 +192,7 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "core", "layout-profiles.js"),
         os.path.join("src", "ui", "layout-engine.js"),
+        os.path.join("src", "ui", "layout-drag.js"),
         os.path.join("src", "ui", "track-renderer.js"),
         os.path.join("src", "ui", "track-style.js"),
         os.path.join("src", "ui", "interactions.js"),
@@ -1559,6 +1562,10 @@ def test_track_scrolling_consistency_and_mousewheel():
     if os.path.exists(ts_path):
         with open(ts_path, "r", encoding="utf-8") as tsf:
             layout_src += tsf.read()
+    drag_path = os.path.join(ROOT_DIR, "src", "ui", "layout-drag.js")
+    if os.path.exists(drag_path):
+        with open(drag_path, "r", encoding="utf-8") as df:
+            layout_src += df.read()
     with open(os.path.join(ROOT_DIR, "index.html"), "r", encoding="utf-8") as f:
         html_src = f.read()
     with open(os.path.join(ROOT_DIR, "style.css"), "r", encoding="utf-8") as f:
@@ -1718,6 +1725,10 @@ def test_timer_anchor_and_expansion_modes():
     if os.path.exists(ts_path):
         with open(ts_path, "r", encoding="utf-8") as tsf:
             layout_src += tsf.read()
+    drag_path = os.path.join(ROOT_DIR, "src", "ui", "layout-drag.js")
+    if os.path.exists(drag_path):
+        with open(drag_path, "r", encoding="utf-8") as df:
+            layout_src += df.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
         schema_src = f.read()
 
@@ -1828,6 +1839,10 @@ def test_always_show_last_split_and_schematic_break():
     if os.path.exists(ts_path):
         with open(ts_path, "r", encoding="utf-8") as tsf:
             layout_src += tsf.read()
+    drag_path = os.path.join(ROOT_DIR, "src", "ui", "layout-drag.js")
+    if os.path.exists(drag_path):
+        with open(drag_path, "r", encoding="utf-8") as df:
+            layout_src += df.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2094,6 +2109,10 @@ def test_architectural_safeguards_and_bug_fixes():
     if os.path.exists(ts_path):
         with open(ts_path, "r", encoding="utf-8") as tsf:
             layout_src += tsf.read()
+    drag_path = os.path.join(ROOT_DIR, "src", "ui", "layout-drag.js")
+    if os.path.exists(drag_path):
+        with open(drag_path, "r", encoding="utf-8") as df:
+            layout_src += df.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "layout-profiles.js"), "r", encoding="utf-8") as lpf:
         profiles_src = lpf.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2273,6 +2292,10 @@ def test_track_orientation_and_split_density_reflow():
     if os.path.exists(ts_path):
         with open(ts_path, "r", encoding="utf-8") as tsf:
             layout_src += tsf.read()
+    drag_path = os.path.join(ROOT_DIR, "src", "ui", "layout-drag.js")
+    if os.path.exists(drag_path):
+        with open(drag_path, "r", encoding="utf-8") as df:
+            layout_src += df.read()
     with open(os.path.join(ROOT_DIR, "overlay.js"), "r", encoding="utf-8") as f:
         overlay_src = f.read()
 
@@ -2408,6 +2431,10 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     if os.path.exists(ts_path):
         with open(ts_path, "r", encoding="utf-8") as tsf:
             layout_js += tsf.read()
+    drag_path = os.path.join(ROOT_DIR, "src", "ui", "layout-drag.js")
+    if os.path.exists(drag_path):
+        with open(drag_path, "r", encoding="utf-8") as df:
+            layout_js += df.read()
     with open(os.path.join(ROOT_DIR, "src", "ui", "layout-engine.js"), "r", encoding="utf-8") as f:
         layout_engine_js = f.read()
     with open(os.path.join(ROOT_DIR, "schema", "layout-v1.json"), "r", encoding="utf-8") as f:
@@ -2912,6 +2939,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "race-client.js"),
             os.path.join("src", "core", "layout-profiles.js"),
             os.path.join("src", "ui", "layout-engine.js"),
+            os.path.join("src", "ui", "layout-drag.js"),
             os.path.join("src", "ui", "track-renderer.js"),
             os.path.join("src", "ui", "track-style.js"),
             os.path.join("src", "ui", "interactions.js"),
@@ -3203,6 +3231,25 @@ def test_track_style_modularization():
     print("✓ Track Style & Orientation Controller modularization passed.")
 
 
+def test_layout_drag_modularization():
+    """Verify modularization of layout pointer drag and scale engine."""
+    drag_path = os.path.join(ROOT_DIR, "src", "ui", "layout-drag.js")
+    layout_path = os.path.join(ROOT_DIR, "layout.js")
+
+    assert os.path.exists(drag_path), "src/ui/layout-drag.js must exist"
+
+    with open(drag_path, "r", encoding="utf-8") as rf:
+        drag_code = rf.read()
+    with open(layout_path, "r", encoding="utf-8") as lcf:
+        layout_code = lcf.read()
+
+    assert "window.LiveSplit.LayoutDrag" in drag_code, "layout-drag.js must export LiveSplit.LayoutDrag"
+    assert "createLayoutDrag" in drag_code, "layout-drag.js must define createLayoutDrag"
+    assert "LiveSplit.LayoutDrag.createLayoutDrag" in layout_code, "layout.js must instantiate LayoutDrag"
+
+    print("✓ Layout Pointer Drag & Scale Engine modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3255,7 +3302,8 @@ def main():
         test_game_logo_modularization()
         test_timer_anchor_modularization()
         test_track_style_modularization()
-        run_browser_tests_and_coverage(python_test_count=47)
+        test_layout_drag_modularization()
+        run_browser_tests_and_coverage(python_test_count=48)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)

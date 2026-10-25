@@ -1113,233 +1113,27 @@
     }
   }
 
+  let layoutDragEngine = null;
+  function getLayoutDragEngine() {
+    if (!layoutDragEngine && typeof window !== "undefined" && window.LiveSplit && window.LiveSplit.LayoutDrag) {
+      layoutDragEngine = window.LiveSplit.LayoutDrag.createLayoutDrag({
+        getLayoutState: () => layoutState,
+        getCurrentTrackStyle: () => currentTrackStyle,
+        isEditMode: () => isEditMode,
+        saveLayout,
+        applyComponentLayout: (id) => applyComponentLayout(id),
+        syncTimerAnchorUI,
+        components: COMPONENTS
+      });
+    }
+    return layoutDragEngine;
+  }
+
   function setupPointerListeners() {
-    COMPONENTS.forEach((id) => {
-      const el = document.getElementById(`hud-comp-${id}`);
-      if (!el) return;
-
-      // Drag listener on the component
-      el.addEventListener("pointerdown", (e) => {
-        if (!isEditMode) return;
-        // Do not drag if interacting with buttons, inputs, or resize handle
-        if (e.target.closest("button") || e.target.closest("input") || e.target.classList.contains("hud-resize-handle")) {
-          return;
-        }
-
-        e.preventDefault();
-        el.setPointerCapture(e.pointerId);
-        el.classList.add("is-dragging");
-
-        const state = layoutState[id];
-        activePointerOp = {
-          type: "drag",
-          compId: id,
-          pointerId: e.pointerId,
-          element: el,
-          startX: e.clientX,
-          startY: e.clientY,
-          origX: el.offsetLeft,
-          origY: el.offsetTop,
-          wasDocked: state.docked
-        };
-      });
-
-      // Resize handle listener
-      const resizeHandle = el.querySelector(".hud-resize-handle");
-      if (resizeHandle) {
-        resizeHandle.addEventListener("pointerdown", (e) => {
-          if (!isEditMode) return;
-          e.preventDefault();
-          e.stopPropagation();
-          resizeHandle.setPointerCapture(e.pointerId);
-          el.classList.add("is-scaling");
-
-          const state = layoutState[id];
-          activePointerOp = {
-            type: "scale",
-            compId: id,
-            pointerId: e.pointerId,
-            element: el,
-            resizeHandle: resizeHandle,
-            startX: e.clientX,
-            origScale: state.scale
-          };
-        });
-      }
-
-      // Visibility toggle in header
-      const toggleBtn = el.querySelector('[data-action="toggle-visibility"]');
-      if (toggleBtn) {
-        toggleBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const state = layoutState[id];
-          state.visible = !state.visible;
-          applyComponentLayout(id);
-          saveLayout();
-        });
-      }
-    });
-
-    // Direct drag listener on leaderboard header (.leaderboard-header) anytime (live race or edit mode)
-    const lbHeader = document.querySelector(".leaderboard-header");
-    const lbComp = document.getElementById("hud-comp-leaderboard");
-    if (lbHeader && lbComp) {
-      lbHeader.addEventListener("pointerdown", (e) => {
-        // Do not drag if clicking buttons or status badge
-        if (e.target.closest("button") || e.target.closest(".leaderboard-status")) {
-          return;
-        }
-
-        e.preventDefault();
-        lbHeader.setPointerCapture(e.pointerId);
-        lbComp.classList.add("is-dragging");
-
-        const state = layoutState.leaderboard;
-        activePointerOp = {
-          type: "drag",
-          compId: "leaderboard",
-          pointerId: e.pointerId,
-          element: lbComp,
-          dragHandle: lbHeader,
-          startX: e.clientX,
-          startY: e.clientY,
-          origX: lbComp.offsetLeft,
-          origY: lbComp.offsetTop,
-          wasDocked: state.docked
-        };
-      });
+    const e = getLayoutDragEngine();
+    if (e) {
+      e.initPointerListeners();
     }
-
-    // Track dock toggle button
-    const trackDockBtn = document.getElementById("btn-dock-track");
-    if (trackDockBtn) {
-      trackDockBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const state = layoutState.track;
-        const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
-        if (isVert) {
-          if (state.docked === "left" || state.docked === "right" || state.docked === "bottom") {
-            state.docked = "none";
-            state.x = 42;
-            state.y = 80;
-          } else {
-            state.docked = "left";
-            state.x = 0;
-            state.y = 0;
-          }
-        } else {
-          if (state.docked === "bottom" || state.docked === "left" || state.docked === "right") {
-            state.docked = "none";
-            state.x = 42;
-            state.y = Math.max(0, window.innerHeight - 150);
-          } else {
-            state.docked = "bottom";
-            state.x = 0;
-            state.y = Math.max(0, window.innerHeight - 90);
-          }
-        }
-        applyComponentLayout("track");
-        saveLayout();
-        if (window.updateTrackDensityAndAngle) {
-          window.updateTrackDensityAndAngle();
-        }
-        if (window.updateTrackStatus) {
-          window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-        }
-      });
-    }
-
-    // Global pointermove
-    window.addEventListener("pointermove", (e) => {
-      if (!activePointerOp) return;
-
-      if (activePointerOp.type === "drag") {
-        const dx = e.clientX - activePointerOp.startX;
-        const dy = e.clientY - activePointerOp.startY;
-        const state = layoutState[activePointerOp.compId];
-
-        const w = window.innerWidth || 1920;
-        const h = window.innerHeight || 1080;
-
-        let newX = Math.max(0, Math.min(w - 80, activePointerOp.origX + dx));
-        let newY = Math.max(0, Math.min(h - 50, activePointerOp.origY + dy));
-
-        // Snapping for track component to bottom dock or left/right dock
-        if (activePointerOp.compId === "track") {
-          const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
-          if (isVert) {
-            if (newX <= 100) {
-              state.docked = "left";
-              newX = 0;
-              newY = 0;
-            } else if (newX >= w - 380) {
-              state.docked = "right";
-              newX = w - 340;
-              newY = 0;
-            } else {
-              state.docked = "none";
-            }
-          } else {
-            if (newY >= h - 140) {
-              state.docked = "bottom";
-              newX = 0;
-              newY = h - 90;
-            } else {
-              state.docked = "none";
-            }
-          }
-        }
-
-        state.x = Math.round(newX);
-        state.y = Math.round(newY);
-        if (activePointerOp.compId === "timers") {
-          const compWidth = activePointerOp.element.offsetWidth || 300;
-          state.right = Math.max(0, w - (state.x + compWidth));
-        }
-        applyComponentLayout(activePointerOp.compId);
-      } else if (activePointerOp.type === "scale") {
-        const dx = e.clientX - activePointerOp.startX;
-        const state = layoutState[activePointerOp.compId];
-        const deltaScale = dx / 180;
-        const newScale = Math.min(2.5, Math.max(0.4, activePointerOp.origScale + deltaScale));
-        state.scale = Math.round(newScale * 100) / 100;
-        applyComponentLayout(activePointerOp.compId);
-      }
-    });
-
-    // Global pointerup
-    window.addEventListener("pointerup", (e) => {
-      if (!activePointerOp) return;
-
-      if (activePointerOp.element) {
-        activePointerOp.element.classList.remove("is-dragging", "is-scaling");
-        try {
-          if (activePointerOp.element.hasPointerCapture(e.pointerId)) {
-            activePointerOp.element.releasePointerCapture(e.pointerId);
-          }
-        } catch (_) {}
-      }
-      if (activePointerOp.dragHandle) {
-        try {
-          if (activePointerOp.dragHandle.hasPointerCapture(e.pointerId)) {
-            activePointerOp.dragHandle.releasePointerCapture(e.pointerId);
-          }
-        } catch (_) {}
-      }
-      if (activePointerOp.resizeHandle) {
-        try {
-          if (activePointerOp.resizeHandle.hasPointerCapture(e.pointerId)) {
-            activePointerOp.resizeHandle.releasePointerCapture(e.pointerId);
-          }
-        } catch (_) {}
-      }
-
-      if (activePointerOp.compId === "timers") {
-        syncTimerAnchorUI();
-      }
-      activePointerOp = null;
-      saveLayout();
-    });
   }
 
   function setupToolbarAndControls() {
