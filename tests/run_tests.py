@@ -34,6 +34,7 @@ def test_file_integrity():
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "core", "race-simulation.js"),
         os.path.join("src", "core", "race-ranking.js"),
+        os.path.join("src", "core", "race-protocol.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -64,6 +65,7 @@ def test_syntax_and_brackets():
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "core", "race-simulation.js"),
         os.path.join("src", "core", "race-ranking.js"),
+        os.path.join("src", "core", "race-protocol.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -170,6 +172,7 @@ def test_dom_id_consistency():
         os.path.join("src", "core", "livesplit-client.js"),
         os.path.join("src", "core", "race-simulation.js"),
         os.path.join("src", "core", "race-ranking.js"),
+        os.path.join("src", "core", "race-protocol.js"),
         os.path.join("src", "core", "race-client.js"),
         os.path.join("src", "ui", "layout-engine.js"),
         os.path.join("src", "ui", "track-renderer.js"),
@@ -2450,7 +2453,9 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
         sim_code = sf.read()
     with open(os.path.join(ROOT_DIR, "src", "core", "race-ranking.js"), "r", encoding="utf-8") as rkf:
         ranking_code = rkf.read()
-    race_sim_combined = race_code + sim_code + ranking_code
+    with open(os.path.join(ROOT_DIR, "src", "core", "race-protocol.js"), "r", encoding="utf-8") as rpf:
+        protocol_code = rpf.read()
+    race_sim_combined = race_code + sim_code + ranking_code + protocol_code
     assert "window.LiveSplit.RaceSimulation" in sim_code, "src/core/race-simulation.js must export LiveSplit.RaceSimulation"
     assert "if (hostState.currentTimeSec > 0)" in race_sim_combined, "race-client.js must never overwrite hostState with simVirtualSec when host is running" 
     assert "setHostUsername" in race_code, "race-client.js must export setHostUsername"
@@ -2465,7 +2470,7 @@ def test_live_race_ghost_pins_and_f1_leaderboard():
     assert "is-swapping" in leaderboard_code, "leaderboard.js must support FLIP is-swapping animation class"
     assert "prevTops" in leaderboard_code, "leaderboard.js must record initial positions for FLIP animation"
     assert "predictedSingleTime" in race_sim_combined, "race client and ranking must support therun.gg predictedSingleTime"
-    assert "monteCarloPrediction" in race_code, "race-client.js must store monteCarloPrediction from therun.gg telemetry"
+    assert "monteCarloPrediction" in race_sim_combined, "race client and protocol must store monteCarloPrediction from therun.gg telemetry"
     assert "hasStatisticalPrediction" in race_sim_combined, "race client and ranking must track hasStatisticalPrediction flag"
 
     # 9. Intelligent pin stacking & mini-leaderboard assertions
@@ -2847,6 +2852,7 @@ def run_browser_tests_and_coverage(python_test_count=35):
             os.path.join("src", "core", "livesplit-client.js"),
             os.path.join("src", "core", "race-simulation.js"),
             os.path.join("src", "core", "race-ranking.js"),
+            os.path.join("src", "core", "race-protocol.js"),
             os.path.join("src", "core", "race-client.js"),
             os.path.join("src", "ui", "layout-engine.js"),
             os.path.join("src", "ui", "track-renderer.js"),
@@ -3001,6 +3007,28 @@ def test_race_ranking_modularization():
     print("✓ Race Standings & Milestone Ranking Engine modularization passed.")
 
 
+def test_race_protocol_modularization():
+    """Verify modularization of WebSocket telemetry & protocol message parser."""
+    protocol_path = os.path.join(ROOT_DIR, "src", "core", "race-protocol.js")
+    race_client_path = os.path.join(ROOT_DIR, "src", "core", "race-client.js")
+
+    assert os.path.exists(protocol_path), "src/core/race-protocol.js must exist"
+
+    with open(protocol_path, "r", encoding="utf-8") as rf:
+        protocol_code = rf.read()
+    with open(race_client_path, "r", encoding="utf-8") as rcf:
+        client_code = rcf.read()
+
+    assert "window.LiveSplit.RaceProtocol" in protocol_code, "race-protocol.js must export LiveSplit.RaceProtocol"
+    assert "function updateEntrantFromTelemetry" in protocol_code, "race-protocol.js must define updateEntrantFromTelemetry"
+    assert "function parseRaceMessage" in protocol_code, "race-protocol.js must define parseRaceMessage"
+
+    assert "window.LiveSplit.RaceProtocol.parseRaceMessage" in client_code, "race-client.js must delegate handleRaceMessage to RaceProtocol"
+    assert "window.LiveSplit.RaceProtocol.updateEntrantFromTelemetry" in client_code, "race-client.js must delegate updateEntrantFromTelemetry to RaceProtocol"
+
+    print("✓ Race Telemetry & Message Protocol modularization passed.")
+
+
 def main():
     print("==================================================")
     print(" LiveSplit Minimal Overlay - Test Suite & Checker")
@@ -3046,7 +3074,8 @@ def main():
         test_live_race_ghost_pins_and_f1_leaderboard()
         test_overlay_subcontrollers_modularization()
         test_race_ranking_modularization()
-        run_browser_tests_and_coverage(python_test_count=40)
+        test_race_protocol_modularization()
+        run_browser_tests_and_coverage(python_test_count=41)
     except AssertionError as e:
         print(f"\n❌ TEST FAILURE: {e}", file=sys.stderr)
         sys.exit(1)
