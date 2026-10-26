@@ -18,10 +18,11 @@
 
   function syncComparisonDropdown() {
     const selComp = document.getElementById("select-active-comparison");
-    if (!selComp || typeof window === "undefined" || !window.getComparisonsList) return;
-    const curComp = window.getCurrentComparison ? window.getCurrentComparison() : "Personal Best";
+    const overlay = window.LiveSplit.Overlay;
+    if (!selComp || !overlay.getComparisonsList) return;
+    const curComp = overlay.getCurrentComparison?.() ?? "Personal Best";
     selComp.innerHTML = "";
-    window.getComparisonsList().forEach((c) => {
+    overlay.getComparisonsList().forEach((c) => {
       const opt = document.createElement("option");
       opt.value = c;
       opt.innerText = COMPARISON_LABELS[c] || c;
@@ -31,14 +32,12 @@
   }
 
   function syncTimerControls() {
-    const curTimerMode = (typeof window !== "undefined" && window.getTimerDisplayMode)
-      ? window.getTimerDisplayMode()
-      : (localStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE) || "both");
+    const curTimerMode = window.LiveSplit.Overlay.getTimerDisplayMode?.()
+      ?? (localStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE) || "both");
     C.syncSegmented("#ctrl-timer-display", curTimerMode);
 
-    const curFocus = (typeof window !== "undefined" && window.getCurrentTimingMethod)
-      ? window.getCurrentTimingMethod()
-      : (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD) || "GameTime");
+    const curFocus = window.LiveSplit.Overlay.getCurrentTimingMethod?.()
+      ?? (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD) || "GameTime");
     C.syncSegmented("#ctrl-timer-focus", curFocus);
 
     // Primary timer choice only applies when both timers are shown
@@ -61,23 +60,20 @@
       C.bindStorageCheckbox("cb-sync-livesplit-hotkeys", STORAGE_KEYS.SYNC_HOTKEYS);
 
       document.getElementById("select-active-comparison")?.addEventListener("change", (e) => {
-        if (typeof window !== "undefined" && window.applyActiveComparison) {
-          window.applyActiveComparison(e.target.value, true);
-        }
+        window.LiveSplit.Overlay.applyActiveComparison?.(e.target.value, true);
       });
 
       C.bindSegmented("#ctrl-timer-display", (val) => {
-        if (typeof window !== "undefined" && window.setTimerDisplayMode) {
-          window.setTimerDisplayMode(val);
-        }
+        window.LiveSplit.Overlay.setTimerDisplayMode?.(val);
       });
 
       C.bindSegmented("#ctrl-timer-focus", (val) => {
         if (typeof window === "undefined") return;
-        if (window.setTimingMethodFocus) {
-          window.setTimingMethodFocus(val);
-        } else if (window.applyActiveTimingMethod) {
-          window.applyActiveTimingMethod(val);
+        const overlay = window.LiveSplit.Overlay;
+        if (overlay.setTimingMethodFocus) {
+          overlay.setTimingMethodFocus(val);
+        } else {
+          overlay.applyActiveTimingMethod?.(val);
         }
       });
     }

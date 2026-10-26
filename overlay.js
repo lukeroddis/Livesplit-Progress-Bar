@@ -21,7 +21,7 @@
  * between them does not matter (only that they load before this file).
  */
 
-// safeStorage is provided by src/core/storage.js (window.safeStorage).
+// safeStorage is provided by src/core/storage.js (window.LiveSplit.Storage.safeStorage).
 const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
 
 const APP_VERSION = "v1.0.3";
@@ -54,9 +54,8 @@ const ALL_SPLIT_STATE_CLASSES = window.LiveSplit.TrackRenderer.ALL_SPLIT_STATE_C
 const getVisibleSplitsCapacity = window.LiveSplit.TrackRenderer.getVisibleSplitsCapacity;
 
 function getRaceClient() {
-  return window.LiveSplit && window.LiveSplit.RaceClient
-    ? (window.LiveSplit.RaceClient.instance || window.LiveSplit.RaceClient)
-    : window.LiveSplitRaceClient;
+  const rc = window.LiveSplit.RaceClient;
+  return rc ? (rc.instance || rc) : null;
 }
 
 // Thin aliases onto LiveSplit.Time / DOMUtils / SplitEngine / GhostMath / ToastManager

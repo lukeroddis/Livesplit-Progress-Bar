@@ -20,7 +20,8 @@ Run `npm test` and `npm run build` before committing; both must be green.
 ## Hard rules
 
 - **No runtime dependencies, CDNs or remote assets.** The build must stay a single `file://`-runnable HTML file for OBS CEF.
-- **Classic scripts only** (no `import`/`export` in app code). Each file is an IIFE exporting to `window.LiveSplit.<Name>` (or explicit `window.*`).
+- **Classic scripts only** (no `import`/`export` in app code). Each file is an IIFE exporting to `window.LiveSplit.<Name>`.
+- **Cross-module calls use namespaces, never loose `window.*` globals** (enforced by `tests/test_project_rules.py`): layout-side code calls the overlay as `window.LiveSplit.Overlay.fn?.(...)` at call time (API in `src/core/window-api.js`; add new entries there), other modules via `window.LiveSplit.<Module>`, the overlay calls the layout via `window.hudLayout`.
 - **`index.html` is the only script/stylesheet list.** The Vite entry and `tests/test_runner.html` are generated from its tags. New module = one `<script>` tag before `layout.js`/`overlay.js`; new stylesheet = one `<link>` placed where its rules should win in the cascade.
 - **Never share state through top-level `let` across files**: the build loads every script as its own ES module. Use `app`, `ctx`, `window.LiveSplit.*` or injected getters.
 - **Never send `gettimingmethod`** to LiveSplit (hangs legacy servers). Poll only `getcurrentgametime` / `getcurrentrealtime` / `getsplitindex` every 33ms; other queries only on split transitions, start or reset.
@@ -29,7 +30,7 @@ Run `npm test` and `npm run build` before committing; both must be green.
 
 ## Code patterns
 
-- Overlay controllers: `installX(app)` adds functions to `app` and uses `app.state`; cross-controller calls go through `app.fn(...)` at call time. `overlay.js` is the composition root.
+- Overlay controllers: `installX(app)` adds functions to `app` and uses `app.state` (fields documented by the `OverlayState` typedef in `src/core/overlay-state.js`; race fields by `RaceState` / `Runner` in `src/core/race-state.js`; keep them updated when adding state); cross-controller calls go through `app.fn(...)` at call time. `overlay.js` is the composition root.
 - Race modules: same idea over `ctx` (`ctx.raceState`), composed by `src/core/race-client.js`.
 - Self-contained UI pieces: `createX({ getters })` factories.
 - A registry contract test fails if anything calls an `app.`/`ctx.` function nobody registers.
@@ -41,7 +42,7 @@ Run `npm test` and `npm run build` before committing; both must be green.
 - New behaviour tests go in `tests/unit/<core|ui|utils>/<module>.test.js` (cross-module race flows in `tests/unit/race/`). They are discovered automatically and use `describe`/`it`/`assert`/`assertEqual` from `tests/harness/mini-test.js`.
 - Drive LiveSplit through `tests/harness/fake-livesplit.js` (`FakeLiveSplit.acceptConnection()`, `.state`, `.sent`), never a real server.
 - Don't assert on source text or re-implement JS logic in Python. The Python tests are only for cross-file contracts and project rules.
-- Shared spec helpers live in `tests/harness/test-utils.js` (`TestUtils.mountHtml`, `captureWindowListeners`, `withFakeTimers`, `stubWindow`, `waitFor`); real sample `.lss` files in `tests/fixtures/` are available as `window.TestFixtures["<file name>"]`.
+- Shared spec helpers live in `tests/harness/test-utils.js` (`TestUtils.mountHtml`, `captureWindowListeners`, `withFakeTimers`, `stubOverlay`, `stubWindow`, `waitFor`); real sample `.lss` files in `tests/fixtures/` are available as `window.TestFixtures["<file name>"]`.
 - Full runs enforce the JS coverage floors in `pytest.ini` (`js_coverage_floor`, `js_file_coverage_floor`). Raise them after improving coverage, keeping about a point of headroom (coverage varies slightly per run).
 - `tests/test_runner.html` is generated; edit `tests/test_runner.template.html`.
 

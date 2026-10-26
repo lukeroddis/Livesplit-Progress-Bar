@@ -163,8 +163,9 @@
     const ghostParam = params.get("ghost");
     if (ghostParam) {
       const g = ghostParam.toLowerCase().trim();
-      if (typeof window !== "undefined" && window.setGhostComparison) {
-        window.setGhostComparison(g);
+      const setGhost = window.LiveSplit.Overlay.setGhostComparison;
+      if (setGhost) {
+        setGhost(g);
       } else if (typeof localStorage !== "undefined") {
         localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, g);
       }

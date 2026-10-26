@@ -27,14 +27,14 @@
      - [`ghost-math.js`](src/core/ghost-math.js): Multi-ghost pace interpolation, timescale mismatch defenses, and proximity calculations.
      - [`livesplit-client.js`](src/core/livesplit-client.js): Sequential command queue with probe timeouts and desync guard.
      - [`livesplit-connection.js`](src/core/livesplit-connection.js): LiveSplit Server socket lifecycle (duplicate guard, auto-reconnect, status pill, `sendRaw` for reply-less commands).
-     - [`overlay-state.js`](src/core/overlay-state.js): The shared overlay `state` object (splits, comparison curves per timing method, active comparison/method, live run progress).
+     - [`overlay-state.js`](src/core/overlay-state.js): The shared overlay `state` object (splits, comparison curves per timing method, active comparison/method, live run progress). Its JSDoc `OverlayState` typedef documents every field.
      - [`run-tracker.js`](src/core/run-tracker.js): 33ms poll loop and split transitions (reset, start, split advance with skips/golds/PB commit, undo, host progress).
      - [`run-persistence.js`](src/core/run-persistence.js): In-run state save/restore across reloads with split-count/game/category guards.
      - [`comparison-controller.js`](src/core/comparison-controller.js): Active comparison and timing-method curve switching, default curves, timing detection, ghost comparison lookup.
      - [`splits-loader.js`](src/core/splits-loader.js): Applies parsed `.lss` data to state and restores cached splits on startup.
-     - [`window-api.js`](src/core/window-api.js): The `window.*` API consumed by layout.js, layout modules and tests.
+     - [`window-api.js`](src/core/window-api.js): `window.LiveSplit.Overlay`, the overlay API that layout.js and layout-side modules call (`window.LiveSplit.Overlay.refreshTrack?.()`), also copied onto legacy `window.*` names for the console and tests.
      - [race-client.js](src/core/race-client.js): Race client facade: creates isolated clients and their public API, composing the race modules below over one `ctx` (shared `raceState` + functions, same pattern as overlay's `app`).
-     - [`race-state.js`](src/core/race-state.js): Per-client race state, host runner defaults (`createHostState`), shared runner resets, `isLiveRoom`.
+     - [`race-state.js`](src/core/race-state.js): Per-client race state, host runner defaults (`createHostState`), shared runner resets, `isLiveRoom`. JSDoc typedefs: `RaceState`, `Runner`, `RaceEvent`.
      - [`race-identity.js`](src/core/race-identity.js): Username / race code validation and the stored therun username.
      - [`race-host.js`](src/core/race-host.js): Host progress from LiveSplit, undo, DNF, username matching, timing method, reset.
      - [`race-connection.js`](src/core/race-connection.js): therun.gg REST snapshot, room WebSocket and protocol hand-off.
@@ -62,7 +62,8 @@
    - [overlay.js](overlay.js): Composition root (~280 lines). Creates `state` and the shared `app` registry, installs the overlay controllers, wires the stateful UI helpers (connection, ghost runner, track density, menus) and boots the overlay.
    - **Controller pattern**: overlay controllers export `installX(app)`, which adds their functions to `app` and reads/writes `app.state`. Cross-controller calls go through `app.<fn>` at call time, so controllers can load in any order before overlay.js. Self-contained UI helpers keep the `createX({ getters })` factory style. `test_app_registry_calls_are_provided` fails if a controller calls an `app.<fn>` nobody registers.
    - **Shared constants have one owner module** (enforced by `tests/test_project_rules.py`): localStorage keys → `window.LiveSplit.Storage.KEYS` (`src/core/storage.js`, never raw `"livesplit_*"` strings); default track style → `TrackStyle.DEFAULT_TRACK_STYLE`; HUD component ids → `LayoutEngine.COMPONENTS`; built-in comparison names → `SplitEngine.DEFAULT_COMPARISONS`; LiveSplit Server URL → `Client.DEFAULT_WS_URL`. These are frozen; copy (`[...x]`, `Object.assign({}, x)`) before mutating. Keep constants with the module that owns the concept rather than a shared constants file.
-   - **Adding a module**: add one `<script>` tag to `index.html` before `layout.js`/`overlay.js`; nothing else needs registering. Every script is an ES module in the Vite build, so share state through `app` / `window.LiveSplit.*` / explicit `window.*` exports and injected getters, never through top-level `let` across files.
+   - **Adding a module**: add one `<script>` tag to `index.html` before `layout.js`/`overlay.js`; nothing else needs registering. Every script is an ES module in the Vite build, so share state through `app` / `window.LiveSplit.*` namespaces and injected getters, never through top-level `let` across files.
+   - **Cross-module calls go through namespaces**: layout-side code calls the overlay as `window.LiveSplit.Overlay.fn?.(...)` (at call time; the object exists from page load), other modules via `window.LiveSplit.<Module>`, and the overlay calls the layout through `window.hudLayout`. Never read the legacy `window.*` copies from app code; `test_app_code_calls_the_overlay_api_not_window_globals` enforces it.
    - [`vite.config.mjs`](vite.config.mjs): Vite configuration. During a build it swaps the classic script tags for a virtual module entry generated from those same tags, and enables the single-file plugin.
    - [`scripts/verify-single-file.mjs`](scripts/verify-single-file.mjs): Postbuild contract check for the generated `dist/index.html`; run automatically by `npm run build`.
    - `dist/index.html`: Generated, fully self-contained distribution file. It is git-ignored and attached to GitHub releases.
@@ -278,7 +279,7 @@ Before committing any changes, you must ensure:
    - Any new element added in [index.html](index.html) must have a consistent `id`.
    - Any `document.getElementById` added in JS must match an ID in `index.html`.
 4. **Do Not Break Exported Helpers**:
-   - The following functions are exported on `window` by [window-api.js](src/core/window-api.js) for layout interop and test runners:
+   - The following functions are part of `window.LiveSplit.Overlay` (and its legacy `window.*` copies) in [window-api.js](src/core/window-api.js), used by layout code and test runners:
      `timeStringToSeconds`, `formatTargetTime`, `formatDeltaSeconds`, `formatDeltaLive`, `normalizeComparisonName`, `getShortComparisonName`, `applyActiveComparison`, `cycleComparison`.
 5. **Git Pre-Push Hook**:
    - Repository uses `.githooks/pre-push`. Ensure `git config core.hooksPath .githooks` is active.
@@ -292,7 +293,7 @@ Before committing any changes, you must ensure:
 > | `tests/test_project_rules.py` | Short list of project-wide rules (version sync, blacklisted `gettimingmethod`, no external assets, classic scripts only) plus the ESLint run (`npm run lint`, `no-undef` / `no-unused-vars`, config in `eslint.config.mjs`). |
 > | `tests/test_release_bump.py` | `scripts/determine_bump.py` release classification. |
 > | `tests/browser/` | Runner page generator (`build_runner.py`), Chrome/CDP driver, coverage maths. |
-> | `tests/harness/` | `mini-test.js` (`describe`/`it`/`assert`; `async` tests run serially after sync specs) and `fake-livesplit.js`, a scriptable fake LiveSplit Server installed as `window.WebSocket` so tests never touch a real LiveSplit. Call `FakeLiveSplit.acceptConnection()` and set `FakeLiveSplit.state` to drive the poll loop (see `tests/unit/core/run-tracker.test.js`). `test-utils.js` (`window.TestUtils`): `mountHtml` (temporary DOM that wins over the runner page's own ids), `captureWindowListeners` (call window handlers directly without firing the app's), `withFakeTimers` (manual clock for `setTimeout` / `setInterval` / `Date.now` flows), `stubWindow` (temporarily replace `window.*` app functions), `waitFor`. |
+> | `tests/harness/` | `mini-test.js` (`describe`/`it`/`assert`; `async` tests run serially after sync specs) and `fake-livesplit.js`, a scriptable fake LiveSplit Server installed as `window.WebSocket` so tests never touch a real LiveSplit. Call `FakeLiveSplit.acceptConnection()` and set `FakeLiveSplit.state` to drive the poll loop (see `tests/unit/core/run-tracker.test.js`). `test-utils.js` (`window.TestUtils`): `mountHtml` (temporary DOM that wins over the runner page's own ids), `captureWindowListeners` (call window handlers directly without firing the app's), `withFakeTimers` (manual clock for `setTimeout` / `setInterval` / `Date.now` flows), `stubOverlay` / `stubWindow` / `stubProps` (temporarily replace `window.LiveSplit.Overlay`, `window` or any object's members), `waitFor`. |
 > | `tests/fixtures/` | Real-world sample files (`.lss` splits). The runner inlines them as `window.TestFixtures["<file name>"]`; add a file and it is available to every spec (see `tests/unit/core/splits-loader.test.js`). |
 >
 > **Run modes:** `npm test` (everything, one-line coverage summary), `npm run test:quick` (skip the browser suite), `python tests/run_tests.py --spec race/` (only browser specs whose path contains the substring; repeatable), `npm run test:coverage` (per-file JS coverage table), `npm run lint`.

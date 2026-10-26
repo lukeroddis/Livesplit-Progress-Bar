@@ -25,8 +25,9 @@
   const BUILT_IN_COMPARISONS = ["personal best", "best segments", "average segments", "worst segments"];
 
   function getActiveGhostList() {
-    const activeGhosts = (typeof window !== "undefined" && window.getActiveGhostComparisons)
-      ? window.getActiveGhostComparisons()
+    const getGhosts = window.LiveSplit.Overlay.getActiveGhostComparisons;
+    const activeGhosts = getGhosts
+      ? getGhosts()
       : (localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS)
         ? JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS))
         : [(localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off")]);
@@ -56,8 +57,9 @@
     });
 
     // Custom comparisons from the loaded splits
-    if (typeof window !== "undefined" && window.getComparisonsList) {
-      window.getComparisonsList().forEach((c) => {
+    const getComparisons = window.LiveSplit.Overlay.getComparisonsList;
+    if (getComparisons) {
+      getComparisons().forEach((c) => {
         const low = c.toLowerCase();
         if (BUILT_IN_COMPARISONS.includes(low) || low.includes("world record") || low === "wr") return;
         const isMatch = activeList.length === 1 && activeList[0] === c;
@@ -96,15 +98,14 @@
       document.querySelectorAll("#ghost-pill-row .preset-pill-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           const pillVal = btn.getAttribute("data-ghost-pill");
-          if (pillVal && typeof window !== "undefined" && window.toggleGhostComparison) {
-            window.toggleGhostComparison(pillVal);
-          }
+          if (pillVal) window.LiveSplit.Overlay.toggleGhostComparison?.(pillVal);
         });
       });
 
       document.getElementById("select-ghost-comparison")?.addEventListener("change", (e) => {
-        if (typeof window !== "undefined" && window.setGhostComparison) {
-          window.setGhostComparison(e.target.value);
+        const setGhost = window.LiveSplit.Overlay.setGhostComparison;
+        if (setGhost) {
+          setGhost(e.target.value);
         } else {
           localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, e.target.value);
         }
@@ -120,9 +121,7 @@
         sliderGhostOp.addEventListener("input", () => {
           const valBadge = document.getElementById("val-ghost-opacity");
           if (valBadge) valBadge.innerText = C.formats.percent(sliderGhostOp.value);
-          if (typeof window !== "undefined" && window.setGhostOpacity) {
-            window.setGhostOpacity(sliderGhostOp.value);
-          }
+          window.LiveSplit.Overlay.setGhostOpacity?.(sliderGhostOp.value);
         });
         sliderGhostOp.addEventListener("change", () => {
           localStorage.setItem(STORAGE_KEYS.GHOST_OPACITY, sliderGhostOp.value);

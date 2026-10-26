@@ -212,8 +212,8 @@
       const curIdx = sequence.indexOf(current);
       const nextIdx = (curIdx !== -1) ? ((curIdx + 1) % sequence.length) : 0;
       const nextVal = sequence[nextIdx];
-      if (window.setVisibleSplits) {
-        window.setVisibleSplits(nextVal);
+      if (window.hudLayout?.setVisibleSplits) {
+        window.hudLayout.setVisibleSplits(nextVal);
       } else {
         localStorage.setItem(STORAGE_KEYS.VISIBLE_SPLITS, nextVal);
         refresh();

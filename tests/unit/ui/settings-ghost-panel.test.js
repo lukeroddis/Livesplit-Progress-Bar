@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  const { mountHtml, stubWindow } = window.TestUtils;
+  const { mountHtml, stubOverlay } = window.TestUtils;
   const KEYS = window.LiveSplit.Storage.KEYS;
 
   const PANEL_HTML = `
@@ -27,7 +27,7 @@
     const log = { toggled: [], set: [], opacity: [], applied: 0, saved: 0 };
     const savedOpacity = localStorage.getItem(KEYS.GHOST_OPACITY);
     try {
-      return stubWindow({
+      return stubOverlay({
         getActiveGhostComparisons: () => ghosts,
         getComparisonsList: () => comparisons,
         toggleGhostComparison: (v) => log.toggled.push(v),
@@ -122,7 +122,7 @@
       const dom = mountHtml(PANEL_HTML);
       const saved = [KEYS.ACTIVE_GHOSTS, KEYS.GHOST_COMPARISON].map((k) => [k, localStorage.getItem(k)]);
       try {
-        stubWindow({ getActiveGhostComparisons: undefined, getComparisonsList: undefined, setGhostComparison: undefined }, () => {
+        stubOverlay({ getActiveGhostComparisons: undefined, getComparisonsList: undefined, setGhostComparison: undefined }, () => {
           const panel = window.LiveSplit.SettingsGhostPanel.createGhostPanel({ getCurrentTrackStyle: () => ({}) });
           localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(["best"]));
           panel.sync({});

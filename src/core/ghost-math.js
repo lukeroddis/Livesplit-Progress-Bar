@@ -70,7 +70,7 @@
     const compKeys = Object.keys(compData || {});
     const altKeys = Object.keys(altData || {});
     const fallbackTimes = isRT ? compTimesRT : compTimesGT;
-    const sanitizeUtil = window.LiveSplit?.SplitEngine?.sanitizeComparisonTimes || window.sanitizeComparisonTimes;
+    const sanitizeUtil = window.LiveSplit.SplitEngine.sanitizeComparisonTimes;
 
     const lowGhost = targetGhost.toLowerCase().trim();
 

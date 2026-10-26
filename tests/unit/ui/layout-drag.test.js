@@ -241,16 +241,8 @@
     }));
 
     function withTrackRefreshStubs(fn) {
-      const saved = { density: window.updateTrackDensityAndAngle, status: window.updateTrackStatus };
       const calls = [];
-      window.updateTrackDensityAndAngle = () => calls.push("density");
-      window.updateTrackStatus = (idx) => calls.push(`status:${idx}`);
-      try {
-        return fn(calls);
-      } finally {
-        window.updateTrackDensityAndAngle = saved.density;
-        window.updateTrackStatus = saved.status;
-      }
+      return window.TestUtils.stubOverlay({ refreshTrack: () => calls.push("refresh") }, () => fn(calls));
     }
 
     it("the dock button toggles the horizontal track between bottom dock and floating", () => withTrackRefreshStubs((calls) => withHud(({ dom, layout, log }) => {
@@ -263,7 +255,7 @@
       assertEqual([layout.track.x, layout.track.y], [42, Math.max(0, window.innerHeight - 150)]);
       assertEqual(log.saves, 2);
       assertEqual(log.applied, ["track", "track"]);
-      assert(calls.includes("density") && calls.some((c) => c.startsWith("status:")), "track re-rendered");
+      assertEqual(calls, ["refresh", "refresh"], "track re-rendered after each toggle");
     })));
 
     it("the dock button toggles the vertical track between left dock and floating", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {

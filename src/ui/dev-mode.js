@@ -28,7 +28,7 @@
     }
     if (save) {
       try {
-        window.safeStorage.setItem(DEV_MODE_KEY, isDevMode ? "true" : "false");
+        window.LiveSplit.Storage.safeStorage.setItem(DEV_MODE_KEY, isDevMode ? "true" : "false");
       } catch (e) {
         // ignore
       }
@@ -52,7 +52,7 @@
 
     let storedDev = false;
     try {
-      storedDev = (window.safeStorage.getItem(DEV_MODE_KEY) === "true");
+      storedDev = (window.LiveSplit.Storage.safeStorage.getItem(DEV_MODE_KEY) === "true");
     } catch (e) {
       storedDev = false;
     }

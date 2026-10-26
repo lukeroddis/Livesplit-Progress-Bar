@@ -213,12 +213,7 @@
 
         syncTimerAnchorUI();
 
-        if (window.updateTrackDensityAndAngle) {
-          window.updateTrackDensityAndAngle();
-        }
-        if (window.updateTrackStatus) {
-          window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-        }
+        window.LiveSplit.Overlay.refreshTrack?.();
       });
     }
 

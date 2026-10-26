@@ -167,21 +167,11 @@
         viewport.scrollTop = 0;
       }
 
-      if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) {
-        window.updateTrackDensityAndAngle();
-      }
-      if (typeof window !== "undefined" && window.updateTrackStatus) {
-        window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-      }
+      window.LiveSplit.Overlay.refreshTrack?.();
 
       if (typeof requestAnimationFrame === "function") {
         requestAnimationFrame(() => {
-          if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) {
-            window.updateTrackDensityAndAngle();
-          }
-          if (typeof window !== "undefined" && window.updateTrackStatus) {
-            window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-          }
+          window.LiveSplit.Overlay.refreshTrack?.();
         });
       }
     }
@@ -252,12 +242,7 @@
 
       syncTrackModalUI();
 
-      if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) {
-        window.updateTrackDensityAndAngle();
-      }
-      if (typeof window !== "undefined" && window.updateTrackStatus) {
-        window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-      }
+      window.LiveSplit.Overlay.refreshTrack?.();
     }
 
     function setVisibleSplits(val) {
@@ -269,12 +254,7 @@
         if (num > 60) num = 60;
         localStorage.setItem(SPLIT_DENSITY_KEY, String(num));
       }
-      if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) {
-        window.updateTrackDensityAndAngle();
-      }
-      if (typeof window !== "undefined" && window.updateTrackStatus) {
-        window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-      }
+      window.LiveSplit.Overlay.refreshTrack?.();
       syncTrackModalUI();
     }
 

@@ -162,9 +162,7 @@
         advanceVirtualHost(state.simVirtualSec);
       }
       sim.notifyListeners("entrant_updated", null);
-      if (typeof window !== "undefined" && typeof window.updateGhostRunner === "function") {
-        window.updateGhostRunner(hostState.currentTimeSec || state.simVirtualSec);
-      }
+      window.LiveSplit.Overlay.updateGhostRunner?.(hostState.currentTimeSec || state.simVirtualSec);
     }
 
     function setCourse(splitsList, comparisonTimes, comparisonTimesRT) {

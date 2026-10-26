@@ -104,3 +104,34 @@ def test_eslint_passes():
         pytest.skip("ESLint not installed (npm install); skipping lint")
     result = subprocess.run(["node", eslint, "."], cwd=ROOT_DIR, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+# Legacy window.* aliases kept for the console / older tests. App code must use the owning
+# namespace instead (window.LiveSplit.Overlay, .Leaderboard, .RaceClient, .Storage, ...).
+LEGACY_WINDOW_ALIASES = {
+    "LiveSplitLeaderboard", "LiveSplitRaceClient", "createLiveSplitRaceClient", "safeStorage",
+    "getRaceWsLogs", "clearRaceWsLogs", "setVisibleSplits", "setTimerAnchor", "getTimerAnchor",
+    "cycleTimerAnchor", "setTrackOrientation", "getOrCreateRaceMarker", "parseLssXml",
+    "computeHistoricalCurves", "formatGapTime", "escapeHtml", "sanitizeComparisonTimes",
+    "comparisonTimesGT", "comparisonTimesRT", "lastElapsedSec",
+}
+
+
+def test_app_code_calls_the_overlay_api_not_window_globals():
+    """Cross-module calls go through window.LiveSplit.* namespaces (see src/core/window-api.js).
+
+    The window.* copies exist for the browser console and tests; reading them from app code
+    hides the dependency and breaks when names change. Defining them (window.x = ...) is fine.
+    """
+    api_names = set(re.findall(r"^\s{6}(\w+):", read_text("src/core/window-api.js"), re.M))
+    assert {"refreshTrack", "updateTrackStatus"} <= api_names, "could not read the Overlay API names"
+    banned = api_names | LEGACY_WINDOW_ALIASES
+    offenders = []
+    for rel, src in all_app_js().items():
+        if rel.replace("\\", "/").endswith("src/core/window-api.js"):
+            continue
+        for lineno, line in enumerate(src.splitlines(), 1):
+            for m in re.finditer(r"\bwindow\.(\w+)(\s*=(?!=))?", line):
+                if m.group(1) in banned and not m.group(2):
+                    offenders.append(f"{rel}:{lineno}: window.{m.group(1)}")
+    assert not offenders, "Use window.LiveSplit.Overlay.<fn>?.() (or the owning LiveSplit namespace):\n" + "\n".join(offenders)

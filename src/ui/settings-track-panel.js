@@ -38,7 +38,7 @@
   }
 
   function refreshTrackDensity() {
-    if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+    window.LiveSplit.Overlay.updateTrackDensityAndAngle?.();
   }
 
   /**
@@ -172,8 +172,7 @@
       }, s)));
 
       C.bindStorageCheckbox("cb-always-show-last-split", STORAGE_KEYS.ALWAYS_SHOW_LAST, () => {
-        refreshTrackDensity();
-        if (typeof window !== "undefined" && window.updateTrackStatus) window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
+        window.LiveSplit.Overlay.refreshTrack?.();
       });
     }
 

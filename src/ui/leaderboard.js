@@ -96,8 +96,7 @@
   }
 
   function getRaceClient() {
-    if (typeof window === "undefined") return null;
-    const rc = window.LiveSplit && window.LiveSplit.RaceClient ? window.LiveSplit.RaceClient : window.LiveSplitRaceClient;
+    const rc = window.LiveSplit.RaceClient;
     if (!rc) return null;
     return rc.instance || rc;
   }
@@ -132,12 +131,8 @@
         }
 
         // Refresh track pins immediately
-        if (typeof window.updateGhostRunner === "function") {
-          const curSec = (window.LiveSplit && typeof window.LiveSplit.getLastElapsedSec === "function")
-            ? window.LiveSplit.getLastElapsedSec()
-            : ((typeof window.getLastElapsedSec === "function") ? window.getLastElapsedSec() : (window.lastElapsedSec || 0));
-          window.updateGhostRunner(curSec);
-        }
+        const overlay = window.LiveSplit.Overlay;
+        overlay.updateGhostRunner?.(overlay.getLastElapsedSec?.() ?? 0);
       }
     }
 

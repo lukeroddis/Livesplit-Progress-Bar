@@ -193,12 +193,12 @@
     }
 
     function refreshLeaderboard() {
-      if (window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.renderLeaderboard === "function") {
+      if (typeof window.LiveSplit.Leaderboard?.renderLeaderboard === "function") {
         const rc = getRaceClient();
         const isSim = rc ? (typeof rc.isSimulating === "function" ? rc.isSimulating() : !!rc.isSimulating) : false;
         const isConn = rc ? (typeof rc.isConnected === "function" ? rc.isConnected() : !!rc.isConnected) : false;
         const isEditMode = window.hudLayout && typeof window.hudLayout.isEditMode === "function" ? window.hudLayout.isEditMode() : false;
-        window.LiveSplitLeaderboard.renderLeaderboard(
+        window.LiveSplit.Leaderboard.renderLeaderboard(
           rc ? rc.getRankedEntrants() : [],
           isSim,
           isConn,

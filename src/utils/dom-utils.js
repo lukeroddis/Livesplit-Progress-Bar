@@ -85,8 +85,6 @@
     buildAvatarMarkup
   };
 
-  // Global backward-compatibility alias
-  if (typeof window.escapeHtml !== "function") {
-    window.escapeHtml = escapeHtml;
-  }
+  // Global backward-compatibility alias (app code uses LiveSplit.DOMUtils)
+  window.escapeHtml = escapeHtml;
 })();

@@ -1,11 +1,15 @@
 /**
- * src/core/window-api.js - Global window.* API
+ * src/core/window-api.js - Overlay Public API (window.LiveSplit.Overlay)
  *
- * The overlay's public surface for layout.js, layout modules, and the in-browser
- * test suite. Every export reads from the shared `app` registry, so this must be
- * installed after all controllers and overlay helpers are registered.
+ * The overlay's public surface for layout.js, layout-side modules (settings panels,
+ * profiles, drag) and the in-browser test suite. Every entry reads from the shared
+ * `app` registry, so it is filled in after all controllers are registered.
  *
- * Keep names stable: layout.js, src/ui/* and tests/unit/* call these directly.
+ * App code calls it at call time as `window.LiveSplit.Overlay.fn?.(...)`: the object
+ * exists from page load (empty until initOverlay), so callers need no window guards.
+ * Every entry is also copied onto `window.*` for the browser console and older tests;
+ * app code must not read those copies (tests/test_project_rules.py enforces this).
+ * Keep names stable.
  */
 
 (function () {
@@ -14,7 +18,7 @@
   function installWindowApi(app) {
     const { state, ghostRunner } = app;
 
-    Object.assign(window, {
+    const api = {
       APP_VERSION: app.APP_VERSION,
       initOverlay: app.initOverlay,
 
@@ -74,6 +78,11 @@
       getVisibleSplitsCapacity: app.getVisibleSplitsCapacity,
       getTrackManualScrollOffset: () => state.trackManualScrollOffset,
       updateTrackDensityAndAngle: app.updateTrackDensityAndAngle,
+      // Re-measure density / angle, then re-render the track at the current split
+      refreshTrack: () => {
+        app.updateTrackDensityAndAngle();
+        app.updateTrackStatus(state.currentIndex);
+      },
       setupTrackScrollInteractions: app.setupTrackScrollInteractions,
 
       // Settings menu & dev mode
@@ -83,12 +92,14 @@
       setDevMode: app.setDevMode,
       toggleDevMode: app.toggleDevMode,
       showDevModeToast: window.LiveSplit.ToastManager.showDevModeToast
-    });
+    };
 
-    window.LiveSplit.getLastElapsedSec = () => state.lastElapsedSec;
+    Object.assign(window.LiveSplit.Overlay, api);
+    Object.assign(window, api);
   }
 
   window.LiveSplit = window.LiveSplit || {};
+  window.LiveSplit.Overlay = window.LiveSplit.Overlay || {};
   window.LiveSplit.WindowApi = {
     installWindowApi
   };

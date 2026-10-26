@@ -132,15 +132,15 @@
         version: 1,
         name: name,
         exportedAt: new Date().toISOString(),
-        generator: "LiveSplit Minimal Overlay " + ((typeof window !== "undefined" && window.APP_VERSION) || "v1.0.0"),
+        generator: "LiveSplit Minimal Overlay " + (window.LiveSplit.Overlay.APP_VERSION || "v1.0.0"),
         components: currentState ? JSON.parse(JSON.stringify(currentState)) : defaultLayout,
         style: currentStyle ? Object.assign({}, currentStyle) : Object.assign({}, defaultStyle),
         preferences: {
-          timerDisplayMode: ((typeof window !== "undefined" && window.getTimerDisplayMode) ? window.getTimerDisplayMode() : localStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE)) || "both",
-          timingMethodFocus: ((typeof window !== "undefined" && window.getCurrentTimingMethod) ? window.getCurrentTimingMethod() : localStorage.getItem(STORAGE_KEYS.TIMING_METHOD)) || "GameTime",
+          timerDisplayMode: (window.LiveSplit.Overlay.getTimerDisplayMode?.() ?? localStorage.getItem(STORAGE_KEYS.TIMER_DISPLAY_MODE)) || "both",
+          timingMethodFocus: (window.LiveSplit.Overlay.getCurrentTimingMethod?.() ?? localStorage.getItem(STORAGE_KEYS.TIMING_METHOD)) || "GameTime",
           timerAnchor: getTimerAnchor(),
           ghostComparison: localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off",
-          activeGhosts: ((typeof window !== "undefined" && window.getActiveGhostComparisons) ? window.getActiveGhostComparisons() : (localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS) ? JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS)) : [(localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off")])),
+          activeGhosts: (window.LiveSplit.Overlay.getActiveGhostComparisons?.() ?? (localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS) ? JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS)) : [(localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off")])),
           ghostOpacity: parseInt(localStorage.getItem(STORAGE_KEYS.GHOST_OPACITY), 10) || 85,
           splitDensity: localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto",
           splitAngle: localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto",
@@ -187,12 +187,9 @@
 
       // 3. Preferences (apply with fallback)
       const prefs = data.preferences || {};
-      if (prefs.timerDisplayMode && typeof window !== "undefined" && window.setTimerDisplayMode) {
-        window.setTimerDisplayMode(prefs.timerDisplayMode);
-      }
-      if (prefs.timingMethodFocus && typeof window !== "undefined" && window.setTimingMethodFocus) {
-        window.setTimingMethodFocus(prefs.timingMethodFocus);
-      }
+      const overlay = window.LiveSplit.Overlay;
+      if (prefs.timerDisplayMode) overlay.setTimerDisplayMode?.(prefs.timerDisplayMode);
+      if (prefs.timingMethodFocus) overlay.setTimingMethodFocus?.(prefs.timingMethodFocus);
       if (prefs.timerAnchor != null) {
         setTimerAnchor(prefs.timerAnchor);
       }
@@ -201,28 +198,23 @@
         if (prefs.activeGhosts.length > 0) {
           localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, prefs.activeGhosts[0]);
         }
-        if (typeof window !== "undefined" && window.updateGhostBadge) window.updateGhostBadge();
-      } else if (prefs.ghostComparison != null && typeof window !== "undefined" && window.setGhostComparison) {
-        window.setGhostComparison(prefs.ghostComparison);
+        overlay.updateGhostBadge?.();
+      } else if (prefs.ghostComparison != null) {
+        overlay.setGhostComparison?.(prefs.ghostComparison);
       }
-      if (prefs.ghostOpacity != null && typeof window !== "undefined" && window.setGhostOpacity) {
-        window.setGhostOpacity(prefs.ghostOpacity);
-      }
+      if (prefs.ghostOpacity != null) overlay.setGhostOpacity?.(prefs.ghostOpacity);
       if (prefs.splitDensity != null) {
         setVisibleSplits(prefs.splitDensity);
       }
       if (prefs.splitAngle != null) {
         localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, prefs.splitAngle);
-        if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
+        window.LiveSplit.Overlay.updateTrackDensityAndAngle?.();
       }
       if (prefs.showLastSplit != null) {
         localStorage.setItem(STORAGE_KEYS.ALWAYS_SHOW_LAST, prefs.showLastSplit ? "true" : "false");
         const cbLast = document.getElementById("cb-always-show-last-split");
         if (cbLast) cbLast.checked = Boolean(prefs.showLastSplit);
-        if (typeof window !== "undefined" && window.updateTrackDensityAndAngle) window.updateTrackDensityAndAngle();
-        if (typeof window !== "undefined" && window.updateTrackStatus) {
-          window.updateTrackStatus(window.getCurrentIndex ? window.getCurrentIndex() : -1);
-        }
+        window.LiveSplit.Overlay.refreshTrack?.();
       }
       if (prefs.discardGoldsOnReset != null) {
         localStorage.setItem(STORAGE_KEYS.DISCARD_GOLDS_ON_RESET, prefs.discardGoldsOnReset ? "true" : "false");
@@ -242,7 +234,7 @@
 
       // 5. Update UI controls
       syncTrackModalUI();
-      if (typeof window !== "undefined" && window.updateGhostBadge) window.updateGhostBadge();
+      window.LiveSplit.Overlay.updateGhostBadge?.();
 
       // 6. Optionally save into named profiles
       if (saveAsName) {

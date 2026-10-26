@@ -411,8 +411,8 @@
         seReset.resetSimulation();
       }
       ctx.notifyListeners("race_reset", null);
-      if (typeof window !== "undefined" && window.LiveSplitLeaderboard && typeof window.LiveSplitLeaderboard.reset === "function") {
-        window.LiveSplitLeaderboard.reset();
+      if (typeof window.LiveSplit.Leaderboard?.reset === "function") {
+        window.LiveSplit.Leaderboard.reset();
       }
     }
 

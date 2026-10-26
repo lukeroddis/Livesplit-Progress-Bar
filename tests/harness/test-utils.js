@@ -8,8 +8,10 @@
  * - withFakeTimers(fn): runs fn(clock) with setTimeout / setInterval / Date.now on a manual
  *   clock; clock.tick(ms) fires due timers in order (including ones scheduled while ticking)
  * - waitFor(condition, label, timeoutMs): polls until condition() is truthy (async specs)
- * - stubWindow(overrides, fn): replaces window.<name> for the duration of fn (undefined removes
- *   it), then restores the originals; returns fn's result (awaits it if fn is async)
+ * - stubProps(target, overrides, fn): replaces target.<name> for the duration of fn (undefined
+ *   removes it), then restores the originals; returns fn's result (awaits it if fn is async)
+ * - stubWindow(overrides, fn) / stubOverlay(overrides, fn): stubProps on window /
+ *   window.LiveSplit.Overlay (the overlay API that app code calls)
  */
 
 (function () {
@@ -102,12 +104,12 @@
     }
   }
 
-  function stubWindow(overrides, fn) {
-    const saved = Object.keys(overrides).map((k) => [k, Object.prototype.hasOwnProperty.call(window, k), window[k]]);
+  function stubProps(target, overrides, fn) {
+    const saved = Object.keys(overrides).map((k) => [k, Object.prototype.hasOwnProperty.call(target, k), target[k]]);
     // Globals from top-level function declarations cannot be deleted; blank those instead
-    const unset = (k) => { try { delete window[k]; } catch (_) { /* non-configurable */ } if (k in window) window[k] = undefined; };
-    Object.entries(overrides).forEach(([k, v]) => { if (v === undefined) unset(k); else window[k] = v; });
-    const restore = () => saved.forEach(([k, had, v]) => { if (had) window[k] = v; else unset(k); });
+    const unset = (k) => { try { delete target[k]; } catch (_) { /* non-configurable */ } if (k in target) target[k] = undefined; };
+    Object.entries(overrides).forEach(([k, v]) => { if (v === undefined) unset(k); else target[k] = v; });
+    const restore = () => saved.forEach(([k, had, v]) => { if (had) target[k] = v; else unset(k); });
     let result;
     try {
       result = fn();
@@ -120,5 +122,8 @@
     return result;
   }
 
-  window.TestUtils = { mountHtml, captureWindowListeners, withFakeTimers, waitFor, stubWindow };
+  const stubWindow = (overrides, fn) => stubProps(window, overrides, fn);
+  const stubOverlay = (overrides, fn) => stubProps(window.LiveSplit.Overlay, overrides, fn);
+
+  window.TestUtils = { mountHtml, captureWindowListeners, withFakeTimers, waitFor, stubProps, stubWindow, stubOverlay };
 })();

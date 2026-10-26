@@ -98,16 +98,26 @@
       });
       it("detects timing method from comparison split time", () => {
         assertEqual(typeof window.detectTimingMethodFromComp, "function");
-        // Test with mock comparison arrays
-        window.comparisonTimesGT = [206.0, 686.0];
-        window.comparisonTimesRT = [811.0, 1734.0];
-        const resGT = window.detectTimingMethodFromComp(0, 206.0);
-        assertEqual(resGT, "GameTime");
-        assertEqual(window.getCurrentTimingMethod(), "GameTime");
+        // A fresh controller on its own app; unregistered app.* calls are no-ops
+        const app = new Proxy({ state: window.LiveSplit.OverlayState.createOverlayState() },
+          { get: (t, k) => (k in t ? t[k] : () => {}) });
+        window.LiveSplit.ComparisonController.installComparisonController(app);
+        Object.assign(app.state, { comparisonTimesGT: [206.0, 686.0], comparisonTimesRT: [811.0, 1734.0], currentTimingMethod: "RealTime" });
+        const KEYS = window.LiveSplit.Storage.KEYS;
+        const saved = [KEYS.TIMING_METHOD, KEYS.TIMING_METHOD_MANUAL].map((k) => [k, localStorage.getItem(k)]);
+        try {
+          localStorage.removeItem(KEYS.TIMING_METHOD_MANUAL);
+          assertEqual(app.detectTimingMethodFromComp(0, 206.0), "GameTime");
+          assertEqual(app.state.currentTimingMethod, "GameTime", "switched to the matching method");
+          assertEqual(app.detectTimingMethodFromComp(0, 811.0), "RealTime");
+          assertEqual(app.state.currentTimingMethod, "RealTime");
 
-        const resRT = window.detectTimingMethodFromComp(0, 811.0);
-        assertEqual(resRT, "RealTime");
-        assertEqual(window.getCurrentTimingMethod(), "RealTime");
+          localStorage.setItem(KEYS.TIMING_METHOD_MANUAL, "true");
+          assertEqual(app.detectTimingMethodFromComp(0, 206.0), "GameTime", "still detected");
+          assertEqual(app.state.currentTimingMethod, "RealTime", "but a manual choice is kept");
+        } finally {
+          saved.forEach(([k, v]) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v)));
+        }
       });
       it("dynamically adjusts ghost pin size threshold based on split text", () => {
         assertEqual(typeof window.getNodeTextThreshold, "function");

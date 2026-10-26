@@ -201,10 +201,8 @@
     }
 
     function detectTimingMethodFromComp(splitIdx, compSec) {
-      // window.comparisonTimesGT/RT are test hooks that override the parsed curves when set.
-      const gtArr = (Array.isArray(window.comparisonTimesGT) && window.comparisonTimesGT.length > 0) ? window.comparisonTimesGT : state.comparisonTimesGT;
-      const rtArr = (Array.isArray(window.comparisonTimesRT) && window.comparisonTimesRT.length > 0) ? window.comparisonTimesRT : state.comparisonTimesRT;
-      const detected = window.LiveSplit.SplitEngine.detectTimingMethodFromComp(splitIdx, compSec, gtArr, rtArr);
+      const detected = window.LiveSplit.SplitEngine.detectTimingMethodFromComp(
+        splitIdx, compSec, state.comparisonTimesGT, state.comparisonTimesRT);
       if (detected) {
         const isManual = (localStorage.getItem(STORAGE_KEYS.TIMING_METHOD_MANUAL) === "true");
         if (!isManual && detected !== state.currentTimingMethod) {

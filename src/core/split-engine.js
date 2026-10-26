@@ -154,7 +154,7 @@
     const segments = Array.from(xml.querySelectorAll("Segment"));
     if (segments.length === 0) return null;
 
-    const timeUtil = window.LiveSplit?.Time?.timeStringToSeconds || window.timeStringToSeconds;
+    const timeUtil = window.LiveSplit.Time.timeStringToSeconds;
 
     const splitsList = [];
     const comparisonTimesGT = [];
