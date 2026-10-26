@@ -12,6 +12,75 @@
 
   const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
 
+  /**
+   * @typedef {"open"|"starting"|"in_progress"|"finished"} RaceStatus
+   */
+
+  /**
+   * A runner in the race: the host (createHostState) or an entrant from therun.gg or the
+   * simulation. Entrants also carry per-method copies (checkpointTimesGT/RT, splitTimesGT/RT,
+   * currentTimeSecGT/RT), PB checkpoints and simulation pacing fields.
+   * @typedef {Object} Runner
+   * @property {string} userId - "you" for the host
+   * @property {string} username
+   * @property {string} avatar - Avatar URL ("" when none)
+   * @property {string} color - CSS colour for pins and the leaderboard
+   * @property {boolean} [isHost]
+   * @property {boolean} isMuted - Hidden from the track pins
+   * @property {number[]} splitTimes - Cumulative split times recorded so far (seconds)
+   * @property {number} currentTimeSec
+   * @property {number} currentSplitIndex
+   * @property {string} currentSplitName
+   * @property {number} score - Race progress: completed splits + fraction of the current segment
+   * @property {boolean} isFinished
+   * @property {number|null} finalTimeSec
+   * @property {boolean} isDNF
+   * @property {number|null} dnfTimeSec
+   * @property {string} [status] - Lobby status ("joined", "ready", "started")
+   * @property {boolean} [isReady]
+   * @property {Object|null} [lastSplitEffect] - Pending leaderboard split glow
+   * @property {boolean} [hasCrown] - Fastest on the last segment
+   * @property {number} [positionDelta] - Places gained (+) or lost (-) at the last split
+   */
+
+  /**
+   * A line in the race event feed (lobby banner, WS log).
+   * @typedef {Object} RaceEvent
+   * @property {string} type - "join" | "leave" | "ready" | "unready" | "countdown" | "starting" | "started" | "gold" | "canceled"
+   * @property {string} text
+   * @property {number} timestamp - Date.now()
+   * @property {string} [user]
+   */
+
+  /**
+   * Per-client race state (ctx.raceState). Times are seconds.
+   * @typedef {Object} RaceState
+   * @property {string|null} raceId - therun.gg room id, or RaceSimulation.SIM_RACE_ID
+   * @property {WebSocket|null} ws - Room socket (null for the simulation)
+   * @property {number|null} heartbeatTimer
+   * @property {boolean} isExternalLiveSplitConnected - The overlay is feeding host progress from LiveSplit
+   * @property {boolean} racePinsVisible - Global race pin toggle (persisted)
+   * @property {string} hostUsername - therun.gg username used to match the host entrant
+   * @property {"GameTime"|"RealTime"} currentTimingMethod
+   * @property {string[]} activeSplitsList - Course split names
+   * @property {Array<number|null>} activeComparisonTimes - Course targets (cumulative), GameTime
+   * @property {Array<number|null>} activeComparisonTimesRT
+   * @property {number} lastExternalHostUpdate - Date.now() of the last LiveSplit host update
+   * @property {number} lastHostGameTimeSec
+   * @property {number} lastHostRealTimeSec
+   * @property {number[]} lastHostCompletedSplitsGT
+   * @property {number[]} lastHostCompletedSplitsRT
+   * @property {RaceStatus} raceStatus
+   * @property {number|null} countdownTargetMs - Date.now() target of the start countdown
+   * @property {number|null} countdownSeconds - 3, 2, 1, 0 (GO!) or null
+   * @property {RaceEvent[]} recentRaceEvents - Last 20 events
+   * @property {Runner} hostState
+   * @property {Map<string, Runner>} entrants - Other runners by userId
+   * @property {Map<string, number>} lastKnownRanks - userId -> rank at the previous standings update
+   * @property {Map<number, Map<string, number>>} checkpointRankHistory - split index -> (userId -> rank there)
+   * @property {Set<function(string, *): void>} listeners - Race client event subscribers (event, data)
+   */
+
   const HOST_USER_ID = "you";
   const HOST_COLOR = "#38bdf8";
 
@@ -40,6 +109,7 @@
     positionDeltaDisplay: "-"
   });
 
+  /** @returns {Runner} */
   function createHostState(username) {
     return Object.assign({
       userId: HOST_USER_ID,
@@ -70,6 +140,7 @@
     return true;
   }
 
+  /** @returns {RaceState} */
   function createRaceState() {
     return {
       // therun.gg room connection
