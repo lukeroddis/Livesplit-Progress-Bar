@@ -103,6 +103,19 @@
         assertEqual(rtm.getCompetitorTrackRef(1.5, compTimes), 45, "1.5 progress maps to 45s");
       });
 
+      it("maps a racer with fewer splits onto the local track by split name", () => {
+        const rtm = window.LiveSplit.RaceTrackMarkers;
+        const track = ["A", "B", "C", "D", "E", "F"];
+        // Their "D" covers the local "C" and "D"
+        const racer = { userId: "short", totalSplits: 5, splits: ["A", "B", "D", "E", "F"].map(name => ({ name })), score: 2.5 };
+
+        assertEqual(rtm.mapRacerScoreToTrack(racer, track), 3, "halfway through their D is the end of local C");
+        racer.score = 1.25;
+        assertEqual(rtm.mapRacerScoreToTrack(racer, track), 1.25, "matching splits map one to one");
+        racer.score = 3.5;
+        assertEqual(rtm.mapRacerScoreToTrack(racer, track), 4.5, "after the merge they line up again");
+      });
+
       it("executes layoutTrackPins clustering and splay calculations without errors", () => {
         const rtm = window.LiveSplit.RaceTrackMarkers;
         const track = document.getElementById("track");

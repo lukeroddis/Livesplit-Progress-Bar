@@ -158,6 +158,37 @@
     return tP + rat * (tN - tP);
   }
 
+  // racer -> { splits, track, index }: their checkpoints mapped onto the local track
+  const trackMapCache = new WeakMap();
+
+  /**
+   * Maps a racer's score (in their own splits) onto the local track when their splits
+   * file has a different number of splits: each of their splits spans the local splits
+   * it was matched to by name (RaceRanking.mapCheckpointsToCourse).
+   * @param {Object} racer - Race entrant with totalSplits, splits and score
+   * @param {Array} splitsList - Local split names
+   * @returns {number} Score in local track splits
+   */
+  function mapRacerScoreToTrack(racer, splitsList) {
+    const rr = window.LiveSplit.RaceRanking;
+    const ownCount = racer.totalSplits;
+    const numSplits = splitsList.length;
+    let cached = trackMapCache.get(racer);
+    if (!cached || cached.splits !== racer.splits || cached.track !== splitsList || cached.index.length !== ownCount) {
+      const nameOf = s => rr.normalizeSplitName(typeof s === "string" ? s : (s && (s.name || s.splitName)));
+      const ownNames = Array.isArray(racer.splits) ? racer.splits.map(nameOf) : [];
+      const trackNames = splitsList.map(nameOf);
+      cached = { splits: racer.splits, track: splitsList, index: rr.mapCheckpointsToCourse(ownNames, ownCount, trackNames, numSplits).index };
+      trackMapCache.set(racer, cached);
+    }
+    const score = Math.max(0, racer.score || 0);
+    const sIdx = Math.min(ownCount - 1, Math.floor(score));
+    const frac = Math.min(1, score - sIdx);
+    const start = sIdx > 0 ? cached.index[sIdx - 1] + 1 : 0;
+    const end = cached.index[sIdx] + 1;
+    return start + frac * (end - start);
+  }
+
   /**
    * Evaluates race competitor positions, creates/updates markers, and segregates
    * markers into on-screen and off-screen collections.
@@ -199,9 +230,9 @@
       } else if (racer.isDNF && typeof racer.dnfScore === "number") {
         segIdx = Math.floor(racer.dnfScore);
         ratio = racer.dnfScore - segIdx;
-      } else if (racer.totalSplits > 0 && racer.totalSplits !== numSplits && typeof racer.runPercentage === "number" && racer.runPercentage > 0) {
-        // Spectator mode / split count mismatch: map normalized run percentage across local progress bar
-        const mappedScore = Math.max(0, Math.min(numSplits - 0.001, racer.runPercentage * numSplits));
+      } else if (racer.totalSplits > 0 && racer.totalSplits !== numSplits) {
+        // Split count mismatch: place the racer on the local split matching theirs
+        const mappedScore = Math.max(0, Math.min(numSplits - 0.001, mapRacerScoreToTrack(racer, splitsList)));
         segIdx = Math.floor(mappedScore);
         ratio = mappedScore - segIdx;
       } else {
@@ -220,14 +251,16 @@
 
       const ghostCoord = coords.startCoord + ratio * (coords.endCoord - coords.startCoord);
 
+      // Racer progress in local track splits (score is in the racer's own splits)
+      const trackScore = racer.isFinished ? numSplits : segIdx + ratio;
       const hostScore = Math.max(0, currentIndex) + runnerSegProgress;
-      const isAhead = (hostScore >= (racer.score || 0));
+      const isAhead = (hostScore >= trackScore);
 
       const hostCourseSec = getCompetitorTrackRef(hostScore, comparisonTimes);
       const racerCourseSec = racer.isFinished && typeof racer.finalTimeSec === "number"
         ? racer.finalTimeSec
-        : getCompetitorTrackRef(racer.score || 0, comparisonTimes);
-      const deltaSec = currentSec - (racer.currentTimeSec || 0) !== 0 && hostScore === (racer.score || 0)
+        : getCompetitorTrackRef(trackScore, comparisonTimes);
+      const deltaSec = currentSec - (racer.currentTimeSec || 0) !== 0 && hostScore === trackScore
         ? 0
         : (hostCourseSec - racerCourseSec);
       const deltaStr = typeof formatDeltaSeconds === "function" ? formatDeltaSeconds(-deltaSec) : `${-deltaSec.toFixed(1)}s`;
@@ -456,6 +489,7 @@
     removeDanglingRaceMarkers,
     hideAllRaceMarkers,
     getCompetitorTrackRef,
+    mapRacerScoreToTrack,
     renderRaceCompetitorMarkers,
     layoutTrackPins,
     clearMarkers,

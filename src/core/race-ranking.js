@@ -470,6 +470,8 @@
     const lastKnownRanks = options.lastKnownRanks || new Map();
     const checkpointRankHistory = options.checkpointRankHistory || new Map();
     const nowMs = typeof options.nowMs === "number" ? options.nowMs : Date.now();
+    // Live runners mid-split: their score is advanced every update from the expected segment time
+    const liveRacing = new Set();
 
     if (isSimulating) {
       // In simulation mode, ensure host runner is present
@@ -488,6 +490,7 @@
           (racer.status === "started" || racer.status === "progress" || racer.status === "in_progress" ||
            ((racer.currentTimeSec > 0 || racer.currentSplitIndex > 0) && racer.status !== "ready" && racer.status !== "joined"));
         if (isActivelyRacing) {
+          liveRacing.add(racer);
           if (racer.splitStartedAt && racer.splitStartedAt > 0) {
             const startMs = racer.splitStartedAt > 1e11 ? racer.splitStartedAt : (racer.splitStartedAt * 1000);
             const inSplitSec = Math.max(0, (nowMs - startMs) / 1000);
@@ -682,6 +685,15 @@
 
         elapsedSegSec = Math.max(0, (runner.currentTimeSec || 0) - prevSplitTime);
         runner.expectedSegmentSec = segSec;
+
+        // Track pins: progress through the current split from elapsed vs expected time. Capped
+        // below the next split (a runner slower than expected waits there until they split)
+        // and never moved backwards within the split.
+        if (liveRacing.has(runner) && (sIdx === 0 || prevSplitTime > 0)) {
+          const liveScore = sIdx + Math.min(0.99, elapsedSegSec / Math.max(0.1, segSec));
+          const prevScore = Math.floor(runner.score || 0) === sIdx ? (runner.score || 0) : 0;
+          runner.score = Math.max(liveScore, prevScore);
+        }
         runner.expectedSegmentDisplay = formatGapTime(segSec).replace(/^\+/, "");
       }
       runner.elapsedSegmentSec = elapsedSegSec;
@@ -934,6 +946,7 @@
     getSplitCheckpointTime,
     calculateMilestoneGap,
     calculateLeaderGapState,
+    normalizeSplitName,
     mapCheckpointsToCourse,
     projectRunnerToCourse,
     calculateRankedEntrants

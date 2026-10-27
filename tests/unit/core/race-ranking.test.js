@@ -203,6 +203,30 @@
       assertEqual(runnerA.positionDeltaDisplay, "-1");
     });
 
+    it("calculateRankedEntrants advances live runners through their split from the expected segment time", () => {
+      const rr = window.LiveSplit.RaceRanking;
+      const splitStartedAt = 1_700_000_000_000;
+      const racer = {
+        userId: "live", status: "started", currentSplitIndex: 1, splitTimes: [30],
+        reportedTimeSec: 30, currentTimeSec: 30, splitStartedAt, timeToNextSplit: 20, score: 1
+      };
+      const rank = nowMs => rr.calculateRankedEntrants({
+        entrants: [racer], isLiveRace: true, nowMs,
+        lastKnownRanks: new Map(), checkpointRankHistory: new Map()
+      });
+
+      rank(splitStartedAt + 10000);
+      assertEqual(racer.score, 1.5, "10s into a 20s split is halfway");
+      rank(splitStartedAt + 15000);
+      assertEqual(racer.score, 1.75, "keeps moving with the clock between messages");
+      rank(splitStartedAt + 60000);
+      assertEqual(racer.score, 1.99, "slower than expected waits just before the next split");
+
+      racer.score = 1.995;
+      rank(splitStartedAt + 1000);
+      assertEqual(racer.score, 1.995, "never moves backwards within the split");
+    });
+
     // 16-split course; the 14-split file merges "F" into "G" and "K" into "L"
     const FULL_COURSE = "ABCDEFGHIJKLMNOP".split("");
     const SHORT_COURSE = FULL_COURSE.filter(n => n !== "F" && n !== "K");
