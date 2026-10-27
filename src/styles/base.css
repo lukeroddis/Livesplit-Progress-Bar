@@ -1,0 +1,48 @@
+:root {
+  --line-idle: rgba(148, 163, 184, 0.28);
+  --node-idle: rgba(148, 163, 184, 0.55);
+  --node-active: #38bdf8;
+  --timer-green: #4ade80;
+  --gold-color: #facc15;
+  
+  /* LiveSplit 4-State Delta Color Scheme */
+  --ahead-gaining: #16a34a;    /* Dark / saturated green */
+  --ahead-losing: #86efac;     /* Light green */
+  --behind-gaining: #f87171;   /* Light red / salmon */
+  --behind-losing: #dc2626;    /* Dark red */
+
+  --text-muted: rgba(226, 232, 240, 0.9);
+  --node-spacing: 220px;
+
+  /* Customizable Progress Bar Geometries & Typography */
+  --bar-height: 6px;
+  --dot-size: 15px;
+  --name-font-size: 17px;
+  --delta-font-size: 15px;
+  --dot-bottom: 5px;
+  --ghost-needle-length: 16px;
+  
+  /* Background Plate & Readability */
+  --bg-opacity: 0.55;
+  --bg-blur: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  user-select: none;
+  position: relative;
+}
+

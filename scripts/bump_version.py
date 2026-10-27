@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-bump_version.py - Semantic Versioning Utility for LiveSplit Minimal Overlay
+bump_version.py - Semantic Versioning Utility for Speedrun Overlay
 Bumps version in package.json, package-lock.json, overlay.js, and index.html
 synchronously.
 Usage: python scripts/bump_version.py [patch|minor|major|<specific_version>]
@@ -44,7 +44,7 @@ def main():
 
     # 1. Update package.json
     pkg["version"] = new_version
-    with open(pkg_path, "w", encoding="utf-8") as f:
+    with open(pkg_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(pkg, f, indent=2)
         f.write("\n")
 
@@ -56,7 +56,7 @@ def main():
         lock["version"] = new_version
         if isinstance(lock.get("packages"), dict) and "" in lock["packages"]:
             lock["packages"][""]["version"] = new_version
-        with open(lock_path, "w", encoding="utf-8") as f:
+        with open(lock_path, "w", encoding="utf-8", newline="\n") as f:
             json.dump(lock, f, indent=2)
             f.write("\n")
 
@@ -69,7 +69,7 @@ def main():
         f'const APP_VERSION = "v{new_version}";',
         overlay_src
     )
-    with open(overlay_path, "w", encoding="utf-8") as f:
+    with open(overlay_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(overlay_src)
 
     # 4. Update index.html
@@ -81,7 +81,7 @@ def main():
         rf'\g<1>v{new_version}<',
         html_src
     )
-    with open(html_path, "w", encoding="utf-8") as f:
+    with open(html_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(html_src)
 
     print(f"✓ Successfully synchronized v{new_version} across package.json, package-lock.json, overlay.js, and index.html.")

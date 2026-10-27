@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "layout-v1.json",
-  "title": "LiveSplit Minimal Overlay Layout Profile",
-  "description": "Schema definition for extensible LiveSplit Minimal Overlay layout profiles",
+  "title": "Speedrun Overlay Layout Profile",
+  "description": "Schema definition for extensible Speedrun Overlay layout profiles",
   "type": "object",
   "required": ["version", "name", "components", "style"],
   "properties": {
@@ -62,6 +62,16 @@
             "visible": { "type": "boolean" },
             "docked": { "type": "string", "enum": ["none", "bottom", "left", "right"] }
           }
+        },
+        "leaderboard": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "scale": { "type": "number" },
+            "visible": { "type": "boolean" },
+            "docked": { "type": "string" }
+          }
         }
       }
     },
@@ -79,7 +89,8 @@
           "properties": {
             "title": { "type": "boolean" },
             "timers": { "type": "boolean" },
-            "track": { "type": "boolean" }
+            "track": { "type": "boolean" },
+            "leaderboard": { "type": "boolean" }
           }
         },
         "nameFontSize": { "type": "integer" },
@@ -87,6 +98,7 @@
         "barHeight": { "type": "integer" },
         "dotSize": { "type": "integer" },
         "ghostPinLength": { "type": "integer" },
+        "ghostPinSize": { "type": "integer" },
         "logoHeight": { "type": "integer" }
       }
     },

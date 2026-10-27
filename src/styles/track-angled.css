@@ -1,0 +1,107 @@
+/* ============================================================
+   ANGLED TEXT MODE (40° Tilt strictly on Split Names)
+   Enforces Opposing Side rule:
+   - Split names rotate 40°
+   - Timers & Deltas remain strictly horizontal on opposite side
+   - Expanded bounding box padding ensures zero truncation
+   ============================================================ */
+
+/* 1. General Angled Track Base: Generous clearance */
+.track.angled-text {
+  --track-padding-bottom: 18px;
+  padding-top: 36px;
+  padding-bottom: var(--track-padding-bottom, 18px);
+  min-height: 215px;
+}
+
+/* Deltas are NEVER rotated when angled text mode is active */
+.track.angled-text .split-delta {
+  transform: translateX(-50%) !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------
+   Case A: Names on TOP (Default) -> Deltas forced to BOTTOM
+   ------------------------------------------------------------ */
+.track.angled-text.pos-name-top,
+.track.angled-text:not(.pos-name-bottom) {
+  --dot-bottom: calc(var(--delta-font-size, 15px) + 16px);
+}
+
+.track.angled-text.pos-name-top .split-item,
+.track.angled-text:not(.pos-name-bottom) .split-item {
+  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + 120px);
+}
+
+.track.angled-text.pos-name-top .dot,
+.track.angled-text:not(.pos-name-bottom) .dot {
+  bottom: var(--dot-bottom);
+}
+
+.track.angled-text.pos-name-top .split-name,
+.track.angled-text:not(.pos-name-bottom) .split-name {
+  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 6px);
+  left: calc(50% + 4px);
+  transform-origin: bottom left;
+  transform: rotate(-40deg);
+  text-align: left;
+  white-space: nowrap;
+  letter-spacing: 0.25px;
+}
+
+.track.angled-text.pos-name-top .split-delta,
+.track.angled-text:not(.pos-name-bottom) .split-delta {
+  bottom: 8px !important;
+  top: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+.track.angled-text.pos-name-top .split-item.current .split-name,
+.track.angled-text:not(.pos-name-bottom) .split-item.current .split-name {
+  transform: rotate(-40deg) scale(1.08);
+}
+
+/* ------------------------------------------------------------
+   Case B: Names on BOTTOM -> Deltas forced to TOP
+   High dot baseline prevents any downward angle clipping!
+   ------------------------------------------------------------ */
+.track.angled-text.pos-name-bottom {
+  --dot-bottom: calc(var(--name-font-size, 17px) + 115px);
+  padding-top: 20px;
+  padding-bottom: 30px;
+  min-height: 235px;
+}
+
+.track.angled-text.pos-name-bottom .split-item {
+  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + var(--delta-font-size, 15px) + 24px);
+}
+
+.track.angled-text.pos-name-bottom .dot {
+  bottom: var(--dot-bottom);
+}
+
+.track.angled-text.pos-name-bottom .split-name {
+  top: calc(100% - var(--dot-bottom) + 8px);
+  bottom: auto;
+  left: calc(50% + 4px);
+  transform-origin: top left;
+  transform: rotate(40deg);
+  text-align: left;
+  white-space: nowrap;
+  letter-spacing: 0.25px;
+}
+
+.track.angled-text.pos-name-bottom .split-delta {
+  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 8px) !important;
+  top: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+.track.angled-text.pos-name-bottom .split-item.current .split-name {
+  transform: rotate(40deg) scale(1.08);
+}
+

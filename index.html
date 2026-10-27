@@ -2,8 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title id="doc-title">LiveSplit Minimal Overlay</title>
-  <link rel="stylesheet" href="style.css">
+  <title id="doc-title">Speedrun Overlay</title>
+  <!-- Styles: contiguous slices of the original stylesheet, order matters for the cascade -->
+  <link rel="stylesheet" href="src/styles/base.css">
+  <link rel="stylesheet" href="src/styles/hud-layout.css">
+  <link rel="stylesheet" href="src/styles/layout-toolbar.css">
+  <link rel="stylesheet" href="src/styles/hud-components.css">
+  <link rel="stylesheet" href="src/styles/track.css">
+  <link rel="stylesheet" href="src/styles/track-nodes.css">
+  <link rel="stylesheet" href="src/styles/track-angled.css">
+  <link rel="stylesheet" href="src/styles/track-vertical.css">
+  <link rel="stylesheet" href="src/styles/settings-menu.css">
+  <link rel="stylesheet" href="src/styles/settings-profiles.css">
+  <link rel="stylesheet" href="src/styles/track-modal.css">
+  <link rel="stylesheet" href="src/styles/ghost-markers.css">
+  <link rel="stylesheet" href="src/styles/toast.css">
+  <link rel="stylesheet" href="src/styles/race-pins.css">
+  <link rel="stylesheet" href="src/styles/leaderboard.css">
+  <link rel="stylesheet" href="src/styles/leaderboard-animations.css">
+  <link rel="stylesheet" href="src/styles/leaderboard-badges.css">
+  <link rel="stylesheet" href="src/styles/dev-mode.css">
 </head>
 <body>
 
@@ -16,6 +34,7 @@
       <label><input type="checkbox" id="cb-toggle-title" checked> Title</label>
       <label><input type="checkbox" id="cb-toggle-timers" checked> Timers</label>
       <label><input type="checkbox" id="cb-toggle-track" checked> Track</label>
+      <label><input type="checkbox" id="cb-toggle-leaderboard" checked> Standings</label>
     </div>
     <div class="toolbar-spinbox-group" title="Exact number of splits visible on screen (or Fit All)">
       <label for="input-visible-splits">Splits:</label>
@@ -107,6 +126,30 @@
     <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
   </div>
 
+  <!-- HUD Component 4: Live Race F1-Style Dynamic Leaderboard -->
+  <div id="hud-comp-leaderboard" class="hud-component" data-component-id="leaderboard">
+    <div class="hud-component-header">
+      <span class="hud-drag-handle">::: THERUN.GG STANDINGS</span>
+      <div class="hud-comp-controls">
+        <span class="hud-scale-badge" id="badge-scale-leaderboard">100%</span>
+        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+      </div>
+    </div>
+    <div class="race-leaderboard" id="race-leaderboard">
+      <div class="leaderboard-header">
+        <div class="leaderboard-title-group">
+          <span class="leaderboard-f1-flag">🏁</span>
+          <span class="leaderboard-title">THERUN.GG STANDINGS</span>
+        </div>
+        <span class="leaderboard-status" id="leaderboard-status-badge">LIVE</span>
+      </div>
+      <div class="leaderboard-rows" id="leaderboard-rows">
+        <!-- Dynamic entrant rows rendered here -->
+      </div>
+    </div>
+    <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
+  </div>
+
   <!-- Transient HUD Toast Notification (Pace / Comparison hotkey switches) -->
   <div id="hud-toast" class="hud-toast"></div>
 
@@ -181,6 +224,22 @@
         </div>
       </div>
 
+      <!-- Section: Live Race Telemetry (therun.gg) -->
+      <div class="settings-section" id="section-race-mode">
+        <div class="settings-section-header">LIVE RACE TELEMETRY</div>
+        <div class="settings-grid">
+          <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
+          <button type="button" class="settings-tile-btn dev-only" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
+          <button type="button" class="settings-tile-btn" id="btn-toggle-leaderboard" style="color: #38bdf8;" title="Click to toggle Live Standings Tower visibility">Standings: ON</button>
+          <button type="button" class="settings-tile-btn" id="btn-toggle-race-pins" style="color: #38bdf8;" title="Click to show/hide all competitor pins on the progress track (individual leaderboard mutes are preserved)">Pins: ON</button>
+        </div>
+        <div class="settings-profile-bar" style="margin-top: 6px;">
+          <input type="text" id="input-therun-race-code" class="settings-profile-input" maxlength="16" placeholder="Race Code (e.g. q38y)" title="Enter the therun.gg race room code (e.g. q38y) and click Connect">
+          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to or disconnect from the therun.gg race room">Connect</button>
+          <button type="button" class="settings-tile-btn profile-btn dev-only" id="btn-open-ws-logs" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.4);" title="View incoming WebSocket telemetry messages and copy debug logs">📜 WS Logs</button>
+        </div>
+      </div>
+
       <!-- Section: Actions (Bar Styles modal & Edit Layout mode) -->
       <div class="settings-section">
         <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
@@ -225,8 +284,8 @@
 
       <!-- Settings Card Footer: Version & GitHub -->
       <div class="settings-menu-footer">
-        <span class="settings-version-label" id="overlay-version" title="LiveSplit Minimal Overlay Version">v1.0.3</span>
-        <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar" target="_blank" rel="noopener noreferrer" class="settings-github-link" title="View repository on GitHub">GitHub ↗</a>
+        <span class="settings-version-label" id="overlay-version" title="Speedrun Overlay Version">v1.0.3</span>
+        <a href="https://github.com/lukeroddis/speedrun-overlay" target="_blank" rel="noopener noreferrer" class="settings-github-link" title="View repository on GitHub">GitHub ↗</a>
       </div>
     </div>
   </div>
@@ -458,6 +517,10 @@
           <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
           <input type="range" id="slider-ghost-pin-length" min="0" max="36" value="16" step="1">
         </div>
+        <div class="modal-row" id="row-ghost-pin-size">
+          <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
+          <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
+        </div>
         <div class="modal-row" id="row-ghost-opacity">
           <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
           <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
@@ -535,18 +598,106 @@
     </div>
   </div>
 
+  <!-- Live Race WebSocket Logs Modal -->
+  <div class="track-modal-backdrop" id="race-ws-logs-modal" style="display: none;">
+    <div class="track-modal-dialog" style="width: 580px; max-width: 95vw;">
+      <div class="track-modal-header">
+        <h3>📜 WebSocket Telemetry Logs</h3>
+        <button class="track-modal-close" id="btn-close-ws-logs-modal" title="Close">✕</button>
+      </div>
+      <div class="track-modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <div style="font-size: 12px; color: #94a3b8;">
+            Signals logged: <strong id="ws-logs-count" style="color: #38bdf8;">0</strong>
+            <span id="ws-logs-status" style="margin-left: 8px; color: #c084fc; font-weight: 500;">(Ready)</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" class="toolbar-btn" id="btn-clear-ws-logs" style="font-size: 11px; padding: 3px 8px;" title="Clear log buffer">🗑 Clear</button>
+            <button type="button" class="toolbar-btn btn-primary" id="btn-copy-ws-logs" style="font-size: 11px; padding: 3px 10px;" title="Copy all logged signals to clipboard as JSON">📋 Copy JSON</button>
+          </div>
+        </div>
+        <div id="ws-logs-container" style="width: 100%; height: 280px; background: rgba(15,23,42,0.95); color: #cbd5e1; font-family: monospace; font-size: 11px; padding: 8px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); overflow-y: auto; box-sizing: border-box;">
+          <div id="ws-logs-empty" style="color: #64748b; font-style: italic; text-align: center; margin-top: 50px;">No WebSocket signals logged yet.<br>Connect to a race room to capture live telemetry.</div>
+        </div>
+      </div>
+      <div class="track-modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="toolbar-btn" id="btn-close-ws-logs-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Core speedrun engine modules -->
   <script src="src/core/storage.js"></script>
   <script src="src/core/time-utils.js"></script>
   <script src="src/core/split-engine.js"></script>
+  <script src="src/core/split-evaluation.js"></script>
+  <script src="src/core/overlay-state.js"></script>
   <script src="src/core/ghost-math.js"></script>
   <script src="src/core/livesplit-client.js"></script>
+  <script src="src/core/livesplit-connection.js"></script>
+  <script src="src/core/race-sim-roster.js"></script>
+  <script src="src/core/race-sim-lobby.js"></script>
+  <script src="src/core/race-sim-pacing.js"></script>
+  <script src="src/core/race-simulation.js"></script>
+  <script src="src/core/race-ranking.js"></script>
+  <script src="src/core/race-protocol.js"></script>
+  <script src="src/core/race-discovery.js"></script>
+  <script src="src/core/race-logger.js"></script>
+  <script src="src/core/race-identity.js"></script>
+  <script src="src/core/race-state.js"></script>
+  <script src="src/core/race-host.js"></script>
+  <script src="src/core/race-connection.js"></script>
+  <script src="src/core/race-hydration.js"></script>
+  <script src="src/core/race-client.js"></script>
+  <script src="src/core/layout-profiles.js"></script>
+
+  <!-- Shared utilities -->
+  <script src="src/utils/dom-utils.js"></script>
 
   <!-- UI & interaction modules -->
   <script src="src/ui/layout-engine.js"></script>
+  <script src="src/ui/layout-drag.js"></script>
   <script src="src/ui/track-renderer.js"></script>
-  <script src="src/ui/interactions.js"></script>
+  <script src="src/ui/track-style.js"></script>
+  <script src="src/ui/leaderboard-marquee.js"></script>
+  <script src="src/ui/leaderboard-banners.js"></script>
+  <script src="src/ui/leaderboard-flip.js"></script>
+  <script src="src/ui/leaderboard-row.js"></script>
+  <script src="src/ui/leaderboard.js"></script>
+  <script src="src/ui/race-track-markers.js"></script>
+  <script src="src/ui/toast-manager.js"></script>
+  <script src="src/ui/timer-display.js"></script>
+  <script src="src/ui/timer-anchor.js"></script>
+  <script src="src/ui/game-logo.js"></script>
+  <script src="src/ui/settings-controls.js"></script>
+  <script src="src/ui/settings-track-panel.js"></script>
+  <script src="src/ui/settings-background-panel.js"></script>
+  <script src="src/ui/settings-ghost-panel.js"></script>
+  <script src="src/ui/settings-timing-panel.js"></script>
+  <script src="src/ui/layout-profiles-panel.js"></script>
+  <script src="src/ui/layout-modal.js"></script>
+  <script src="src/ui/layout-params.js"></script>
+  <script src="src/ui/settings-menu.js"></script>
+  <script src="src/ui/dev-mode.js"></script>
+  <script src="src/ui/splits-file-loader.js"></script>
+  <script src="src/ui/track-density.js"></script>
+  <script src="src/ui/track-scroll.js"></script>
+  <script src="src/ui/ghost-runner.js"></script>
+  <script src="src/ui/race-controls.js"></script>
+  <script src="src/ui/ws-log-panel.js"></script>
 
+  <!-- Overlay controllers installed onto the shared app registry by overlay.js (any order) -->
+  <script src="src/core/run-tracker.js"></script>
+  <script src="src/core/run-persistence.js"></script>
+  <script src="src/core/comparison-controller.js"></script>
+  <script src="src/core/splits-loader.js"></script>
+  <script src="src/ui/track-status.js"></script>
+  <script src="src/ui/timing-controls.js"></script>
+  <script src="src/ui/hud-titles.js"></script>
+  <script src="src/ui/hud-bindings.js"></script>
+  <script src="src/core/window-api.js"></script>
+
+  <!-- Composition roots -->
   <script src="layout.js"></script>
   <script src="overlay.js"></script>
 </body>

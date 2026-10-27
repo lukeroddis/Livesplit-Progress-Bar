@@ -28,6 +28,8 @@ NON_RUNTIME_PATTERNS = [
     ".gitattributes",
     "LICENSE",
     "docs/*",
+    "requirements-dev.txt",
+    "pytest.ini",
 ]
 
 NON_RELEASE_TITLE_REGEX = re.compile(

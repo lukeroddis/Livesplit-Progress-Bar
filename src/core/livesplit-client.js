@@ -17,7 +17,6 @@
     let ws = null;
     let commandQueue = Promise.resolve();
     let inflightResolver = null;
-    let url = options.url || DEFAULT_WS_URL;
 
     function getSocket() {
       return ws;
@@ -74,17 +73,23 @@
           if (inflightResolver) {
             const resolve = inflightResolver;
             inflightResolver = null;
-            resolve(event.data);
+            resolve(typeof event.data === "string" ? event.data.trim() : event.data);
           }
         };
       }
+    }
+
+    // Drops the pending response handler (used when the socket closes mid-command)
+    function clearInflight() {
+      inflightResolver = null;
     }
 
     return {
       getSocket,
       setSocket,
       isConnected,
-      sendCommand
+      sendCommand,
+      clearInflight
     };
   }
 

@@ -50,6 +50,11 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
       - name: Run Test Suite
         run: |
           python tests/run_tests.py
@@ -98,7 +103,7 @@ jobs:
         if: env.SKIP_RELEASE != 'true'
         run: |
           npm run build
-          HTML_NAME="livesplit-minimal-overlay-${RELEASE_TAG}.html"
+          HTML_NAME="speedrun-overlay-${RELEASE_TAG}.html"
           cp dist/index.html "$HTML_NAME"
           echo "HTML_NAME=$HTML_NAME" >> $GITHUB_ENV
           echo "Built release asset: $HTML_NAME"
@@ -108,7 +113,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: "LiveSplit Progress Bar ${{ env.RELEASE_TAG }}"
+          name: "Speedrun Overlay ${{ env.RELEASE_TAG }}"
           files: ${{ env.HTML_NAME }}
           generate_release_notes: true
           draft: false

@@ -1,5 +1,5 @@
 {
-  "name": "livesplit-minimal-overlay",
+  "name": "speedrun-overlay",
   "version": "1.0.3",
   "description": "A modern, widescreen-optimized HUD and progress bar overlay for speedrunners",
   "main": "index.html",
@@ -8,22 +8,29 @@
     "build": "vite build",
     "postbuild": "node scripts/verify-single-file.mjs",
     "preview": "vite preview",
-    "test": "python tests/run_tests.py"
+    "test": "python tests/run_tests.py",
+    "test:quick": "python tests/run_tests.py -m \"not browser\"",
+    "test:coverage": "python tests/run_tests.py --coverage",
+    "test:runner": "python tests/browser/build_runner.py",
+    "lint": "eslint ."
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lukeroddis/Livesplit-Progress-Bar.git"
+    "url": "https://github.com/lukeroddis/speedrun-overlay.git"
   },
   "author": "Luke Roddis",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/lukeroddis/Livesplit-Progress-Bar/issues"
+    "url": "https://github.com/lukeroddis/speedrun-overlay/issues"
   },
-  "homepage": "https://github.com/lukeroddis/Livesplit-Progress-Bar#readme",
+  "homepage": "https://github.com/lukeroddis/speedrun-overlay#readme",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
     "vite": "^8.3.5",
     "vite-plugin-singlefile": "^2.3.4"
   }

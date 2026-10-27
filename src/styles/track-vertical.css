@@ -1,0 +1,274 @@
+/* ============================================================
+   VERTICAL TRACK ORIENTATION (Sidebar / 4:3 Classical Layout)
+   ============================================================ */
+.track-viewport.vertical {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.track-viewport.vertical::-webkit-scrollbar {
+  display: none;
+}
+
+.track.vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: max-content;
+  min-width: 100%;
+  width: 100%;
+  padding: calc(var(--node-spacing, 64px) / 2) 16px;
+  overflow: visible;
+}
+
+.track.vertical .split-item {
+  width: 100%;
+  height: var(--node-spacing, 64px);
+  min-height: var(--node-spacing, 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-direction: row;
+}
+
+/* Vertical Node Dot */
+.track.vertical .dot {
+  position: absolute;
+  left: var(--dot-left, 50%);
+  top: 50%;
+  bottom: auto;
+  right: auto;
+  transform: translateY(-50%) translateX(-50%);
+  margin: 0;
+  z-index: 5;
+}
+
+.track.vertical .split-item.current .dot {
+  transform: translateY(-50%) translateX(-50%) scale(1.35);
+}
+
+/* Vertical Connector Bar: connects upward to previous node */
+.track.vertical .segment-bar-bg {
+  position: absolute;
+  left: var(--dot-left, 50%);
+  bottom: 50%;
+  top: auto;
+  right: auto;
+  transform: translateX(-50%);
+  width: var(--bar-height, 6px);
+  height: var(--node-spacing, 64px);
+  z-index: 2;
+  border-radius: calc(var(--bar-height, 6px) / 2);
+}
+
+.track.vertical .split-item.origin-node .segment-bar-bg,
+.track.vertical .split-item.first-visible-node .segment-bar-bg {
+  display: none !important;
+}
+
+.track.vertical .discontinuity-break {
+  width: 20px;
+  height: 26px;
+  flex-direction: column;
+  gap: 3.5px;
+}
+
+.track.vertical .disc-slash {
+  width: 18px;
+  height: 2.5px;
+  transform: skewY(-28deg);
+}
+
+.track.vertical .split-item.has-discontinuity .segment-bar-bg {
+  overflow: visible !important;
+  background: linear-gradient(
+    to bottom,
+    var(--line-idle) 0%,
+    var(--line-idle) calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    var(--line-idle) calc(50% + 13px),
+    var(--line-idle) 100%
+  ) !important;
+}
+
+.track.vertical .split-item.has-discontinuity .segment-bar-fill {
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(50% - 13px),
+    transparent calc(50% - 12px),
+    transparent calc(50% + 12px),
+    #000 calc(50% + 13px),
+    #000 100%
+  );
+}
+
+.track.vertical .segment-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 0%;
+  transition: height 0.1s linear, background 0.2s ease, box-shadow 0.2s ease;
+  border-radius: calc(var(--bar-height, 6px) / 2);
+}
+
+/* Base text properties in Vertical Track */
+.track.vertical .split-name {
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  font-size: var(--name-font-size, 17px);
+  font-weight: 700;
+  /* allow wrapping but limit to two lines */
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word; /* break long words to avoid overflow */
+}
+
+.track.vertical .split-delta {
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+/* Layout 1: Name on Left, Delta on Right (Default Vertical - Symmetrical) */
+.track.vertical.pos-name-left.pos-delta-right,
+.track.vertical:not(.pos-name-right):not(.pos-delta-left) {
+  --dot-left: 50%;
+}
+.track.vertical.pos-name-left.pos-delta-right .split-name,
+.track.vertical:not(.pos-name-right):not(.pos-delta-left) .split-name {
+  left: 14px;
+  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.track.vertical.pos-name-left.pos-delta-right .split-delta,
+.track.vertical:not(.pos-name-right):not(.pos-delta-left) .split-delta {
+  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  right: 14px;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+/* Layout 2: Delta on Left, Name on Right (Inverted Symmetrical) */
+.track.vertical.pos-name-right.pos-delta-left {
+  --dot-left: 50%;
+}
+.track.vertical.pos-name-right.pos-delta-left .split-delta {
+  left: 14px;
+  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  text-align: right;
+  justify-content: flex-end;
+}
+.track.vertical.pos-name-right.pos-delta-left .split-name {
+  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  right: 14px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Layout 3: Both on Right (Classic LiveSplit Layout) */
+.track.vertical.pos-name-right.pos-delta-right {
+  --dot-left: 28px;
+}
+.track.vertical.pos-name-right.pos-delta-right .split-name {
+  left: calc(28px + (var(--dot-size, 15px) / 2) + 14px);
+  right: auto;
+  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.track.vertical.pos-name-right.pos-delta-right .split-delta {
+  left: auto;
+  right: 16px;
+  text-align: right;
+  justify-content: flex-end;
+}
+
+/* Layout 4: Both on Left (Inverted Classic LiveSplit) */
+.track.vertical.pos-name-left.pos-delta-left {
+  --dot-left: calc(100% - 28px);
+}
+.track.vertical.pos-name-left.pos-delta-left .split-name {
+  left: 16px;
+  right: auto;
+  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.track.vertical.pos-name-left.pos-delta-left .split-delta {
+  left: auto;
+  right: calc(28px + (var(--dot-size, 15px) / 2) + 14px);
+  text-align: right;
+  justify-content: flex-end;
+}
+
+/* Vertical Active Split highlight */
+.track.vertical .split-item.current .split-name {
+  color: #38bdf8;
+  font-weight: 800;
+  transform: translateY(-50%) scale(1.04);
+}
+
+/* Vertical Ghost Marker */
+.track.vertical .ghost-marker {
+  position: absolute;
+  top: 0;
+  bottom: auto;
+  left: var(--dot-left, 50%);
+  transform: translateY(-50%) translateX(-50%);
+  z-index: 20;
+  transition: opacity 0.2s ease;
+}
+
+.track.vertical .ghost-marker .ghost-needle {
+  display: none;
+}
+
+/* Vertical Off-Screen Edge Beacons */
+#hud-comp-track.vertical .ghost-edge-left {
+  position: absolute;
+  top: 10px;
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+#hud-comp-track.vertical .ghost-edge-right {
+  position: absolute;
+  bottom: 10px;
+  top: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+

@@ -8,7 +8,8 @@
 (function () {
   "use strict";
 
-  const DEFAULT_COMPARISONS = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+  // Built-in LiveSplit comparisons, in display order (overlay state and controllers copy this list)
+  const DEFAULT_COMPARISONS = Object.freeze(["Personal Best", "Best Segments", "Average Segments", "Worst Segments"]);
 
   /**
    * Returns a compact badge label for common comparison types.
@@ -56,7 +57,10 @@
     if (!times || !Array.isArray(times) || times.length === 0) {
       return fallbackTimes && Array.isArray(fallbackTimes) ? [...fallbackTimes] : [];
     }
-    const len = targetLen !== null ? targetLen : times.length;
+    // Default length pads to the fallback curve so every split keeps a target.
+    const len = targetLen !== null
+      ? targetLen
+      : (fallbackTimes && fallbackTimes.length > times.length ? fallbackTimes.length : times.length);
     const result = new Array(len);
     let lastVal = 0;
 
@@ -150,7 +154,7 @@
     const segments = Array.from(xml.querySelectorAll("Segment"));
     if (segments.length === 0) return null;
 
-    const timeUtil = window.LiveSplit?.Time?.timeStringToSeconds || window.timeStringToSeconds;
+    const timeUtil = window.LiveSplit.Time.timeStringToSeconds;
 
     const splitsList = [];
     const comparisonTimesGT = [];
@@ -159,7 +163,7 @@
     const bestSegmentTimesRT = [];
     const segmentHistoriesGT = [];
     const segmentHistoriesRT = [];
-    const comparisonsList = ["Personal Best", "Best Segments", "Average Segments", "Worst Segments"];
+    const comparisonsList = [...DEFAULT_COMPARISONS];
 
     // Collect custom comparisons from header
     const declaredComps = Array.from(xml.querySelectorAll("Comparisons > Comparison"));
@@ -274,8 +278,7 @@
       if (!comparisonsList.includes(cName)) comparisonsList.push(cName);
     });
 
-    const hasAnyGameTime = comparisonTimesGT.some(t => t !== null && t > 0) || 
-                           bestSegmentTimesGT.some(t => t !== null && t > 0);
+    const timingMethod = detectTimingMethodFromSplits(comparisonTimesGT, comparisonTimesRT, bestSegmentTimesGT, bestSegmentTimesRT);
 
     return {
       game,
@@ -288,9 +291,23 @@
       comparisonsDataGT,
       comparisonsDataRT,
       comparisonsList,
-      hasAnyGameTime,
+      timingMethod,
       rawXml: xmlText
     };
+  }
+
+  /**
+   * Picks the timing method a splits file was run with: the method its Personal Best was
+   * recorded in (GameTime when the PB has both), else whichever its best segments have.
+   * Best segments alone can mislead: old load-removed attempts leave GameTime golds on a
+   * RealTime PB. Arrays hold seconds or null.
+   * @returns {"GameTime"|"RealTime"}
+   */
+  function detectTimingMethodFromSplits(pbGT, pbRT, bestGT, bestRT) {
+    const hasTimes = (arr) => Array.isArray(arr) && arr.some(t => t !== null && t > 0);
+    if (hasTimes(pbGT)) return "GameTime";
+    if (hasTimes(pbRT)) return "RealTime";
+    return hasTimes(bestGT) ? "GameTime" : "RealTime";
   }
 
   /**
@@ -317,6 +334,7 @@
     sanitizeComparisonTimes,
     computeHistoricalCurves,
     parseLssXml,
+    detectTimingMethodFromSplits,
     detectTimingMethodFromComp
   };
 

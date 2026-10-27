@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LiveSplit Overlay - In-Browser Test Runner</title>
+  <style>
+    body {
+      background: #090d16;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 40px;
+      margin: 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      padding-bottom: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .badge.pass { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+    .badge.fail { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .suite-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .suite-title {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 12px 20px;
+      font-weight: 700;
+      font-size: 15px;
+      color: #38bdf8;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .test-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      font-size: 14px;
+    }
+    .test-row:last-child { border-bottom: none; }
+    .test-name { color: #cbd5e1; }
+    .status-pill {
+      font-size: 12px;
+      font-family: monospace;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .status-pill.ok { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .status-pill.error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .error-msg { font-size: 12px; color: #f87171; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- Hidden dummy DOM required for script imports -->
+  <div style="display:none;">
+    <span class="connection-status-pill"><span id="connection-status">DISCONNECTED</span></span>
+    <div id="game-name"></div>
+    <div id="category-name"></div>
+    <div id="timer-rta"></div>
+    <div id="timer-igt"></div>
+    <div id="block-rta"></div>
+    <div id="block-igt"></div>
+    <div id="track-viewport">
+      <div id="track">
+        <div id="item-0" class="split-item">
+          <div id="fill-0" class="segment-bar-fill"></div>
+          <div class="dot"></div>
+          <div id="delta-0" class="split-delta">
+            <span id="delta-val-0" class="split-delta-val"></span>
+            <span id="time-val-0" class="split-time-val"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="hud-comp-timers"></div>
+    <div id="hud-comp-track"></div>
+    <div id="hud-comp-leaderboard"></div>
+    <div id="race-leaderboard">
+    <div id="leaderboard-rows"></div>
+    </div>
+    <span id="badge-scale-leaderboard"></span>
+    <span id="leaderboard-status-badge"></span>
+    <input type="checkbox" id="cb-toggle-leaderboard">
+    <button id="btn-toggle-leaderboard"></button>
+    <button id="btn-toggle-race-pins"></button>
+    <button id="race-toggle-badge"></button>
+    <button id="race-sim-badge" class="dev-only"></button>
+    <input type="text" id="input-therun-username">
+    <input type="text" id="input-therun-race-code">
+    <button id="btn-save-therun-username"></button>
+    <button id="btn-disconnect-race"></button>
+    <button id="btn-open-ws-logs" class="dev-only"></button>
+    <span id="overlay-version">v1.0.3</span>
+    <div id="race-ws-logs-modal" class="track-modal-backdrop" style="display: none;">
+      <button id="btn-close-ws-logs-modal"></button>
+      <button id="btn-close-ws-logs-footer"></button>
+      <span id="ws-logs-count"></span>
+      <span id="ws-logs-status"></span>
+      <div id="ws-logs-container"></div>
+    </div>
+    <span id="gold-toggle-badge"></span>
+    <span id="timing-method-badge"></span>
+    <span id="comparison-badge"></span>
+    <span id="ghost-badge"></span>
+    <span id="bg-opacity-badge"></span>
+    <span id="split-density-badge"></span>
+    <span id="split-angle-badge"></span>
+    <span id="track-orient-badge"></span>
+    <div id="ctrl-track-orient"></div>
+    <div id="ctrl-name-pos"></div>
+    <div id="ctrl-delta-pos"></div>
+    <div id="ctrl-timer-display"></div>
+    <div id="ctrl-timer-focus"></div>
+    <div id="quick-settings-wrap">
+      <div id="footer-bar">
+        <div class="settings-menu-header"></div>
+        <button id="btn-close-settings"></button>
+      </div>
+    </div>
+    <button id="settings-trigger-pill"></button>
+    <input type="file" id="file-input">
+    <select id="select-layout-profile"></select>
+    <button id="btn-save-profile"></button>
+    <button id="btn-save-as-profile"></button>
+    <button id="btn-delete-profile"></button>
+    <button id="btn-export-profile"></button>
+    <input type="file" id="input-import-profile">
+    <div id="profile-bar-default"></div>
+    <div id="profile-dropdown-wrap"></div>
+    <button id="btn-profile-dropdown"></button>
+    <span id="profile-dropdown-label"></span>
+    <div id="profile-dropdown-list"></div>
+    <div id="profile-bar-new"></div>
+    <input type="text" id="input-new-profile-name">
+    <button id="btn-confirm-new-profile"></button>
+    <button id="btn-cancel-new-profile"></button>
+    <div id="profile-bar-delete"></div>
+    <button id="btn-confirm-delete-profile"></button>
+    <button id="btn-cancel-delete-profile"></button>
+    <button id="btn-open-import-modal"></button>
+    <div id="layout-export-modal"></div>
+    <button id="btn-close-export-modal"></button>
+    <div id="export-status-banner"></div>
+    <span id="export-filename-label"></span>
+    <textarea id="export-json-textarea"></textarea>
+    <button id="btn-copy-export-json"></button>
+    <button id="btn-redownload-export-json"></button>
+    <div id="layout-import-modal"></div>
+    <button id="btn-close-import-modal"></button>
+    <span id="import-file-name-label"></span>
+    <textarea id="import-json-textarea"></textarea>
+    <div id="import-error-msg"></div>
+    <button id="btn-cancel-import"></button>
+    <button id="btn-apply-import-json"></button>
+  </div>
+
+  <div class="header">
+    <h1>🧪 LiveSplit Overlay Unit Tests</h1>
+    <div id="total-badge" class="badge pass">Running...</div>
+  </div>
+
+  <div id="results"></div>
+
+  <!-- Test Framework Harness -->
+  <script src="harness/mini-test.js"></script>
+  <script src="harness/fake-livesplit.js"></script>
+  <script src="harness/fake-therun.js"></script>
+  <script src="harness/test-utils.js"></script>
+
+  <!-- Error Tracking & Application Scripts -->
+  <script>window.__scriptErrors = []; window.addEventListener("error", e => { window.__scriptErrors.push(e.message + " in " + e.filename + ":" + e.lineno); });</script>
+  <!-- @APP_SCRIPTS: generated from index.html -->
+
+  <script>
+    if (typeof window.initOverlay === "function") {
+      try { window.initOverlay(); } catch (e) { window.__initOverlayError = e; }
+    }
+  </script>
+
+  <!-- Test Fixtures (window.TestFixtures) -->
+  <!-- @FIXTURES: generated from tests/fixtures/* -->
+
+  <!-- Modular Unit Test Suites -->
+  <!-- @UNIT_TESTS: generated from tests/unit/**/*.test.js -->
+
+  <!-- Render Test Results -->
+  <script>
+    window.MiniTest.renderResults();
+  </script>
+</body>
+</html>

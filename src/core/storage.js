@@ -8,35 +8,60 @@
 (function () {
   "use strict";
 
-  // Centralized LocalStorage keys
-  const STORAGE_KEYS = {
-    IN_RUN_STATE: "livesplit_in_run_state",
+  // Every localStorage key the app uses. Other scripts read these via
+  // window.LiveSplit.Storage.KEYS; raw "livesplit_*" strings outside this file fail the test suite.
+  const STORAGE_KEYS = Object.freeze({
+    // Layout, track style & profiles
     HUD_LAYOUT: "livesplit_hud_layout",
+    LEADERBOARD_LAYOUT: "livesplit_leaderboard_layout",
     TRACK_STYLE: "livesplit_track_style",
+    TIMER_ANCHOR: "livesplit_timer_anchor",
+    CUSTOM_LOGO: "livesplit_custom_logo",
+    SETTINGS_POS: "livesplit_settings_pos",
     PROFILES_INDEX: "livesplit_profiles_index",
     ACTIVE_PROFILE: "livesplit_active_profile",
     PROFILE_PREFIX: "livesplit_profile_",
-    CUSTOM_LOGO: "livesplit_custom_logo",
-    TIMER_ANCHOR: "livesplit_timer_anchor",
-    ENABLE_GOLDS: "livesplit_enable_golds",
+
+    // Track display preferences
     VISIBLE_SPLITS: "livesplit_visible_splits",
     ALWAYS_SHOW_LAST: "livesplit_always_show_last_split",
     SPLIT_ANGLE: "livesplit_split_angle",
+
+    // Ghosts & race
     GHOST_COMPARISON: "livesplit_ghost_comparison",
     ACTIVE_GHOSTS: "livesplit_active_ghosts",
     GHOST_OPACITY: "livesplit_ghost_opacity",
-    BG_OPACITY: "livesplit_bg_opacity",
-    BG_BLUR: "livesplit_bg_blur",
-    BG_TARGETS: "livesplit_bg_targets",
-    SETTINGS_POS: "livesplit_settings_pos",
+    RACE_PINS_VISIBLE: "livesplit_race_pins_visible",
+    THERUN_USERNAME: "therun_username",
+
+    // Timing & comparison preferences
     TIMER_DISPLAY_MODE: "livesplit_timer_display_mode",
     TIMING_METHOD: "livesplit_timing_method",
     TIMING_METHOD_MANUAL: "livesplit_timing_method_manual",
-    DISCARD_GOLD_ON_RESET: "livesplit_discard_gold_on_reset",
-    CACHED_SPLITS: "livesplit_cached_splits",
+    CURRENT_COMPARISON: "livesplit_current_comparison",
+    SYNC_HOTKEYS: "livesplit_sync_hotkeys",
+    ENABLE_GOLDS: "livesplit_enable_golds",
+    DISCARD_GOLDS_ON_RESET: "livesplit_discard_golds_on_reset",
+
+    // Loaded splits cache
+    RAW_LSS: "livesplit_raw_lss",
     GAME_NAME: "livesplit_game",
-    CATEGORY_NAME: "livesplit_category"
-  };
+    CATEGORY_NAME: "livesplit_category",
+    SEGMENTS: "livesplit_segments",
+    TARGETS_GT: "livesplit_targets_gt",
+    TARGETS_RT: "livesplit_targets_rt",
+    GOLDS_GT: "livesplit_golds_gt",
+    GOLDS_RT: "livesplit_golds_rt",
+    BASELINE_GOLDS_GT: "livesplit_baseline_golds_gt",
+    BASELINE_GOLDS_RT: "livesplit_baseline_golds_rt",
+    COMPARISONS_LIST: "livesplit_comparisons_list",
+    COMPARISONS_GT: "livesplit_comparisons_gt",
+    COMPARISONS_RT: "livesplit_comparisons_rt",
+
+    // Session
+    IN_RUN_STATE: "livesplit_in_run_state",
+    DEV_MODE: "livesplit_dev_mode"
+  });
 
   // Safe storage wrapper providing in-memory fallback if localStorage is disabled or restricted
   // (e.g. sandboxed OBS Studio CEF Browser Sources, private browsing, or QuotaExceededError)
