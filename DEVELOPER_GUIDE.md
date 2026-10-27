@@ -333,7 +333,7 @@ Developer Mode can be activated via any of the following 4 methods:
    `🛠️ Developer Mode: Enabled (Test Race & WS Logs visible)`.
 
 3. **In-App Quick Unlock (Settings Footer Easter Egg)**:
-   Open the Settings menu (<kbd>S</kbd> or click the gear), scroll to the footer, and **click the version label (`#overlay-version`, e.g. `v1.0.3`) 5 times** within 2.5 seconds.
+   Open the Settings menu (<kbd>S</kbd> or click the gear), scroll to the footer, and **click the version label (`#overlay-version`, e.g. `v2.0.0`) 5 times** within 2.5 seconds.
 
 4. **Console Helper**:
    Open browser Developer Tools (<kbd>F12</kbd>) and execute:
