@@ -293,6 +293,17 @@
   }
 
   /**
+   * Balanced PB comparison of a therun.gg split ("PB Balanced"; "Balanced PB" in older payloads).
+   * @param {Object} split - therun.gg split
+   * @returns {number|undefined}
+   */
+  function balancedPb(split) {
+    const c = split && split.comparisons;
+    if (!c) return undefined;
+    return typeof c["PB Balanced"] === "number" ? c["PB Balanced"] : c["Balanced PB"];
+  }
+
+  /**
    * Total split count of a runner's own splits file (0 when unknown).
    * @param {Object} runner - Runner entrant object
    * @returns {number}
@@ -470,6 +481,7 @@
     const lastKnownRanks = options.lastKnownRanks || new Map();
     const checkpointRankHistory = options.checkpointRankHistory || new Map();
     const nowMs = typeof options.nowMs === "number" ? options.nowMs : Date.now();
+    const isOtherCourse = r => getRunnerSplitCount(r) > 0 && activeSplitsList.length > 0 && getRunnerSplitCount(r) !== activeSplitsList.length;
     // Live runners mid-split: their score is advanced every update from the expected segment time
     const liveRacing = new Set();
 
@@ -627,6 +639,17 @@
         let prevSplitTime = 0;
         const normSplits = normalizeSplitTimes(runner.splitTimes);
 
+        if (sIdx > 0 && normSplits.length >= sIdx && typeof normSplits[sIdx - 1] === "number") {
+          prevSplitTime = normSplits[sIdx - 1];
+        } else if (sIdx > 0 && runner.checkpointTimes && typeof runner.checkpointTimes[sIdx - 1] === "number") {
+          prevSplitTime = runner.checkpointTimes[sIdx - 1];
+        } else if (sIdx > 0 && Array.isArray(runner.splits) && runner.splits[sIdx - 1] && typeof runner.splits[sIdx - 1].splitTime === "number") {
+          const st = runner.splits[sIdx - 1].splitTime;
+          prevSplitTime = st > 500 ? (st / 1000) : st;
+        } else if (sIdx > 0 && simulationCourseTargets && typeof simulationCourseTargets[sIdx - 1] === "number") {
+          prevSplitTime = simulationCourseTargets[sIdx - 1];
+        }
+
         const isRT = (currentTimingMethod === "RealTime");
         const activePb = isRT
           ? (runner.pbCheckpointTimesRT || runner.pbCheckpointTimes)
@@ -645,11 +668,19 @@
             const avgMs = parseFloat(splitObj.single.averageTime);
             predictedSegSec = avgMs > 500 ? (avgMs / 1000) : avgMs;
           }
-          // Priority 3: Balanced PB comparison segment difference
-          else if (splitObj.comparisons && typeof splitObj.comparisons["Balanced PB"] === "number") {
-            const bPb = splitObj.comparisons["Balanced PB"];
-            const prevBPb = (sIdx > 0 && runner.splits[sIdx - 1]?.comparisons?.["Balanced PB"]) || 0;
+          // Priority 3: Balanced PB comparison segment difference (therun.gg names it "PB Balanced")
+          else if (splitObj.comparisons && typeof balancedPb(splitObj) === "number") {
+            const bPb = balancedPb(splitObj);
+            const prevBPb = (sIdx > 0 && balancedPb(runner.splits[sIdx - 1])) || 0;
             const diffMs = bPb - prevBPb;
+            if (diffMs > 0) {
+              predictedSegSec = diffMs > 500 ? (diffMs / 1000) : diffMs;
+            }
+          }
+          // Priority 4: the runner's PB segment
+          else if (typeof splitObj.pbSplitTime === "number" && splitObj.pbSplitTime > 0) {
+            const prevPbSplit = sIdx > 0 ? runner.splits[sIdx - 1]?.pbSplitTime : 0;
+            const diffMs = typeof prevPbSplit === "number" ? splitObj.pbSplitTime - prevPbSplit : 0;
             if (diffMs > 0) {
               predictedSegSec = diffMs > 500 ? (diffMs / 1000) : diffMs;
             }
@@ -663,6 +694,11 @@
           const prevPb = sIdx > 0 ? (activePb[sIdx - 1] || 0) : 0;
           segSec = Math.max(0.1, (activePb[sIdx] || 0) - prevPb);
           runner.hasStatisticalPrediction = false;
+        } else if (sIdx > 0 && prevSplitTime > 0 && isOtherCourse(runner)) {
+          // Different splits file and no prediction: the local comparison describes other
+          // segments, so use the runner's own average split so far
+          segSec = prevSplitTime / sIdx;
+          runner.hasStatisticalPrediction = false;
         } else {
           const comp = activeComparisonTargets;
           const prevT = sIdx > 0 ? (comp[sIdx - 1] || (sIdx * 30)) : 0;
@@ -672,17 +708,6 @@
           runner.hasStatisticalPrediction = false;
         }
 
-        if (sIdx > 0 && normSplits.length >= sIdx && typeof normSplits[sIdx - 1] === "number") {
-          prevSplitTime = normSplits[sIdx - 1];
-        } else if (sIdx > 0 && runner.checkpointTimes && typeof runner.checkpointTimes[sIdx - 1] === "number") {
-          prevSplitTime = runner.checkpointTimes[sIdx - 1];
-        } else if (sIdx > 0 && Array.isArray(runner.splits) && runner.splits[sIdx - 1] && typeof runner.splits[sIdx - 1].splitTime === "number") {
-          const st = runner.splits[sIdx - 1].splitTime;
-          prevSplitTime = st > 500 ? (st / 1000) : st;
-        } else if (sIdx > 0 && simulationCourseTargets && typeof simulationCourseTargets[sIdx - 1] === "number") {
-          prevSplitTime = simulationCourseTargets[sIdx - 1];
-        }
-
         elapsedSegSec = Math.max(0, (runner.currentTimeSec || 0) - prevSplitTime);
         runner.expectedSegmentSec = segSec;
 
@@ -690,9 +715,13 @@
         // below the next split (a runner slower than expected waits there until they split)
         // and never moved backwards within the split.
         if (liveRacing.has(runner) && (sIdx === 0 || prevSplitTime > 0)) {
-          const liveScore = sIdx + Math.min(0.99, elapsedSegSec / Math.max(0.1, segSec));
-          const prevScore = Math.floor(runner.score || 0) === sIdx ? (runner.score || 0) : 0;
-          runner.score = Math.max(liveScore, prevScore);
+          const ratio = Math.min(0.99, elapsedSegSec / Math.max(0.1, segSec));
+          if (runner.liveProgressSplit !== sIdx) {
+            runner.liveProgressSplit = sIdx;
+            runner.liveProgressRatio = 0;
+          }
+          runner.liveProgressRatio = Math.max(runner.liveProgressRatio || 0, ratio);
+          runner.score = sIdx + runner.liveProgressRatio;
         }
         runner.expectedSegmentDisplay = formatGapTime(segSec).replace(/^\+/, "");
       }

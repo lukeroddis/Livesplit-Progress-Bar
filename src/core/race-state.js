@@ -32,6 +32,8 @@
    * @property {number} currentSplitIndex
    * @property {string} currentSplitName
    * @property {number} score - Race progress: completed splits + fraction of the current segment
+   * @property {number} [liveProgressSplit] - Live races: split the per-frame segment progress belongs to
+   * @property {number} [liveProgressRatio] - Live races: furthest elapsed / expected ratio reached in that split (max 0.99)
    * @property {boolean} isFinished
    * @property {number|null} finalTimeSec
    * @property {boolean} isDNF
@@ -93,7 +95,9 @@
     isFinished: false,
     finalTimeSec: null,
     isDNF: false,
-    dnfTimeSec: null
+    dnfTimeSec: null,
+    liveProgressSplit: -1,
+    liveProgressRatio: 0
   });
 
   // Leaderboard decorations earned during a run (split glow, crowns, ribbons, position deltas)

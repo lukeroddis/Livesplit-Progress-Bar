@@ -463,17 +463,19 @@
     }
 
     // High-precision dead-reckoning progress calculation using predicted single duration or PB
-    if (typeof rawCurrentTime === "number" && !existing.isFinished && !existing.isDNF) {
+    // Previous split time of this run: completed splitTimes (from splitPredictions) first,
+    // since therun.gg race updates carry no splits array and hydrated splits go stale.
+    // Unknown (null) skips dead reckoning rather than measuring from the start of the run.
+    const curIdx = existing.currentSplitIndex || 0;
+    let prevTimeSec = curIdx > 0 ? null : 0;
+    const prevSplit = (curIdx > 0 && Array.isArray(existing.splits) && existing.splits[curIdx - 1]) ? existing.splits[curIdx - 1] : null;
+    if (curIdx > 0 && Array.isArray(existing.splitTimes) && typeof existing.splitTimes[curIdx - 1] === "number") {
+      prevTimeSec = existing.splitTimes[curIdx - 1];
+    } else if (prevSplit && typeof prevSplit.splitTime === "number" && prevSplit.splitTime > 0) {
+      prevTimeSec = prevSplit.splitTime > 500 ? (prevSplit.splitTime / 1000) : prevSplit.splitTime;
+    }
+    if (typeof rawCurrentTime === "number" && !existing.isFinished && !existing.isDNF && prevTimeSec !== null) {
       const curSec = existing.currentTimeSec || 0;
-      const curIdx = existing.currentSplitIndex || 0;
-      let prevTimeSec = 0;
-      const prevSplit = (curIdx > 0 && Array.isArray(existing.splits) && existing.splits[curIdx - 1]) ? existing.splits[curIdx - 1] : null;
-      if (prevSplit && typeof prevSplit.splitTime === "number") {
-        prevTimeSec = prevSplit.splitTime > 500 ? (prevSplit.splitTime / 1000) : prevSplit.splitTime;
-      } else if (prevSplit && typeof prevSplit.pbSplitTime === "number") {
-        prevTimeSec = prevSplit.pbSplitTime > 500 ? (prevSplit.pbSplitTime / 1000) : prevSplit.pbSplitTime;
-      }
-
       const elapsedInSeg = Math.max(0, curSec - prevTimeSec);
       const curSplit = (Array.isArray(existing.splits) && existing.splits[curIdx]) ? existing.splits[curIdx] : null;
       let expectedDur = 30.0;

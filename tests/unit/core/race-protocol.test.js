@@ -82,6 +82,34 @@
       assert(ctx.events.some(e => e.type === "started"), "Pushes started event");
     });
 
+    it("updateEntrantFromTelemetry measures split progress from the last split, not the run start", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      // therun.gg race participant update: no splits array, completed times in splitPredictions
+      rp.updateEntrantFromTelemetry({
+        user: "Racer",
+        status: "started",
+        liveData: {
+          currentSplitIndex: 3,
+          currentTime: 663191.89,
+          splitStartedAt: Date.now(),
+          totalSplits: 17,
+          runPercentageTime: 0.13,
+          splitPredictions: [
+            { splitIndex: 0, currentTime: -988.7 },
+            { splitIndex: 1, currentTime: 196661.09 },
+            { splitIndex: 2, currentTime: 508495.39 },
+            { splitIndex: 3, currentTime: 663191.89 }
+          ]
+        }
+      }, ctx);
+
+      const racer = ctx.entrants.get("Racer");
+      assertEqual(racer.currentSplitIndex, 3);
+      assert(racer.score >= 3 && racer.score < 3.1, `just split, so at the start of split 4 (score ${racer.score})`);
+    });
+
     it("updateEntrantFromTelemetry parses newcomer entrant with palette colors", () => {
       const rp = window.LiveSplit.RaceProtocol;
       const ctx = createMockContext();

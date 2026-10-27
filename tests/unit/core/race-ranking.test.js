@@ -222,9 +222,46 @@
       rank(splitStartedAt + 60000);
       assertEqual(racer.score, 1.99, "slower than expected waits just before the next split");
 
-      racer.score = 1.995;
+      racer.score = 1.2;
       rank(splitStartedAt + 1000);
-      assertEqual(racer.score, 1.995, "never moves backwards within the split");
+      assertEqual(racer.score, 1.99, "never moves backwards within the split, whatever a message set");
+
+      // Next split resets the progress
+      racer.currentSplitIndex = 2;
+      racer.splitTimes = [30, 70];
+      racer.splitStartedAt = splitStartedAt + 40000;
+      rank(splitStartedAt + 45000);
+      assertEqual(racer.score, 2.25, "5s into the next 20s split");
+    });
+
+    it("calculateRankedEntrants ignores a stale 0.99 score from the last message", () => {
+      const rr = window.LiveSplit.RaceRanking;
+      const splitStartedAt = 1_700_000_000_000;
+      const racer = {
+        userId: "live", status: "started", currentSplitIndex: 3, splitTimes: [196.6, 508.5, 663.2],
+        reportedTimeSec: 663.2, currentTimeSec: 663.2, splitStartedAt, score: 3.99, totalSplits: 4,
+        splits: [{ name: "A" }, { name: "B" }, { name: "C" }, { name: "D", predictedSingleTime: 200000 }]
+      };
+      rr.calculateRankedEntrants({
+        entrants: [racer], isLiveRace: true, nowMs: splitStartedAt + 50000,
+        activeSplitsList: ["A", "B", "C", "D"], lastKnownRanks: new Map(), checkpointRankHistory: new Map()
+      });
+      assertEqual(racer.score, 3.25, "50s into a predicted 200s split");
+    });
+
+    it("calculateRankedEntrants uses therun.gg's PB Balanced comparison and a runner's own pace on other courses", () => {
+      const rr = window.LiveSplit.RaceRanking;
+      const balanced = {
+        userId: "balanced", currentSplitIndex: 1, splitTimes: [30], currentTimeSec: 40,
+        splits: [{ comparisons: { "PB Balanced": 30000 } }, { comparisons: { "PB Balanced": 75000 } }]
+      };
+      const otherCourse = { userId: "other", currentSplitIndex: 2, splitTimes: [50, 100], currentTimeSec: 110, totalSplits: 6 };
+      rr.calculateRankedEntrants({
+        entrants: [balanced, otherCourse], activeSplitsList: ["A", "B", "C"], activeComparisonTargets: [10, 20, 30],
+        lastKnownRanks: new Map(), checkpointRankHistory: new Map()
+      });
+      assertEqual(balanced.expectedSegmentSec, 45, "PB Balanced segment");
+      assertEqual(otherCourse.expectedSegmentSec, 50, "average of their own splits, not the local 10s segment");
     });
 
     // 16-split course; the 14-split file merges "F" into "G" and "K" into "L"
