@@ -76,7 +76,7 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 ### 2. Ghost Runners
 
 <p align="center">
-  <img src="assets/ghostpins.gif" alt="Ghost Pins Animation" width="850">
+  <img src="assets/ghostpins.gif" alt="Ghost Pins Animation" width="450">
 </p>
 
 * Glowing pins race along the track showing where a comparison was at this exact moment: **World Record `🏆`**, **Personal Best `🥈`**, **Best Segments `⭐`** or **Average `📊`**.
@@ -86,7 +86,7 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 ### 3. Live Race Standings & Racer Pins
 
 <p align="center">
-  <img src="assets/leaderboard.gif" alt="Leaderboard Animation" width="850">
+  <img src="assets/leaderboard.gif" alt="Leaderboard Animation" width="300">
 </p>
 
 * **F1-style timing tower** for [therun.gg](https://therun.gg) races: enter the race code under **Settings → Live Race Telemetry** and click **Connect**.
