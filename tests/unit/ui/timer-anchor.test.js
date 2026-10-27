@@ -128,4 +128,107 @@
       });
     });
   });
+  describe("Timer Anchor: badge, bound controls and edge cases", () => {
+    const { mountHtml } = window.TestUtils;
+    const KEY = window.LiveSplit.Storage.KEYS.TIMER_ANCHOR;
+
+    const HTML = `
+      <div id="ctrl-timer-expansion">
+        <button class="seg-btn" data-val="auto"></button><button class="seg-btn" data-val="right"></button>
+        <button class="seg-btn" data-val="left"></button><button class="seg-btn"></button>
+      </div>
+      <button id="badge-anchor-timers"></button>
+      <div id="hud-comp-timers" style="position: absolute; width: 300px;"></div>`;
+
+    function withAnchor(fn, layoutState = { timers: { x: 100, y: 0, scale: 1 } }) {
+      const dom = mountHtml(HTML);
+      const saved = localStorage.getItem(KEY);
+      localStorage.removeItem(KEY);
+      const log = { applied: [], saves: 0 };
+      const engine = window.LiveSplit.TimerAnchor.createTimerAnchor({
+        getLayoutState: () => layoutState,
+        getDefaultLayout: () => ({ timers: { x: 10, y: 20, scale: 1 } }),
+        saveLayout: () => { log.saves++; },
+        applyComponentLayout: (id) => log.applied.push(id)
+      });
+      try {
+        return fn({ el: dom.el, dom, engine, log, layoutState });
+      } finally {
+        dom.remove();
+        if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+      }
+    }
+
+    const activeSeg = (dom) => dom.root.querySelector("#ctrl-timer-expansion .seg-btn.active")?.getAttribute("data-val");
+
+    it("the badge describes forced and auto expansion", () => withAnchor(({ el, dom, engine, layoutState }) => {
+      engine.setAnchor("right");
+      assertEqual(el("badge-anchor-timers").innerText, "⇤ Exp Left");
+      assertEqual(activeSeg(dom), "right");
+      engine.setAnchor("left");
+      assertEqual(el("badge-anchor-timers").innerText, "⇥ Exp Right");
+
+      engine.setAnchor("auto");
+      layoutState.timers.x = 0;
+      engine.syncUI();
+      assertEqual(el("badge-anchor-timers").innerText, "⇥ Auto (R)", "left half expands right");
+      layoutState.timers.x = window.innerWidth;
+      engine.syncUI();
+      assertEqual(el("badge-anchor-timers").innerText, "⇤ Auto (L)", "right half expands left");
+      assert(el("badge-anchor-timers").title.includes("expanding left"));
+    }));
+
+    it("right anchoring records the right offset; left anchoring drops it", () => withAnchor(({ engine, log, layoutState }) => {
+      engine.setAnchor("right");
+      assertEqual(layoutState.timers.right, Math.max(0, window.innerWidth - (100 + 300)));
+      assertEqual(localStorage.getItem(KEY), "right");
+      assertEqual(log.applied, ["timers"]);
+      assertEqual(log.saves, 1);
+      engine.setAnchor("left");
+      assert(!("right" in layoutState.timers), "right offset removed");
+    }));
+
+    it("ignores invalid anchors and creates missing timer state from the defaults", () => withAnchor(({ engine, log, layoutState }) => {
+      engine.setAnchor("diagonal");
+      assertEqual(log.saves, 0, "invalid anchor ignored");
+      engine.setAnchor("left");
+      assertEqual([layoutState.timers.x, layoutState.timers.anchor], [10, "left"], "timers created from the defaults");
+    }, {}));
+
+    it("falls back to the stored anchor when there is no layout state", () => withAnchor(({ engine }) => {
+      localStorage.setItem(KEY, "right");
+      assertEqual(engine.getAnchor(), "right");
+      assertEqual(engine.resolveIsRight(0, 300, 1000), true, "forced right");
+      localStorage.setItem(KEY, "left");
+      assertEqual(engine.resolveIsRight(900, 300, 1000), false, "forced left");
+      engine.setAnchor("auto");
+      assertEqual(localStorage.getItem(KEY), "auto", "saved without layout state");
+    }, null));
+
+    it("segment buttons set the anchor and the badge cycles it", () => withAnchor(({ el, dom, engine, layoutState }) => {
+      engine.bindEvents();
+      dom.root.querySelector('#ctrl-timer-expansion [data-val="left"]').click();
+      assertEqual(layoutState.timers.anchor, "left");
+      dom.root.querySelector("#ctrl-timer-expansion .seg-btn:not([data-val])").click();
+      assertEqual(layoutState.timers.anchor, "left", "a button without a value does nothing");
+
+      const seen = [];
+      for (let i = 0; i < 3; i++) { el("badge-anchor-timers").click(); seen.push(layoutState.timers.anchor); }
+      assertEqual(seen, ["auto", "right", "left"]);
+    }));
+
+    it("survives storage being unavailable", () => withAnchor(({ engine, layoutState }) => {
+      const realSet = Storage.prototype.setItem;
+      const realWarn = console.warn;
+      Storage.prototype.setItem = () => { throw new DOMException("denied", "SecurityError"); };
+      console.warn = () => {};
+      try {
+        engine.setAnchor("right");
+      } finally {
+        Storage.prototype.setItem = realSet;
+        console.warn = realWarn;
+      }
+      assertEqual(layoutState.timers.anchor, "right", "layout still updated");
+    }));
+  });
 })();
