@@ -24,7 +24,7 @@
 // safeStorage is provided by src/core/storage.js (window.LiveSplit.Storage.safeStorage).
 const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
 
-const APP_VERSION = "v2.0.1";
+const APP_VERSION = "v2.0.2";
 
 // Generic fallback splits used if no .lss is loaded
 const DEFAULT_SPLITS = [
