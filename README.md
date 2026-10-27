@@ -86,7 +86,7 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 ### 3. Live Race Standings & Racer Pins
 
 <p align="center">
-  <img src="assets/leaderboard.gif" alt="Leaderboard Animation" width="450">
+  <img src="assets/leaderboard.gif" alt="Leaderboard Animation" width="300">
 </p>
 
 * **F1-style timing tower** for [therun.gg](https://therun.gg) races: enter the race code under **Settings → Live Race Telemetry** and click **Connect**.
