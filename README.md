@@ -14,9 +14,9 @@
   <img src="assets/MainImage.png" alt="Speedrun Overlay" width="850">
 </p>
 
-A modern, minimalist HUD and progress bar overlay for speedrunners, optimized for standalone web browsers and OBS Studio Browser Sources (1080p, 1440p, 4K).
+A modern, minimalist overlay for speedrunners, optimized for OBS Studio Browser Sources (1080p, 1440p, 4K).
 
-Traditional LiveSplit layouts consume substantial vertical screen space over modern 16:9 gameplay. This overlay delivers a sleek, non-intrusive progress timeline with fully repositionable HUD components, dynamic dual timers, live ghost runner pacing, and per-game layout profiles.
+Traditional LiveSplit layouts consume substantial vertical screen space over modern 16:9 gameplay. This overlay delivers a sleek, non-intrusive progress timeline with fully repositionable HUD components, dual timers, ghost runners, live therun.gg race standings with racer pins, and per-game layout profiles.
 
 ---
 
@@ -63,48 +63,55 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 
 ## 🎮 Key Features
 
-### 1. Minimalist Split Progress Track
+### 1. Split Progress Track
 
 <p align="center">
   <img src="assets/SplitTransition.gif" alt="Split Transition Animation" width="850">
 </p>
 
-* **Non-Intrusive Timeline**: Smooth auto-centering progress bar available in both **Horizontal** (widescreen bottom bar) and **Vertical** (classic sidebar) orientations.
-* **4-State LiveSplit Coloring**: Accurate delta state colors for ahead/behind and gaining/losing time, plus vivid gold highlights when beating your Personal Best segment.
-* **Prominent Overdue Split Glow**: When you exceed the target segment time, the current split bar chunk pulses with an eye-catching red glow to keep you instantly aware of lost pace.
-* **Smart 40° Angle Tilt**: Automatically tilts split titles at 40° when split density increases, while keeping deltas strictly horizontal on the opposing side to prevent overlap.
+* **Horizontal or vertical** auto-centering timeline: a widescreen bottom bar or a classic sidebar.
+* **LiveSplit delta colours** for ahead/behind and gaining/losing, gold for best segments, and a red pulse when the current split runs overdue.
+* **Readable at any density**: split names tilt to 40° as the track fills up.
 
----
+### 2. Ghost Runners
 
-### 2. Interactive HUD Layout Editor & Game Profiles
+<p align="center">
+  <img src="assets/ghostpins.gif" alt="Ghost Pins Animation" width="850">
+</p>
+
+* Glowing pins race along the track showing where a comparison was at this exact moment: **World Record `🏆`**, **Personal Best `🥈`**, **Best Segments `⭐`** or **Average `📊`**.
+* **Edge beacons** (`❮ 🏆 -14.2s`) show the live gap when a ghost is off-screen.
+* Adjustable pin length and opacity.
+
+### 3. Live Race Standings & Racer Pins
+
+<p align="center">
+  <img src="assets/leaderboard.gif" alt="Leaderboard Animation" width="850">
+</p>
+
+* **F1-style timing tower** for [therun.gg](https://therun.gg) races: enter the race code under **Settings → Live Race Telemetry** and click **Connect**.
+* Live positions with animated overtakes, gap to leader, current split, pace vs. expected, fastest-segment ribbons (🥇🥈🥉), DNF/finished states, and a pre-race countdown/lobby view.
+* **Racers as track pins**: every competitor appears on your progress track alongside your ghosts. Toggle all pins with **Pins: ON/OFF**, or **double-click a racer** in the standings to hide or show just their pin.
+
+### 4. Layout Editor & Game Profiles
 
 <p align="center">
   <img src="assets/LayoutMode.png" alt="Interactive Layout Edit Mode" width="850">
 </p>
 
-* **Freeform Drag & Scale**: Press **`E`** (or **`F2`**) to enter Edit Mode. Drag components anywhere on screen, scale them smoothly from `40%` to `250%` with the bottom-right grip (**`⤡`**), or snap the track to the bottom dock (**`⚓`**).
-* **Game Layout Profiles**: Save custom layouts for different games (e.g. 16:9 widescreen dock vs. 4:3 retro sidebar). The overlay automatically loads matching profiles when connecting to LiveSplit or loading a `.lss` file.
-* **OBS-Friendly Import & Export**: Export clean, human-readable JSON files ([schema/layout-v1.json](schema/layout-v1.json)) or use one-click clipboard copying and pasting inside OBS Browser Source to bypass CEF file-download limitations.
+* Press **`E`** (or **`F2`**) to drag and scale (`40%`–`250%`) any component, or dock the track to the bottom (**`⚓`**).
+* **Per-game profiles** load automatically when LiveSplit connects or a `.lss` file is dropped.
+* **Import/export** as JSON ([schema/layout-v1.json](schema/layout-v1.json)), or copy/paste via the clipboard inside OBS.
 
----
-
-### 3. Live Ghost Runner Comparison
-
-* **Real-Time Racing Pace**: A sleek, glowing marker advances along the progress track in real time showing where a comparison run was at that exact second (**World Record `🏆`**, **Personal Best `🥈`**, **Best Segments `⭐`**, or **Average `📊`**).
-* **Off-Screen Edge Beacons**: When the ghost is outside your visible split window, subtle pulsing pills appear at the track edges (`❮ 🏆 -14.2s` or `+18.5s 🏆 ❯`) showing the live gap and direction without visual clutter.
-* **Customizable Markers**: Adjust ghost pin length (including `0px` for a needleless track glide) and pin opacity via the Bar Styles modal.
-
----
-
-### 4. Dynamic Dual Timers & Custom Game Logo
+### 5. Dual Timers & Game Logo
 
 <p align="center">
   <img src="assets/GameTimer.gif" alt="Dynamic Game & Real Timers" width="600">
 </p>
 
-* **Dual Timer Focus**: Display **Game Time**, **Real Time**, or **Both**. Click directly on either timer block to make it the primary focused timer and benchmark split comparisons against it.
-* **Custom Game Logo**: Replace the default text title with a high-resolution PNG, SVG, or WebP logo via one-click upload in the Bar Styles modal.
-* **Glassmorphic Contrast Plates**: Protect text readability over bright games (skyboxes, snow, bright track surfaces) with customizable frosted glass backdrop blur and opacity.
+* Show **Game Time**, **Real Time** or **both**; click a timer to make it the primary comparison.
+* Upload a PNG, SVG or WebP **game logo** in place of the title text.
+* **Frosted-glass plates** with adjustable blur and opacity keep text readable over bright games.
 
 <p align="center">
   <img src="assets/HUDCustomiser.png" alt="HUD Customizer Modal" width="380">
@@ -173,9 +180,13 @@ For WebSocket architecture details, LiveSplit protocol constraints, algorithm sp
 
 ## 🔮 Future Roadmap & Proposals
 
-For post-v1.0.0 feature specifications and technical explorations, see:
-
-* 🏁 **[Live Race Ghost Pins & F1-Style Dynamic Leaderboard](docs/proposals/live-race-ghosts-and-leaderboard.md)**: Feasibility study and technical specification for connecting online races from therun.gg with real-time multi-racer track pins and an animated broadcast timing tower.
+For post-v2.0.0 feature specifications and technical explorations, see:
+* **Extreme minimalist track bar**: square bars for each split, hover over to see split information.
+* **Current split overlay**: Show segment time, personal best, world record etc
+* **Settings overhaul**: Modularise settings with cog and close button for each widget
+* **Minimalist graph overlay**: Visual representation of deltas over time
+* **Racer tile improvements**: Hover over for context menu with runner information
+* **Add partial support for racetime.gg**: Allow for tracking of racetime.gg races, though full split telemetry still requires therun.gg player profiles
 * 🎨 **Custom Color Palette Overrides & Extended Theme Customization**:
   * **User-Defined Delta Palette**: Ability to customize hex colors for all 4 LiveSplit delta states (Ahead/Gaining, Ahead/Losing, Behind/Gaining, Behind/Losing), Gold splits, and the overdue red warning pulse.
   * **Accessibility Colorblind Presets**: One-click accessible presets optimized for Deuteranopia, Protanopia, and Tritanopia contrast guidelines.
