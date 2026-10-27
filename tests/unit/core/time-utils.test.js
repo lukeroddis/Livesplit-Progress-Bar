@@ -20,6 +20,13 @@
       it("parses days format DD.HH:MM:SS correctly", () => {
         assertEqual(window.timeStringToSeconds("1.00:00:00"), 86400);
       });
+      it("keeps the sign of negative start-offset times", () => {
+        assertEqual(window.timeStringToSeconds("-00:00:30.00"), -30);
+        assertEqual(window.timeStringToSeconds("-00:00:00.50"), -0.5);
+        assertEqual(window.timeStringToSeconds("-1:05.25"), -65.25);
+        assertEqual(window.timeStringToSeconds("−12.5"), -12.5);
+        assertEqual(window.timeStringToSeconds("-1.00:00:00"), -86400);
+      });
       it("returns null on empty, hyphen, or invalid input", () => {
         assertEqual(window.timeStringToSeconds("-"), null);
         assertEqual(window.timeStringToSeconds(""), null);

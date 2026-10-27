@@ -15,7 +15,15 @@
    */
   function timeStringToSeconds(tStr) {
     if (!tStr || tStr === "-" || tStr === "") return null;
-    const str = tStr.trim();
+    let str = tStr.trim();
+    // Negative start offsets arrive as "-00:00:30.00". Strip the sign up front:
+    // parseFloat("-00") is -0, so leaving it on the hours field loses it.
+    let sign = 1;
+    if (/^[-−]/.test(str)) {
+      sign = -1;
+      str = str.slice(1).trim();
+      if (str === "") return null;
+    }
     let days = 0;
     let timePart = str;
     if (str.includes(".")) {
@@ -37,7 +45,7 @@
     } else {
       return null;
     }
-    return isNaN(sec) ? null : days * 86400 + sec;
+    return isNaN(sec) ? null : sign * (days * 86400 + sec);
   }
 
   /**
