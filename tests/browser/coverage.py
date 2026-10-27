@@ -1,5 +1,6 @@
 """Per-file line coverage from V8 precise coverage, plus terminal and GitHub step summaries."""
 
+import json
 import os
 
 
@@ -86,3 +87,29 @@ def write_github_summary(path, python_passed, browser_count, rows):
                 bars = int(round(r["pct"] / 10))
                 f.write(f"| `{r['file']}` | {r['exec_lines']:,} | {r['cov_lines']:,} | {r['pct']:.1f}% | `{'🟩' * bars + '⬜' * (10 - bars)}` |\n")
         f.write("\n")
+
+
+def coverage_color(pct):
+    for floor, color in ((90, "brightgreen"), (80, "green"), (70, "yellowgreen"), (60, "yellow")):
+        if pct >= floor:
+            return color
+    return "red"
+
+
+def badge_payloads(python_passed, browser_count, rows):
+    """shields.io endpoint JSON (https://shields.io/badges/endpoint-badge), keyed by file name."""
+    _, _, pct = totals(rows)
+    return {
+        "tests.json": {"schemaVersion": 1, "label": "tests",
+                       "message": f"{python_passed + browser_count} passed", "color": "brightgreen"},
+        "coverage.json": {"schemaVersion": 1, "label": "coverage",
+                          "message": f"{pct:.1f}%", "color": coverage_color(pct)},
+    }
+
+
+def write_badges(out_dir, python_passed, browser_count, rows):
+    os.makedirs(out_dir, exist_ok=True)
+    for name, payload in badge_payloads(python_passed, browser_count, rows).items():
+        with open(os.path.join(out_dir, name), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(payload, f)
+            f.write("\n")
