@@ -202,5 +202,84 @@
       assertEqual(runnerA.positionDelta, -1, "Lost 1 position");
       assertEqual(runnerA.positionDeltaDisplay, "-1");
     });
+
+    // 16-split course; the 14-split file merges "F" into "G" and "K" into "L"
+    const FULL_COURSE = "ABCDEFGHIJKLMNOP".split("");
+    const SHORT_COURSE = FULL_COURSE.filter(n => n !== "F" && n !== "K");
+
+    function courseRunner(userId, names, completedNames, timeAt) {
+      const splitTimes = completedNames.map(timeAt);
+      return {
+        userId,
+        username: userId,
+        totalSplits: names.length,
+        splits: names.map(name => ({ name })),
+        currentSplitIndex: names.indexOf(completedNames[completedNames.length - 1]) + 1,
+        splitTimes,
+        currentTimeSec: splitTimes[splitTimes.length - 1] + 5
+      };
+    }
+
+    it("mapCheckpointsToCourse anchors checkpoints by split name across different split counts", () => {
+      const rr = window.LiveSplit.RaceRanking;
+      const key = n => n.toLowerCase();
+      const { index, exact } = rr.mapCheckpointsToCourse(SHORT_COURSE.map(key), 14, FULL_COURSE.map(key), 16);
+      assertEqual(index, [0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15], "each split lands on its namesake");
+      assert(exact.every(Boolean), "all checkpoints matched by name");
+
+      // No names: only the finish is exact, the rest are spread proportionally and never decrease
+      const blind = rr.mapCheckpointsToCourse([], 4, [], 8);
+      assertEqual(blind.index[3], 7, "finish maps to finish");
+      assertEqual(blind.exact, [false, false, false, true]);
+      assert(blind.index.every((v, i) => i === 0 || v >= blind.index[i - 1]), "monotonic");
+    });
+
+    it("calculateRankedEntrants ranks runners with fewer splits by where they are in the run", () => {
+      const rr = window.LiveSplit.RaceRanking;
+      const throughH = FULL_COURSE.slice(0, 8);
+      const shortThroughH = SHORT_COURSE.slice(0, 7);
+
+      // Everyone has just passed "H"; the 14-split runners did it fastest
+      const entrants = [
+        courseRunner("full_1", FULL_COURSE, throughH, (n, i) => 10 * (i + 1)),
+        courseRunner("full_2", FULL_COURSE, throughH, (n, i) => 10 * (i + 1) + 2),
+        courseRunner("full_3", FULL_COURSE, throughH, (n, i) => 10 * (i + 1) + 4),
+        courseRunner("short_1", SHORT_COURSE, shortThroughH, n => 10 * (FULL_COURSE.indexOf(n) + 1) - 3),
+        courseRunner("short_2", SHORT_COURSE, shortThroughH, n => 10 * (FULL_COURSE.indexOf(n) + 1) + 3)
+      ];
+      assertEqual(entrants[3].currentSplitIndex, 7, "short runner's own split index trails the full course");
+
+      const ranked = rr.calculateRankedEntrants({ entrants, lastKnownRanks: new Map(), checkpointRankHistory: new Map() });
+      assertEqual(ranked.map(r => r.userId), ["short_1", "full_1", "full_2", "short_2", "full_3"]);
+      assertEqual(ranked[1].gapDisplay, "+3.0s", "gap measured at the shared H checkpoint");
+      assertEqual(ranked[3].gapDisplay, "+6.0s");
+    });
+
+    it("calculateRankedEntrants keeps a full-course runner ahead while the merged split is unfinished", () => {
+      const rr = window.LiveSplit.RaceRanking;
+      const lead = courseRunner("full", FULL_COURSE, FULL_COURSE.slice(0, 6), (n, i) => 20 * (i + 1));
+      const chase = courseRunner("short", SHORT_COURSE, SHORT_COURSE.slice(0, 5), n => 10 * (FULL_COURSE.indexOf(n) + 1));
+
+      const ranked = rr.calculateRankedEntrants({ entrants: [chase, lead], lastKnownRanks: new Map(), checkpointRankHistory: new Map() });
+      assertEqual(ranked.map(r => r.userId), ["full", "short"], "passing F is ahead of anyone still before it");
+    });
+
+    it("calculateRankedEntrants does not award a ribbon on a segment a runner's splits merge", () => {
+      const rr = window.LiveSplit.RaceRanking;
+      const throughG = FULL_COURSE.slice(0, 7);
+      const ranked = rr.calculateRankedEntrants({
+        entrants: [
+          courseRunner("full_1", FULL_COURSE, throughG, (n, i) => 10 * (i + 1)),
+          courseRunner("full_2", FULL_COURSE, throughG, (n, i) => 10 * (i + 1) + 1),
+          courseRunner("short", SHORT_COURSE, SHORT_COURSE.slice(0, 6), n => 10 * (FULL_COURSE.indexOf(n) + 1) + 2)
+        ],
+        lastKnownRanks: new Map(),
+        checkpointRankHistory: new Map()
+      });
+      const short = ranked.find(r => r.userId === "short");
+      assertEqual(short.rank, 3);
+      assertEqual(short.segmentRibbon, null, "F+G as one segment is not comparable to G alone");
+      assertEqual(ranked.find(r => r.userId === "full_1").ribbonSegmentName, "G", "segment named from the course");
+    });
   });
 })();

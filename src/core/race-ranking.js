@@ -6,6 +6,8 @@
  * - 4-tier leaderboard sorting:
  *     1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
  *     2. Active runners ranked by currentSplitIndex descending (highest milestone reached)
+ *        Runners with a different number of splits are first projected onto a shared
+ *        reference course (checkpoints matched by split name)
  *     3. Same-split runners ranked strictly by cumulative time at the last common split
  *     4. Deterministic stable fallback to prevent mid-split swapping or jitter
  * - Checkpoint milestone gap calculation (time behind leader and interval to competitor ahead)
@@ -280,6 +282,161 @@
   }
 
   /**
+   * Normalizes a split name for cross-runner matching: drops LiveSplit subsplit
+   * markers ("-Boss", "{Section} Boss"), case and punctuation.
+   * @param {*} name - Raw split name
+   * @returns {string} Comparable key ("" when unusable)
+   */
+  function normalizeSplitName(name) {
+    if (typeof name !== "string") return "";
+    return name.replace(/^\s*-/, "").replace(/^\s*\{[^}]*\}/, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  /**
+   * Total split count of a runner's own splits file (0 when unknown).
+   * @param {Object} runner - Runner entrant object
+   * @returns {number}
+   */
+  function getRunnerSplitCount(runner) {
+    if (!runner) return 0;
+    if (typeof runner.totalSplits === "number" && runner.totalSplits > 0) return runner.totalSplits;
+    return Array.isArray(runner.splits) ? runner.splits.length : 0;
+  }
+
+  /**
+   * Split names from a runner's therun.gg splits (empty strings where unknown).
+   * @param {Object} runner - Runner entrant object
+   * @returns {string[]}
+   */
+  function getRunnerSplitNames(runner) {
+    if (!runner || !Array.isArray(runner.splits)) return [];
+    return runner.splits.map(s => normalizeSplitName(s && (s.name || s.splitName)));
+  }
+
+  /**
+   * Maps each of a runner's own checkpoints onto a reference course with a different
+   * number of splits. Checkpoints are anchored by matching split names in order, and the
+   * final split always maps to the final split. Checkpoints without a name match are
+   * placed proportionally between the surrounding anchors (never past the next anchor)
+   * and are flagged as not exact, so their times are not compared against the course.
+   * @param {string[]} ownNames - Normalized own split names
+   * @param {number} ownCount - Own split count
+   * @param {string[]} refNames - Normalized reference split names
+   * @param {number} refCount - Reference split count
+   * @returns {{index: number[], exact: boolean[]}} Own checkpoint i -> reference checkpoint index
+   */
+  function mapCheckpointsToCourse(ownNames, ownCount, refNames, refCount) {
+    const index = new Array(ownCount).fill(-1);
+    const exact = new Array(ownCount).fill(false);
+    if (ownCount <= 0 || refCount <= 0) return { index, exact };
+
+    let lastRef = -1;
+    for (let i = 0; i < ownCount - 1; i++) {
+      const key = ownNames[i];
+      if (!key) continue;
+      for (let j = lastRef + 1; j < refCount - 1; j++) {
+        if (refNames[j] === key) {
+          index[i] = j;
+          exact[i] = true;
+          lastRef = j;
+          break;
+        }
+      }
+    }
+    index[ownCount - 1] = refCount - 1;
+    exact[ownCount - 1] = true;
+
+    // Proportional placement between anchors for unmatched checkpoints
+    let prevOwn = -1;
+    let prevRef = -1;
+    for (let i = 0; i < ownCount; i++) {
+      if (!exact[i]) continue;
+      for (let k = prevOwn + 1; k < i; k++) {
+        const ratio = (k - prevOwn) / (i - prevOwn);
+        index[k] = Math.min(index[i] - 1, prevRef + Math.max(1, Math.floor(ratio * (index[i] - prevRef))));
+        index[k] = Math.max(prevRef, index[k]);
+      }
+      prevOwn = i;
+      prevRef = index[i];
+    }
+    return { index, exact };
+  }
+
+  /**
+   * Picks the reference course for a race: the split count most runners share
+   * (ties go to the longer course), with split names from a runner using it.
+   * @param {Object[]} list - Runners
+   * @returns {{count: number, names: string[], displayNames: string[]}|null} null when every runner shares one course
+   */
+  function pickReferenceCourse(list) {
+    const tally = new Map();
+    list.forEach((r) => {
+      const n = getRunnerSplitCount(r);
+      if (n > 0) tally.set(n, (tally.get(n) || 0) + 1);
+    });
+    if (tally.size < 2) return null;
+    let count = 0;
+    let best = -1;
+    tally.forEach((votes, n) => {
+      if (votes > best || (votes === best && n > count)) {
+        best = votes;
+        count = n;
+      }
+    });
+    const named = list.find(r => getRunnerSplitCount(r) === count && getRunnerSplitNames(r).some(Boolean));
+    return {
+      count,
+      names: named ? getRunnerSplitNames(named) : [],
+      displayNames: named ? named.splits.map(sp => (sp && (sp.name || sp.splitName)) || "") : []
+    };
+  }
+
+  /**
+   * Projects a runner whose splits file differs from the reference course onto it, so
+   * checkpoint indices and times compare like for like. Runners already on the reference
+   * course (or with an unknown split count) are returned unchanged.
+   * @param {Object} runner - Runner entrant object
+   * @param {{count: number, names: string[]}|null} course - Reference course
+   * @param {Array} [activeSplitsList=[]] - Course splits list
+   * @returns {Object} The runner itself or a read-only projection of it
+   */
+  function projectRunnerToCourse(runner, course, activeSplitsList = []) {
+    const ownCount = getRunnerSplitCount(runner);
+    if (!course || ownCount <= 0 || ownCount === course.count) return runner;
+
+    const { index, exact } = mapCheckpointsToCourse(getRunnerSplitNames(runner), ownCount, course.names, course.count);
+    const ownSplits = normalizeSplitTimes(runner.splitTimes);
+    const splitTimes = [];
+    ownSplits.forEach((t, i) => {
+      if (i < ownCount && exact[i] && typeof t === "number") splitTimes[index[i]] = t;
+    });
+    if (runner.isFinished && typeof runner.finalTimeSec === "number" && typeof splitTimes[course.count - 1] !== "number") {
+      splitTimes[course.count - 1] = runner.finalTimeSec;
+    }
+
+    const completed = Math.min(ownCount, getCompletedSplitCount(runner, activeSplitsList));
+    const mappedIdx = runner.isFinished ? course.count : (completed > 0 ? index[completed - 1] + 1 : 0);
+    const ownIdx = Math.max(0, runner.currentSplitIndex || 0);
+    const frac = Math.max(0, Math.min(1, (runner.score || 0) - ownIdx));
+
+    return {
+      userId: runner.userId,
+      isHost: runner.isHost,
+      paceFactor: runner.paceFactor,
+      isFinished: runner.isFinished,
+      finalTimeSec: runner.finalTimeSec,
+      isDNF: runner.isDNF,
+      dnfTimeSec: runner.dnfTimeSec,
+      currentTimeSec: runner.currentTimeSec,
+      deltaSec: runner.deltaSec,
+      currentSplitIndex: mappedIdx,
+      splitTimes,
+      score: runner.isFinished ? course.count : mappedIdx + frac,
+      isProjected: true
+    };
+  }
+
+  /**
    * Sorts all entrants (host + competitors) into F1 standings order and updates
    * ranks, milestone gaps, segment expectations, ribbons, and position deltas.
    * 
@@ -353,6 +510,12 @@
       }
     }
 
+    // Runners whose splits file has a different number of splits are compared on a shared
+    // reference course, so split N means the same place in the run for everyone
+    const course = pickReferenceCourse(list);
+    const views = new Map(list.map(r => [r, projectRunnerToCourse(r, course, activeSplitsList)]));
+    const view = r => views.get(r) || r;
+
     // Leaderboard sorting rules:
     // 1. Finished runners ranked first by finalTimeSec ascending (fastest finish wins)
     // 2. Active runners ranked by currentSplitIndex descending (highest milestone reached)
@@ -360,7 +523,9 @@
     //    occasion of splitting, NOT based on predicted mid-split interpolation curves.
     //    Ties are broken by comparing cumulative split times at the last completed split checkpoint!
     // 4. Stable rank fallback to prevent mid-split swapping or jitter.
-    list.sort((a, b) => {
+    list.sort((runnerA, runnerB) => {
+      const a = view(runnerA);
+      const b = view(runnerB);
       if (a.isFinished && b.isFinished) {
         return (a.finalTimeSec || Infinity) - (b.finalTimeSec || Infinity);
       }
@@ -535,9 +700,9 @@
       } else {
         const aheadRunner = list[idx - 1];
         // gapToLeaderSec stays the total time behind; gapDisplay is the tower's leader gap
-        const gap = calculateMilestoneGap(runner, leader, activeComparisonTargets);
-        const interval = calculateMilestoneGap(runner, aheadRunner, activeComparisonTargets);
-        const gapState = calculateLeaderGapState(runner, leader);
+        const gap = calculateMilestoneGap(view(runner), view(leader), activeComparisonTargets);
+        const interval = calculateMilestoneGap(view(runner), view(aheadRunner), activeComparisonTargets);
+        const gapState = calculateLeaderGapState(view(runner), view(leader));
 
         runner.gapToLeaderSec = gap;
         runner.intervalSec = interval;
@@ -569,22 +734,26 @@
     let targetSegmentName = "";
 
     if (leader && !leader.isDNF) {
-      const leaderSplitsLen = normalizeSplitTimes(leader.splitTimes).length;
-      const totalCourseSplits = activeSplitsList.length > 0 ? activeSplitsList.length : (leaderSplitsLen > 0 ? leaderSplitsLen : 8);
-      const leaderSplitIdx = leader.isFinished
+      const leaderView = view(leader);
+      const leaderSplitsLen = normalizeSplitTimes(leaderView.splitTimes).length;
+      const totalCourseSplits = course ? course.count
+        : (activeSplitsList.length > 0 ? activeSplitsList.length : (leaderSplitsLen > 0 ? leaderSplitsLen : 8));
+      const leaderSplitIdx = leaderView.isFinished
         ? (totalCourseSplits - 1)
-        : (leader.currentSplitIndex || 0);
+        : (leaderView.currentSplitIndex || 0);
       // The split in contention: whichever split the leader is on, it is the previous split
       const targetSplitIdx = leader.isFinished ? leaderSplitIdx : (leaderSplitIdx - 1);
 
       if (targetSplitIdx >= 0) {
-        targetSegmentName = (activeSplitsList && activeSplitsList[targetSplitIdx])
-          ? activeSplitsList[targetSplitIdx]
+        const courseNames = course ? course.displayNames : activeSplitsList;
+        targetSegmentName = (courseNames && courseNames[targetSplitIdx])
+          ? courseNames[targetSplitIdx]
           : `Split ${targetSplitIdx + 1}`;
 
         const segmentContenders = [];
 
-        list.forEach((racer) => {
+        list.forEach((runner) => {
+          const racer = view(runner);
           if (racer.isDNF) return;
           const hasCompletedTarget = (racer.isFinished || ((racer.currentSplitIndex || 0) > targetSplitIdx));
           if (!hasCompletedTarget) return;
@@ -597,6 +766,9 @@
           if (targetSplitIdx > 0) {
             if (typeof splits[targetSplitIdx - 1] === "number" && splits[targetSplitIdx - 1] > 0) {
               tPrev = splits[targetSplitIdx - 1];
+            } else if (racer.isProjected) {
+              // The runner's own splits cover this segment together with others: not comparable
+              return;
             } else if (racer.checkpointTimes && typeof racer.checkpointTimes[targetSplitIdx - 1] === "number") {
               tPrev = racer.checkpointTimes[targetSplitIdx - 1];
             } else {
@@ -612,7 +784,7 @@
             segmentContenders.push({
               userId: racer.userId,
               segDuration,
-              rank: typeof racer.rank === "number" ? racer.rank : 9999
+              rank: typeof runner.rank === "number" ? runner.rank : 9999
             });
           }
         });
@@ -649,7 +821,7 @@
     // -------------------------------------------------------------
     let maxCompletedSplits = 0;
     list.forEach((r) => {
-      const count = getCompletedSplitCount(r, activeSplitsList);
+      const count = getCompletedSplitCount(view(r), activeSplitsList);
       if (count > maxCompletedSplits) {
         maxCompletedSplits = count;
       }
@@ -671,15 +843,15 @@
       // Remove entrants who have not completed checkpoint c (e.g. after undo split)
       Array.from(histMap.keys()).forEach((uId) => {
         const r = list.find(item => item.userId === uId);
-        if (!r || getCompletedSplitCount(r, activeSplitsList) <= c) {
+        if (!r || getCompletedSplitCount(view(r), activeSplitsList) <= c) {
           histMap.delete(uId);
         }
       });
 
-      const completedAtC = list.filter(r => getCompletedSplitCount(r, activeSplitsList) > c);
+      const completedAtC = list.filter(r => getCompletedSplitCount(view(r), activeSplitsList) > c);
       completedAtC.sort((a, b) => {
-        const tA = getSplitCheckpointTime(a, c, activeSplitsList);
-        const tB = getSplitCheckpointTime(b, c, activeSplitsList);
+        const tA = getSplitCheckpointTime(view(a), c, activeSplitsList);
+        const tB = getSplitCheckpointTime(view(b), c, activeSplitsList);
         if (tA !== null && tB !== null) {
           const diff = tA - tB;
           if (Math.abs(diff) > 0.001) return diff;
@@ -708,7 +880,7 @@
         return;
       }
 
-      const completedCount = getCompletedSplitCount(runner, activeSplitsList);
+      const completedCount = getCompletedSplitCount(view(runner), activeSplitsList);
       let posDelta = 0;
 
       if (completedCount === 0) {
@@ -762,6 +934,8 @@
     getSplitCheckpointTime,
     calculateMilestoneGap,
     calculateLeaderGapState,
+    mapCheckpointsToCourse,
+    projectRunnerToCourse,
     calculateRankedEntrants
   };
 
