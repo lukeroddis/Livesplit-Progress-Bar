@@ -1,17 +1,17 @@
-# LiveSplit Progress Bar
+# Speedrun Overlay
 
 <p align="center">
-  <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml"><img src="https://github.com/lukeroddis/Livesplit-Progress-Bar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Test Suite"></a>
-  <a href="tests/run_tests.py"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Flukeroddis%2FLivesplit-Progress-Bar%2Fbadges%2Ftests.json" alt="Tests"></a>
-  <a href="tests/run_tests.py"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Flukeroddis%2FLivesplit-Progress-Bar%2Fbadges%2Fcoverage.json" alt="Coverage"></a>
+  <a href="https://github.com/lukeroddis/speedrun-overlay/actions/workflows/ci.yml"><img src="https://github.com/lukeroddis/speedrun-overlay/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Test Suite"></a>
+  <a href="tests/run_tests.py"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Flukeroddis%2Fspeedrun-overlay%2Fbadges%2Ftests.json" alt="Tests"></a>
+  <a href="tests/run_tests.py"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Flukeroddis%2Fspeedrun-overlay%2Fbadges%2Fcoverage.json" alt="Coverage"></a>
   <a href="https://obsproject.com/"><img src="https://img.shields.io/badge/OBS%20Studio-Compatible-purple.svg" alt="OBS Studio Compatible"></a>
-  <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/releases"><img src="https://img.shields.io/github/v/release/lukeroddis/Livesplit-Progress-Bar?color=blue&logo=github" alt="Release"></a>
-  <a href="https://github.com/lukeroddis/Livesplit-Progress-Bar/issues"><img src="https://img.shields.io/github/issues/lukeroddis/Livesplit-Progress-Bar?color=orange" alt="Issues"></a>
+  <a href="https://github.com/lukeroddis/speedrun-overlay/releases"><img src="https://img.shields.io/github/v/release/lukeroddis/speedrun-overlay?color=blue&logo=github" alt="Release"></a>
+  <a href="https://github.com/lukeroddis/speedrun-overlay/issues"><img src="https://img.shields.io/github/issues/lukeroddis/speedrun-overlay?color=orange" alt="Issues"></a>
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
 </p>
 
 <p align="center">
-  <img src="assets/MainImage.png" alt="LiveSplit Progress Bar Overlay" width="850">
+  <img src="assets/MainImage.png" alt="Speedrun Overlay" width="850">
 </p>
 
 A modern, minimalist HUD and progress bar overlay for speedrunners, optimized for standalone web browsers and OBS Studio Browser Sources (1080p, 1440p, 4K).
@@ -38,7 +38,7 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
    * **Older LiveSplit versions (v1.7.0 – v1.8.29)**: Right-click → **Edit Layout** → add **Control → LiveSplit Server**, then right-click → **Control → Start Server**.
    * *(Important: Select **WebSocket Server**, not TCP Server, as browser overlays communicate via WebSockets).*
 2. **Open the Overlay**:
-   * Download the latest `livesplit-minimal-overlay-v*.html` from [Releases](https://github.com/lukeroddis/Livesplit-Progress-Bar/releases). The release is one fully self-contained HTML file; no server or companion files are required.
+   * Download the latest `speedrun-overlay-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases). The release is one fully self-contained HTML file; no server or companion files are required.
    * **In OBS Studio (Recommended)**: Add a **Browser Source** pointing to the downloaded HTML file, set resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
    * **In Desktop Browser**: Open the downloaded HTML file in Chrome, Edge, or Firefox.
 3. **Load Your Splits**:
@@ -159,7 +159,7 @@ npm run build
 * **In-Browser Test Runner**: Run `npm run test:runner` (or any test run), then open `tests/test_runner.html` in a browser to inspect assertions visually. The page is generated from [index.html](index.html) and every `tests/unit/**/*.test.js` spec.
 * **Automated Pre-Push Hook**: Local tests run automatically before every `git push` via `.githooks/pre-push`.
 * **GitHub Actions CI**: Automated tests and the single-file build run on every push and pull request via [.github/workflows/ci.yml](.github/workflows/ci.yml).
-* **Release Build**: Releases publish a standalone `livesplit-minimal-overlay-<tag>.html` built and verified by CI.
+* **Release Build**: Releases publish a standalone `speedrun-overlay-<tag>.html` built and verified by CI.
 
 ---
 

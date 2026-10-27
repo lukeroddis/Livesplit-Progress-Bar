@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Race WebSocket Diagnostics & Telemetry Logger
+ * Speedrun Overlay - Race WebSocket Diagnostics & Telemetry Logger
  *
  * Encapsulates:
  * - Circular ring buffer for WebSocket telemetry packets & system events (capped at 150 entries)

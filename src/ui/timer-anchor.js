@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Timer Anchor & Auto-Expansion Controller
+ * Speedrun Overlay - Timer Anchor & Auto-Expansion Controller
  *
  * Encapsulates:
  * - Intelligent timer anchor modes ("auto", "right", "left")

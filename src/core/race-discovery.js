@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Race Discovery & Auto-Detect Engine
+ * Speedrun Overlay - Race Discovery & Auto-Detect Engine
  *
  * Encapsulates:
  * - REST polling to therun.gg live status API (https://therun.gg/api/live/{username})

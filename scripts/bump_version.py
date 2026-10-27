@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-bump_version.py - Semantic Versioning Utility for LiveSplit Minimal Overlay
+bump_version.py - Semantic Versioning Utility for Speedrun Overlay
 Bumps version in package.json, package-lock.json, overlay.js, and index.html
 synchronously.
 Usage: python scripts/bump_version.py [patch|minor|major|<specific_version>]

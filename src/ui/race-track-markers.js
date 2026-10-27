@@ -3,7 +3,7 @@
  * 
  * Manages DOM element lifecycle, orthogonal drop-lines, needle clustering,
  * off-screen edge indicator pills, and dead-reckoning pin placement for
- * online speedrun race competitors on the LiveSplit progress bar track.
+ * online speedrun race competitors on the overlay's progress track.
  */
 
 (function () {

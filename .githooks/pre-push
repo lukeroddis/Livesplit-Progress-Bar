@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Git pre-push hook for LiveSplit Progress Bar
+# Git pre-push hook for Speedrun Overlay
 echo "=================================================="
 echo " Running pre-push automated tests and checks..."
 echo "=================================================="

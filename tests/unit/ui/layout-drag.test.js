@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Layout Pointer Drag & Scale Unit Tests
+ * Speedrun Overlay - Layout Pointer Drag & Scale Unit Tests
  */
 
 (function () {

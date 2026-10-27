@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Layout Profiles & Presets Spec
+ * Speedrun Overlay - Layout Profiles & Presets Spec
  */
 (function () {
   "use strict";

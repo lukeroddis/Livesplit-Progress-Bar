@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - URL Parameters & View Router Unit Tests
+ * Speedrun Overlay - URL Parameters & View Router Unit Tests
  */
 
 (function () {

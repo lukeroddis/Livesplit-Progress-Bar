@@ -40,7 +40,7 @@
       if (game && game !== "Speedrun Overlay") {
         document.title = (cat && cat !== "Load .lss or connect LiveSplit") ? `${game} - ${cat}` : game;
       } else {
-        document.title = "LiveSplit Minimal Overlay";
+        document.title = "Speedrun Overlay";
       }
     }
 

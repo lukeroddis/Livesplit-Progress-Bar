@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Track Style & Orientation Controller
+ * Speedrun Overlay - Track Style & Orientation Controller
  * 
  * Encapsulates:
  * - Track styling defaults (bar height, dot size, typography, ghost pin length/size, backgrounds)

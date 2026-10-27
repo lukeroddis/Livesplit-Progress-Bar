@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Layout Modal & Settings Toolbar Controller Unit Tests
+ * Speedrun Overlay - Layout Modal & Settings Toolbar Controller Unit Tests
  */
 
 (function () {

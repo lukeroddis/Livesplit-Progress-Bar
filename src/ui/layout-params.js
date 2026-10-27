@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - URL Query Parameter Parser & View Router
+ * Speedrun Overlay - URL Query Parameter Parser & View Router
  *
  * Encapsulates URL parameter parsing for layout styling, component views,
  * track orientation, split preferences, timer anchoring, ghost comparison,

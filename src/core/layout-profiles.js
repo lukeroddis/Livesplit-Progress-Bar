@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Layout Profiles & Preset Storage Engine
+ * Speedrun Overlay - Layout Profiles & Preset Storage Engine
  *
  * Encapsulates:
  * - Profile registry in localStorage (livesplit_profiles_index, livesplit_active_profile)
@@ -132,7 +132,7 @@
         version: 1,
         name: name,
         exportedAt: new Date().toISOString(),
-        generator: "LiveSplit Minimal Overlay " + (window.LiveSplit.Overlay.APP_VERSION || "v1.0.0"),
+        generator: "Speedrun Overlay " + (window.LiveSplit.Overlay.APP_VERSION || "v1.0.0"),
         components: currentState ? JSON.parse(JSON.stringify(currentState)) : defaultLayout,
         style: currentStyle ? Object.assign({}, currentStyle) : Object.assign({}, defaultStyle),
         preferences: {

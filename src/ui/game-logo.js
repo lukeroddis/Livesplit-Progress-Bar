@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Custom Game Logo Controller
+ * Speedrun Overlay - Custom Game Logo Controller
  * 
  * Encapsulates:
  * - Logo image persistence in localStorage under livesplit_custom_logo

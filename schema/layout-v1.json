@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "layout-v1.json",
-  "title": "LiveSplit Minimal Overlay Layout Profile",
-  "description": "Schema definition for extensible LiveSplit Minimal Overlay layout profiles",
+  "title": "Speedrun Overlay Layout Profile",
+  "description": "Schema definition for extensible Speedrun Overlay layout profiles",
   "type": "object",
   "required": ["version", "name", "components", "style"],
   "properties": {

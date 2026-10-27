@@ -1,5 +1,5 @@
 {
-  "name": "livesplit-minimal-overlay",
+  "name": "speedrun-overlay",
   "version": "1.0.3",
   "description": "A modern, widescreen-optimized HUD and progress bar overlay for speedrunners",
   "main": "index.html",
@@ -19,14 +19,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lukeroddis/Livesplit-Progress-Bar.git"
+    "url": "https://github.com/lukeroddis/speedrun-overlay.git"
   },
   "author": "Luke Roddis",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/lukeroddis/Livesplit-Progress-Bar/issues"
+    "url": "https://github.com/lukeroddis/speedrun-overlay/issues"
   },
-  "homepage": "https://github.com/lukeroddis/Livesplit-Progress-Bar#readme",
+  "homepage": "https://github.com/lukeroddis/speedrun-overlay#readme",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.13.0",

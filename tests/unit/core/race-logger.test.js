@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Race Logger & WebSocket Diagnostics Spec
+ * Speedrun Overlay - Race Logger & WebSocket Diagnostics Spec
  */
 (function () {
   "use strict";

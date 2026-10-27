@@ -1,4 +1,4 @@
-# LiveSplit Minimal Overlay — Developer Guide
+# Speedrun Overlay — Developer Guide
 
 > **Audience**: Contributors and maintainers working on this codebase.  
 > **Purpose**: Establish architectural rules, LiveSplit Server protocol nuances, data schemas, and testing guidelines to avoid regressions, avoid duplicated work, and maintain code stability.
@@ -219,7 +219,7 @@ Layout profiles are stored and exported as formatted JSON with the following ext
   "version": 1,
   "name": "Super Mario 64",
   "exportedAt": "2026-10-13T16:20:00.000Z",
-  "generator": "LiveSplit Minimal Overlay v1.0.0",
+  "generator": "Speedrun Overlay v1.0.0",
   "components": {
     "title": { "x": 42, "y": 30, "scale": 1.0, "visible": true },
     "timers": { "x": 42, "y": 90, "scale": 1.15, "visible": true },

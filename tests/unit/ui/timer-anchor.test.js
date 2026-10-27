@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Timer Anchor & Auto-Expansion Unit Tests
+ * Speedrun Overlay - Timer Anchor & Auto-Expansion Unit Tests
  */
 
 (function () {

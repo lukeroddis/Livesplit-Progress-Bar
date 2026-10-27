@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Custom Game Logo Unit Tests
+ * Speedrun Overlay - Custom Game Logo Unit Tests
  */
 
 (function () {

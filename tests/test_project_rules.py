@@ -90,7 +90,7 @@ def test_shared_constant_has_one_owner(label, pattern, owner):
 
 def test_layout_schema_is_valid_and_declares_active_ghosts():
     schema = json.loads(read_text("schema/layout-v1.json"))
-    assert schema.get("title") == "LiveSplit Minimal Overlay Layout Profile"
+    assert schema.get("title") == "Speedrun Overlay Layout Profile"
     assert "properties" in schema
     assert '"activeGhosts"' in read_text("schema/layout-v1.json")
 

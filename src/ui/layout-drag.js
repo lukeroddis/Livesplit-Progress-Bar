@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Layout Pointer Drag & Scale Engine
+ * Speedrun Overlay - Layout Pointer Drag & Scale Engine
  * 
  * Encapsulates:
  * - Pointerdown, pointermove, pointerup/cancel lifecycle for HUD components

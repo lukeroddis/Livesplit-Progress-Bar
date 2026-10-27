@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Track Style & Orientation Unit Tests
+ * Speedrun Overlay - Track Style & Orientation Unit Tests
  */
 
 (function () {

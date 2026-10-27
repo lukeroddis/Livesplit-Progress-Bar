@@ -1,5 +1,5 @@
 /**
- * LiveSplit Progress Bar - Race Discovery & Auto-Detect Engine Spec
+ * Speedrun Overlay - Race Discovery & Auto-Detect Engine Spec
  */
 (function () {
   "use strict";

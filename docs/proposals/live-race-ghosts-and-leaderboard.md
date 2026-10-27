@@ -7,7 +7,7 @@
 ---
 
 ## Executive Summary
-This document specifies the architecture and technical design for connecting **LiveSplit Progress Bar** to live online speedrun races. It introduces two synchronized visual systems:
+This document specifies the architecture and technical design for connecting **Speedrun Overlay** to live online speedrun races. It introduces two synchronized visual systems:
 1. **Live Race Ghost Pins**: Online competitors glide along your Progress Track with their Twitch avatars and live split deltas.
 2. **F1-Style Dynamic Animated Leaderboard**: A broadcast-grade timing tower displaying real-time positions (P1, P2...), live gaps/intervals, current split sectors, and smooth FLIP overtake reordering animations.
 
@@ -44,7 +44,7 @@ flowchart TD
         TR_REST["Public REST API\nhttps://therun.gg/api/live"]
     end
 
-    subgraph Overlay ["LiveSplit Progress Bar Overlay (Pure Client-Side)"]
+    subgraph Overlay ["Speedrun Overlay (Pure Client-Side)"]
         Detect["Race Auto-Detector\n(raceId heartbeat)"]
         RaceClient["race-client.js\nRace WebSocket Manager"]
         Engine["ghost-math.js\n60 FPS Dead-Reckoning Engine"]

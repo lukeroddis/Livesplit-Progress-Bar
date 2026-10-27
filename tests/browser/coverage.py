@@ -75,7 +75,7 @@ def terminal_lines(browser_count, rows):
 def write_github_summary(path, python_passed, browser_count, rows):
     total_exec, total_cov, pct = totals(rows)
     with open(path, "a", encoding="utf-8") as f:
-        f.write("\n## 🧪 LiveSplit Minimal Overlay — Test & Coverage Summary\n\n")
+        f.write("\n## 🧪 Speedrun Overlay — Test & Coverage Summary\n\n")
         f.write("| Metric | Status | Details |\n| :--- | :---: | :--- |\n")
         f.write(f"| **Python checks (pytest)** | ✅ **Passed** | {python_passed} tests passed |\n")
         f.write(f"| **In-Browser DOM Unit Tests** | ✅ **Passed** | {browser_count} tests passed |\n")
