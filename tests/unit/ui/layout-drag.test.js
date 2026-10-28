@@ -86,6 +86,21 @@
       assertEqual(unmeasured, { width: 300 }, "a hidden (0-size) element keeps the old size");
     });
 
+    it("picks the dock edge from the half of the screen the track's centre is in", () => {
+      const choose = window.LiveSplit.LayoutDrag.chooseDockSide;
+      const rect = (left, top, width, height) => ({ left, top, width, height });
+      assertEqual(choose(rect(0, 100, 1000, 80), 1000, 800, false), "top");
+      assertEqual(choose(rect(0, 500, 1000, 80), 1000, 800, false), "bottom");
+      assertEqual(choose(rect(100, 0, 340, 800), 1000, 800, true), "left");
+      assertEqual(choose(rect(600, 0, 340, 800), 1000, 800, true), "right");
+    });
+
+    it("maps a saved dock to the edges this orientation can use", () => {
+      const side = window.LiveSplit.LayoutDrag.effectiveDockSide;
+      assertEqual(["top", "bottom", "left", "right"].map((d) => side(d, false)), ["top", "bottom", "bottom", "bottom"]);
+      assertEqual(["top", "bottom", "left", "right"].map((d) => side(d, true)), ["left", "left", "left", "right"]);
+    });
+
     it("initializes drag engine and manages active pointer operation", () => {
       let isEditing = true;
       const mockLayoutState = {
@@ -291,29 +306,51 @@
       return window.TestUtils.stubOverlay({ refreshTrack: () => calls.push("refresh") }, () => fn(calls));
     }
 
-    it("the dock button toggles the horizontal track between bottom dock and floating", () => withTrackRefreshStubs((calls) => withHud(({ dom, layout, log }) => {
+    // Pins the fixture track at a screen position so the dock button can tell which half it is in
+    function placeTrack(dom, left, top) {
+      Object.assign(dom.el("hud-comp-track").style, { position: "fixed", left: `${left}px`, top: `${top}px` });
+    }
+
+    it("the dock button docks the horizontal track to the bottom when it sits low, and floats it back", () => withTrackRefreshStubs((calls) => withHud(({ dom, layout, log }) => {
       const btn = dom.el("btn-dock-track");
+      placeTrack(dom, 0, window.innerHeight - 60);
       layout.track.width = 500;
       btn.click();
       assertEqual(layout.track.docked, "bottom");
       assertEqual([layout.track.x, layout.track.y], [0, Math.max(0, window.innerHeight - 90)]);
       btn.click();
       assertEqual(layout.track.docked, "none");
-      assertEqual([layout.track.x, layout.track.y], [42, Math.max(0, window.innerHeight - 150)]);
+      assertEqual([layout.track.x, layout.track.y], [42, Math.max(0, window.innerHeight - 150)], "floats just above the bottom");
       assertEqual(layout.track.width, undefined, "floating from the dock fills to the right edge again");
       assertEqual(log.saves, 2);
       assertEqual(log.applied, ["track", "track"]);
       assertEqual(calls, ["refresh", "refresh"], "track re-rendered after each toggle");
     })));
 
-    it("the dock button toggles the vertical track between left dock and floating", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {
+    it("the dock button docks the horizontal track to the top when it sits high", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {
       const btn = dom.el("btn-dock-track");
+      placeTrack(dom, 0, 0);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["top", 0, 0]);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 42, 80], "floats just below the top");
+    })));
+
+    it("the dock button docks the vertical track to the left or right, whichever half it is in", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {
+      const btn = dom.el("btn-dock-track");
+      placeTrack(dom, 0, 0);
       layout.track.height = 400;
       btn.click();
       assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["left", 0, 0]);
       btn.click();
       assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 42, 80]);
       assertEqual(layout.track.height, undefined, "floating from the dock fills downward again");
+
+      placeTrack(dom, window.innerWidth - 300, 0);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["right", Math.max(0, window.innerWidth - 340), 0]);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", Math.max(0, window.innerWidth - 382), 80], "floats just inside the right edge");
     }, { orientation: "vertical" })));
   });
 })();

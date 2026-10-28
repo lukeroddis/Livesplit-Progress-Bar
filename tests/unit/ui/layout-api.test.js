@@ -121,6 +121,12 @@
       HL().applyComponentLayout("track");
       assertEqual(track.style.width, "700px", "a frozen width no longer depends on x");
       delete state.track.width;
+
+      Object.assign(state.track, { docked: "top", scale: 1, x: 0, y: 0 });
+      HL().applyComponentLayout("track");
+      assert(track.classList.contains("docked-top") && !track.classList.contains("docked-bottom"), "docks to the top");
+      assertEqual([track.style.top, track.style.bottom], ["0px", ""]);
+      assertEqual(el("btn-dock-track").innerText, "⚓ Docked");
     }));
 
     it("fitTrackOnScreen pulls an oversized track back on screen and saves", () => withHud(({ el, state, style }) => {
@@ -157,6 +163,11 @@
       assertEqual([track.style.left, track.style.top], ["60px", "20px"]);
       assertEqual(el("btn-dock-track").innerText, "⛵ Float");
 
+      Object.assign(state.track, { docked: "top" });
+      HL().applyComponentLayout("track");
+      assert(track.classList.contains("docked-left"), "a top dock from horizontal mode shows on the left");
+
+      Object.assign(state.track, { docked: "none" });
       state.track.height = 450;
       HL().applyComponentLayout("track");
       assertEqual(track.style.height, "450px", "a frozen height no longer depends on y");

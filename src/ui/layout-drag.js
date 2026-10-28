@@ -9,7 +9,8 @@
  * - Free track dragging (docking only via the dock button; dragging a docked track undocks it),
  *   keeping its size fixed and the whole scaled track (and its resize handle) on screen
  * - Dedicated leaderboard header drag support
- * - Dock toggle button handling (#btn-dock-track)
+ * - Dock toggle button handling (#btn-dock-track): docks to the nearest edge (top/bottom, or left/right
+ *   when vertical)
  */
 
 (function () {
@@ -82,6 +83,38 @@
       : { x: state.x, y: state.y };
     const maxScale = maxTrackScale(Object.assign({}, state, pos), baseW, baseH, viewportWidth, viewportHeight);
     return { x: pos.x, y: pos.y, scale: Math.min(scale, maxScale) };
+  }
+
+  /**
+   * The edge a docked track actually uses in this orientation: a horizontal track docks top or bottom,
+   * a vertical one left or right (a dock saved in the other orientation falls back to bottom / left).
+   */
+  function effectiveDockSide(docked, isVertical) {
+    if (isVertical) return docked === "right" ? "right" : "left";
+    return docked === "top" ? "top" : "bottom";
+  }
+
+  /**
+   * Picks the edge to dock the track to from where its centre sits (rect in screen px): the top or
+   * bottom half for a horizontal track, the left or right half for a vertical one.
+   */
+  function chooseDockSide(rect, viewportWidth, viewportHeight, isVertical) {
+    if (isVertical) return rect.left + rect.width / 2 > viewportWidth / 2 ? "right" : "left";
+    return rect.top + rect.height / 2 < viewportHeight / 2 ? "top" : "bottom";
+  }
+
+  // Saved position for a track docked to `side` (the dock CSS pins it; this keeps x/y meaningful)
+  function dockedPosition(side, viewportWidth, viewportHeight) {
+    if (side === "right") return { x: Math.max(0, viewportWidth - 340), y: 0 };
+    if (side === "bottom") return { x: 0, y: Math.max(0, viewportHeight - 90) };
+    return { x: 0, y: 0 };
+  }
+
+  // Where the track floats when undocked from `side`: just inside that edge
+  function floatPositionFrom(side, viewportWidth, viewportHeight) {
+    if (side === "right") return { x: Math.max(0, viewportWidth - 382), y: 80 };
+    if (side === "bottom") return { x: 42, y: Math.max(0, viewportHeight - 150) };
+    return { x: 42, y: 80 };
   }
 
   /**
@@ -233,32 +266,24 @@
           const state = layoutState ? layoutState.track : null;
           if (!state) return;
 
-          const currentTrackStyle = getCurrentTrackStyle();
-          const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
+          const isVert = isVerticalTrack();
+          const w = (typeof window !== "undefined" && window.innerWidth) || 1920;
           const h = (typeof window !== "undefined" && window.innerHeight) || 1080;
 
-          if (isVert) {
-            if (state.docked === "left" || state.docked === "right" || state.docked === "bottom") {
-              state.docked = "none";
-              state.x = 42;
-              state.y = 80;
-              delete state.height;
-            } else {
-              state.docked = "left";
-              state.x = 0;
-              state.y = 0;
-            }
+          if (!isTrackFloating(state)) {
+            // Float just inside the edge it was docked to, filling to the screen edge again
+            Object.assign(state, floatPositionFrom(effectiveDockSide(state.docked, isVert), w, h));
+            state.docked = "none";
+            delete state.width;
+            delete state.height;
           } else {
-            if (state.docked === "bottom" || state.docked === "left" || state.docked === "right") {
-              state.docked = "none";
-              state.x = 42;
-              state.y = Math.max(0, h - 150);
-              delete state.width;
-            } else {
-              state.docked = "bottom";
-              state.x = 0;
-              state.y = Math.max(0, h - 90);
-            }
+            // Dock to whichever edge the track is nearest
+            const trackEl = document.getElementById("hud-comp-track");
+            const side = trackEl
+              ? chooseDockSide(trackEl.getBoundingClientRect(), w, h, isVert)
+              : effectiveDockSide("", isVert);
+            Object.assign(state, dockedPosition(side, w, h));
+            state.docked = side;
           }
 
           applyComponentLayout("track");
@@ -368,6 +393,8 @@
     maxTrackScale,
     fitTrackBox,
     freezeTrackSize,
+    effectiveDockSide,
+    chooseDockSide,
     createLayoutDrag
   };
 })();

@@ -175,7 +175,7 @@
       const isVertical = track.classList.contains("vertical");
       const trackComp = document.getElementById("hud-comp-track");
       const isDockedVertical = isVertical && (trackComp?.classList.contains("docked-left") || trackComp?.classList.contains("docked-right"));
-      const isDockedHorizontal = !isVertical && trackComp?.classList.contains("docked-bottom");
+      const isDockedHorizontal = !isVertical && (trackComp?.classList.contains("docked-bottom") || trackComp?.classList.contains("docked-top"));
 
       const currentOrient = isVertical ? "vertical" : "horizontal";
       if (lastKnownOrientation !== null && lastKnownOrientation !== currentOrient) {

@@ -36,7 +36,7 @@
   padding: 8px 16px;
 }
 
-#hud-comp-track.has-bg:not(.docked-bottom) {
+#hud-comp-track.has-bg:not(.docked-bottom):not(.docked-top) {
   padding-bottom: 6px;
 }
 
@@ -176,6 +176,32 @@ body.edit-mode .hud-resize-handle {
     rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.82)) 100%
   ) !important;
   box-shadow: 0 -8px 28px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65)) !important;
+}
+
+/* Docked Top state for Track (mirror of the bottom dock) */
+#hud-comp-track.docked-top {
+  position: absolute;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: auto !important;
+  width: 100% !important;
+  border-radius: 0 !important;
+}
+
+#hud-comp-track.docked-top.has-bg {
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(148, 163, 184, calc(var(--bg-opacity, 0.55) * 0.35)) !important;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 15, 30, calc(var(--bg-opacity, 0.55) * 1.15)) 0%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.95)) 70%,
+    rgba(15, 23, 42, calc(var(--bg-opacity, 0.55) * 0.82)) 100%
+  ) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65)) !important;
 }
 
 /* Docked Left & Right states for Vertical Track */

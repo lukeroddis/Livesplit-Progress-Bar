@@ -3,7 +3,7 @@
  * 
  * Encapsulates:
  * - Track styling defaults (bar height, dot size, typography, ghost pin length/size, backgrounds)
- * - Orientation transitions (horizontal docked-bottom vs vertical docked-left/right)
+ * - Orientation transitions (horizontal docked-top/bottom vs vertical docked-left/right)
  * - Positional label mapping (top/bottom <-> left/right) and opposing angled text guarantees
  * - Dynamic CSS variable injection (--bar-height, --dot-size, --name-font-size, etc.)
  * - Split density preference management ("all", "auto", 2..60)
@@ -142,7 +142,7 @@
       currentTrackStyle.deltaPos = mapped.deltaPos;
 
       if (mapped.orientation === "vertical") {
-        if (layoutState && layoutState.track && layoutState.track.docked === "bottom") {
+        if (layoutState && layoutState.track && (layoutState.track.docked === "bottom" || layoutState.track.docked === "top")) {
           layoutState.track.docked = "left";
           layoutState.track.x = 0;
           layoutState.track.y = 0;

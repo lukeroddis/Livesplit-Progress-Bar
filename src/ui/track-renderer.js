@@ -163,7 +163,7 @@
     const trackComp = document.getElementById("hud-comp-track");
     const isVertical = track?.classList.contains("vertical");
     const isDockedVertical = isVertical && (trackComp?.classList.contains("docked-left") || trackComp?.classList.contains("docked-right"));
-    const isDockedHorizontal = !isVertical && trackComp?.classList.contains("docked-bottom");
+    const isDockedHorizontal = !isVertical && (trackComp?.classList.contains("docked-bottom") || trackComp?.classList.contains("docked-top"));
 
     const viewportW = (isDockedHorizontal && (!viewport || viewport.clientWidth < 500))
       ? (window.innerWidth || 1920)

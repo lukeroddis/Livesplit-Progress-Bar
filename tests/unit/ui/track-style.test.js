@@ -147,6 +147,10 @@
         assertEqual(style.orientation, "horizontal", "style orientation is horizontal");
         assertEqual(layoutState.track.docked, "bottom", "track docked to bottom");
         assertEqual(fits, 2, "the track is fitted back on screen after each switch");
+
+        layoutState.track.docked = "top";
+        engine.setOrientation("vertical");
+        assertEqual(layoutState.track.docked, "left", "a top dock becomes a left dock");
       });
     });
   });

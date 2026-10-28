@@ -479,10 +479,12 @@
       const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
       const dockBtn = document.getElementById("btn-dock-track");
 
-      el.classList.remove("docked-bottom", "docked-left", "docked-right");
+      el.classList.remove("docked-bottom", "docked-top", "docked-left", "docked-right");
+      const isDocked = !!state.docked && state.docked !== "none";
+      const side = isDocked ? window.LiveSplit.LayoutDrag.effectiveDockSide(state.docked, isVert) : "none";
 
       if (isVert) {
-        if (state.docked === "left" || state.docked === "bottom") {
+        if (side === "left") {
           el.classList.add("docked-left");
           el.style.left = "0px";
           el.style.right = "auto";
@@ -493,7 +495,7 @@
           el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
           el.style.transformOrigin = "top left";
           if (dockBtn) dockBtn.innerText = "⚓ Docked";
-        } else if (state.docked === "right") {
+        } else if (side === "right") {
           el.classList.add("docked-right");
           el.style.right = "0px";
           el.style.left = "auto";
@@ -519,16 +521,16 @@
         return;
       }
 
-      if (state.docked === "bottom" || state.docked === "left" || state.docked === "right") {
-        el.classList.add("docked-bottom");
+      if (side === "top" || side === "bottom") {
+        el.classList.add(side === "top" ? "docked-top" : "docked-bottom");
         el.style.left = "0px";
         el.style.right = "auto";
-        el.style.top = "";
-        el.style.bottom = "0px";
+        el.style.top = side === "top" ? "0px" : "";
+        el.style.bottom = side === "top" ? "" : "0px";
         el.style.width = "100%";
         el.style.height = "";
         el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
-        el.style.transformOrigin = "bottom center";
+        el.style.transformOrigin = `${side} center`;
         if (dockBtn) dockBtn.innerText = "⚓ Docked";
       } else {
         el.style.left = `${state.x}px`;
