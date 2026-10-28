@@ -116,6 +116,26 @@
       assertEqual([track.style.left, track.style.top], ["40px", "300px"]);
       assert(/100vw/.test(track.style.width) && /40px/.test(track.style.width), `width spans the rest of the screen (got ${track.style.width})`);
       assertEqual(el("btn-dock-track").innerText, "⛵ Float");
+
+      state.track.width = 700;
+      HL().applyComponentLayout("track");
+      assertEqual(track.style.width, "700px", "a frozen width no longer depends on x");
+      delete state.track.width;
+    }));
+
+    it("fitTrackOnScreen pulls an oversized track back on screen and saves", () => withHud(({ el, state, style }) => {
+      style.orientation = "horizontal";
+      const w = window.innerWidth;
+      Object.assign(state.track, { docked: "none", scale: 1.5, x: w - 100, y: 10, width: 400 });
+      HL().applyComponentLayout("track");
+      HL().fitTrackOnScreen();
+      assertEqual([state.track.x, state.track.scale], [Math.max(0, w - 600), Math.min(1.5, Math.floor((w / 400) * 100) / 100)], "moved left so its 600px box fits");
+      assertEqual(el("hud-comp-track").style.left, `${state.track.x}px`, "re-rendered");
+      assertEqual(JSON.parse(localStorage.getItem(KEYS.HUD_LAYOUT)).track.x, state.track.x, "saved");
+
+      const before = localStorage.getItem(KEYS.HUD_LAYOUT);
+      HL().fitTrackOnScreen();
+      assertEqual(localStorage.getItem(KEYS.HUD_LAYOUT), before, "nothing to do once it fits");
     }));
 
     it("docks the vertical track left or right, or floats it", () => withHud(({ el, state, style }) => {
@@ -136,6 +156,11 @@
       HL().applyComponentLayout("track");
       assertEqual([track.style.left, track.style.top], ["60px", "20px"]);
       assertEqual(el("btn-dock-track").innerText, "⛵ Float");
+
+      state.track.height = 450;
+      HL().applyComponentLayout("track");
+      assertEqual(track.style.height, "450px", "a frozen height no longer depends on y");
+      delete state.track.height;
     }));
 
     it("positions the timers from their right edge when right-anchored, left edge when left-anchored", () => withHud(({ el, state }) => {

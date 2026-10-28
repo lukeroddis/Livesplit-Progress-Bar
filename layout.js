@@ -148,6 +148,7 @@
         applyComponentLayout: (id) => applyComponentLayout(id),
         syncTrackModalUI,
         removeGameLogo,
+        fitTrackOnScreen,
         storageKey: TRACK_STYLE_KEY
       });
     }
@@ -415,6 +416,28 @@
     }
   }
 
+  // Moves/shrinks the track back on screen so its resize handle stays reachable (e.g. after an
+  // orientation switch kept a scale that suited the other shape)
+  function fitTrackOnScreen() {
+    const el = document.getElementById("hud-comp-track");
+    const state = layoutState && layoutState.track;
+    const drag = window.LiveSplit.LayoutDrag;
+    if (!el || !state || !drag) return;
+    const w = window.innerWidth || 1920;
+    const h = window.innerHeight || 1080;
+    const fits = (f) => f.x === state.x && f.y === state.y && f.scale === state.scale;
+    if (fits(drag.fitTrackBox(state, el.offsetWidth, el.offsetHeight, w, h))) return;
+
+    // A floating track's size follows its position, so fix it before moving it
+    if (!state.docked || state.docked === "none") {
+      drag.freezeTrackSize(state, el, !!(currentTrackStyle && currentTrackStyle.orientation === "vertical"));
+      applyComponentLayout("track");
+    }
+    Object.assign(state, drag.fitTrackBox(state, el.offsetWidth, el.offsetHeight, w, h));
+    applyComponentLayout("track");
+    saveLayout();
+  }
+
   function applyComponentLayout(compId) {
     const el = document.getElementById(`hud-comp-${compId}`);
     if (!el) return;
@@ -487,7 +510,8 @@
           el.style.bottom = "";
           el.style.right = "";
           el.style.width = "340px";
-          el.style.height = `${Math.min(h - state.y, 800)}px`;
+          // A size frozen by dragging/scaling wins; until then it fills down from its position
+          el.style.height = `${state.height > 0 ? state.height : Math.min(h - state.y, 800)}px`;
           el.style.transform = `scale(${state.scale})`;
           el.style.transformOrigin = "top left";
           if (dockBtn) dockBtn.innerText = "⛵ Float";
@@ -511,7 +535,8 @@
         el.style.top = `${state.y}px`;
         el.style.bottom = "";
         el.style.right = "";
-        el.style.width = `calc(100vw - ${Math.max(0, state.x)}px)`;
+        // A size frozen by dragging/scaling wins; until then it fills to the right edge
+        el.style.width = state.width > 0 ? `${state.width}px` : `calc(100vw - ${Math.max(0, state.x)}px)`;
         el.style.height = "";
         el.style.transform = `scale(${state.scale})`;
         el.style.transformOrigin = "top left";
@@ -700,6 +725,7 @@
     syncTrackModalUI,
     setVisibleSplits,
     setTrackOrientation,
+    fitTrackOnScreen,
     setEditMode,
     isEditMode: () => isEditMode,
     resetLayout,

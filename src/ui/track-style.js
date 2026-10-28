@@ -73,6 +73,7 @@
       applyComponentLayout = () => {},
       syncTrackModalUI = () => {},
       removeGameLogo = () => {},
+      fitTrackOnScreen = () => {},
       storageKey = TRACK_STYLE_KEY
     } = options;
 
@@ -158,6 +159,8 @@
 
       applyComponentLayout("track");
       applyStyle();
+      // The old orientation's scale can push the new shape off screen (e.g. a scaled-up bar turned upright)
+      fitTrackOnScreen();
       saveStyle(currentTrackStyle);
       syncTrackModalUI();
 

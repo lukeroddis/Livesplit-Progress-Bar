@@ -6,7 +6,8 @@
  * - Touch & mouse unified drag positioning with pointer capture
  * - Proportional scaling via scale handle drag (clamped 0.4x to 2.5x)
  * - Viewport boundary clamping and coordinate rounding
- * - Free track dragging (docking only via the dock button; dragging a docked track undocks it)
+ * - Free track dragging (docking only via the dock button; dragging a docked track undocks it),
+ *   keeping its size fixed and the whole scaled track (and its resize handle) on screen
  * - Dedicated leaderboard header drag support
  * - Dock toggle button handling (#btn-dock-track)
  */
@@ -34,6 +35,68 @@
     return Math.round(newScale * 100) / 100;
   }
 
+  /**
+   * Clamps a box's top-left so the whole box (boxW x boxH, already scaled) stays on screen.
+   * A box larger than the viewport is pinned to 0 on that axis.
+   */
+  function clampBoxToViewport(x, y, boxW, boxH, viewportWidth, viewportHeight) {
+    return {
+      x: Math.round(Math.max(0, Math.min(viewportWidth - boxW, x))),
+      y: Math.round(Math.max(0, Math.min(viewportHeight - boxH, y)))
+    };
+  }
+
+  /**
+   * Largest scale (floored to 0.01, within 0.4x-2.5x) at which a top-left-anchored box of unscaled
+   * size baseW x baseH placed at (x, y) still fits on screen, so its resize handle stays reachable.
+   */
+  function maxScaleToFit(x, y, baseW, baseH, viewportWidth, viewportHeight) {
+    const fits = [2.5];
+    if (baseW > 0) fits.push((viewportWidth - x) / baseW);
+    if (baseH > 0) fits.push((viewportHeight - y) / baseH);
+    return Math.max(0.4, Math.floor(Math.min(...fits) * 100) / 100);
+  }
+
+  function isTrackFloating(state) {
+    return !state.docked || state.docked === "none";
+  }
+
+  /**
+   * Largest scale at which the track (unscaled baseW x baseH) stays on screen: a floating track from
+   * its position, a docked one (already spanning the screen edge to edge) anywhere.
+   */
+  function maxTrackScale(state, baseW, baseH, viewportWidth, viewportHeight) {
+    return isTrackFloating(state)
+      ? maxScaleToFit(state.x, state.y, baseW, baseH, viewportWidth, viewportHeight)
+      : maxScaleToFit(0, 0, baseW, baseH, viewportWidth, viewportHeight);
+  }
+
+  /**
+   * Moves a floating track back on screen, then shrinks it if it is still too big, so its resize
+   * handle is always reachable (e.g. after an orientation switch). Returns { x, y, scale }.
+   */
+  function fitTrackBox(state, baseW, baseH, viewportWidth, viewportHeight) {
+    const scale = state.scale || 1;
+    const pos = isTrackFloating(state)
+      ? clampBoxToViewport(state.x, state.y, baseW * scale, baseH * scale, viewportWidth, viewportHeight)
+      : { x: state.x, y: state.y };
+    const maxScale = maxTrackScale(Object.assign({}, state, pos), baseW, baseH, viewportWidth, viewportHeight);
+    return { x: pos.x, y: pos.y, scale: Math.min(scale, maxScale) };
+  }
+
+  /**
+   * Fixes a floating track's stretched dimension (horizontal width / vertical height) at its current
+   * unscaled size. Floating, it otherwise fills to the screen edge from its position, so moving it
+   * resized it.
+   */
+  function freezeTrackSize(state, el, isVertical) {
+    if (isVertical) {
+      if (el.offsetHeight > 0) state.height = el.offsetHeight;
+    } else if (el.offsetWidth > 0) {
+      state.width = el.offsetWidth;
+    }
+  }
+
   function createLayoutDrag(options = {}) {
     const {
       getLayoutState = () => ({}),
@@ -49,6 +112,11 @@
 
     function getActiveOp() {
       return activePointerOp;
+    }
+
+    function isVerticalTrack() {
+      const style = getCurrentTrackStyle();
+      return !!(style && style.orientation === "vertical");
     }
 
     function initPointerListeners() {
@@ -69,6 +137,8 @@
           el.classList.add("is-dragging");
 
           const state = getLayoutState()[id];
+          if (id === "track" && state) freezeTrackSize(state, el, isVerticalTrack());
+          const scale = (state && state.scale) || 1;
           activePointerOp = {
             type: "drag",
             compId: id,
@@ -78,6 +148,8 @@
             startY: e.clientY,
             origX: el.offsetLeft,
             origY: el.offsetTop,
+            boxW: el.offsetWidth * scale,
+            boxH: el.offsetHeight * scale,
             wasDocked: state ? state.docked : "none"
           };
         });
@@ -93,6 +165,7 @@
             el.classList.add("is-scaling");
 
             const state = getLayoutState()[id];
+            if (id === "track" && state) freezeTrackSize(state, el, isVerticalTrack());
             activePointerOp = {
               type: "scale",
               compId: id,
@@ -100,6 +173,8 @@
               element: el,
               resizeHandle: resizeHandle,
               startX: e.clientX,
+              baseW: el.offsetWidth,
+              baseH: el.offsetHeight,
               origScale: state ? state.scale : 1
             };
           });
@@ -167,6 +242,7 @@
               state.docked = "none";
               state.x = 42;
               state.y = 80;
+              delete state.height;
             } else {
               state.docked = "left";
               state.x = 0;
@@ -177,6 +253,7 @@
               state.docked = "none";
               state.x = 42;
               state.y = Math.max(0, h - 150);
+              delete state.width;
             } else {
               state.docked = "bottom";
               state.x = 0;
@@ -205,13 +282,17 @@
           const dx = e.clientX - activePointerOp.startX;
           const dy = e.clientY - activePointerOp.startY;
 
-          const newX = Math.max(0, Math.min(w - 80, activePointerOp.origX + dx));
-          const newY = Math.max(0, Math.min(h - 50, activePointerOp.origY + dy));
+          let newX = Math.max(0, Math.min(w - 80, activePointerOp.origX + dx));
+          let newY = Math.max(0, Math.min(h - 50, activePointerOp.origY + dy));
 
           // The track moves freely: no edge snapping. Docking is only done via the dock button,
-          // and dragging a docked track floats it from where it is.
+          // and dragging a docked track floats it from where it is. It stays fully on screen.
           if (activePointerOp.compId === "track") {
             state.docked = "none";
+            const pos = clampBoxToViewport(activePointerOp.origX + dx, activePointerOp.origY + dy,
+              activePointerOp.boxW, activePointerOp.boxH, w, h);
+            newX = pos.x;
+            newY = pos.y;
           }
 
           state.x = Math.round(newX);
@@ -224,7 +305,12 @@
           applyComponentLayout(activePointerOp.compId);
         } else if (activePointerOp.type === "scale") {
           const dx = e.clientX - activePointerOp.startX;
-          state.scale = computeScale(activePointerOp.origScale, dx);
+          let scale = computeScale(activePointerOp.origScale, dx);
+          // The track may not grow past the screen edge, which would hide its resize handle
+          if (activePointerOp.compId === "track") {
+            scale = Math.min(scale, maxTrackScale(state, activePointerOp.baseW, activePointerOp.baseH, w, h));
+          }
+          state.scale = scale;
           applyComponentLayout(activePointerOp.compId);
         }
       });
@@ -277,6 +363,11 @@
   window.LiveSplit.LayoutDrag = {
     clampCoordinates,
     computeScale,
+    clampBoxToViewport,
+    maxScaleToFit,
+    maxTrackScale,
+    fitTrackBox,
+    freezeTrackSize,
     createLayoutDrag
   };
 })();

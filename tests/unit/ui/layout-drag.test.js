@@ -47,6 +47,45 @@
       assertEqual(scaleFn(2.0, 300), 2.5, "scale clamped to max 2.5");
     });
 
+    it("clamps a whole box to the viewport, pinning oversized boxes to 0", () => {
+      const clampBox = window.LiveSplit.LayoutDrag.clampBoxToViewport;
+      assertEqual(clampBox(50, 60, 200, 100, 1000, 800), { x: 50, y: 60 }, "inside stays put");
+      assertEqual(clampBox(950, 790, 200, 100, 1000, 800), { x: 800, y: 700 }, "right/bottom edges keep the box on screen");
+      assertEqual(clampBox(-20, -5, 200, 100, 1000, 800), { x: 0, y: 0 }, "left/top edges");
+      assertEqual(clampBox(300, 10, 1500, 100, 1000, 800), { x: 0, y: 10 }, "box wider than the screen pins to x = 0");
+    });
+
+    it("computes the largest scale that keeps a box on screen", () => {
+      const maxFit = window.LiveSplit.LayoutDrag.maxScaleToFit;
+      assertEqual(maxFit(0, 0, 100, 100, 1000, 800), 2.5, "never above 2.5x");
+      assertEqual(maxFit(400, 0, 400, 50, 1000, 800), 1.5, "limited by the right edge");
+      assertEqual(maxFit(0, 700, 100, 60, 1000, 800), 1.66, "limited by the bottom edge, floored");
+      assertEqual(maxFit(950, 0, 400, 50, 1000, 800), 0.4, "never below 0.4x");
+    });
+
+    it("fits a track back on screen: floating ones move first, then shrink; docked ones only shrink", () => {
+      const fit = window.LiveSplit.LayoutDrag.fitTrackBox;
+      assertEqual(fit({ docked: "none", x: 100, y: 50, scale: 1 }, 400, 100, 1000, 800), { x: 100, y: 50, scale: 1 }, "already fits");
+      assertEqual(fit({ docked: "none", x: 900, y: 750, scale: 1 }, 400, 100, 1000, 800), { x: 600, y: 700, scale: 1 }, "moved back on screen");
+      assertEqual(fit({ docked: "none", x: 900, y: 0, scale: 2 }, 600, 100, 1000, 800), { x: 0, y: 0, scale: 1.66 }, "too big even at x=0: shrunk");
+      assertEqual(fit({ docked: "left", x: 0, y: 0, scale: 2 }, 340, 800, 1000, 800), { x: 0, y: 0, scale: 1 }, "docked full height: back to 1x");
+      assertEqual(fit({ docked: "bottom", x: 0, y: 710, scale: 0.8 }, 1000, 90, 1000, 800), { x: 0, y: 710, scale: 0.8 }, "a shrunk dock is left alone");
+    });
+
+    it("freezes only the track's stretched dimension", () => {
+      const freeze = window.LiveSplit.LayoutDrag.freezeTrackSize;
+      const el = { offsetWidth: 640, offsetHeight: 480 };
+      const horiz = {};
+      freeze(horiz, el, false);
+      assertEqual(horiz, { width: 640 });
+      const vert = {};
+      freeze(vert, el, true);
+      assertEqual(vert, { height: 480 });
+      const unmeasured = { width: 300 };
+      freeze(unmeasured, { offsetWidth: 0, offsetHeight: 0 }, false);
+      assertEqual(unmeasured, { width: 300 }, "a hidden (0-size) element keeps the old size");
+    });
+
     it("initializes drag engine and manages active pointer operation", () => {
       let isEditing = true;
       const mockLayoutState = {
@@ -72,7 +111,9 @@
         <div class="hud-resize-handle"></div>
       </div>
       <div id="hud-comp-timers" style="position: absolute; left: 400px; top: 50px; width: 300px; height: 60px;"></div>
-      <div id="hud-comp-track" style="position: absolute; left: 0px; top: 300px; width: 600px; height: 60px;"></div>
+      <div id="hud-comp-track" style="position: absolute; left: 0px; top: 300px; width: 600px; height: 60px;">
+        <div class="hud-resize-handle"></div>
+      </div>
       <div id="hud-comp-leaderboard" style="position: absolute; left: 20px; top: 120px; width: 300px; height: 200px;">
         <div class="leaderboard-header">Standings <span class="leaderboard-status">LIVE</span><button id="ld-lb-btn">x</button></div>
       </div>
@@ -175,9 +216,11 @@
 
     it("drags the horizontal track freely near the screen bottom without docking", () => withHud(({ dom, layout, down, move }) => {
       down(dom.el("hud-comp-track"), 10, 310);
-      move(210, 99999);
+      move(60, 99999);
       assertEqual(layout.track.docked, "none", "no bottom snap");
-      assertEqual([layout.track.x, layout.track.y], [200, window.innerHeight - 50], "keeps its x, clamped to the bottom");
+      assertEqual([layout.track.x, layout.track.y], [50, window.innerHeight - 60], "keeps its x, whole track clamped above the bottom");
+      assertEqual(layout.track.width, 600, "width frozen so moving never resizes it");
+      assertEqual(layout.track.height, undefined, "horizontal height stays content-sized");
     }));
 
     it("drags the vertical track freely along the side edges without docking", () => withHud(({ dom, layout, down, move }) => {
@@ -185,8 +228,34 @@
       move(-500, 210);
       assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 0, 200], "left edge keeps its height");
       move(5000, 210);
-      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", window.innerWidth - 80, 200], "right edge keeps its height");
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", Math.max(0, window.innerWidth - 600), 200], "whole track stays on screen at the right edge");
+      assertEqual(layout.track.height, 60, "height frozen so moving never resizes it");
     }, { orientation: "vertical" }));
+
+    it("keeps a scaled-up track fully on screen while dragging", () => withHud(({ dom, layout, down, move }) => {
+      layout.track.scale = 1.5;
+      down(dom.el("hud-comp-track"), 10, 310);
+      move(99999, 99999);
+      assertEqual([layout.track.x, layout.track.y],
+        [Math.max(0, window.innerWidth - 900), Math.max(0, window.innerHeight - 90)], "clamped by its scaled 900x90 box");
+    }));
+
+    it("caps the floating track's scale so its resize handle stays on screen", () => withHud(({ dom, layout, down, move, up }) => {
+      const track = dom.el("hud-comp-track");
+      down(track.querySelector(".hud-resize-handle"), 600, 350);
+      move(99999, 350);
+      const cap = window.LiveSplit.LayoutDrag.maxScaleToFit(0, 300, 600, 60, window.innerWidth, window.innerHeight);
+      assertEqual(layout.track.scale, cap, "scale capped at the largest size that fits");
+      assertEqual(layout.track.width, 600, "scaling freezes the width too");
+      up(99999, 350);
+
+      layout.track.docked = "bottom";
+      layout.track.scale = 1;
+      down(track.querySelector(".hud-resize-handle"), 600, 350);
+      move(99999, 350);
+      assertEqual(layout.track.scale, window.LiveSplit.LayoutDrag.maxScaleToFit(0, 0, 600, 60, window.innerWidth, window.innerHeight),
+        "a docked track is capped by its own size, wherever it sits");
+    }));
 
     it("dragging a docked track floats it", () => withHud(({ dom, layout, down, move }) => {
       layout.track.docked = "left";
@@ -224,12 +293,14 @@
 
     it("the dock button toggles the horizontal track between bottom dock and floating", () => withTrackRefreshStubs((calls) => withHud(({ dom, layout, log }) => {
       const btn = dom.el("btn-dock-track");
+      layout.track.width = 500;
       btn.click();
       assertEqual(layout.track.docked, "bottom");
       assertEqual([layout.track.x, layout.track.y], [0, Math.max(0, window.innerHeight - 90)]);
       btn.click();
       assertEqual(layout.track.docked, "none");
       assertEqual([layout.track.x, layout.track.y], [42, Math.max(0, window.innerHeight - 150)]);
+      assertEqual(layout.track.width, undefined, "floating from the dock fills to the right edge again");
       assertEqual(log.saves, 2);
       assertEqual(log.applied, ["track", "track"]);
       assertEqual(calls, ["refresh", "refresh"], "track re-rendered after each toggle");
@@ -237,10 +308,12 @@
 
     it("the dock button toggles the vertical track between left dock and floating", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {
       const btn = dom.el("btn-dock-track");
+      layout.track.height = 400;
       btn.click();
       assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["left", 0, 0]);
       btn.click();
       assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 42, 80]);
+      assertEqual(layout.track.height, undefined, "floating from the dock fills downward again");
     }, { orientation: "vertical" })));
   });
 })();

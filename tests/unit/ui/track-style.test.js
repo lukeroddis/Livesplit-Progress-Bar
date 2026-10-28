@@ -124,11 +124,13 @@
         const layoutState = {
           track: { docked: "bottom", x: 0, y: 990 }
         };
+        let fits = 0;
 
         const engine = window.LiveSplit.TrackStyle.createTrackStyle({
           getCurrentStyle: () => style,
           setCurrentStyle: (s) => { style = s; },
-          getLayoutState: () => layoutState
+          getLayoutState: () => layoutState,
+          fitTrackOnScreen: () => { fits++; }
         });
 
         engine.setOrientation("vertical");
@@ -144,6 +146,7 @@
         engine.setOrientation("horizontal");
         assertEqual(style.orientation, "horizontal", "style orientation is horizontal");
         assertEqual(layoutState.track.docked, "bottom", "track docked to bottom");
+        assertEqual(fits, 2, "the track is fitted back on screen after each switch");
       });
     });
   });
