@@ -33,6 +33,9 @@
     GHOST_OPACITY: "livesplit_ghost_opacity",
     RACE_PINS_VISIBLE: "livesplit_race_pins_visible",
     THERUN_USERNAME: "therun_username",
+    // OBS dock bridge (dock.html writes commands, the overlay writes status)
+    DOCK_COMMAND: "livesplit_dock_command",
+    DOCK_STATUS: "livesplit_dock_status",
 
     // Timing & comparison preferences
     TIMER_DISPLAY_MODE: "livesplit_timer_display_mode",

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
 
@@ -44,9 +45,23 @@ function singleFileEntryPlugin() {
   };
 }
 
+/**
+ * Copies dock.html (the optional OBS Custom Browser Dock, already a single
+ * self-contained page) into dist/ next to index.html.
+ */
+function dockPagePlugin() {
+  return {
+    name: "livesplit-dock-page",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "dock.html", source: readFileSync(new URL("./dock.html", import.meta.url), "utf8") });
+    }
+  };
+}
+
 export default defineConfig({
   base: "./",
-  plugins: [singleFileEntryPlugin(), viteSingleFile()],
+  plugins: [singleFileEntryPlugin(), viteSingleFile(), dockPagePlugin()],
   build: {
     target: "es2020",
     cssCodeSplit: false,

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!--
+  dock.html - Experimental OBS Custom Browser Dock for the race code.
+
+  Add it in OBS via Docks > Custom Browser Docks, using a file:/// URL to this file.
+  It talks to the overlay through localStorage (see src/ui/race-dock-bridge.js), so
+  the overlay's browser source must use the same kind of URL (file:///...) for both
+  pages to share storage. The status line shows whether the overlay is reachable.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Race Dock</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; padding: 10px; background: #1e1f22; color: #e2e8f0;
+      font: 13px/1.4 system-ui, "Segoe UI", sans-serif;
+    }
+    .row { display: flex; gap: 6px; margin-bottom: 8px; }
+    input {
+      flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid #3f4248; border-radius: 4px;
+      background: #111214; color: inherit; font: inherit;
+    }
+    button {
+      padding: 6px 10px; border: 1px solid #3f4248; border-radius: 4px; background: #2b2d31;
+      color: inherit; font: inherit; cursor: pointer;
+    }
+    button:hover { background: #35373c; }
+    #btn-disconnect { color: #f87171; }
+    .status { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #64748b; flex: none; }
+    .dot.ok { background: #4ade80; }
+    .dot.warn { background: #f59e0b; }
+    .dot.bad { background: #ef4444; }
+    .muted { color: #94a3b8; font-size: 11px; margin-top: 6px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <input id="race-code" type="text" placeholder="Race code" autocomplete="off" spellcheck="false">
+    <button id="btn-connect">Connect</button>
+  </div>
+  <div class="row">
+    <button id="btn-disconnect">Disconnect</button>
+  </div>
+  <div class="status"><span id="dot" class="dot"></span><span id="status">Waiting for overlay…</span></div>
+  <div id="detail" class="muted"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // Must match Storage.KEYS.DOCK_COMMAND / DOCK_STATUS in src/core/storage.js
+      const COMMAND_KEY = "livesplit_dock_command";
+      const STATUS_KEY = "livesplit_dock_status";
+      const STALE_MS = 6000;
+
+      const codeInp = document.getElementById("race-code");
+      const dot = document.getElementById("dot");
+      const statusEl = document.getElementById("status");
+      const detailEl = document.getElementById("detail");
+      let pendingId = null;
+
+      function readStatus() {
+        try { return JSON.parse(localStorage.getItem(STATUS_KEY) || "null"); } catch (_) { return null; }
+      }
+
+      function render() {
+        const s = readStatus();
+        const age = s && typeof s.at === "number" ? Date.now() - s.at : Infinity;
+        detailEl.textContent = "Dock origin: " + location.origin + (location.protocol === "file:" ? " (file)" : "");
+
+        if (!s || age > STALE_MS) {
+          dot.className = "dot bad";
+          statusEl.textContent = s ? "Overlay not seen for " + Math.round(age / 1000) + "s" : "Overlay not found (no shared storage yet)";
+          return;
+        }
+        const labels = { connected: "Connected: " + s.raceId, standby: "Standby", sim: "Test race running", off: "Not connected" };
+        dot.className = "dot " + (s.state === "connected" || s.state === "sim" ? "ok" : s.state === "standby" ? "warn" : "");
+        let text = "Overlay linked · " + (labels[s.state] || s.state);
+        if (pendingId !== null && s.lastCommandId === pendingId && s.lastResult) text += " (" + s.lastResult + ")";
+        statusEl.textContent = text;
+      }
+
+      function send(action, code) {
+        pendingId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+        try {
+          localStorage.setItem(COMMAND_KEY, JSON.stringify({ action, code: code || "", id: pendingId }));
+        } catch (e) {
+          statusEl.textContent = "Could not write storage: " + e.message;
+          dot.className = "dot bad";
+        }
+      }
+
+      document.getElementById("btn-connect").addEventListener("click", () => {
+        const code = codeInp.value.trim();
+        if (!/^[a-zA-Z0-9_-]{2,24}$/.test(code)) {
+          statusEl.textContent = "Enter a valid race code";
+          dot.className = "dot warn";
+          return;
+        }
+        send("connect", code);
+      });
+      codeInp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("btn-connect").click();
+      });
+      document.getElementById("btn-disconnect").addEventListener("click", () => send("disconnect"));
+
+      window.addEventListener("storage", (e) => { if (e.key === STATUS_KEY) render(); });
+      setInterval(render, 1000);
+      render();
+    })();
+  </script>
+</body>
+</html>

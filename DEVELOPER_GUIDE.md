@@ -47,6 +47,7 @@
      - [`track-scroll.js`](src/ui/track-scroll.js): Mouse wheel and arrow-key track scrolling (windowed or native scroll).
      - [`ghost-runner.js`](src/ui/ghost-runner.js): Active ghost selection/opacity, on-track ghost markers, race pin rendering hand-off, off-screen edge pills, leaderboard refresh.
      - [`race-controls.js`](src/ui/race-controls.js): Race settings controls (standings/pins toggles, connect/disconnect with cooldown, test race) and race client event handling.
+     - [`race-dock-bridge.js`](src/ui/race-dock-bridge.js): Experimental OBS Custom Browser Dock bridge: hears connect/disconnect commands from [`dock.html`](dock.html) via localStorage `storage` events (`DOCK_COMMAND`) and publishes race status plus a 2s heartbeat (`DOCK_STATUS`).
      - [`ws-log-panel.js`](src/ui/ws-log-panel.js): Dev-mode race WebSocket telemetry log modal.
      - [`settings-menu.js`](src/ui/settings-menu.js): Draggable quick-settings panel, position persistence and open/close toggle.
      - [`dev-mode.js`](src/ui/dev-mode.js): Developer mode gating (`?dev`/`?debug`, Ctrl+Shift+D, version 5-click).

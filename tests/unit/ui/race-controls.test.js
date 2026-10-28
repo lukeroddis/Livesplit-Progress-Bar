@@ -248,6 +248,25 @@
       rc.emit("entrant_mute_changed", null);
     }));
 
+    it("returns actions that connect to a new code and disconnect", () => {
+      const dom = mountHtml(CONTROLS_HTML);
+      const rc = makeRaceClient();
+      try {
+        withFakeTimers(() => stubWindow({ hudLayout: undefined }, () => {
+          const controls = window.LiveSplit.RaceControls.bindRaceControls({ raceClient: rc });
+          controls.connectWithCode(" first ");
+          controls.connectWithCode("second");
+          assertEqual(rc.calls.filter((c) => c[0] !== "resetCooldown" && c[0] !== "standby"),
+            [["connect", "first"], ["disconnect"], ["connect", "second"]], "leaves the current race first");
+          assertEqual(dom.el("input-therun-race-code").value, "second");
+          controls.disconnect();
+          assertEqual(rc.connected, false);
+        }));
+      } finally {
+        dom.remove();
+      }
+    });
+
     it("without a race client only the standings toggle is wired", () => {
       const dom = mountHtml(CONTROLS_HTML);
       try {

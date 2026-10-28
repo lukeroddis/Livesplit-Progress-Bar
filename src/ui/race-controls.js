@@ -49,6 +49,8 @@
   }
 
   /**
+   * Returns the race actions other controllers can drive (the OBS dock bridge),
+   * or null without a race client.
    * @param {Object} options
    * @param {Object|null} options.raceClient
    * @param {Function} options.refreshLeaderboard
@@ -88,7 +90,7 @@
       });
     }
 
-    if (!raceClient) return;
+    if (!raceClient) return null;
 
     let connectCooldownInterval = null;
 
@@ -325,6 +327,16 @@
         syncConnectBtnState();
       }
     });
+
+    return {
+      /** Connects to `code` (leaving any current race first), as if typed into the settings field. */
+      connectWithCode(code) {
+        if (isActiveOrStandby()) handleRaceDisconnect();
+        if (therunRaceCodeInp) therunRaceCodeInp.value = String(code || "").trim();
+        handleManualRaceConnect();
+      },
+      disconnect: handleRaceDisconnect
+    };
   }
 
   window.LiveSplit = window.LiveSplit || {};
