@@ -60,6 +60,8 @@
    * @property {string|null} raceId - therun.gg room id, or RaceSimulation.SIM_RACE_ID
    * @property {WebSocket|null} ws - Room socket (null for the simulation)
    * @property {number|null} heartbeatTimer
+   * @property {number|null} reconnectTimer - Pending reopen of a room socket the server closed
+   * @property {number} reconnectAttempts - Reopens since the room socket last connected (backoff)
    * @property {boolean} isExternalLiveSplitConnected - The overlay is feeding host progress from LiveSplit
    * @property {boolean} racePinsVisible - Global race pin toggle (persisted)
    * @property {string} hostUsername - therun.gg username used to match the host entrant
@@ -151,6 +153,8 @@
       raceId: null,
       ws: null,
       heartbeatTimer: null,
+      reconnectTimer: null,
+      reconnectAttempts: 0,
       isExternalLiveSplitConnected: false,
       racePinsVisible: loadRacePinsVisible(),
 

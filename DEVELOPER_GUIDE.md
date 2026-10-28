@@ -37,7 +37,7 @@
      - [`race-state.js`](src/core/race-state.js): Per-client race state, host runner defaults (`createHostState`), shared runner resets, `isLiveRoom`. JSDoc typedefs: `RaceState`, `Runner`, `RaceEvent`.
      - [`race-identity.js`](src/core/race-identity.js): Username / race code validation and the stored therun username.
      - [`race-host.js`](src/core/race-host.js): Host progress from LiveSplit, undo, DNF, username matching, timing method, reset.
-     - [`race-connection.js`](src/core/race-connection.js): therun.gg REST snapshot, room WebSocket and protocol hand-off.
+     - [`race-connection.js`](src/core/race-connection.js): therun.gg REST snapshot, room WebSocket (reopened with backoff if the server drops it, so a rematch in the same room is still heard) and protocol hand-off.
      - `race-protocol.js`, `race-ranking.js`, `race-discovery.js`, `race-logger.js`: message parsing, F1 standings/gaps, auto-detect/standby, WS log.
      - [`race-simulation.js`](src/core/race-simulation.js): Offline race engine (start/stop/standby/reset/undo, 50ms loop, `SIM_RACE_ID`) composing [`race-sim-roster.js`](src/core/race-sim-roster.js) (rival presets + pure `buildCompetitorEntrant`), [`race-sim-lobby.js`](src/core/race-sim-lobby.js) (lobby schedules, countdown, `startRaceNow`) and [`race-sim-pacing.js`](src/core/race-sim-pacing.js) (rival pacing, virtual host). The race client reads the running course via `getSimulationCourseTargets()`.
    - **`src/ui/` Interface & Layout Modules**:

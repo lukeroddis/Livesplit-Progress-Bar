@@ -673,5 +673,81 @@
         rc.clearWebSocketLogs();
         assertEqual(rc.getWebSocketLogs().length, 0, "Logs cleared successfully");
       });
+
+      describe("room socket dropped by the server", () => {
+        function withFakeRoom(fn) {
+          const sockets = [];
+          function FakeSocket(url) {
+            this.url = url;
+            this.readyState = 0;
+            this.close = () => { this.readyState = 3; };
+            sockets.push(this);
+          }
+          FakeSocket.OPEN = 1;
+          FakeSocket.CONNECTING = 0;
+          const fetchedUrls = [];
+          const fetch = (url) => {
+            fetchedUrls.push(url);
+            return Promise.resolve({ ok: false });
+          };
+          return window.TestUtils.withFakeTimers((clock) =>
+            window.TestUtils.stubWindow({ WebSocket: FakeSocket, fetch }, () => fn({ clock, sockets, fetchedUrls })));
+        }
+
+        it("reopens the socket with backoff and catches up on the room, so a rematch is not missed", () => withFakeRoom(({ clock, sockets, fetchedUrls }) => {
+          const rc = window.LiveSplit.RaceClient.createRaceClient();
+          rc.connectToRace("rematch1");
+          assertEqual(sockets.length, 1);
+          sockets[0].readyState = 1;
+          sockets[0].onopen();
+          fetchedUrls.length = 0;
+
+          sockets[0].readyState = 3;
+          sockets[0].onclose({ code: 1006 });
+          assertEqual(rc.isConnected(), true, "Room stays selected while the socket is down");
+          clock.tick(1999);
+          assertEqual(sockets.length, 1, "Waits before reopening");
+          clock.tick(1);
+          assertEqual(sockets.length, 2, "Socket reopened after 2s");
+          assert(sockets[1].url.endsWith("race=rematch1"), "Reopens the same room");
+          assert(fetchedUrls.some(u => u.includes("races.therun.gg/rematch1")), "Re-fetches the room snapshot");
+
+          // Failing again backs off further; a successful open resets the backoff
+          sockets[1].onclose({ code: 1006 });
+          clock.tick(3999);
+          assertEqual(sockets.length, 2);
+          clock.tick(1);
+          assertEqual(sockets.length, 3, "Second reopen after 4s");
+          sockets[2].readyState = 1;
+          sockets[2].onopen();
+          sockets[2].onclose({ code: 1006 });
+          clock.tick(2000);
+          assertEqual(sockets.length, 4, "Backoff resets once connected");
+
+          rc.disconnectFromRace();
+        }));
+
+        it("does not reopen a room that was left, or a socket already replaced", () => withFakeRoom(({ clock, sockets }) => {
+          const rc = window.LiveSplit.RaceClient.createRaceClient();
+          rc.connectToRace("roomA");
+          sockets[0].onclose({ code: 1006 });
+          rc.disconnectFromRace();
+          clock.tick(60000);
+          assertEqual(sockets.length, 1, "Pending reopen cancelled by disconnect");
+
+          rc.connectToRace("roomB");
+          rc.disconnectFromRace();
+          sockets[1].onclose({ code: 1000 });
+          clock.tick(60000);
+          assertEqual(sockets.length, 2, "Closing a socket we closed ourselves does not reopen it");
+
+          rc.connectToRace("roomC");
+          rc.connectToRace("roomD");
+          sockets[2].onclose({ code: 1000 });
+          clock.tick(60000);
+          assertEqual(sockets.length, 4, "A replaced room's late close does not reopen anything");
+          rc.disconnectFromRace();
+        }));
+      });
     });
 })();
