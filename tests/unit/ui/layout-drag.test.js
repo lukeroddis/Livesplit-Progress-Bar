@@ -12,7 +12,6 @@
       assertEqual(typeof window.LiveSplit.LayoutDrag.createLayoutDrag, "function", "createLayoutDrag is a function");
       assertEqual(typeof window.LiveSplit.LayoutDrag.clampCoordinates, "function", "clampCoordinates is a function");
       assertEqual(typeof window.LiveSplit.LayoutDrag.computeScale, "function", "computeScale is a function");
-      assertEqual(typeof window.LiveSplit.LayoutDrag.computeTrackDocking, "function", "computeTrackDocking is a function");
     });
 
     it("clamps drag coordinates within viewport bounds", () => {
@@ -46,34 +45,6 @@
 
       // Upper bound clamped to 2.5
       assertEqual(scaleFn(2.0, 300), 2.5, "scale clamped to max 2.5");
-    });
-
-    it("resolves track docking and snapping for horizontal and vertical modes", () => {
-      const dockFn = window.LiveSplit.LayoutDrag.computeTrackDocking;
-
-      // Horizontal: y >= h - 140 -> docked bottom
-      // w = 1920, h = 1080. h - 140 = 940
-      const horizDocked = dockFn(150, 960, 1920, 1080, false);
-      assertEqual(horizDocked.docked, "bottom", "horizontal docked to bottom");
-      assertEqual(horizDocked.x, 0, "x snapped to 0");
-      assertEqual(horizDocked.y, 990, "y snapped to 1080 - 90 = 990");
-
-      const horizFree = dockFn(150, 400, 1920, 1080, false);
-      assertEqual(horizFree.docked, "none", "horizontal free floating");
-      assertEqual(horizFree.x, 150, "x preserved");
-      assertEqual(horizFree.y, 400, "y preserved");
-
-      // Vertical: x <= 100 -> docked left
-      const vertLeft = dockFn(50, 200, 1920, 1080, true);
-      assertEqual(vertLeft.docked, "left", "vertical docked to left");
-      assertEqual(vertLeft.x, 0, "x snapped to 0");
-      assertEqual(vertLeft.y, 0, "y snapped to 0");
-
-      // Vertical: x >= w - 380 (1920 - 380 = 1540) -> docked right
-      const vertRight = dockFn(1600, 200, 1920, 1080, true);
-      assertEqual(vertRight.docked, "right", "vertical docked to right");
-      assertEqual(vertRight.x, 1580, "x snapped to 1920 - 340 = 1580");
-      assertEqual(vertRight.y, 0, "y snapped to 0");
     });
 
     it("initializes drag engine and manages active pointer operation", () => {
@@ -202,21 +173,27 @@
       assertEqual(log.anchorSyncs, 1);
     }));
 
-    it("snaps the horizontal track to the bottom dock near the screen bottom", () => withHud(({ dom, layout, down, move }) => {
+    it("drags the horizontal track freely near the screen bottom without docking", () => withHud(({ dom, layout, down, move }) => {
       down(dom.el("hud-comp-track"), 10, 310);
-      move(10, 310 + window.innerHeight);
-      assertEqual(layout.track.docked, "bottom");
-      assertEqual([layout.track.x, layout.track.y], [0, window.innerHeight - 90]);
-      move(10, 10);
-      assertEqual(layout.track.docked, "none", "undocks when dragged to the top");
+      move(210, 99999);
+      assertEqual(layout.track.docked, "none", "no bottom snap");
+      assertEqual([layout.track.x, layout.track.y], [200, window.innerHeight - 50], "keeps its x, clamped to the bottom");
     }));
 
-    it("snaps the vertical track to the left or right dock", () => withHud(({ dom, layout, down, move }) => {
+    it("drags the vertical track freely along the side edges without docking", () => withHud(({ dom, layout, down, move }) => {
       down(dom.el("hud-comp-track"), 10, 310);
-      move(-500, 310);
-      assertEqual(layout.track.docked, "left");
-      move(5000, 310);
-      assertEqual(layout.track.docked, "right");
+      move(-500, 210);
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 0, 200], "left edge keeps its height");
+      move(5000, 210);
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", window.innerWidth - 80, 200], "right edge keeps its height");
+    }, { orientation: "vertical" }));
+
+    it("dragging a docked track floats it", () => withHud(({ dom, layout, down, move }) => {
+      layout.track.docked = "left";
+      down(dom.el("hud-comp-track"), 10, 310);
+      move(20, 320);
+      assertEqual(layout.track.docked, "none");
+      assertEqual([layout.track.x, layout.track.y], [10, 310]);
     }, { orientation: "vertical" }));
 
     it("the leaderboard header drags even outside edit mode, except from its controls", () => withHud(({ dom, layout, engine, down, move, up }) => {

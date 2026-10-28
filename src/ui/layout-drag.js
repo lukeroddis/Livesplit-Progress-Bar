@@ -6,7 +6,7 @@
  * - Touch & mouse unified drag positioning with pointer capture
  * - Proportional scaling via scale handle drag (clamped 0.4x to 2.5x)
  * - Viewport boundary clamping and coordinate rounding
- * - Track docking snapping (bottom dock vs vertical left/right dock)
+ * - Free track dragging (docking only via the dock button; dragging a docked track undocks it)
  * - Dedicated leaderboard header drag support
  * - Dock toggle button handling (#btn-dock-track)
  */
@@ -32,37 +32,6 @@
     const deltaScale = dx / 180;
     const newScale = Math.min(2.5, Math.max(0.4, origScale + deltaScale));
     return Math.round(newScale * 100) / 100;
-  }
-
-  /**
-   * Resolves track docking and snapped coordinates based on position and orientation.
-   */
-  function computeTrackDocking(rawX, rawY, viewportWidth, viewportHeight, isVertical) {
-    const w = viewportWidth || (typeof window !== "undefined" ? window.innerWidth : 1920);
-    const h = viewportHeight || (typeof window !== "undefined" ? window.innerHeight : 1080);
-    let docked = "none";
-    let x = rawX;
-    let y = rawY;
-
-    if (isVertical) {
-      if (rawX <= 100) {
-        docked = "left";
-        x = 0;
-        y = 0;
-      } else if (rawX >= w - 380) {
-        docked = "right";
-        x = w - 340;
-        y = 0;
-      }
-    } else {
-      if (rawY >= h - 140) {
-        docked = "bottom";
-        x = 0;
-        y = h - 90;
-      }
-    }
-
-    return { docked, x: Math.round(x), y: Math.round(y) };
   }
 
   function createLayoutDrag(options = {}) {
@@ -236,17 +205,13 @@
           const dx = e.clientX - activePointerOp.startX;
           const dy = e.clientY - activePointerOp.startY;
 
-          let newX = Math.max(0, Math.min(w - 80, activePointerOp.origX + dx));
-          let newY = Math.max(0, Math.min(h - 50, activePointerOp.origY + dy));
+          const newX = Math.max(0, Math.min(w - 80, activePointerOp.origX + dx));
+          const newY = Math.max(0, Math.min(h - 50, activePointerOp.origY + dy));
 
-          // Snapping for track component to bottom dock or left/right dock
+          // The track moves freely: no edge snapping. Docking is only done via the dock button,
+          // and dragging a docked track floats it from where it is.
           if (activePointerOp.compId === "track") {
-            const currentTrackStyle = getCurrentTrackStyle();
-            const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
-            const docking = computeTrackDocking(newX, newY, w, h, isVert);
-            state.docked = docking.docked;
-            newX = docking.x;
-            newY = docking.y;
+            state.docked = "none";
           }
 
           state.x = Math.round(newX);
@@ -302,7 +267,6 @@
     return {
       clampCoordinates,
       computeScale,
-      computeTrackDocking,
       getActiveOp,
       initPointerListeners
     };
@@ -313,7 +277,6 @@
   window.LiveSplit.LayoutDrag = {
     clampCoordinates,
     computeScale,
-    computeTrackDocking,
     createLayoutDrag
   };
 })();
