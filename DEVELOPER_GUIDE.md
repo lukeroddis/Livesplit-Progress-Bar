@@ -37,16 +37,18 @@
      - [`race-state.js`](src/core/race-state.js): Per-client race state, host runner defaults (`createHostState`), shared runner resets, `isLiveRoom`. JSDoc typedefs: `RaceState`, `Runner`, `RaceEvent`.
      - [`race-identity.js`](src/core/race-identity.js): Username / race code validation and the stored therun username.
      - [`race-host.js`](src/core/race-host.js): Host progress from LiveSplit, undo, DNF, username matching, timing method, reset.
-     - [`race-connection.js`](src/core/race-connection.js): therun.gg REST snapshot, room WebSocket and protocol hand-off.
+     - [`race-connection.js`](src/core/race-connection.js): therun.gg REST snapshot, room WebSocket (reopened with backoff if the server drops it, so a rematch in the same room is still heard) and protocol hand-off.
      - `race-protocol.js`, `race-ranking.js`, `race-discovery.js`, `race-logger.js`: message parsing, F1 standings/gaps, auto-detect/standby, WS log.
      - [`race-simulation.js`](src/core/race-simulation.js): Offline race engine (start/stop/standby/reset/undo, 50ms loop, `SIM_RACE_ID`) composing [`race-sim-roster.js`](src/core/race-sim-roster.js) (rival presets + pure `buildCompetitorEntrant`), [`race-sim-lobby.js`](src/core/race-sim-lobby.js) (lobby schedules, countdown, `startRaceNow`) and [`race-sim-pacing.js`](src/core/race-sim-pacing.js) (rival pacing, virtual host). The race client reads the running course via `getSimulationCourseTargets()`.
    - **`src/ui/` Interface & Layout Modules**:
      - [`layout-engine.js`](src/ui/layout-engine.js): `COMPONENTS`, the HUD component ids in layout order (default coordinates live in `layout.js`, anchor resolution in `timer-anchor.js`).
+     - [`layout-drag.js`](src/ui/layout-drag.js): Edit-mode pointer drag, the corner handle (scales components; resizes the track, Ctrl/Shift-drag scales it), track docking and on-screen clamping. Track size lives in its layout state: `verticalWidth` (vertical track, docked or floating: room for split text), `height` (floating vertical: split spacing via track density), `width` (floating horizontal: split spacing) and `nameLines` (horizontal, docked or floating: 1-4 lines split names wrap onto; above 1 the track gets `wrap-names`, which replaces auto 40° tilting).
      - [`track-renderer.js`](src/ui/track-renderer.js): Track DOM building, sliding window math and class application, schematic breaks, scroll-to-split, visible-split capacity, and zero-allocation 60 FPS element caching.
      - [`track-density.js`](src/ui/track-density.js): `--node-spacing` from visible-splits preference, auto 40° angled split names, split-count controls and density/angle cycle badges.
      - [`track-scroll.js`](src/ui/track-scroll.js): Mouse wheel and arrow-key track scrolling (windowed or native scroll).
      - [`ghost-runner.js`](src/ui/ghost-runner.js): Active ghost selection/opacity, on-track ghost markers, race pin rendering hand-off, off-screen edge pills, leaderboard refresh.
      - [`race-controls.js`](src/ui/race-controls.js): Race settings controls (standings/pins toggles, connect/disconnect with cooldown, test race) and race client event handling.
+     - [`race-dock-bridge.js`](src/ui/race-dock-bridge.js): Experimental OBS Custom Browser Dock bridge: hears connect/disconnect commands from [`dock.html`](dock.html) via localStorage `storage` events (`DOCK_COMMAND`) and publishes race status plus a 2s heartbeat (`DOCK_STATUS`).
      - [`ws-log-panel.js`](src/ui/ws-log-panel.js): Dev-mode race WebSocket telemetry log modal.
      - [`settings-menu.js`](src/ui/settings-menu.js): Draggable quick-settings panel, position persistence and open/close toggle.
      - [`dev-mode.js`](src/ui/dev-mode.js): Developer mode gating (`?dev`/`?debug`, Ctrl+Shift+D, version 5-click).
@@ -58,7 +60,7 @@
      - [`hud-bindings.js`](src/ui/hud-bindings.js): Badge clicks, settings pill, comparison hotkeys, timer block focus.
      - [`layout-modal.js`](src/ui/layout-modal.js): Toolbar + track customizer modal composer (open/close, toolbar, logo, hotkeys, resize clamp) over the settings panels:
        [`settings-track-panel.js`](src/ui/settings-track-panel.js) (orientation, positions, angle, sizes, visible splits), [`settings-background-panel.js`](src/ui/settings-background-panel.js), [`settings-ghost-panel.js`](src/ui/settings-ghost-panel.js), [`settings-timing-panel.js`](src/ui/settings-timing-panel.js), [`layout-profiles-panel.js`](src/ui/layout-profiles-panel.js) (profiles, export/import). Each panel exposes `sync(style)` / `bind()`; [`settings-controls.js`](src/ui/settings-controls.js) holds the shared slider / segmented / spinner / checkbox helpers.
-   - [layout.js](layout.js): Interactive drag & drop, proportional scaling, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
+   - [layout.js](layout.js): Interactive drag & drop, proportional scaling, track sizing, visibility toggles, profiles CRUD, modal customizers, and `window.hudLayout`.
    - [overlay.js](overlay.js): Composition root (~280 lines). Creates `state` and the shared `app` registry, installs the overlay controllers, wires the stateful UI helpers (connection, ghost runner, track density, menus) and boots the overlay.
    - **Controller pattern**: overlay controllers export `installX(app)`, which adds their functions to `app` and reads/writes `app.state`. Cross-controller calls go through `app.<fn>` at call time, so controllers can load in any order before overlay.js. Self-contained UI helpers keep the `createX({ getters })` factory style. `test_app_registry_calls_are_provided` fails if a controller calls an `app.<fn>` nobody registers.
    - **Shared constants have one owner module** (enforced by `tests/test_project_rules.py`): localStorage keys → `window.LiveSplit.Storage.KEYS` (`src/core/storage.js`, never raw `"livesplit_*"` strings); default track style → `TrackStyle.DEFAULT_TRACK_STYLE`; HUD component ids → `LayoutEngine.COMPONENTS`; built-in comparison names → `SplitEngine.DEFAULT_COMPARISONS`; LiveSplit Server URL → `Client.DEFAULT_WS_URL`. These are frozen; copy (`[...x]`, `Object.assign({}, x)`) before mutating. Keep constants with the module that owns the concept rather than a shared constants file.
@@ -184,7 +186,7 @@ Query these **strictly upon split index transition, start, or reset**:
 
 | Key | Type / Format | Purpose |
 | :--- | :--- | :--- |
-| `livesplit_hud_layout_v2` | JSON Object | Positions (`x`, `y`, `docked`) and scales for `title`, `timers`, `track`. |
+| `livesplit_hud_layout_v2` | JSON Object | Positions (`x`, `y`, `docked`) and scales for `title`, `timers`, `track`; a floating track also stores the `width` (horizontal) or `height` (vertical) frozen on its first drag or scale. |
 | `livesplit_visible_splits` | String (`"auto"`, `"all"`, or `"2"`–`"60"`) | Number of splits visible on track. |
 | `livesplit_split_angle` | String (`"auto"`, `"angle"`, `"flat"`) | Split name tilt angle preference. |
 | `livesplit_ghost_comparison` | String (`"off"`, `"wr"`, `"pb"`, `"best"`, `"average"`, or custom) | Live ghost runner comparison target. |
@@ -237,6 +239,9 @@ Layout profiles are stored and exported as formatted JSON with the following ext
     "barHeight": 6,
     "dotSize": 15,
     "ghostPinLength": 16,
+    "ghostPinSize": 26,
+    "pinPos": "auto",
+    "pinLane": true,
     "logoHeight": 60
   },
   "preferences": {
@@ -253,6 +258,7 @@ Layout profiles are stored and exported as formatted JSON with the following ext
 }
 ```
 
+* **Ghost pin side**: `pinPos` is `auto` (top, or the delta side of a vertical track) or an explicit `top`/`bottom`/`left`/`right`, resolved by `TrackStyle.resolvePinSide` into a `pins-<side>` track class. With `pinLane` on, the track also gets `pin-lane`, and while any ghost or race pins are switched on the ghost runner adds `has-pins`; together they push split text on the pin side out by `--pin-lane` so pins never cover it.
 * **Backward Compatibility**: If an older layout missing newer properties (e.g. `logoHeight` or future properties) is loaded, `applyProfileData` deep-merges with `getDefaultLayout()` and `DEFAULT_TRACK_STYLE` so default values are gracefully applied without errors.
 * **Forward Compatibility**: Unknown future properties present in layout files do not throw errors or break loading.
 

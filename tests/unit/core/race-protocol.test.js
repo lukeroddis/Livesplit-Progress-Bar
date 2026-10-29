@@ -317,5 +317,120 @@
       rp.updateEntrantFromTelemetry({ user: "Bob" }, ctx);
       assertEqual(discovered, ["Alice", "Bob"]);
     });
+
+    it("a DNF'd runner who readies up again in the same room starts a fresh run", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.updateEntrantFromTelemetry({ user: "Quitter", status: "started", liveData: { currentSplitIndex: 2, currentTime: 42000 } }, ctx);
+      rp.updateEntrantFromTelemetry({ user: "Quitter", status: "abandoned" }, ctx);
+      const runner = ctx.entrants.get("Quitter");
+      assertEqual(runner.isDNF, true);
+      assertEqual(typeof runner.dnfScore, "number");
+      ctx.lastKnownRanks.set("Quitter", 3);
+      ctx.checkpointRankHistory.set(1, new Map([["Quitter", 2]]));
+
+      rp.updateEntrantFromTelemetry({ user: "Quitter", status: "ready" }, ctx);
+      assertEqual(runner.isDNF, false, "DNF cleared");
+      assertEqual(runner.dnfTimeSec, null);
+      assertEqual(runner.dnfScore, undefined);
+      assertEqual(runner.currentSplitIndex, 0);
+      assertEqual(runner.currentTimeSec, 0);
+      assertEqual(runner.splitTimes, []);
+      assertEqual(runner.currentSplitName, "Split 1");
+      assertEqual(runner.isReady, true);
+      assertEqual(ctx.lastKnownRanks.has("Quitter"), false, "Old rank dropped");
+      assertEqual(ctx.checkpointRankHistory.get(1).has("Quitter"), false, "Old checkpoint ranks dropped");
+
+      // Abandoning the new race records a new DNF from the new run
+      rp.updateEntrantFromTelemetry({ user: "Quitter", status: "started", liveData: { currentSplitIndex: 1, currentTime: 9000 } }, ctx);
+      rp.updateEntrantFromTelemetry({ user: "Quitter", status: "abandoned" }, ctx);
+      assertEqual(runner.isDNF, true);
+      assertEqual(runner.dnfTimeSec, 9);
+      assert(runner.dnfScore < 2, "dnfScore comes from the new run");
+    });
+
+    it("a DNF'd runner seen racing again restarts without a split flash", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.updateEntrantFromTelemetry({ user: "Quitter", status: "abandoned", currentTime: 42000 }, ctx);
+      rp.updateEntrantFromTelemetry({ user: "Quitter", status: "started", liveData: { currentSplitIndex: 1, currentTime: 5000 } }, ctx);
+      const runner = ctx.entrants.get("Quitter");
+      assertEqual(runner.isDNF, false);
+      assertEqual(runner.currentSplitIndex, 1);
+      assertEqual(runner.currentTimeSec, 5);
+      assertEqual(runner.lastSplitEffect, null, "Restart is not a split");
+    });
+
+    it("finished and DNF runners stay settled while the race is still running", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.updateEntrantFromTelemetry({ user: "Winner", status: "finished", finalTime: 72500 }, ctx);
+      rp.updateEntrantFromTelemetry({ user: "Winner", status: "started" }, ctx);
+      assertEqual(ctx.entrants.get("Winner").isFinished, true, "A finished runner is not restarted by a stale started status");
+
+      rp.updateEntrantFromTelemetry({ user: "Late", status: "started", hasEnded: true, currentTime: 30000 }, ctx);
+      assertEqual(ctx.entrants.get("Late").isDNF, true);
+      rp.updateEntrantFromTelemetry({ user: "Late", status: "started", hasEnded: true, currentTime: 30000 }, ctx);
+      assertEqual(ctx.entrants.get("Late").isDNF, true, "hasEnded never restarts a run");
+    });
+
+    it("runners who finished start a fresh run when they ready up for a rematch in the same room", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.parseRaceMessage({ status: "finished", participants: [
+        { user: "Alpha", status: "confirmed", finalTime: 95000 },
+        { user: "Beta", status: "confirmed", finalTime: 99000 }
+      ] }, ctx);
+      assertEqual(ctx.entrants.get("Alpha").isFinished, true);
+
+      rp.parseRaceMessage({ status: "pending", participants: [
+        { user: "Alpha", status: "ready" },
+        { user: "Beta", status: "joined" }
+      ] }, ctx);
+      assertEqual(ctx.getRaceStatus(), "open", "Room is back in the lobby");
+      ["Alpha", "Beta"].forEach((name) => {
+        const runner = ctx.entrants.get(name);
+        assertEqual(runner.isFinished, false, `${name} no longer finished`);
+        assertEqual(runner.finalTimeSec, null);
+        assertEqual(runner.currentSplitName, "Split 1");
+      });
+    });
+
+    it("a new countdown after the race ran resets every runner, including the host's room row", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+      ctx.entrants.set("you", { userId: "you", isHost: true, isDNF: true, currentSplitIndex: 2 });
+
+      rp.parseRaceMessage({ status: "progress", participants: [
+        { user: "You", status: "abandoned", currentTime: 30000 },
+        { user: "Rival", status: "abandoned", currentTime: 40000 }
+      ] }, ctx);
+      assertEqual(ctx.getRaceStatus(), "in_progress");
+      assertEqual(ctx.entrants.get("Rival").isDNF, true);
+      assertEqual(ctx.entrants.get("You").isDNF, true);
+
+      rp.parseRaceMessage({ type: "race-starting" }, ctx);
+      assertEqual(ctx.getRaceStatus(), "starting");
+      assertEqual(ctx.entrants.get("Rival").isDNF, false, "Rival's DNF cleared");
+      assertEqual(ctx.entrants.get("You").isDNF, false, "Host's therun.gg row cleared");
+      assertEqual(ctx.entrants.get("Rival").currentTimeSec, 0);
+      assertEqual(ctx.entrants.get("you").isDNF, true, "Local host placeholder is left to LiveSplit");
+    });
+
+    it("a repeated countdown before the race starts resets nobody", () => {
+      const rp = window.LiveSplit.RaceProtocol;
+      const ctx = createMockContext();
+
+      rp.updateEntrantFromTelemetry({ user: "Rival", status: "ready", currentTime: 0 }, ctx);
+      ctx.entrants.get("Rival").lastSplitEffect = { type: "gold" };
+      rp.parseRaceMessage({ type: "race-starting" }, ctx);
+      rp.parseRaceMessage({ type: "race-start-canceled" }, ctx);
+      rp.parseRaceMessage({ type: "race-starting" }, ctx);
+      assertEqual(ctx.entrants.get("Rival").lastSplitEffect.type, "gold", "Lobby countdowns do not reset runners");
+    });
   });
 })();

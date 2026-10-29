@@ -123,7 +123,7 @@
         <span id="ghost-edge-right-val">0.0s</span> <span id="ghost-edge-right-icon">🏆</span> <span>❯</span>
       </div>
     </div>
-    <div class="hud-resize-handle" title="Drag horizontally to scale">⤡</div>
+    <div class="hud-resize-handle" title="Drag to resize: along the track sets split spacing, across it the room for split names. Ctrl/Shift-drag to scale">⤡</div>
   </div>
 
   <!-- HUD Component 4: Live Race F1-Style Dynamic Leaderboard -->
@@ -521,6 +521,23 @@
           <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
           <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
         </div>
+        <div class="modal-row" id="row-ghost-pin-pos">
+          <label>Ghost Pin Side</label>
+          <div class="segmented-control" id="ctrl-pin-pos">
+            <button class="seg-btn active" data-val="auto">Auto</button>
+            <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
+            <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+          </div>
+        </div>
+        <div class="modal-row" id="row-pin-lane">
+          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+            <span>Keep Pins Clear of Split Text</span>
+            <input type="checkbox" id="cb-pin-lane" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+          </label>
+          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Reserves a lane beside the bar for the pins while ghosts or race pins are on. Auto puts pins on top, or on the delta side of a vertical track.</span>
+        </div>
         <div class="modal-row" id="row-ghost-opacity">
           <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
           <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
@@ -684,6 +701,7 @@
   <script src="src/ui/track-scroll.js"></script>
   <script src="src/ui/ghost-runner.js"></script>
   <script src="src/ui/race-controls.js"></script>
+  <script src="src/ui/race-dock-bridge.js"></script>
   <script src="src/ui/ws-log-panel.js"></script>
 
   <!-- Overlay controllers installed onto the shared app registry by overlay.js (any order) -->

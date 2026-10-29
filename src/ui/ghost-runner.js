@@ -54,6 +54,7 @@
   function clearMarkerOffsets(m) {
     m.style.removeProperty("--ghost-stack-offset");
     m.style.removeProperty("--ghost-splay-x");
+    m.style.removeProperty("--ghost-splay-y");
     m.style.removeProperty("--ghost-needle-angle");
     m.style.removeProperty("--ghost-needle-height");
   }
@@ -212,13 +213,13 @@
       if (staticMarker) {
         staticMarker.style.display = "none";
         clearMarkerOffsets(staticMarker);
-        staticMarker.classList.remove("splay-left", "splay-right");
+        staticMarker.classList.remove("splay-left", "splay-right", "splay-up", "splay-down");
       }
       knownGhostMarkers.forEach((m) => {
         if (m) {
           m.style.display = "none";
           clearMarkerOffsets(m);
-          m.classList.remove("splay-left", "splay-right");
+          m.classList.remove("splay-left", "splay-right", "splay-up", "splay-down");
         }
       });
     }
@@ -295,6 +296,9 @@
       const raceEntrants = (isRaceActive && areRacePinsOn)
         ? rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted)
         : [];
+
+      // The pin lane (track-style "pinLane") only reserves space while pins are switched on
+      track.classList.toggle("has-pins", activeList.length > 0 || raceEntrants.length > 0);
 
       if ((activeList.length === 0 && raceEntrants.length === 0) || currentSec === null || currentSec < 0 || splitsList.length === 0) {
         hideAllGhostMarkers();

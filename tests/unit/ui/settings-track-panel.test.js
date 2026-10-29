@@ -142,6 +142,24 @@
       assertEqual([style.namePos, style.deltaPos], ["bottom", "bottom"], "flat again: independent");
     }));
 
+    it("vertical positions stay independent even with a saved 40° angle (names never tilt there)", () => withPanel(({ el, panel, style, click, active }) => {
+      localStorage.setItem(KEYS.SPLIT_ANGLE, "angled");
+      el("track").classList.add("vertical", "angled-text");
+      assert(!window.LiveSplit.SettingsTrackPanel.isAngledMode(), "a vertical track is never in angle mode");
+      panel.bind();
+
+      click("ctrl-name-pos", "right");
+      assertEqual([style.namePos, style.deltaPos], ["right", "right"], "name side does not move the delta");
+      click("ctrl-delta-pos", "left");
+      assertEqual([style.namePos, style.deltaPos], ["right", "left"], "delta side does not move the name");
+
+      click("ctrl-modal-angle", "angled");
+      assertEqual(style.deltaPos, "left", "choosing 40° on a vertical track moves nothing");
+
+      panel.sync(style);
+      assertEqual([active("ctrl-name-pos"), active("ctrl-delta-pos")], ["right", "left"], "both groups keep a selection");
+    }, { orientation: "vertical", namePos: "left", deltaPos: "right" }));
+
     it("choosing 40° forces deltas opposite the names; other angles just apply", () => withPanel(({ el, panel, style, log, click }) => {
       panel.bind();
       style.namePos = "bottom";

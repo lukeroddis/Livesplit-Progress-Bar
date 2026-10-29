@@ -143,6 +143,15 @@ For multi-scene or automated OBS setups, configure sources instantly with query 
 | `?bg=0..95` | Set background plate opacity percentage | `index.html?bg=55` |
 | `?logo=path/to/logo.png` | Set custom logo image path | `index.html?logo=logo.png` |
 
+### Race Dock (OBS Custom Browser Dock, experimental)
+
+A small OBS panel for joining or leaving a therun.gg race room without interacting with your scene or opening the settings mid-stream. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay.
+
+1. **Export your layout first** (Settings → profiles → export) if you already use the overlay with *Local file* ticked: step 2 changes where OBS stores the overlay's saved data, so you'll re-import it afterwards.
+2. In the overlay's **Browser Source** properties, **untick *Local file*** and put a `file:///` URL in the **URL** field instead, e.g. `file:///C:/Overlays/speedrun-overlay-v2.0.4.html`. The dock and overlay can only talk to each other this way.
+3. **Docks → Custom Browser Docks…**: add a dock with a `file:///` URL to the dock file, e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.0.4.html`.
+4. The dock shows **Overlay linked** within a couple of seconds. Type a race code and press **Connect** (or **Disconnect** to leave). *Overlay not found* almost always means the browser source still has *Local file* ticked.
+
 ---
 
 ## 🧪 Testing & Code Stability

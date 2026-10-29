@@ -116,6 +116,62 @@
       assertEqual([track.style.left, track.style.top], ["40px", "300px"]);
       assert(/100vw/.test(track.style.width) && /40px/.test(track.style.width), `width spans the rest of the screen (got ${track.style.width})`);
       assertEqual(el("btn-dock-track").innerText, "⛵ Float");
+
+      state.track.width = 700;
+      HL().applyComponentLayout("track");
+      assertEqual(track.style.width, "700px", "a frozen width no longer depends on x");
+      delete state.track.width;
+
+      Object.assign(state.track, { docked: "top", scale: 1, x: 0, y: 0 });
+      HL().applyComponentLayout("track");
+      assert(track.classList.contains("docked-top") && !track.classList.contains("docked-bottom"), "docks to the top");
+      assertEqual([track.style.top, track.style.bottom], ["0px", ""]);
+      assertEqual(el("btn-dock-track").innerText, "⚓ Docked");
+    }));
+
+    it("applies the resized track: vertical width, and name lines on a horizontal track", () => withHud(({ el, state, style }) => {
+      const inner = document.getElementById("track");
+      const origClass = inner.className;
+      const origLines = inner.style.getPropertyValue("--name-lines");
+      try {
+        style.orientation = "horizontal";
+        Object.assign(state.track, { docked: "bottom", scale: 1, x: 0, y: 900, nameLines: 3 });
+        HL().applyComponentLayout("track");
+        assertEqual(inner.style.getPropertyValue("--name-lines"), "3");
+        assert(inner.classList.contains("wrap-names"), "names wrap on a taller horizontal track");
+
+        state.track.nameLines = 99;
+        HL().applyComponentLayout("track");
+        assertEqual(inner.style.getPropertyValue("--name-lines"), String(window.LiveSplit.LayoutDrag.MAX_NAME_LINES), "clamped");
+
+        state.track.nameLines = 1;
+        HL().applyComponentLayout("track");
+        assert(!inner.classList.contains("wrap-names"), "one line: no wrapping");
+
+        style.orientation = "vertical";
+        Object.assign(state.track, { docked: "left", nameLines: 3, verticalWidth: 420 });
+        HL().applyComponentLayout("track");
+        assert(!inner.classList.contains("wrap-names"), "name lines only apply to a horizontal track");
+        assertEqual(el("hud-comp-track").style.getPropertyValue("--track-width"), "420px", "vertical width from the resize handle");
+      } finally {
+        inner.className = origClass;
+        inner.style.setProperty("--name-lines", origLines || "1");
+      }
+    }));
+
+    it("fitTrackOnScreen pulls an oversized track back on screen and saves", () => withHud(({ el, state, style }) => {
+      style.orientation = "horizontal";
+      const w = window.innerWidth;
+      Object.assign(state.track, { docked: "none", scale: 1.5, x: w - 100, y: 10, width: 400 });
+      HL().applyComponentLayout("track");
+      HL().fitTrackOnScreen();
+      assertEqual([state.track.x, state.track.scale], [Math.max(0, w - 600), Math.min(1.5, Math.floor((w / 400) * 100) / 100)], "moved left so its 600px box fits");
+      assertEqual(el("hud-comp-track").style.left, `${state.track.x}px`, "re-rendered");
+      assertEqual(JSON.parse(localStorage.getItem(KEYS.HUD_LAYOUT)).track.x, state.track.x, "saved");
+
+      const before = localStorage.getItem(KEYS.HUD_LAYOUT);
+      HL().fitTrackOnScreen();
+      assertEqual(localStorage.getItem(KEYS.HUD_LAYOUT), before, "nothing to do once it fits");
     }));
 
     it("docks the vertical track left or right, or floats it", () => withHud(({ el, state, style }) => {
@@ -136,6 +192,16 @@
       HL().applyComponentLayout("track");
       assertEqual([track.style.left, track.style.top], ["60px", "20px"]);
       assertEqual(el("btn-dock-track").innerText, "⛵ Float");
+
+      Object.assign(state.track, { docked: "top" });
+      HL().applyComponentLayout("track");
+      assert(track.classList.contains("docked-left"), "a top dock from horizontal mode shows on the left");
+
+      Object.assign(state.track, { docked: "none" });
+      state.track.height = 450;
+      HL().applyComponentLayout("track");
+      assertEqual(track.style.height, "450px", "a frozen height no longer depends on y");
+      delete state.track.height;
     }));
 
     it("positions the timers from their right edge when right-anchored, left edge when left-anchored", () => withHud(({ el, state }) => {

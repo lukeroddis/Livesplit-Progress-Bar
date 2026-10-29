@@ -2,7 +2,8 @@
  * src/core/race-connection.js - therun.gg Race Room Connection
  *
  * - REST snapshot of the race and participants (races.therun.gg)
- * - Live room WebSocket (ws.therun.gg) with message logging
+ * - Live room WebSocket (ws.therun.gg) with message logging, reopened with backoff if
+ *   the server drops it (a finished room can host a rematch)
  * - Disconnect / failed-connect cleanup back to a host-only standings table
  * - Hands every payload to LiveSplit.RaceProtocol with this client's context
  *
@@ -19,6 +20,8 @@
   const THERUN_RACE_API = "https://races.therun.gg";
 
   const THERUN_WS_BASE = "wss://ws.therun.gg?race=";
+  const RECONNECT_BASE_MS = 2000;
+  const RECONNECT_MAX_MS = 30000;
 
   const RACER_PALETTE = [
     "#38bdf8", // Sky Cyan
@@ -101,40 +104,7 @@
       }
 
       try {
-        const wsUrl = `${THERUN_WS_BASE}${encodeURIComponent(cleanId)}`;
-        raceState.ws = new WebSocket(wsUrl);
-
-        raceState.ws.onopen = () => {
-          ctx.recordWsLog("sys", "ws_connected", { raceId: cleanId, url: wsUrl });
-          console.log(`[RaceClient] Connected to live race: ${cleanId}`);
-          ctx.notifyListeners("race_connected", { raceId: cleanId });
-        };
-
-        raceState.ws.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(event.data);
-            const msgType = (msg && (msg.type || (msg.data && msg.data.type) || "message")) || "message";
-            ctx.recordWsLog("in", msgType, msg, event.data);
-            handleRaceMessage(msg);
-          } catch (e) {
-            ctx.recordWsLog("sys", "parse_error", { error: String(e), raw: event.data }, event.data);
-            console.warn("[RaceClient] Message parse error:", e);
-          }
-        };
-
-        raceState.ws.onclose = (event) => {
-          ctx.recordWsLog("sys", "ws_closed", { raceId: cleanId, code: event && event.code, reason: event && event.reason });
-          console.log("[RaceClient] Race WebSocket closed");
-          if (raceState.raceId === cleanId) {
-            raceState.ws = null;
-          }
-        };
-
-        raceState.ws.onerror = (err) => {
-          ctx.recordWsLog("sys", "ws_error", { raceId: cleanId });
-          console.warn("[RaceClient] WebSocket error:", err);
-        };
-
+        openRoomSocket(cleanId);
         ctx.notifyListeners("race_connected", { raceId: cleanId });
         return true;
       } catch (err) {
@@ -144,8 +114,78 @@
       }
     }
 
+    function openRoomSocket(cleanId) {
+      const wsUrl = `${THERUN_WS_BASE}${encodeURIComponent(cleanId)}`;
+      const socket = new WebSocket(wsUrl);
+      raceState.ws = socket;
+
+      socket.onopen = () => {
+        raceState.reconnectAttempts = 0;
+        ctx.recordWsLog("sys", "ws_connected", { raceId: cleanId, url: wsUrl });
+        console.log(`[RaceClient] Connected to live race: ${cleanId}`);
+        ctx.notifyListeners("race_connected", { raceId: cleanId });
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          const msgType = (msg && (msg.type || (msg.data && msg.data.type) || "message")) || "message";
+          ctx.recordWsLog("in", msgType, msg, event.data);
+          handleRaceMessage(msg);
+        } catch (e) {
+          ctx.recordWsLog("sys", "parse_error", { error: String(e), raw: event.data }, event.data);
+          console.warn("[RaceClient] Message parse error:", e);
+        }
+      };
+
+      socket.onclose = (event) => {
+        ctx.recordWsLog("sys", "ws_closed", { raceId: cleanId, code: event && event.code, reason: event && event.reason });
+        console.log("[RaceClient] Race WebSocket closed");
+        // Ignore sockets already replaced, and rooms we left on purpose
+        if (raceState.raceId !== cleanId || (raceState.ws && raceState.ws !== socket)) return;
+        raceState.ws = null;
+        scheduleReconnect(cleanId);
+      };
+
+      socket.onerror = (err) => {
+        ctx.recordWsLog("sys", "ws_error", { raceId: cleanId });
+        console.warn("[RaceClient] WebSocket error:", err);
+      };
+    }
+
+    // The room can be raced again after it finishes (a rematch in the same room), so a socket
+    // the server dropped is reopened with backoff for as long as this room is selected
+    function scheduleReconnect(cleanId) {
+      clearReconnectTimer();
+      const delayMs = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, raceState.reconnectAttempts));
+      raceState.reconnectAttempts++;
+      raceState.reconnectTimer = setTimeout(() => {
+        raceState.reconnectTimer = null;
+        if (raceState.raceId !== cleanId || raceState.ws) return;
+        ctx.recordWsLog("sys", "ws_reconnecting", { raceId: cleanId, attempt: raceState.reconnectAttempts });
+        try {
+          openRoomSocket(cleanId);
+        } catch (err) {
+          console.warn("[RaceClient] Race WebSocket reconnect failed:", err);
+          scheduleReconnect(cleanId);
+          return;
+        }
+        // Catch up on anything sent while the socket was down
+        fetchRaceData(cleanId);
+      }, delayMs);
+    }
+
+    function clearReconnectTimer() {
+      if (raceState.reconnectTimer) {
+        clearTimeout(raceState.reconnectTimer);
+        raceState.reconnectTimer = null;
+      }
+    }
+
     // Forget the current room: id, socket, status, countdown and event feed
     function clearRoomState() {
+      clearReconnectTimer();
+      raceState.reconnectAttempts = 0;
       raceState.raceId = null;
       raceState.ws = null;
       raceState.raceStatus = "open";

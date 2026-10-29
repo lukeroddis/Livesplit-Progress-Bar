@@ -29,6 +29,53 @@
   --track-padding-left: 24px;
   --track-padding-right: 24px;
   --ghost-pin-bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom) + (var(--dot-size) + var(--bar-height)) / 2 + var(--ghost-needle-length, 16px));
+  /* Pin lane: the room pins need beside the bar, measured from the dot's edge. Split text on
+     the pin side is pushed out by it while the lane is active (track-style "pinLane"). */
+  --pin-lane: calc(var(--ghost-needle-length, 16px) + var(--ghost-pin-size, 26px) + (var(--bar-height, 6px) - var(--dot-size, 15px)) / 2 + 4px);
+  --pin-lane-top: 0px;
+  --pin-lane-bottom: 0px;
+  --pin-lane-left: 0px;
+  --pin-lane-right: 0px;
+  /* Name lines: set from the track's height by the resize handle (layout state nameLines).
+     Extra lines make each split taller by --name-extra while names wrap. */
+  --name-lines: 1;
+  --name-extra: 0px;
+}
+
+/* Wrapped names (2+ lines): each name wraps within its split's width and is cut with an
+   ellipsis after --name-lines lines. An explicit 40° angle still tilts single-line names. */
+.track.wrap-names:not(.vertical):not(.angled-text) {
+  --name-extra: calc((var(--name-lines) - 1) * var(--name-font-size) * 1.2);
+}
+.track.wrap-names:not(.vertical):not(.angled-text) .split-name {
+  width: calc(var(--node-spacing) - 12px);
+  white-space: normal;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: var(--name-lines);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.track.ghost-on-track {
+  --pin-lane: 0px;
+}
+
+.track.pin-lane.has-pins.pins-top:not(.vertical) { --pin-lane-top: var(--pin-lane); }
+.track.pin-lane.has-pins.pins-bottom:not(.vertical) { --pin-lane-bottom: var(--pin-lane); }
+.track.pin-lane.has-pins.pins-left.vertical { --pin-lane-left: var(--pin-lane); }
+.track.pin-lane.has-pins.pins-right.vertical { --pin-lane-right: var(--pin-lane); }
+
+/* Pins below the bar need room under it even without a lane (the viewport clips vertically) */
+.track.pins-bottom:not(.vertical) {
+  --track-padding-bottom: max(10px, calc(var(--ghost-needle-length, 16px) + var(--ghost-pin-size, 26px) - var(--dot-bottom, 5px) - (var(--dot-size, 15px) - var(--bar-height, 6px)) / 2 + 4px));
+}
+.track.angled-text.pins-bottom:not(.vertical) {
+  --track-padding-bottom: max(18px, calc(var(--ghost-needle-length, 16px) + var(--ghost-pin-size, 26px) - var(--dot-bottom, 5px) - (var(--dot-size, 15px) - var(--bar-height, 6px)) / 2 + 4px));
+}
+.track.angled-text.pos-name-bottom.pins-bottom:not(.vertical) {
+  --track-padding-bottom: 30px;
 }
 
 .split-item {
@@ -39,7 +86,7 @@
   justify-content: flex-end;
   width: var(--node-spacing);
   flex-shrink: 0;
-  height: calc(var(--dot-size, 15px) + var(--name-font-size, 17px) + var(--delta-font-size, 15px) + 34px);
+  height: calc(var(--dot-size, 15px) + var(--name-font-size, 17px) + var(--delta-font-size, 15px) + 34px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
   transition: height 0.2s ease;
 }
 
@@ -49,33 +96,33 @@
 /* Default / Fallback: Both on Top */
 
 .track.pos-name-top.pos-delta-top {
-  --dot-bottom: 5px;
+  --dot-bottom: calc(5px + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-top .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 34px);
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 34px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-top .dot {
   bottom: var(--dot-bottom);
 }
 .track.pos-name-top.pos-delta-top .split-name {
-  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px);
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px + var(--pin-lane-top));
 }
 .track.pos-name-top.pos-delta-top .split-delta {
-  bottom: calc(var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + 14px);
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + var(--name-extra) + 14px + var(--pin-lane-top));
 }
 
 /* Layout 2: Name on Top, Delta on Bottom */
 .track.pos-name-top.pos-delta-bottom {
-  --dot-bottom: calc(var(--delta-font-size) + 12px);
+  --dot-bottom: calc(var(--delta-font-size) + 12px + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-bottom .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-bottom .dot {
   bottom: var(--dot-bottom);
 }
 .track.pos-name-top.pos-delta-bottom .split-name {
-  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px);
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px + var(--pin-lane-top));
 }
 .track.pos-name-top.pos-delta-bottom .split-delta {
   bottom: 4px;
@@ -83,16 +130,16 @@
 
 /* Layout 3: Delta on Top, Name on Bottom */
 .track.pos-name-bottom.pos-delta-top {
-  --dot-bottom: calc(var(--name-font-size) + 12px);
+  --dot-bottom: calc(var(--name-font-size) + var(--name-extra) + 12px + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-top .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-top .dot {
   bottom: var(--dot-bottom);
 }
 .track.pos-name-bottom.pos-delta-top .split-delta {
-  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px);
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px + var(--pin-lane-top));
 }
 .track.pos-name-bottom.pos-delta-top .split-name {
   bottom: 4px;
@@ -100,10 +147,10 @@
 
 /* Layout 4: Both on Bottom */
 .track.pos-name-bottom.pos-delta-bottom {
-  --dot-bottom: calc(var(--name-font-size) + var(--delta-font-size) + 24px);
+  --dot-bottom: calc(var(--name-font-size) + var(--name-extra) + var(--delta-font-size) + 24px + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-bottom .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px);
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-bottom .dot {
   bottom: var(--dot-bottom);

@@ -179,6 +179,8 @@
           if (!state) continue;
           if (state.docked === "bottom" && id === "track") {
             state.y = Math.max(0, h - 90);
+          } else if (state.docked === "right" && id === "track") {
+            state.x = Math.max(0, w - 340);
           } else if (id === "timers") {
             const compWidth = document.getElementById("hud-comp-timers")?.offsetWidth || 300;
             const anchorPref = getTimerAnchor();

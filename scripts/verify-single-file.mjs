@@ -2,8 +2,9 @@
  * verify-single-file.mjs - Enforce the single-file distribution contract.
  *
  * Runs automatically after `npm run build` (via the npm `postbuild` hook).
- * Fails if dist/ contains anything other than index.html, or if that file
- * references external/local scripts, stylesheets, or other assets.
+ * Fails if dist/ contains anything other than index.html and the optional
+ * OBS dock page dock.html, or if either page references external/local
+ * scripts, stylesheets, or other assets.
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -12,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = fileURLToPath(new URL("..", import.meta.url));
 const distDir = join(rootDir, "dist");
-const indexPath = join(distDir, "index.html");
+const EXPECTED_FILES = ["dock.html", "index.html"];
 
 const failures = [];
 
@@ -25,20 +26,23 @@ try {
   failures.push("dist/ does not exist; run `npm run build` first.");
 }
 
-if (files.length !== 1 || files[0] !== "index.html") {
+if (files.slice().sort().join() !== EXPECTED_FILES.join()) {
   failures.push(
-    `dist/ must contain only index.html, found: ${files.length ? files.join(", ") : "(empty)"}`
+    `dist/ must contain only ${EXPECTED_FILES.join(" and ")}, found: ${files.length ? files.join(", ") : "(empty)"}`
   );
 }
 
-let html = "";
-try {
-  html = readFileSync(indexPath, "utf8");
-} catch {
-  failures.push("dist/index.html is missing.");
+function readPage(name) {
+  try {
+    return readFileSync(join(distDir, name), "utf8");
+  } catch {
+    failures.push(`dist/${name} is missing.`);
+    return "";
+  }
 }
 
-if (html) {
+/** Reports any script, stylesheet or asset the page would load from outside itself. */
+function checkSelfContained(html, name) {
   // Character ranges of inline <script> bodies. Markup built by inlined JS
   // (e.g. avatar `<img src="${escapeHtml(url)}">` template literals) appears
   // there as text; its interpolated values are runtime data, not assets.
@@ -73,24 +77,32 @@ if (html) {
   }
 
   if (externalScripts.length) {
-    failures.push(`External <script src> found: ${externalScripts.join(", ")}`);
+    failures.push(`${name}: external <script src> found: ${externalScripts.join(", ")}`);
   }
   if (stylesheetLinks.length) {
-    failures.push(`External stylesheet <link> found: ${stylesheetLinks.join(", ")}`);
+    failures.push(`${name}: external stylesheet <link> found: ${stylesheetLinks.join(", ")}`);
   }
   if (localAssetRefs.length) {
-    failures.push(`Local asset reference(s) found: ${[...new Set(localAssetRefs)].join(", ")}`);
+    failures.push(`${name}: local asset reference(s) found: ${[...new Set(localAssetRefs)].join(", ")}`);
   }
   if (/@import\s+/i.test(html)) {
-    failures.push("CSS @import found; all styles must be inlined.");
-  }
-  if (!/<style\b[^>]*>/i.test(html)) {
-    failures.push("No inline <style> block found.");
-  }
-  if (!/<script\b[^>]*type=["']module["'][^>]*>/i.test(html)) {
-    failures.push("No inline module <script> found.");
+    failures.push(`${name}: CSS @import found; all styles must be inlined.`);
   }
 }
+
+const html = readPage("index.html");
+if (html) {
+  checkSelfContained(html, "index.html");
+  if (!/<style\b[^>]*>/i.test(html)) {
+    failures.push("index.html: no inline <style> block found.");
+  }
+  if (!/<script\b[^>]*type=["']module["'][^>]*>/i.test(html)) {
+    failures.push("index.html: no inline module <script> found.");
+  }
+}
+
+const dockHtml = readPage("dock.html");
+if (dockHtml) checkSelfContained(dockHtml, "dock.html");
 
 if (failures.length) {
   console.error("✗ Single-file build verification failed:");
@@ -98,5 +110,5 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`✓ dist/index.html is the only build output (${Buffer.byteLength(html)} bytes).`);
-console.log("✓ JavaScript and CSS are fully inlined; no external asset references found.");
+console.log(`✓ dist/ holds only index.html (${Buffer.byteLength(html)} bytes) and dock.html (${Buffer.byteLength(dockHtml)} bytes).`);
+console.log("✓ Both pages are fully self-contained; no external asset references found.");

@@ -157,5 +157,38 @@
 
         rtm.clearMarkers();
       });
+
+      it("spreads vertical-track pins along Y without overlap, leaving each needle at its true position", () => {
+        const rtm = window.LiveSplit.RaceTrackMarkers;
+        const track = document.getElementById("track");
+        const markers = [1, 2, 3, 4, 5].map(n => rtm.getOrCreateRaceMarker({ userId: `v${n}`, username: `V${n}` }, track));
+        markers[0].classList.add("splay-right", "compact");
+        markers[0].style.setProperty("--ghost-splay-x", "12px");
+
+        // Five pins at the same spot: more than the old three side-by-side tiers could hold
+        rtm.layoutTrackPins(markers.map(marker => ({ marker, coord: 200, coords: null })), {
+          isVertical: true,
+          visibleMin: 0,
+          visibleMax: 600,
+          trackElem: track
+        });
+
+        const pinSize = parseFloat(getComputedStyle(track).getPropertyValue("--ghost-pin-size")) || 26;
+        const heads = markers.map(m => 200 + (parseFloat(m.style.getPropertyValue("--ghost-splay-y")) || 0)).sort((a, b) => a - b);
+        for (let i = 1; i < heads.length; i++) {
+          assert(heads[i] - heads[i - 1] >= pinSize, `heads ${i - 1} and ${i} do not overlap (${heads[i - 1]} / ${heads[i]})`);
+        }
+        markers.forEach((m) => {
+          assert(m.style.transform.includes("translateY(200px)"), "marker (and its needle) stays at the true position");
+          assert(!m.style.transform.includes("calc"), "no sideways tier offset");
+          assertEqual(m.style.getPropertyValue("--ghost-splay-x"), "", "horizontal splay is cleared");
+          assert(!m.classList.contains("splay-left") && !m.classList.contains("splay-right"), "horizontal splay classes are cleared");
+          assert(!m.classList.contains("compact"), "compact is horizontal-only");
+        });
+        assert(markers.some(m => m.classList.contains("splay-up")), "some heads splay up");
+        assert(markers.some(m => m.classList.contains("splay-down")), "some heads splay down");
+
+        rtm.clearMarkers();
+      });
     });
 })();

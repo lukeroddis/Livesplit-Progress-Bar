@@ -20,7 +20,13 @@
     <select id="select-ghost-comparison"></select>
     <input type="range" id="slider-ghost-pin-length" min="0" max="60"><span id="val-ghost-pin-length"></span>
     <input type="range" id="slider-ghost-pin-size" min="10" max="60"><span id="val-ghost-pin-size"></span>
-    <input type="range" id="slider-ghost-opacity" min="30" max="100"><span id="val-ghost-opacity"></span>`;
+    <input type="range" id="slider-ghost-opacity" min="30" max="100"><span id="val-ghost-opacity"></span>
+    <div class="segmented-control" id="ctrl-pin-pos">
+      <button class="seg-btn" data-val="auto"></button>
+      <button class="seg-btn" data-val="top"></button>
+      <button class="seg-btn" data-val="bottom"></button>
+    </div>
+    <input type="checkbox" id="cb-pin-lane">`;
 
   function withPanel(fn, { ghosts = [], comparisons = ["Personal Best", "World Record", "Sub 3h"], style = {} } = {}) {
     const dom = mountHtml(PANEL_HTML);
@@ -103,6 +109,26 @@
       assertEqual(log.applied, 1);
       slider.dispatchEvent(new Event("change"));
       assertEqual(log.saved, 1);
+    }));
+
+    it("pin side and lane controls sync from and write to the track style", () => withPanel(({ dom, panel, log, style }) => {
+      const seg = (val) => dom.root.querySelector(`#ctrl-pin-pos [data-val="${val}"]`);
+      panel.sync(style);
+      assert(seg("auto").classList.contains("active"), "older styles show Auto");
+      assertEqual(dom.el("cb-pin-lane").checked, true, "older styles keep the lane on");
+
+      panel.bind();
+      seg("bottom").click();
+      assertEqual(style.pinPos, "bottom");
+      const lane = dom.el("cb-pin-lane");
+      lane.checked = false;
+      lane.dispatchEvent(new Event("change"));
+      assertEqual(style.pinLane, false);
+      assertEqual([log.applied, log.saved], [2, 2], "each change applies and saves");
+
+      panel.sync(style);
+      assert(seg("bottom").classList.contains("active") && !seg("auto").classList.contains("active"), "sync shows the chosen side");
+      assertEqual(lane.checked, false);
     }));
 
     it("opacity previews live and persists on change", () => withPanel(({ dom, panel, log }) => {

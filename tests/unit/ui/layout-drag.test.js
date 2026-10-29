@@ -12,7 +12,6 @@
       assertEqual(typeof window.LiveSplit.LayoutDrag.createLayoutDrag, "function", "createLayoutDrag is a function");
       assertEqual(typeof window.LiveSplit.LayoutDrag.clampCoordinates, "function", "clampCoordinates is a function");
       assertEqual(typeof window.LiveSplit.LayoutDrag.computeScale, "function", "computeScale is a function");
-      assertEqual(typeof window.LiveSplit.LayoutDrag.computeTrackDocking, "function", "computeTrackDocking is a function");
     });
 
     it("clamps drag coordinates within viewport bounds", () => {
@@ -48,32 +47,87 @@
       assertEqual(scaleFn(2.0, 300), 2.5, "scale clamped to max 2.5");
     });
 
-    it("resolves track docking and snapping for horizontal and vertical modes", () => {
-      const dockFn = window.LiveSplit.LayoutDrag.computeTrackDocking;
+    it("clamps a whole box to the viewport, pinning oversized boxes to 0", () => {
+      const clampBox = window.LiveSplit.LayoutDrag.clampBoxToViewport;
+      assertEqual(clampBox(50, 60, 200, 100, 1000, 800), { x: 50, y: 60 }, "inside stays put");
+      assertEqual(clampBox(950, 790, 200, 100, 1000, 800), { x: 800, y: 700 }, "right/bottom edges keep the box on screen");
+      assertEqual(clampBox(-20, -5, 200, 100, 1000, 800), { x: 0, y: 0 }, "left/top edges");
+      assertEqual(clampBox(300, 10, 1500, 100, 1000, 800), { x: 0, y: 10 }, "box wider than the screen pins to x = 0");
+    });
 
-      // Horizontal: y >= h - 140 -> docked bottom
-      // w = 1920, h = 1080. h - 140 = 940
-      const horizDocked = dockFn(150, 960, 1920, 1080, false);
-      assertEqual(horizDocked.docked, "bottom", "horizontal docked to bottom");
-      assertEqual(horizDocked.x, 0, "x snapped to 0");
-      assertEqual(horizDocked.y, 990, "y snapped to 1080 - 90 = 990");
+    it("computes the largest scale that keeps a box on screen", () => {
+      const maxFit = window.LiveSplit.LayoutDrag.maxScaleToFit;
+      assertEqual(maxFit(0, 0, 100, 100, 1000, 800), 2.5, "never above 2.5x");
+      assertEqual(maxFit(400, 0, 400, 50, 1000, 800), 1.5, "limited by the right edge");
+      assertEqual(maxFit(0, 700, 100, 60, 1000, 800), 1.66, "limited by the bottom edge, floored");
+      assertEqual(maxFit(950, 0, 400, 50, 1000, 800), 0.4, "never below 0.4x");
+    });
 
-      const horizFree = dockFn(150, 400, 1920, 1080, false);
-      assertEqual(horizFree.docked, "none", "horizontal free floating");
-      assertEqual(horizFree.x, 150, "x preserved");
-      assertEqual(horizFree.y, 400, "y preserved");
+    it("fits a track back on screen: floating ones move first, then shrink; docked ones only shrink", () => {
+      const fit = window.LiveSplit.LayoutDrag.fitTrackBox;
+      assertEqual(fit({ docked: "none", x: 100, y: 50, scale: 1 }, 400, 100, 1000, 800), { x: 100, y: 50, scale: 1 }, "already fits");
+      assertEqual(fit({ docked: "none", x: 900, y: 750, scale: 1 }, 400, 100, 1000, 800), { x: 600, y: 700, scale: 1 }, "moved back on screen");
+      assertEqual(fit({ docked: "none", x: 900, y: 0, scale: 2 }, 600, 100, 1000, 800), { x: 0, y: 0, scale: 1.66 }, "too big even at x=0: shrunk");
+      assertEqual(fit({ docked: "left", x: 0, y: 0, scale: 2 }, 340, 800, 1000, 800), { x: 0, y: 0, scale: 1 }, "docked full height: back to 1x");
+      assertEqual(fit({ docked: "bottom", x: 0, y: 710, scale: 0.8 }, 1000, 90, 1000, 800), { x: 0, y: 710, scale: 0.8 }, "a shrunk dock is left alone");
+    });
 
-      // Vertical: x <= 100 -> docked left
-      const vertLeft = dockFn(50, 200, 1920, 1080, true);
-      assertEqual(vertLeft.docked, "left", "vertical docked to left");
-      assertEqual(vertLeft.x, 0, "x snapped to 0");
-      assertEqual(vertLeft.y, 0, "y snapped to 0");
+    it("freezes only the track's stretched dimension", () => {
+      const freeze = window.LiveSplit.LayoutDrag.freezeTrackSize;
+      const el = { offsetWidth: 640, offsetHeight: 480 };
+      const horiz = {};
+      freeze(horiz, el, false);
+      assertEqual(horiz, { width: 640 });
+      const vert = {};
+      freeze(vert, el, true);
+      assertEqual(vert, { height: 480 });
+      const unmeasured = { width: 300 };
+      freeze(unmeasured, { offsetWidth: 0, offsetHeight: 0 }, false);
+      assertEqual(unmeasured, { width: 300 }, "a hidden (0-size) element keeps the old size");
+    });
 
-      // Vertical: x >= w - 380 (1920 - 380 = 1540) -> docked right
-      const vertRight = dockFn(1600, 200, 1920, 1080, true);
-      assertEqual(vertRight.docked, "right", "vertical docked to right");
-      assertEqual(vertRight.x, 1580, "x snapped to 1920 - 340 = 1580");
-      assertEqual(vertRight.y, 0, "y snapped to 0");
+    it("picks the dock edge from the half of the screen the track's centre is in", () => {
+      const choose = window.LiveSplit.LayoutDrag.chooseDockSide;
+      const rect = (left, top, width, height) => ({ left, top, width, height });
+      assertEqual(choose(rect(0, 100, 1000, 80), 1000, 800, false), "top");
+      assertEqual(choose(rect(0, 500, 1000, 80), 1000, 800, false), "bottom");
+      assertEqual(choose(rect(100, 0, 340, 800), 1000, 800, true), "left");
+      assertEqual(choose(rect(600, 0, 340, 800), 1000, 800, true), "right");
+    });
+
+    it("maps a saved dock to the edges this orientation can use", () => {
+      const side = window.LiveSplit.LayoutDrag.effectiveDockSide;
+      assertEqual(["top", "bottom", "left", "right"].map((d) => side(d, false)), ["top", "bottom", "bottom", "bottom"]);
+      assertEqual(["top", "bottom", "left", "right"].map((d) => side(d, true)), ["left", "left", "left", "right"]);
+    });
+
+    it("computeTrackResize clamps to the minimum size and the screen, and divides out the scale", () => {
+      const resize = window.LiveSplit.LayoutDrag.computeTrackResize;
+      const MIN = window.LiveSplit.LayoutDrag.TRACK_MIN_SIZE;
+      const base = { x: 100, y: 100, baseW: 340, baseH: 600, scale: 1, viewportWidth: 1920, viewportHeight: 1080 };
+
+      assertEqual(resize({ ...base, isVertical: true, docked: "none", dx: -40, dy: 60 }), { verticalWidth: 300, height: 660 });
+      assertEqual(resize({ ...base, isVertical: true, docked: "none", dx: -9999, dy: -9999 }),
+        { verticalWidth: MIN.verticalWidth, height: MIN.verticalHeight }, "minimums");
+      assertEqual(resize({ ...base, isVertical: true, docked: "none", dx: 9999, dy: 9999 }),
+        { verticalWidth: 1820, height: 980 }, "stops at the screen edge");
+      assertEqual(resize({ ...base, scale: 2, baseH: 300, isVertical: true, docked: "none", dx: 100, dy: 100 }),
+        { verticalWidth: 390, height: 350 }, "screen px are divided by the scale");
+      assertEqual(resize({ ...base, scale: 2, isVertical: true, docked: "none", dx: 0, dy: 100 }).height, 490,
+        "the scaled track still stops at the screen edge");
+
+      assertEqual(resize({ ...base, isVertical: true, docked: "left", dx: 60, dy: 300 }), { verticalWidth: 400 }, "docked: width only");
+      assertEqual(resize({ ...base, isVertical: true, docked: "right", dx: 60, dy: 0 }), { verticalWidth: 280 }, "docked right grows leftwards");
+
+      const horiz = { ...base, isVertical: false, baseW: 800, baseLines: 1, lineHeight: 20 };
+      assertEqual(resize({ ...horiz, docked: "none", dx: -100, dy: 0 }), { width: 700, nameLines: 1 }, "horizontal width");
+      assertEqual(resize({ ...horiz, docked: "none", dx: -9999, dy: 0 }).width, MIN.horizontalWidth);
+      assertEqual(resize({ ...horiz, docked: "none", dx: 0, dy: 41 }).nameLines, 3, "height moves in whole name lines");
+      assertEqual(resize({ ...horiz, docked: "none", dx: 0, dy: 9999 }).nameLines, window.LiveSplit.LayoutDrag.MAX_NAME_LINES, "line cap");
+      assertEqual(resize({ ...horiz, docked: "none", baseLines: 3, dx: 0, dy: -9999 }).nameLines, 1, "at least one line");
+      assertEqual(resize({ ...horiz, docked: "bottom", dx: 50, dy: -40 }), { nameLines: 3 }, "docked bottom: grows upwards, width stays full");
+      assertEqual(resize({ ...horiz, docked: "top", dx: 50, dy: 40 }), { nameLines: 3 }, "docked top: grows downwards");
+      assertEqual(resize({ ...horiz, scale: 2, docked: "top", dx: 0, dy: 40 }), { nameLines: 2 }, "screen px are divided by the scale");
     });
 
     it("initializes drag engine and manages active pointer operation", () => {
@@ -101,7 +155,9 @@
         <div class="hud-resize-handle"></div>
       </div>
       <div id="hud-comp-timers" style="position: absolute; left: 400px; top: 50px; width: 300px; height: 60px;"></div>
-      <div id="hud-comp-track" style="position: absolute; left: 0px; top: 300px; width: 600px; height: 60px;"></div>
+      <div id="hud-comp-track" style="position: absolute; left: 0px; top: 300px; width: 600px; height: 60px;">
+        <div class="hud-resize-handle"></div>
+      </div>
       <div id="hud-comp-leaderboard" style="position: absolute; left: 20px; top: 120px; width: 300px; height: 200px;">
         <div class="leaderboard-header">Standings <span class="leaderboard-status">LIVE</span><button id="ld-lb-btn">x</button></div>
       </div>
@@ -132,7 +188,7 @@
       const ctx = {
         dom, layout, log, style, engine,
         setEdit: (v) => { edit = v; },
-        down: (el, x, y) => el.dispatchEvent(new PointerEvent("pointerdown", { ...at(x, y), bubbles: true, cancelable: true })),
+        down: (el, x, y, mods = {}) => el.dispatchEvent(new PointerEvent("pointerdown", { ...at(x, y), ...mods, bubbles: true, cancelable: true })),
         move: (x, y) => win.fire("pointermove", at(x, y)),
         up: (x, y) => win.fire("pointerup", at(x, y))
       };
@@ -202,21 +258,80 @@
       assertEqual(log.anchorSyncs, 1);
     }));
 
-    it("snaps the horizontal track to the bottom dock near the screen bottom", () => withHud(({ dom, layout, down, move }) => {
+    it("drags the horizontal track freely near the screen bottom without docking", () => withHud(({ dom, layout, down, move }) => {
       down(dom.el("hud-comp-track"), 10, 310);
-      move(10, 310 + window.innerHeight);
-      assertEqual(layout.track.docked, "bottom");
-      assertEqual([layout.track.x, layout.track.y], [0, window.innerHeight - 90]);
-      move(10, 10);
-      assertEqual(layout.track.docked, "none", "undocks when dragged to the top");
+      move(60, 99999);
+      assertEqual(layout.track.docked, "none", "no bottom snap");
+      assertEqual([layout.track.x, layout.track.y], [50, window.innerHeight - 60], "keeps its x, whole track clamped above the bottom");
+      assertEqual(layout.track.width, 600, "width frozen so moving never resizes it");
+      assertEqual(layout.track.height, undefined, "horizontal height stays content-sized");
     }));
 
-    it("snaps the vertical track to the left or right dock", () => withHud(({ dom, layout, down, move }) => {
+    it("drags the vertical track freely along the side edges without docking", () => withHud(({ dom, layout, down, move }) => {
       down(dom.el("hud-comp-track"), 10, 310);
-      move(-500, 310);
-      assertEqual(layout.track.docked, "left");
-      move(5000, 310);
-      assertEqual(layout.track.docked, "right");
+      move(-500, 210);
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 0, 200], "left edge keeps its height");
+      move(5000, 210);
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", Math.max(0, window.innerWidth - 600), 200], "whole track stays on screen at the right edge");
+      assertEqual(layout.track.height, 60, "height frozen so moving never resizes it");
+    }, { orientation: "vertical" }));
+
+    it("keeps a scaled-up track fully on screen while dragging", () => withHud(({ dom, layout, down, move }) => {
+      layout.track.scale = 1.5;
+      down(dom.el("hud-comp-track"), 10, 310);
+      move(99999, 99999);
+      assertEqual([layout.track.x, layout.track.y],
+        [Math.max(0, window.innerWidth - 900), Math.max(0, window.innerHeight - 90)], "clamped by its scaled 900x90 box");
+    }));
+
+    it("caps the floating track's scale so its resize handle stays on screen", () => withHud(({ dom, layout, down, move, up }) => {
+      const track = dom.el("hud-comp-track");
+      down(track.querySelector(".hud-resize-handle"), 600, 350, { ctrlKey: true });
+      move(99999, 350);
+      const cap = window.LiveSplit.LayoutDrag.maxScaleToFit(0, 300, 600, 60, window.innerWidth, window.innerHeight);
+      assertEqual(layout.track.scale, cap, "scale capped at the largest size that fits");
+      assertEqual(layout.track.width, 600, "scaling freezes the width too");
+      up(99999, 350);
+
+      layout.track.docked = "bottom";
+      layout.track.scale = 1;
+      down(track.querySelector(".hud-resize-handle"), 600, 350, { shiftKey: true });
+      move(99999, 350);
+      assertEqual(layout.track.scale, window.LiveSplit.LayoutDrag.maxScaleToFit(0, 0, 600, 60, window.innerWidth, window.innerHeight),
+        "a docked track is capped by its own size, wherever it sits");
+    }));
+
+    it("the track handle resizes instead of scaling: width for a floating horizontal track", () => withHud(({ dom, layout, log, engine, down, move, up }) => {
+      const handle = dom.el("hud-comp-track").querySelector(".hud-resize-handle");
+      down(handle, 600, 350);
+      assertEqual(engine.getActiveOp().type, "resize");
+      move(500, 350);
+      assertEqual(layout.track.width, 500, "100px narrower");
+      assertEqual(layout.track.nameLines, 1, "no height change: names stay on one line");
+      assertEqual(layout.track.scale, 1, "scale untouched");
+      assert(log.applied.includes("track"));
+      up(500, 420);
+    }));
+
+    it("a vertical track resizes width and height, and a docked one grows away from its edge", () => withHud(({ dom, layout, down, move, up }) => {
+      const handle = dom.el("hud-comp-track").querySelector(".hud-resize-handle");
+      down(handle, 600, 350);
+      move(550, 450);
+      assertEqual([layout.track.verticalWidth, layout.track.height], [550, 160], "50px narrower, 100px taller");
+      up(550, 450);
+
+      layout.track.docked = "right";
+      down(handle, 600, 350);
+      move(500, 350);
+      assertEqual(layout.track.verticalWidth, 700, "docked right: dragging left widens it");
+    }, { orientation: "vertical" }));
+
+    it("dragging a docked track floats it", () => withHud(({ dom, layout, down, move }) => {
+      layout.track.docked = "left";
+      down(dom.el("hud-comp-track"), 10, 310);
+      move(20, 320);
+      assertEqual(layout.track.docked, "none");
+      assertEqual([layout.track.x, layout.track.y], [10, 310]);
     }, { orientation: "vertical" }));
 
     it("the leaderboard header drags even outside edit mode, except from its controls", () => withHud(({ dom, layout, engine, down, move, up }) => {
@@ -245,25 +360,51 @@
       return window.TestUtils.stubOverlay({ refreshTrack: () => calls.push("refresh") }, () => fn(calls));
     }
 
-    it("the dock button toggles the horizontal track between bottom dock and floating", () => withTrackRefreshStubs((calls) => withHud(({ dom, layout, log }) => {
+    // Pins the fixture track at a screen position so the dock button can tell which half it is in
+    function placeTrack(dom, left, top) {
+      Object.assign(dom.el("hud-comp-track").style, { position: "fixed", left: `${left}px`, top: `${top}px` });
+    }
+
+    it("the dock button docks the horizontal track to the bottom when it sits low, and floats it back", () => withTrackRefreshStubs((calls) => withHud(({ dom, layout, log }) => {
       const btn = dom.el("btn-dock-track");
+      placeTrack(dom, 0, window.innerHeight - 60);
+      layout.track.width = 500;
       btn.click();
       assertEqual(layout.track.docked, "bottom");
       assertEqual([layout.track.x, layout.track.y], [0, Math.max(0, window.innerHeight - 90)]);
       btn.click();
       assertEqual(layout.track.docked, "none");
-      assertEqual([layout.track.x, layout.track.y], [42, Math.max(0, window.innerHeight - 150)]);
+      assertEqual([layout.track.x, layout.track.y], [42, Math.max(0, window.innerHeight - 150)], "floats just above the bottom");
+      assertEqual(layout.track.width, undefined, "floating from the dock fills to the right edge again");
       assertEqual(log.saves, 2);
       assertEqual(log.applied, ["track", "track"]);
       assertEqual(calls, ["refresh", "refresh"], "track re-rendered after each toggle");
     })));
 
-    it("the dock button toggles the vertical track between left dock and floating", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {
+    it("the dock button docks the horizontal track to the top when it sits high", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {
       const btn = dom.el("btn-dock-track");
+      placeTrack(dom, 0, 0);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["top", 0, 0]);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 42, 80], "floats just below the top");
+    })));
+
+    it("the dock button docks the vertical track to the left or right, whichever half it is in", () => withTrackRefreshStubs(() => withHud(({ dom, layout }) => {
+      const btn = dom.el("btn-dock-track");
+      placeTrack(dom, 0, 0);
+      layout.track.height = 400;
       btn.click();
       assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["left", 0, 0]);
       btn.click();
       assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", 42, 80]);
+      assertEqual(layout.track.height, undefined, "floating from the dock fills downward again");
+
+      placeTrack(dom, window.innerWidth - 300, 0);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["right", Math.max(0, window.innerWidth - 340), 0]);
+      btn.click();
+      assertEqual([layout.track.docked, layout.track.x, layout.track.y], ["none", Math.max(0, window.innerWidth - 382), 80], "floats just inside the right edge");
     }, { orientation: "vertical" })));
   });
 })();

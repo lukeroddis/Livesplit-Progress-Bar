@@ -194,7 +194,7 @@ function initOverlay() {
 
   // Live race controls & WebSocket telemetry log (src/ui/race-controls.js, src/ui/ws-log-panel.js)
   const raceClient = getRaceClient();
-  window.LiveSplit.RaceControls.bindRaceControls({
+  const raceControls = window.LiveSplit.RaceControls.bindRaceControls({
     raceClient,
     refreshLeaderboard: ghostRunner.refreshLeaderboard,
     refreshGhosts: () => ghostRunner.updateGhostRunner(state.lastElapsedSec),
@@ -205,6 +205,8 @@ function initOverlay() {
       return { splitsList: state.splitsList, gtComparisons, rtComparisons, isAlreadyRunning };
     }
   });
+  // OBS Custom Browser Dock commands (dock.html, src/ui/race-dock-bridge.js)
+  window.LiveSplit.RaceDockBridge.createRaceDockBridge({ raceClient, controls: raceControls }).start();
   window.LiveSplit.WsLogPanel.bindWsLogPanel(raceClient);
 
   window.LiveSplit.SettingsMenu.initSettingsMenuDraggable();

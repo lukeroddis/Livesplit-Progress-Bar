@@ -121,6 +121,8 @@
       if (isVertical) return false;
       if (anglePref === "angled" || anglePref === "40") return true;
       if (anglePref === "horizontal" || anglePref === "flat") return false;
+      // A track made tall enough for wrapped names wraps them instead of tilting them
+      if (track.classList.contains("wrap-names")) return false;
       // Intelligent collision detection:
       // If node spacing is under 175px, text is very prone to collision
       if (spacing < 175) return true;
@@ -175,7 +177,7 @@
       const isVertical = track.classList.contains("vertical");
       const trackComp = document.getElementById("hud-comp-track");
       const isDockedVertical = isVertical && (trackComp?.classList.contains("docked-left") || trackComp?.classList.contains("docked-right"));
-      const isDockedHorizontal = !isVertical && trackComp?.classList.contains("docked-bottom");
+      const isDockedHorizontal = !isVertical && (trackComp?.classList.contains("docked-bottom") || trackComp?.classList.contains("docked-top"));
 
       const currentOrient = isVertical ? "vertical" : "horizontal";
       if (lastKnownOrientation !== null && lastKnownOrientation !== currentOrient) {
@@ -229,7 +231,7 @@
       if (window.hudLayout) {
         if (nextVal === "angled") {
           const style = window.hudLayout.getTrackStyle();
-          if (style) {
+          if (style && style.orientation !== "vertical") {
             style.deltaPos = (style.namePos === "top") ? "bottom" : "top";
             window.hudLayout.saveTrackStyle();
           }

@@ -3,7 +3,8 @@
  *
  * Syncs and binds the track controls shared by the toolbar and the customizer modal:
  * - Orientation (segmented control + footer badge) and the opposing-side hint
- * - Split name / delta positions (kept on opposite sides while 40° angle mode is active)
+ * - Split name / delta positions (kept on opposite sides while 40° angle mode is active on a
+ *   horizontal track; independent on vertical tracks, where names never tilt)
  * - Split angle (toolbar select + modal segmented control)
  * - Name / delta font, bar height and dot size sliders
  * - Visible split count (toolbar + modal spin boxes, Fit All / Auto) and "Always Show Last Split"
@@ -31,9 +32,11 @@
     return localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
   }
 
-  // Angle mode is on when chosen explicitly or auto-applied by track density
+  // Angle mode is on when chosen explicitly or auto-applied by track density. It only ever
+  // tilts names on a horizontal track, so a vertical track is never in angle mode.
   function isAngledMode() {
     const track = document.getElementById("track");
+    if (track && track.classList.contains("vertical")) return false;
     return getAnglePref() === "angled" || !!(track && track.classList.contains("angled-text"));
   }
 
@@ -115,7 +118,7 @@
     function applySplitAngle(val) {
       localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, val);
       const style = getCurrentTrackStyle();
-      if (val === "angled" && style) {
+      if (val === "angled" && style && style.orientation !== "vertical") {
         style.deltaPos = (style.namePos === "top") ? "bottom" : "top";
         saveTrackStyle();
       }

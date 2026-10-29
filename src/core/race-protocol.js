@@ -107,6 +107,36 @@
   }
 
   /**
+   * A DNF'd or finished runner back in the lobby (or racing again after a DNF) has started a
+   * new race in the same room. hasEnded marks the end of the old race, never a new one.
+   */
+  function isRunRestart(runner, statusStr, data) {
+    if (!runner || data.hasEnded === true) return false;
+    if (statusStr === "joined" || statusStr === "ready") return !!(runner.isDNF || runner.isFinished);
+    return statusStr === "started" && !!runner.isDNF;
+  }
+
+  /**
+   * Clears a runner's previous run (DNF / finish, splits, leaderboard decorations, rank
+   * history) so a race restarted in the same room starts every runner from zero.
+   */
+  function startFreshRun(runner, ctx) {
+    const RaceState = window.LiveSplit.RaceState;
+    RaceState.resetRunProgress(runner);
+    RaceState.resetLeaderboardEffects(runner);
+    delete runner.dnfScore;
+    runner.currentSplitName = "Split 1";
+    runner.currentTimeSecGT = 0;
+    runner.currentTimeSecRT = 0;
+    runner.splitTimesGT = [];
+    runner.splitTimesRT = [];
+    if (ctx.lastKnownRanks) ctx.lastKnownRanks.delete(runner.userId);
+    if (ctx.checkpointRankHistory) {
+      ctx.checkpointRankHistory.forEach(histMap => histMap.delete(runner.userId));
+    }
+  }
+
+  /**
    * Normalizes incoming telemetry and updates or creates an entrant in the context entrants Map.
    * @param {Object} data - Raw participant telemetry data packet
    * @param {Object} ctx - Protocol context
@@ -238,6 +268,11 @@
       }
     }
 
+    const isRestarted = !isNewEntrant && isRunRestart(existing, statusStr, data);
+    if (isRestarted) {
+      startFreshRun(existing, ctx);
+    }
+
     existing.username = rawName;
     existing.isHost = isMatchedHost;
     if (isMatchedHost) {
@@ -309,7 +344,7 @@
       // to their current split without a split flash
       const splitStartedMs = (live && typeof live.splitStartedAt === "number") ? live.splitStartedAt : 0;
       const isStaleSighting = isNewEntrant && splitStartedMs > 0 && Math.abs(Date.now() - splitStartedMs) >= 4000;
-      const isFreshSplit = !opts.silent && !isStaleSighting;
+      const isFreshSplit = !opts.silent && !isStaleSighting && !isRestarted;
       if (rawSplitIdx > existing.currentSplitIndex && !isFreshSplit) {
         if (existing.currentTimeSec > 0 && typeof existing.splitTimes[rawSplitIdx - 1] !== "number") {
           existing.splitTimes[rawSplitIdx - 1] = existing.currentTimeSec;
@@ -734,6 +769,17 @@
     const entrants = ctx.entrants || new Map();
     const hostState = ctx.hostState || {};
     const lastKnownRanks = ctx.lastKnownRanks || new Map();
+
+    // A new countdown after the race ran (e.g. everyone forfeited and restarted the same
+    // room) is a new race: nobody keeps their old DNF, finish or splits
+    const wasRaceUnderway = currentRaceStatus === "in_progress" || currentRaceStatus === "finished";
+    if (wasRaceUnderway && getStatus(ctx) === "starting") {
+      // The local host placeholder follows LiveSplit; the host's therun.gg row resets here
+      entrants.forEach((e, id) => {
+        if (id === hostState.userId) return;
+        startFreshRun(e, ctx);
+      });
+    }
 
     if (Array.isArray(participantsList)) {
       // In live room: authoritative snapshot from therun.gg prunes anyone who left the race

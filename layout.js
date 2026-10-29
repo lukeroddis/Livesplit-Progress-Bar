@@ -148,6 +148,7 @@
         applyComponentLayout: (id) => applyComponentLayout(id),
         syncTrackModalUI,
         removeGameLogo,
+        fitTrackOnScreen,
         storageKey: TRACK_STYLE_KEY
       });
     }
@@ -415,6 +416,28 @@
     }
   }
 
+  // Moves/shrinks the track back on screen so its resize handle stays reachable (e.g. after an
+  // orientation switch kept a scale that suited the other shape)
+  function fitTrackOnScreen() {
+    const el = document.getElementById("hud-comp-track");
+    const state = layoutState && layoutState.track;
+    const drag = window.LiveSplit.LayoutDrag;
+    if (!el || !state || !drag) return;
+    const w = window.innerWidth || 1920;
+    const h = window.innerHeight || 1080;
+    const fits = (f) => f.x === state.x && f.y === state.y && f.scale === state.scale;
+    if (fits(drag.fitTrackBox(state, el.offsetWidth, el.offsetHeight, w, h))) return;
+
+    // A floating track's size follows its position, so fix it before moving it
+    if (!state.docked || state.docked === "none") {
+      drag.freezeTrackSize(state, el, !!(currentTrackStyle && currentTrackStyle.orientation === "vertical"));
+      applyComponentLayout("track");
+    }
+    Object.assign(state, drag.fitTrackBox(state, el.offsetWidth, el.offsetHeight, w, h));
+    applyComponentLayout("track");
+    saveLayout();
+  }
+
   function applyComponentLayout(compId) {
     const el = document.getElementById(`hud-comp-${compId}`);
     if (!el) return;
@@ -456,27 +479,40 @@
       const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
       const dockBtn = document.getElementById("btn-dock-track");
 
-      el.classList.remove("docked-bottom", "docked-left", "docked-right");
+      // A horizontal track's height (set by the resize handle) is the lines its split names may use
+      const trackInner = document.getElementById("track");
+      if (trackInner) {
+        const nameLines = Math.max(1, Math.min(window.LiveSplit.LayoutDrag.MAX_NAME_LINES, Math.round(state.nameLines || 1)));
+        trackInner.style.setProperty("--name-lines", String(nameLines));
+        trackInner.classList.toggle("wrap-names", !isVert && nameLines > 1);
+      }
+
+      el.classList.remove("docked-bottom", "docked-top", "docked-left", "docked-right");
+      const isDocked = !!state.docked && state.docked !== "none";
+      const side = isDocked ? window.LiveSplit.LayoutDrag.effectiveDockSide(state.docked, isVert) : "none";
 
       if (isVert) {
-        if (state.docked === "left" || state.docked === "bottom") {
+        // Width set by the resize handle (room for split text); 340px until resized
+        const trackWidth = state.verticalWidth > 0 ? state.verticalWidth : 340;
+        el.style.setProperty("--track-width", `${trackWidth}px`);
+        if (side === "left") {
           el.classList.add("docked-left");
           el.style.left = "0px";
           el.style.right = "auto";
           el.style.top = "0px";
           el.style.bottom = "0px";
-          el.style.width = "340px";
+          el.style.width = `${trackWidth}px`;
           el.style.height = "100%";
           el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
           el.style.transformOrigin = "top left";
           if (dockBtn) dockBtn.innerText = "⚓ Docked";
-        } else if (state.docked === "right") {
+        } else if (side === "right") {
           el.classList.add("docked-right");
           el.style.right = "0px";
           el.style.left = "auto";
           el.style.top = "0px";
           el.style.bottom = "0px";
-          el.style.width = "340px";
+          el.style.width = `${trackWidth}px`;
           el.style.height = "100%";
           el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
           el.style.transformOrigin = "top right";
@@ -486,8 +522,9 @@
           el.style.top = `${state.y}px`;
           el.style.bottom = "";
           el.style.right = "";
-          el.style.width = "340px";
-          el.style.height = `${Math.min(h - state.y, 800)}px`;
+          el.style.width = `${trackWidth}px`;
+          // A size frozen by dragging/resizing wins; until then it fills down from its position
+          el.style.height = `${state.height > 0 ? state.height : Math.min(h - state.y, 800)}px`;
           el.style.transform = `scale(${state.scale})`;
           el.style.transformOrigin = "top left";
           if (dockBtn) dockBtn.innerText = "⛵ Float";
@@ -495,23 +532,24 @@
         return;
       }
 
-      if (state.docked === "bottom" || state.docked === "left" || state.docked === "right") {
-        el.classList.add("docked-bottom");
+      if (side === "top" || side === "bottom") {
+        el.classList.add(side === "top" ? "docked-top" : "docked-bottom");
         el.style.left = "0px";
         el.style.right = "auto";
-        el.style.top = "";
-        el.style.bottom = "0px";
+        el.style.top = side === "top" ? "0px" : "";
+        el.style.bottom = side === "top" ? "" : "0px";
         el.style.width = "100%";
         el.style.height = "";
         el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
-        el.style.transformOrigin = "bottom center";
+        el.style.transformOrigin = `${side} center`;
         if (dockBtn) dockBtn.innerText = "⚓ Docked";
       } else {
         el.style.left = `${state.x}px`;
         el.style.top = `${state.y}px`;
         el.style.bottom = "";
         el.style.right = "";
-        el.style.width = `calc(100vw - ${Math.max(0, state.x)}px)`;
+        // A size frozen by dragging/resizing wins; until then it fills to the right edge
+        el.style.width = state.width > 0 ? `${state.width}px` : `calc(100vw - ${Math.max(0, state.x)}px)`;
         el.style.height = "";
         el.style.transform = `scale(${state.scale})`;
         el.style.transformOrigin = "top left";
@@ -700,6 +738,7 @@
     syncTrackModalUI,
     setVisibleSplits,
     setTrackOrientation,
+    fitTrackOnScreen,
     setEditMode,
     isEditMode: () => isEditMode,
     resetLayout,

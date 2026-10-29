@@ -56,11 +56,15 @@
         "track": {
           "type": "object",
           "properties": {
+            "width": { "type": "number", "description": "Unscaled width of a floating horizontal track (px)" },
+            "height": { "type": "number", "description": "Unscaled height of a floating vertical track (px)" },
+            "verticalWidth": { "type": "number", "description": "Unscaled width of a vertical track, docked or floating (px)" },
+            "nameLines": { "type": "integer", "minimum": 1, "maximum": 4, "description": "Lines split names may wrap onto on a horizontal track (its height)" },
             "x": { "type": "number" },
             "y": { "type": "number" },
             "scale": { "type": "number" },
             "visible": { "type": "boolean" },
-            "docked": { "type": "string", "enum": ["none", "bottom", "left", "right"] }
+            "docked": { "type": "string", "enum": ["none", "bottom", "top", "left", "right"] }
           }
         },
         "leaderboard": {
@@ -99,6 +103,8 @@
         "dotSize": { "type": "integer" },
         "ghostPinLength": { "type": "integer" },
         "ghostPinSize": { "type": "integer" },
+        "pinPos": { "type": "string", "enum": ["auto", "top", "bottom", "left", "right"] },
+        "pinLane": { "type": "boolean" },
         "logoHeight": { "type": "integer" }
       }
     },

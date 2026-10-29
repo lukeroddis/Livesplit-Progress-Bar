@@ -104,9 +104,12 @@ jobs:
         run: |
           npm run build
           HTML_NAME="speedrun-overlay-${RELEASE_TAG}.html"
+          DOCK_NAME="speedrun-overlay-dock-${RELEASE_TAG}.html"
           cp dist/index.html "$HTML_NAME"
+          cp dist/dock.html "$DOCK_NAME"
           echo "HTML_NAME=$HTML_NAME" >> $GITHUB_ENV
-          echo "Built release asset: $HTML_NAME"
+          echo "DOCK_NAME=$DOCK_NAME" >> $GITHUB_ENV
+          echo "Built release assets: $HTML_NAME, $DOCK_NAME"
 
       - name: Create GitHub Release
         if: env.SKIP_RELEASE != 'true'
@@ -114,7 +117,9 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: "Speedrun Overlay ${{ env.RELEASE_TAG }}"
-          files: ${{ env.HTML_NAME }}
+          files: |
+            ${{ env.HTML_NAME }}
+            ${{ env.DOCK_NAME }}
           generate_release_notes: true
           draft: false
           prerelease: false

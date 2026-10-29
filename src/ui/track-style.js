@@ -3,7 +3,7 @@
  * 
  * Encapsulates:
  * - Track styling defaults (bar height, dot size, typography, ghost pin length/size, backgrounds)
- * - Orientation transitions (horizontal docked-bottom vs vertical docked-left/right)
+ * - Orientation transitions (horizontal docked-top/bottom vs vertical docked-left/right)
  * - Positional label mapping (top/bottom <-> left/right) and opposing angled text guarantees
  * - Dynamic CSS variable injection (--bar-height, --dot-size, --name-font-size, etc.)
  * - Split density preference management ("all", "auto", 2..60)
@@ -29,6 +29,8 @@
     dotSize: 15,           // px
     ghostPinLength: 16,    // px (0 to 36)
     ghostPinSize: 26,      // px (18 to 44)
+    pinPos: "auto",        // 'auto' | 'top' | 'bottom' | 'left' | 'right' (auto: top, or the delta side when vertical)
+    pinLane: true,         // boolean: reserve space beside the bar so pins never cover split text
     bgOpacity: 55,         // % (0 to 95)
     bgBlur: 8,             // px (0 to 20)
     bgTitle: true,         // boolean
@@ -37,10 +39,29 @@
     logoHeight: 60         // px (25 to 140)
   });
 
+  // Pin sides map across orientations the way split names do: top <-> left, bottom <-> right
+  const PIN_POS_TO_VERTICAL = { top: "left", bottom: "right" };
+  const PIN_POS_TO_HORIZONTAL = { left: "top", right: "bottom" };
+
+  /**
+   * Which side of the bar ghost/race pins stand on.
+   * @param {Object} style - Track style
+   * @returns {"top"|"bottom"|"left"|"right"}
+   */
+  function resolvePinSide(style) {
+    const s = style || {};
+    if (s.orientation === "vertical") {
+      if (s.pinPos === "left" || s.pinPos === "right") return s.pinPos;
+      return s.deltaPos === "left" ? "left" : "right";
+    }
+    return s.pinPos === "bottom" ? "bottom" : "top";
+  }
+
   /**
    * Pure mapping helper to switch orientation and recalculate name/delta positions.
+   * The pin side is mapped too when given ("auto" stays "auto").
    */
-  function mapOrientationSwitch(currentOrient, newOrient, currentNamePos, currentDeltaPos) {
+  function mapOrientationSwitch(currentOrient, newOrient, currentNamePos, currentDeltaPos, currentPinPos) {
     const targetOrient = (newOrient === "vertical") ? "vertical" : "horizontal";
     let namePos = currentNamePos;
     let deltaPos = currentDeltaPos;
@@ -61,7 +82,13 @@
       }
     }
 
-    return { orientation: targetOrient, namePos, deltaPos };
+    let pinPos = currentPinPos;
+    if (pinPos !== undefined) {
+      const table = targetOrient === "vertical" ? PIN_POS_TO_VERTICAL : PIN_POS_TO_HORIZONTAL;
+      pinPos = table[pinPos] || (["top", "bottom", "left", "right"].includes(pinPos) ? pinPos : "auto");
+    }
+
+    return { orientation: targetOrient, namePos, deltaPos, pinPos };
   }
 
   function createTrackStyle(options = {}) {
@@ -73,6 +100,7 @@
       applyComponentLayout = () => {},
       syncTrackModalUI = () => {},
       removeGameLogo = () => {},
+      fitTrackOnScreen = () => {},
       storageKey = TRACK_STYLE_KEY
     } = options;
 
@@ -133,15 +161,17 @@
         currentTrackStyle.orientation,
         orient,
         currentTrackStyle.namePos,
-        currentTrackStyle.deltaPos
+        currentTrackStyle.deltaPos,
+        currentTrackStyle.pinPos || "auto"
       );
 
       currentTrackStyle.orientation = mapped.orientation;
       currentTrackStyle.namePos = mapped.namePos;
       currentTrackStyle.deltaPos = mapped.deltaPos;
+      currentTrackStyle.pinPos = mapped.pinPos;
 
       if (mapped.orientation === "vertical") {
-        if (layoutState && layoutState.track && layoutState.track.docked === "bottom") {
+        if (layoutState && layoutState.track && (layoutState.track.docked === "bottom" || layoutState.track.docked === "top")) {
           layoutState.track.docked = "left";
           layoutState.track.x = 0;
           layoutState.track.y = 0;
@@ -158,6 +188,8 @@
 
       applyComponentLayout("track");
       applyStyle();
+      // The old orientation's scale can push the new shape off screen (e.g. a scaled-up bar turned upright)
+      fitTrackOnScreen();
       saveStyle(currentTrackStyle);
       syncTrackModalUI();
 
@@ -186,6 +218,13 @@
       if (!root || !track) return;
 
       const isVert = (currentTrackStyle.orientation === "vertical");
+
+      // Repair positions that belong to the other orientation (e.g. a "top" delta left on a
+      // vertical track by an older build), which would leave no position button selected
+      const fixed = mapOrientationSwitch(currentTrackStyle.orientation, currentTrackStyle.orientation,
+        currentTrackStyle.namePos, currentTrackStyle.deltaPos);
+      currentTrackStyle.namePos = fixed.namePos;
+      currentTrackStyle.deltaPos = fixed.deltaPos;
 
       if (isVert) {
         track.classList.add("vertical");
@@ -239,6 +278,9 @@
         "pos-delta-top", "pos-delta-bottom", "pos-delta-left", "pos-delta-right"
       );
       track.classList.add(`pos-name-${currentTrackStyle.namePos}`, `pos-delta-${currentTrackStyle.deltaPos}`);
+      track.classList.remove("pins-top", "pins-bottom", "pins-left", "pins-right");
+      track.classList.add(`pins-${resolvePinSide(currentTrackStyle)}`);
+      track.classList.toggle("pin-lane", currentTrackStyle.pinLane !== false);
 
       syncTrackModalUI();
 
@@ -279,6 +321,7 @@
     TRACK_STYLE_KEY,
     SPLIT_DENSITY_KEY,
     mapOrientationSwitch,
+    resolvePinSide,
     createTrackStyle
   };
 })();

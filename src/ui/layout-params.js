@@ -98,6 +98,7 @@
     const orientParam = params.get("orient") || params.get("orientation");
     const namePosParam = params.get("namepos");
     const deltaPosParam = params.get("deltapos");
+    const pinPosParam = params.get("pinpos");
     const barSizeParam = params.get("barsize");
     const dotSizeParam = params.get("dotsize");
     const nameFontParam = params.get("namefont");
@@ -123,6 +124,10 @@
       if (deltaPosParam) {
         const dp = deltaPosParam.toLowerCase().trim();
         if (["top", "bottom", "left", "right"].includes(dp)) currentTrackStyle.deltaPos = dp;
+      }
+      if (pinPosParam) {
+        const pp = pinPosParam.toLowerCase().trim();
+        if (["auto", "top", "bottom", "left", "right"].includes(pp)) currentTrackStyle.pinPos = pp;
       }
       if (barSizeParam) currentTrackStyle.barHeight = parseInt(barSizeParam, 10) || currentTrackStyle.barHeight;
       if (dotSizeParam) currentTrackStyle.dotSize = parseInt(dotSizeParam, 10) || currentTrackStyle.dotSize;

@@ -92,6 +92,17 @@
       C.syncSlider("slider-ghost-pin-length", "val-ghost-pin-length", (style.ghostPinLength != null ? style.ghostPinLength : 16), C.formats.pinLength);
       C.syncSlider("slider-ghost-pin-size", "val-ghost-pin-size", (style.ghostPinSize != null ? style.ghostPinSize : 26), C.formats.px);
       C.syncSlider("slider-ghost-opacity", "val-ghost-opacity", parseInt(localStorage.getItem(STORAGE_KEYS.GHOST_OPACITY) || "85", 10), C.formats.percent);
+      C.syncSegmented("#ctrl-pin-pos", style.pinPos || "auto");
+      const cbLane = document.getElementById("cb-pin-lane");
+      if (cbLane) cbLane.checked = style.pinLane !== false;
+    }
+
+    function updateStyle(mutate) {
+      const style = getCurrentTrackStyle();
+      if (!style) return;
+      mutate(style);
+      applyTrackStyle();
+      saveTrackStyle();
     }
 
     function bind() {
@@ -114,6 +125,11 @@
       const sliderDeps = { getStyle: getCurrentTrackStyle, applyStyle: applyTrackStyle, saveStyle: saveTrackStyle };
       C.bindStyleSlider(Object.assign({ sliderId: "slider-ghost-pin-length", badgeId: "val-ghost-pin-length", prop: "ghostPinLength", format: C.formats.pinLength }, sliderDeps));
       C.bindStyleSlider(Object.assign({ sliderId: "slider-ghost-pin-size", badgeId: "val-ghost-pin-size", prop: "ghostPinSize", format: C.formats.px }, sliderDeps));
+
+      C.bindSegmented("#ctrl-pin-pos", (val) => updateStyle((style) => { style.pinPos = val; }));
+      document.getElementById("cb-pin-lane")?.addEventListener("change", (e) => {
+        updateStyle((style) => { style.pinLane = e.target.checked; });
+      });
 
       // Opacity is a ghost-runner preference (not track style): live preview on input, persisted on change
       const sliderGhostOp = document.getElementById("slider-ghost-opacity");

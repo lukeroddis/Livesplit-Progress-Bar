@@ -180,6 +180,83 @@
   box-shadow: 0 0 6px rgba(248, 113, 113, 0.4), 0 2px 6px rgba(0, 0, 0, 0.85);
 }
 
+/* Pins below a horizontal bar: the head hangs under it and the needle rises to the bar */
+.track.pins-bottom:not(.vertical) .ghost-marker {
+  bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) - var(--bar-height, 6px)) / 2 - var(--ghost-needle-length, 16px) - var(--ghost-pin-size, 26px));
+}
+
+.track.pins-bottom:not(.vertical) .ghost-marker .ghost-needle {
+  top: auto;
+  bottom: 100%;
+}
+
+.track.pins-bottom:not(.vertical) .ghost-marker.splay-right .ghost-needle,
+.track.pins-bottom:not(.vertical) .ghost-marker.splay-left .ghost-needle {
+  border-top: none;
+  border-bottom: 2px solid var(--ghost-needle-color, #facc15);
+}
+
+/* Vertical Track Pins: heads stand beside the bar (--ghost-side: 1 right, -1 left),
+   splayed along Y, with a horizontal needle back to the bar at the true position */
+.track.vertical .ghost-marker {
+  top: 0;
+  bottom: auto;
+  left: calc(var(--ghost-track-x, 50%) + var(--ghost-side, 1) * (var(--bar-height, 6px) / 2 + var(--ghost-needle-length, 16px) + var(--ghost-pin-size, 26px) / 2));
+  transform: translateY(-50%) translateX(-50%);
+  transition: opacity 0.2s ease;
+}
+
+.track.vertical.ghost-on-track .ghost-marker {
+  left: var(--ghost-track-x, 50%);
+}
+
+.track.vertical .ghost-marker .ghost-icon-wrap {
+  transform: translateY(var(--ghost-splay-y, 0px));
+}
+
+.track.vertical .ghost-marker .ghost-needle {
+  top: calc(50% - 1px);
+  left: auto;
+  right: 100%;
+  width: var(--ghost-needle-length, 16px);
+  height: 2px;
+  transition: none;
+}
+
+.track.vertical.pins-left .ghost-marker .ghost-needle {
+  left: 100%;
+  right: auto;
+}
+
+/* Orthogonal leader: runs out from the bar at the true position, then along the heads' edge */
+.track.vertical .ghost-marker.splay-down .ghost-needle,
+.track.vertical .ghost-marker.splay-up .ghost-needle {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  border: 0 solid var(--ghost-needle-color, #facc15);
+  border-right-width: 2px;
+  filter: drop-shadow(0 0 3px var(--ghost-needle-glow, rgba(250, 204, 21, 0.9)));
+}
+
+.track.vertical.pins-left .ghost-marker.splay-down .ghost-needle,
+.track.vertical.pins-left .ghost-marker.splay-up .ghost-needle {
+  border-right-width: 0;
+  border-left-width: 2px;
+}
+
+.track.vertical .ghost-marker.splay-down .ghost-needle {
+  top: calc(50% - 1px);
+  height: calc(var(--ghost-splay-y) + 1px);
+  border-top-width: 2px;
+}
+
+.track.vertical .ghost-marker.splay-up .ghost-needle {
+  top: calc(50% + var(--ghost-splay-y));
+  height: calc(-1 * var(--ghost-splay-y) + 1px);
+  border-bottom-width: 2px;
+}
+
 /* Modal Ghost Pill Toggle Colors */
 #ghost-pill-row .preset-pill-btn[data-ghost-pill="wr"].active {
   background: #facc15;
