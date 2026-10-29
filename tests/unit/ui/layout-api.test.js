@@ -129,6 +129,36 @@
       assertEqual(el("btn-dock-track").innerText, "⚓ Docked");
     }));
 
+    it("applies the resized track: vertical width, and name lines on a horizontal track", () => withHud(({ el, state, style }) => {
+      const inner = document.getElementById("track");
+      const origClass = inner.className;
+      const origLines = inner.style.getPropertyValue("--name-lines");
+      try {
+        style.orientation = "horizontal";
+        Object.assign(state.track, { docked: "bottom", scale: 1, x: 0, y: 900, nameLines: 3 });
+        HL().applyComponentLayout("track");
+        assertEqual(inner.style.getPropertyValue("--name-lines"), "3");
+        assert(inner.classList.contains("wrap-names"), "names wrap on a taller horizontal track");
+
+        state.track.nameLines = 99;
+        HL().applyComponentLayout("track");
+        assertEqual(inner.style.getPropertyValue("--name-lines"), String(window.LiveSplit.LayoutDrag.MAX_NAME_LINES), "clamped");
+
+        state.track.nameLines = 1;
+        HL().applyComponentLayout("track");
+        assert(!inner.classList.contains("wrap-names"), "one line: no wrapping");
+
+        style.orientation = "vertical";
+        Object.assign(state.track, { docked: "left", nameLines: 3, verticalWidth: 420 });
+        HL().applyComponentLayout("track");
+        assert(!inner.classList.contains("wrap-names"), "name lines only apply to a horizontal track");
+        assertEqual(el("hud-comp-track").style.getPropertyValue("--track-width"), "420px", "vertical width from the resize handle");
+      } finally {
+        inner.className = origClass;
+        inner.style.setProperty("--name-lines", origLines || "1");
+      }
+    }));
+
     it("fitTrackOnScreen pulls an oversized track back on screen and saves", () => withHud(({ el, state, style }) => {
       style.orientation = "horizontal";
       const w = window.innerWidth;

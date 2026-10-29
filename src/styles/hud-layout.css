@@ -178,6 +178,16 @@ body.edit-mode .hud-resize-handle {
   box-shadow: 0 -8px 28px rgba(0, 0, 0, calc(var(--bg-opacity, 0.55) * 0.65)) !important;
 }
 
+/* Docked bottom, the track grows upwards, so its resize handle sits on the inner corner */
+#hud-comp-track.docked-bottom .hud-resize-handle {
+  bottom: auto;
+  top: 0;
+  cursor: nesw-resize;
+  border-top-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 6px;
+}
+
 /* Docked Top state for Track (mirror of the bottom dock) */
 #hud-comp-track.docked-top {
   position: absolute;
@@ -206,7 +216,7 @@ body.edit-mode .hud-resize-handle {
 
 /* Docked Left & Right states for Vertical Track */
 #hud-comp-track.vertical {
-  width: 340px;
+  width: var(--track-width, 340px);
   max-width: 90vw;
 }
 
@@ -216,7 +226,7 @@ body.edit-mode .hud-resize-handle {
   right: auto !important;
   top: 0 !important;
   bottom: 0 !important;
-  width: 340px !important;
+  width: var(--track-width, 340px) !important;
   height: 100% !important;
   border-radius: 0 !important;
 }
@@ -242,9 +252,20 @@ body.edit-mode .hud-resize-handle {
   left: auto !important;
   top: 0 !important;
   bottom: 0 !important;
-  width: 340px !important;
+  width: var(--track-width, 340px) !important;
   height: 100% !important;
   border-radius: 0 !important;
+}
+
+/* Docked right, the track grows leftwards, so its resize handle sits on the inner corner */
+#hud-comp-track.docked-right .hud-resize-handle {
+  right: auto;
+  left: 0;
+  cursor: nesw-resize;
+  border-top-left-radius: 0;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 6px;
 }
 
 #hud-comp-track.docked-right.has-bg {

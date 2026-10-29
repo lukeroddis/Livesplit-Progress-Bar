@@ -36,6 +36,26 @@
   --pin-lane-bottom: 0px;
   --pin-lane-left: 0px;
   --pin-lane-right: 0px;
+  /* Name lines: set from the track's height by the resize handle (layout state nameLines).
+     Extra lines make each split taller by --name-extra while names wrap. */
+  --name-lines: 1;
+  --name-extra: 0px;
+}
+
+/* Wrapped names (2+ lines): each name wraps within its split's width and is cut with an
+   ellipsis after --name-lines lines. An explicit 40° angle still tilts single-line names. */
+.track.wrap-names:not(.vertical):not(.angled-text) {
+  --name-extra: calc((var(--name-lines) - 1) * var(--name-font-size) * 1.2);
+}
+.track.wrap-names:not(.vertical):not(.angled-text) .split-name {
+  width: calc(var(--node-spacing) - 12px);
+  white-space: normal;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: var(--name-lines);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .track.ghost-on-track {
@@ -66,7 +86,7 @@
   justify-content: flex-end;
   width: var(--node-spacing);
   flex-shrink: 0;
-  height: calc(var(--dot-size, 15px) + var(--name-font-size, 17px) + var(--delta-font-size, 15px) + 34px + var(--pin-lane-top) + var(--pin-lane-bottom));
+  height: calc(var(--dot-size, 15px) + var(--name-font-size, 17px) + var(--delta-font-size, 15px) + 34px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
   transition: height 0.2s ease;
 }
 
@@ -79,7 +99,7 @@
   --dot-bottom: calc(5px + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-top .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 34px + var(--pin-lane-top) + var(--pin-lane-bottom));
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 34px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-top .dot {
   bottom: var(--dot-bottom);
@@ -88,7 +108,7 @@
   bottom: calc(var(--dot-bottom) + var(--dot-size) + 4px + var(--pin-lane-top));
 }
 .track.pos-name-top.pos-delta-top .split-delta {
-  bottom: calc(var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + 14px + var(--pin-lane-top));
+  bottom: calc(var(--dot-bottom) + var(--dot-size) + var(--name-font-size) + var(--name-extra) + 14px + var(--pin-lane-top));
 }
 
 /* Layout 2: Name on Top, Delta on Bottom */
@@ -96,7 +116,7 @@
   --dot-bottom: calc(var(--delta-font-size) + 12px + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-bottom .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--pin-lane-top) + var(--pin-lane-bottom));
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-top.pos-delta-bottom .dot {
   bottom: var(--dot-bottom);
@@ -110,10 +130,10 @@
 
 /* Layout 3: Delta on Top, Name on Bottom */
 .track.pos-name-bottom.pos-delta-top {
-  --dot-bottom: calc(var(--name-font-size) + 12px + var(--pin-lane-bottom));
+  --dot-bottom: calc(var(--name-font-size) + var(--name-extra) + 12px + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-top .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--pin-lane-top) + var(--pin-lane-bottom));
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-top .dot {
   bottom: var(--dot-bottom);
@@ -127,10 +147,10 @@
 
 /* Layout 4: Both on Bottom */
 .track.pos-name-bottom.pos-delta-bottom {
-  --dot-bottom: calc(var(--name-font-size) + var(--delta-font-size) + 24px + var(--pin-lane-bottom));
+  --dot-bottom: calc(var(--name-font-size) + var(--name-extra) + var(--delta-font-size) + 24px + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-bottom .split-item {
-  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--pin-lane-top) + var(--pin-lane-bottom));
+  height: calc(var(--dot-size) + var(--name-font-size) + var(--delta-font-size) + 36px + var(--name-extra) + var(--pin-lane-top) + var(--pin-lane-bottom));
 }
 .track.pos-name-bottom.pos-delta-bottom .dot {
   bottom: var(--dot-bottom);

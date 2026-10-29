@@ -479,18 +479,29 @@
       const isVert = (currentTrackStyle && currentTrackStyle.orientation === "vertical");
       const dockBtn = document.getElementById("btn-dock-track");
 
+      // A horizontal track's height (set by the resize handle) is the lines its split names may use
+      const trackInner = document.getElementById("track");
+      if (trackInner) {
+        const nameLines = Math.max(1, Math.min(window.LiveSplit.LayoutDrag.MAX_NAME_LINES, Math.round(state.nameLines || 1)));
+        trackInner.style.setProperty("--name-lines", String(nameLines));
+        trackInner.classList.toggle("wrap-names", !isVert && nameLines > 1);
+      }
+
       el.classList.remove("docked-bottom", "docked-top", "docked-left", "docked-right");
       const isDocked = !!state.docked && state.docked !== "none";
       const side = isDocked ? window.LiveSplit.LayoutDrag.effectiveDockSide(state.docked, isVert) : "none";
 
       if (isVert) {
+        // Width set by the resize handle (room for split text); 340px until resized
+        const trackWidth = state.verticalWidth > 0 ? state.verticalWidth : 340;
+        el.style.setProperty("--track-width", `${trackWidth}px`);
         if (side === "left") {
           el.classList.add("docked-left");
           el.style.left = "0px";
           el.style.right = "auto";
           el.style.top = "0px";
           el.style.bottom = "0px";
-          el.style.width = "340px";
+          el.style.width = `${trackWidth}px`;
           el.style.height = "100%";
           el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
           el.style.transformOrigin = "top left";
@@ -501,7 +512,7 @@
           el.style.left = "auto";
           el.style.top = "0px";
           el.style.bottom = "0px";
-          el.style.width = "340px";
+          el.style.width = `${trackWidth}px`;
           el.style.height = "100%";
           el.style.transform = state.scale !== 1.0 ? `scale(${state.scale})` : "";
           el.style.transformOrigin = "top right";
@@ -511,8 +522,8 @@
           el.style.top = `${state.y}px`;
           el.style.bottom = "";
           el.style.right = "";
-          el.style.width = "340px";
-          // A size frozen by dragging/scaling wins; until then it fills down from its position
+          el.style.width = `${trackWidth}px`;
+          // A size frozen by dragging/resizing wins; until then it fills down from its position
           el.style.height = `${state.height > 0 ? state.height : Math.min(h - state.y, 800)}px`;
           el.style.transform = `scale(${state.scale})`;
           el.style.transformOrigin = "top left";
@@ -537,7 +548,7 @@
         el.style.top = `${state.y}px`;
         el.style.bottom = "";
         el.style.right = "";
-        // A size frozen by dragging/scaling wins; until then it fills to the right edge
+        // A size frozen by dragging/resizing wins; until then it fills to the right edge
         el.style.width = state.width > 0 ? `${state.width}px` : `calc(100vw - ${Math.max(0, state.x)}px)`;
         el.style.height = "";
         el.style.transform = `scale(${state.scale})`;

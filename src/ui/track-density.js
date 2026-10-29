@@ -121,6 +121,8 @@
       if (isVertical) return false;
       if (anglePref === "angled" || anglePref === "40") return true;
       if (anglePref === "horizontal" || anglePref === "flat") return false;
+      // A track made tall enough for wrapped names wraps them instead of tilting them
+      if (track.classList.contains("wrap-names")) return false;
       // Intelligent collision detection:
       // If node spacing is under 175px, text is very prone to collision
       if (spacing < 175) return true;

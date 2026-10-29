@@ -5,6 +5,9 @@
  * - Pointerdown, pointermove, pointerup/cancel lifecycle for HUD components
  * - Touch & mouse unified drag positioning with pointer capture
  * - Proportional scaling via scale handle drag (clamped 0.4x to 2.5x)
+ * - Track resizing via the same handle (Ctrl/Shift-drag scales instead): a vertical track's width
+ *   (room for split text) and height (split spacing); a horizontal track's width (split spacing,
+ *   floating only) and height (lines for split names, docked too)
  * - Viewport boundary clamping and coordinate rounding
  * - Free track dragging (docking only via the dock button; dragging a docked track undocks it),
  *   keeping its size fixed and the whole scaled track (and its resize handle) on screen
@@ -62,6 +65,47 @@
     return !state.docked || state.docked === "none";
   }
 
+  // Smallest unscaled track sizes the resize handle allows
+  const TRACK_MIN_SIZE = Object.freeze({ verticalWidth: 180, verticalHeight: 160, horizontalWidth: 320 });
+  // Lines a horizontal track's split names may wrap onto (its height)
+  const MAX_NAME_LINES = 4;
+
+  /**
+   * New unscaled track size for a resize-handle drag of (dx, dy) screen px, clamped to the minimums
+   * and so the scaled track stays on screen. Returns { verticalWidth?, height? } for a vertical track
+   * (a docked one only changes width, growing away from its edge), and { width?, nameLines } for a
+   * horizontal one: height moves in whole name lines (1 to MAX_NAME_LINES, one per lineHeight px),
+   * a docked track grows away from its edge and keeps spanning the screen.
+   * @param {Object} op - { isVertical, docked, x, y, baseW, baseH, scale, dx, dy, viewportWidth,
+   *   viewportHeight, baseLines, lineHeight }
+   */
+  function computeTrackResize(op) {
+    const scale = op.scale || 1;
+    const floating = !op.docked || op.docked === "none";
+    const clamp = (v, min, max) => Math.round(Math.max(min, Math.min(Math.max(min, max), v)));
+
+    if (op.isVertical) {
+      const side = effectiveDockSide(op.docked, true);
+      if (!floating) {
+        const grow = side === "right" ? -op.dx : op.dx;
+        return { verticalWidth: clamp(op.baseW + grow / scale, TRACK_MIN_SIZE.verticalWidth, op.viewportWidth / scale) };
+      }
+      return {
+        verticalWidth: clamp(op.baseW + op.dx / scale, TRACK_MIN_SIZE.verticalWidth, (op.viewportWidth - op.x) / scale),
+        height: clamp(op.baseH + op.dy / scale, TRACK_MIN_SIZE.verticalHeight, (op.viewportHeight - op.y) / scale)
+      };
+    }
+    const side = effectiveDockSide(op.docked, false);
+    const grow = (floating || side === "top") ? op.dy : -op.dy;
+    const lineHeight = op.lineHeight > 0 ? op.lineHeight : 20;
+    const nameLines = Math.max(1, Math.min(MAX_NAME_LINES, Math.round((op.baseLines || 1) + grow / scale / lineHeight)));
+    if (!floating) return { nameLines };
+    return {
+      width: clamp(op.baseW + op.dx / scale, TRACK_MIN_SIZE.horizontalWidth, (op.viewportWidth - op.x) / scale),
+      nameLines
+    };
+  }
+
   /**
    * Largest scale at which the track (unscaled baseW x baseH) stays on screen: a floating track from
    * its position, a docked one (already spanning the screen edge to edge) anywhere.
@@ -104,15 +148,15 @@
   }
 
   // Saved position for a track docked to `side` (the dock CSS pins it; this keeps x/y meaningful)
-  function dockedPosition(side, viewportWidth, viewportHeight) {
-    if (side === "right") return { x: Math.max(0, viewportWidth - 340), y: 0 };
+  function dockedPosition(side, viewportWidth, viewportHeight, trackWidth = 340) {
+    if (side === "right") return { x: Math.max(0, viewportWidth - trackWidth), y: 0 };
     if (side === "bottom") return { x: 0, y: Math.max(0, viewportHeight - 90) };
     return { x: 0, y: 0 };
   }
 
   // Where the track floats when undocked from `side`: just inside that edge
-  function floatPositionFrom(side, viewportWidth, viewportHeight) {
-    if (side === "right") return { x: Math.max(0, viewportWidth - 382), y: 80 };
+  function floatPositionFrom(side, viewportWidth, viewportHeight, trackWidth = 340) {
+    if (side === "right") return { x: Math.max(0, viewportWidth - trackWidth - 42), y: 80 };
     if (side === "bottom") return { x: 42, y: Math.max(0, viewportHeight - 150) };
     return { x: 42, y: 80 };
   }
@@ -199,15 +243,22 @@
 
             const state = getLayoutState()[id];
             if (id === "track" && state) freezeTrackSize(state, el, isVerticalTrack());
+            // The track resizes (LiveSplit-style) unless Ctrl/Shift is held
+            const wantsResize = id === "track" && state && !(e.ctrlKey || e.metaKey || e.shiftKey);
+            const trackEl = document.getElementById("track");
+            const nameFont = trackEl ? parseFloat(getComputedStyle(trackEl).getPropertyValue("--name-font-size")) : NaN;
             activePointerOp = {
-              type: "scale",
+              type: wantsResize ? "resize" : "scale",
               compId: id,
               pointerId: e.pointerId,
               element: el,
               resizeHandle: resizeHandle,
               startX: e.clientX,
+              startY: e.clientY,
               baseW: el.offsetWidth,
               baseH: el.offsetHeight,
+              baseLines: (state && state.nameLines) || 1,
+              lineHeight: (nameFont > 0 ? nameFont : 17) * 1.2,
               origScale: state ? state.scale : 1
             };
           });
@@ -270,9 +321,11 @@
           const w = (typeof window !== "undefined" && window.innerWidth) || 1920;
           const h = (typeof window !== "undefined" && window.innerHeight) || 1080;
 
+          // A vertical track keeps the width it was resized to, docked or floating
+          const trackWidth = state.verticalWidth > 0 ? state.verticalWidth : 340;
           if (!isTrackFloating(state)) {
             // Float just inside the edge it was docked to, filling to the screen edge again
-            Object.assign(state, floatPositionFrom(effectiveDockSide(state.docked, isVert), w, h));
+            Object.assign(state, floatPositionFrom(effectiveDockSide(state.docked, isVert), w, h, trackWidth));
             state.docked = "none";
             delete state.width;
             delete state.height;
@@ -282,7 +335,7 @@
             const side = trackEl
               ? chooseDockSide(trackEl.getBoundingClientRect(), w, h, isVert)
               : effectiveDockSide("", isVert);
-            Object.assign(state, dockedPosition(side, w, h));
+            Object.assign(state, dockedPosition(side, w, h, trackWidth));
             state.docked = side;
           }
 
@@ -337,6 +390,26 @@
           }
           state.scale = scale;
           applyComponentLayout(activePointerOp.compId);
+        } else if (activePointerOp.type === "resize") {
+          const size = computeTrackResize({
+            isVertical: isVerticalTrack(),
+            docked: state.docked,
+            x: state.x,
+            y: state.y,
+            baseW: activePointerOp.baseW,
+            baseH: activePointerOp.baseH,
+            scale: state.scale,
+            dx: e.clientX - activePointerOp.startX,
+            dy: e.clientY - activePointerOp.startY,
+            viewportWidth: w,
+            viewportHeight: h,
+            baseLines: activePointerOp.baseLines,
+            lineHeight: activePointerOp.lineHeight
+          });
+          Object.assign(state, size);
+          applyComponentLayout("track");
+          // Width changes the room for split text (and horizontal spacing), height the vertical spacing
+          window.LiveSplit.Overlay.refreshTrack?.();
         }
       });
 
@@ -393,6 +466,9 @@
     maxTrackScale,
     fitTrackBox,
     freezeTrackSize,
+    computeTrackResize,
+    TRACK_MIN_SIZE,
+    MAX_NAME_LINES,
     effectiveDockSide,
     chooseDockSide,
     createLayoutDrag
