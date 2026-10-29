@@ -238,19 +238,21 @@
   transform: translateY(-50%) scale(1.04);
 }
 
-/* Vertical Ghost Marker */
-.track.vertical .ghost-marker {
-  position: absolute;
-  top: 0;
-  bottom: auto;
-  left: var(--dot-left, 50%);
-  transform: translateY(-50%) translateX(-50%);
-  z-index: 20;
-  transition: opacity 0.2s ease;
+/* Ghost pins on vertical tracks sit beside the bar, on the delta side
+   (rules in ghost-markers.css). --ghost-track-x is the bar's x in the track's
+   padding box, which the pins are positioned against. */
+.track.vertical {
+  --ghost-track-x: 50%;
+  --ghost-side: 1;
 }
-
-.track.vertical .ghost-marker .ghost-needle {
-  display: none;
+.track.vertical.pos-delta-left {
+  --ghost-side: -1;
+}
+.track.vertical.pos-name-right.pos-delta-right {
+  --ghost-track-x: calc(16px + 28px);
+}
+.track.vertical.pos-name-left.pos-delta-left {
+  --ghost-track-x: calc(100% - 16px - 28px);
 }
 
 /* Vertical Off-Screen Edge Beacons */

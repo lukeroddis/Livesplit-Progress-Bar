@@ -54,6 +54,7 @@
   function clearMarkerOffsets(m) {
     m.style.removeProperty("--ghost-stack-offset");
     m.style.removeProperty("--ghost-splay-x");
+    m.style.removeProperty("--ghost-splay-y");
     m.style.removeProperty("--ghost-needle-angle");
     m.style.removeProperty("--ghost-needle-height");
   }
@@ -212,13 +213,13 @@
       if (staticMarker) {
         staticMarker.style.display = "none";
         clearMarkerOffsets(staticMarker);
-        staticMarker.classList.remove("splay-left", "splay-right");
+        staticMarker.classList.remove("splay-left", "splay-right", "splay-up", "splay-down");
       }
       knownGhostMarkers.forEach((m) => {
         if (m) {
           m.style.display = "none";
           clearMarkerOffsets(m);
-          m.classList.remove("splay-left", "splay-right");
+          m.classList.remove("splay-left", "splay-right", "splay-up", "splay-down");
         }
       });
     }

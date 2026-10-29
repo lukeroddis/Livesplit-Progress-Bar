@@ -135,9 +135,10 @@
         marker.style.display = "none";
         marker.style.removeProperty("--ghost-stack-offset");
         marker.style.removeProperty("--ghost-splay-x");
+        marker.style.removeProperty("--ghost-splay-y");
         marker.style.removeProperty("--ghost-needle-angle");
         marker.style.removeProperty("--ghost-needle-height");
-        marker.classList.remove("splay-left", "splay-right");
+        marker.classList.remove("splay-left", "splay-right", "splay-up", "splay-down");
       }
     });
   }
@@ -269,6 +270,7 @@
         marker.style.display = "none";
         marker.style.removeProperty("--ghost-stack-offset");
         marker.style.removeProperty("--ghost-splay-x");
+        marker.style.removeProperty("--ghost-splay-y");
         marker.style.removeProperty("--ghost-needle-angle");
         marker.style.removeProperty("--ghost-needle-height");
         if (leftOffscreenGhosts) {
@@ -282,6 +284,7 @@
         marker.style.display = "none";
         marker.style.removeProperty("--ghost-stack-offset");
         marker.style.removeProperty("--ghost-splay-x");
+        marker.style.removeProperty("--ghost-splay-y");
         marker.style.removeProperty("--ghost-needle-angle");
         marker.style.removeProperty("--ghost-needle-height");
         if (rightOffscreenGhosts) {
@@ -324,7 +327,6 @@
     } = options;
 
     const configuredPinSize = trackElem ? (parseFloat(getComputedStyle(trackElem).getPropertyValue("--ghost-pin-size")) || 26) : 26;
-    const COLLISION_THRESHOLD = configuredPinSize + 2; // px - zero overlap
 
     visibleOnscreenMarkers.sort((a, b) => {
       if (Math.abs(a.coord - b.coord) > 0.001) {
@@ -335,139 +337,125 @@
       return idA.localeCompare(idB);
     });
 
-    if (isVertical) {
-      // In vertical track orientation, tier pins horizontally to the right
-      const activeTiers = [];
-      visibleOnscreenMarkers.forEach((item) => {
-        let tier = 0;
-        while (activeTiers[tier] !== undefined && (item.coord - activeTiers[tier]) < COLLISION_THRESHOLD) {
-          tier++;
-        }
-        tier = Math.min(tier, 2);
-        activeTiers[tier] = item.coord;
+    // Pins spread along the track axis into a non-overlapping strip of heads, each
+    // joined to its true track position by an orthogonal leader line. Horizontal
+    // tracks splay heads along X above the bar; vertical tracks splay them along Y
+    // beside the bar (the side is chosen in track-vertical.css).
+    const leftBound = visibleMin + (configuredPinSize / 2) + 2;
+    const rightBound = visibleMax - (configuredPinSize / 2) - 2;
+    const maxAllowedSpan = Math.max(1, rightBound - leftBound);
 
+    let badgeSpacing = configuredPinSize + 2;
+    const totalPins = visibleOnscreenMarkers.length;
+    if (totalPins > 1 && (totalPins - 1) * badgeSpacing > maxAllowedSpan) {
+      badgeSpacing = Math.max(12, maxAllowedSpan / (totalPins - 1));
+    }
+
+    const getClusterSpan = (c) => (c.items.length - 1) * badgeSpacing;
+    const getClusterRawCenter = (c) => c.items.reduce((acc, it) => acc + it.coord, 0) / c.items.length;
+    const getClusterClampedCenter = (c) => {
+      const span = getClusterSpan(c);
+      let center = getClusterRawCenter(c);
+      const half = span / 2;
+      if (center - half < leftBound) center = leftBound + half;
+      if (center + half > rightBound) center = rightBound - half;
+      return center;
+    };
+    const getClusterFirstBadge = (c) => getClusterClampedCenter(c) - getClusterSpan(c) / 2;
+    const getClusterLastBadge = (c) => getClusterClampedCenter(c) + getClusterSpan(c) / 2;
+
+    // 1. Initialize each marker as its own cluster
+    let clusters = visibleOnscreenMarkers.map((item) => ({
+      items: [item]
+    }));
+
+    // 2. Iteratively merge any adjacent clusters whose badge bounds overlap (< badgeSpacing)
+    let merged = true;
+    let iterations = 0;
+    while (merged && iterations < 50) {
+      merged = false;
+      iterations++;
+      const nextClusters = [];
+      let i = 0;
+      while (i < clusters.length) {
+        if (i < clusters.length - 1) {
+          const cA = clusters[i];
+          const cB = clusters[i + 1];
+          if (getClusterFirstBadge(cB) - getClusterLastBadge(cA) < badgeSpacing - 0.5) {
+            nextClusters.push({
+              items: cA.items.concat(cB.items)
+            });
+            i += 2;
+            merged = true;
+            continue;
+          }
+        }
+        nextClusters.push(clusters[i]);
+        i++;
+      }
+      clusters = nextClusters;
+    }
+
+    const splayVar = isVertical ? "--ghost-splay-y" : "--ghost-splay-x";
+    const staleSplayVar = isVertical ? "--ghost-splay-x" : "--ghost-splay-y";
+    const splayBack = isVertical ? "splay-up" : "splay-left";
+    const splayForward = isVertical ? "splay-down" : "splay-right";
+    let globalIndex = 0;
+
+    clusters.forEach((cluster) => {
+      const N = cluster.items.length;
+      const center = getClusterClampedCenter(cluster);
+      const span = getClusterSpan(cluster);
+
+      const badgePositions = [];
+      for (let k = 0; k < N; k++) {
+        badgePositions.push(center - (span / 2) + k * badgeSpacing);
+      }
+
+      cluster.items.forEach((item, k) => {
         const marker = item.marker;
         if (!marker) return;
         marker.style.display = "flex";
-        const offsetX = tier * (configuredPinSize + 2);
-        marker.style.transform = `translateY(${item.coord}px) translateY(-50%) translateX(calc(-50% + ${offsetX}px))`;
-        marker.style.zIndex = `${20 + tier}`;
-        marker.style.removeProperty("--ghost-stack-offset");
-        marker.style.removeProperty("--ghost-splay-x");
+        marker.style.transform = isVertical
+          ? `translateY(${item.coord}px) translateY(-50%) translateX(-50%)`
+          : `translateX(${item.coord}px) translateX(-50%)`;
+        // Leader (furthest along) has highest z-index so badges layer naturally.
+        // Vertical markers sit above the split text, so they are ordered themselves.
+        marker.style.zIndex = isVertical ? `${20 + globalIndex}` : "";
+        const iconWrap = marker.querySelector(".ghost-icon-wrap");
+        if (iconWrap) iconWrap.style.zIndex = `${30 + globalIndex}`;
+        globalIndex++;
+
+        const delta = Math.round((badgePositions[k] - item.coord) * 10) / 10;
+
+        if (!isVertical && item.coords && typeof getNodeTextThreshold === "function") {
+          const distPrev = Math.abs(item.coord - item.coords.startCoord);
+          const distNext = Math.abs(item.coords.endCoord - item.coord);
+          const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
+          const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
+          const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
+          marker.classList.toggle("compact", isHoveringText);
+        } else if (isVertical) {
+          marker.classList.remove("compact");
+        }
+
         marker.style.removeProperty("--ghost-needle-angle");
+        marker.style.removeProperty("--ghost-stack-offset");
         marker.style.removeProperty("--ghost-needle-height");
-        marker.classList.remove("splay-left", "splay-right");
-      });
-    } else {
-      // Horizontal track orientation: Globally Non-Overlapping Mini-Leaderboard Strip with Orthogonal Drop Lines
-      const leftBound = visibleMin + (configuredPinSize / 2) + 2;
-      const rightBound = visibleMax - (configuredPinSize / 2) - 2;
-      const maxAllowedSpan = Math.max(1, rightBound - leftBound);
+        marker.style.removeProperty(staleSplayVar);
+        marker.classList.remove("splay-left", "splay-right", "splay-up", "splay-down");
 
-      let badgeSpacing = configuredPinSize + 2;
-      const totalPins = visibleOnscreenMarkers.length;
-      if (totalPins > 1 && (totalPins - 1) * badgeSpacing > maxAllowedSpan) {
-        badgeSpacing = Math.max(12, maxAllowedSpan / (totalPins - 1));
-      }
-
-      const getClusterSpan = (c) => (c.items.length - 1) * badgeSpacing;
-      const getClusterRawCenter = (c) => c.items.reduce((acc, it) => acc + it.coord, 0) / c.items.length;
-      const getClusterClampedCenter = (c) => {
-        const span = getClusterSpan(c);
-        let center = getClusterRawCenter(c);
-        const half = span / 2;
-        if (center - half < leftBound) center = leftBound + half;
-        if (center + half > rightBound) center = rightBound - half;
-        return center;
-      };
-      const getClusterFirstBadge = (c) => getClusterClampedCenter(c) - getClusterSpan(c) / 2;
-      const getClusterLastBadge = (c) => getClusterClampedCenter(c) + getClusterSpan(c) / 2;
-
-      // 1. Initialize each marker as its own cluster
-      let clusters = visibleOnscreenMarkers.map((item) => ({
-        items: [item]
-      }));
-
-      // 2. Iteratively merge any adjacent clusters whose badge bounds overlap (< badgeSpacing)
-      let merged = true;
-      let iterations = 0;
-      while (merged && iterations < 50) {
-        merged = false;
-        iterations++;
-        const nextClusters = [];
-        let i = 0;
-        while (i < clusters.length) {
-          if (i < clusters.length - 1) {
-            const cA = clusters[i];
-            const cB = clusters[i + 1];
-            if (getClusterFirstBadge(cB) - getClusterLastBadge(cA) < badgeSpacing - 0.5) {
-              nextClusters.push({
-                items: cA.items.concat(cB.items)
-              });
-              i += 2;
-              merged = true;
-              continue;
-            }
-          }
-          nextClusters.push(clusters[i]);
-          i++;
+        if (delta > 1) {
+          marker.style.setProperty(splayVar, `${delta}px`);
+          marker.classList.add(splayForward);
+        } else if (delta < -1) {
+          marker.style.setProperty(splayVar, `${delta}px`);
+          marker.classList.add(splayBack);
+        } else {
+          marker.style.removeProperty(splayVar);
         }
-        clusters = nextClusters;
-      }
-
-      let globalIndex = 0;
-
-      clusters.forEach((cluster) => {
-        const N = cluster.items.length;
-        const center = getClusterClampedCenter(cluster);
-        const span = getClusterSpan(cluster);
-
-        const badgePositions = [];
-        for (let k = 0; k < N; k++) {
-          badgePositions.push(center - (span / 2) + k * badgeSpacing);
-        }
-
-        cluster.items.forEach((item, k) => {
-          const marker = item.marker;
-          if (!marker) return;
-          marker.style.display = "flex";
-          marker.style.transform = `translateX(${item.coord}px) translateX(-50%)`;
-
-          // Leader (on right) has highest z-index so badges layer naturally
-          const iconWrap = marker.querySelector(".ghost-icon-wrap");
-          if (iconWrap) iconWrap.style.zIndex = `${30 + globalIndex}`;
-          globalIndex++;
-
-          const deltaX = Math.round((badgePositions[k] - item.coord) * 10) / 10;
-
-          if (item.coords && typeof getNodeTextThreshold === "function") {
-            const distPrev = Math.abs(item.coord - item.coords.startCoord);
-            const distNext = Math.abs(item.coords.endCoord - item.coord);
-            const prevThreshold = getNodeTextThreshold(item.coords.prevNode, false);
-            const nextThreshold = getNodeTextThreshold(item.coords.nextNode, true);
-            const isHoveringText = (distPrev < prevThreshold || distNext < nextThreshold);
-            marker.classList.toggle("compact", isHoveringText);
-          }
-
-          marker.style.removeProperty("--ghost-needle-angle");
-          marker.style.removeProperty("--ghost-stack-offset");
-          marker.style.removeProperty("--ghost-needle-height");
-
-          if (deltaX > 1) {
-            marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
-            marker.classList.add("splay-right");
-            marker.classList.remove("splay-left");
-          } else if (deltaX < -1) {
-            marker.style.setProperty("--ghost-splay-x", `${deltaX}px`);
-            marker.classList.add("splay-left");
-            marker.classList.remove("splay-right");
-          } else {
-            marker.style.removeProperty("--ghost-splay-x");
-            marker.classList.remove("splay-left", "splay-right");
-          }
-        });
       });
-    }
+    });
   }
 
   /**
