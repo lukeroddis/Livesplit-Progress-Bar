@@ -219,6 +219,13 @@
 
       const isVert = (currentTrackStyle.orientation === "vertical");
 
+      // Repair positions that belong to the other orientation (e.g. a "top" delta left on a
+      // vertical track by an older build), which would leave no position button selected
+      const fixed = mapOrientationSwitch(currentTrackStyle.orientation, currentTrackStyle.orientation,
+        currentTrackStyle.namePos, currentTrackStyle.deltaPos);
+      currentTrackStyle.namePos = fixed.namePos;
+      currentTrackStyle.deltaPos = fixed.deltaPos;
+
       if (isVert) {
         track.classList.add("vertical");
         if (elTrackComp) elTrackComp.classList.add("vertical");

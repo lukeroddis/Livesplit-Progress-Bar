@@ -197,6 +197,19 @@
         assertEqual(resolve({ orientation: "vertical", pinPos: "top", deltaPos: "left" }), "left", "a horizontal side on a vertical track falls back");
       });
 
+      it("applyStyle repairs name/delta positions left over from the other orientation", () => {
+        const track = document.getElementById("track");
+        const origClass = track.className;
+        try {
+          const style = Object.assign({}, window.LiveSplit.TrackStyle.DEFAULT_TRACK_STYLE, { orientation: "vertical", namePos: "right", deltaPos: "top" });
+          window.LiveSplit.TrackStyle.createTrackStyle({ getCurrentStyle: () => style }).applyStyle();
+          assertEqual([style.namePos, style.deltaPos], ["right", "right"], "a vertical track gets a left/right delta back");
+          assert(track.classList.contains("pos-delta-right") && !track.classList.contains("pos-delta-top"));
+        } finally {
+          track.className = origClass;
+        }
+      });
+
       it("applyStyle sets the pins-<side> and pin-lane classes on the track", () => {
         const track = document.getElementById("track");
         const origClass = track.className;

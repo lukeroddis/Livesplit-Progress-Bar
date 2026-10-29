@@ -229,7 +229,7 @@
       if (window.hudLayout) {
         if (nextVal === "angled") {
           const style = window.hudLayout.getTrackStyle();
-          if (style) {
+          if (style && style.orientation !== "vertical") {
             style.deltaPos = (style.namePos === "top") ? "bottom" : "top";
             window.hudLayout.saveTrackStyle();
           }
