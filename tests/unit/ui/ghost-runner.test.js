@@ -1,6 +1,6 @@
 /**
  * tests/unit/ui/ghost-runner.test.js
- * Off-screen edge pills (LiveSplit.GhostRunner.renderEdgePill)
+ * Off-screen edge pills (LiveSplit.GhostRunner.renderEdgePill) and the track's has-pins flag
  */
 
 (function () {
@@ -29,6 +29,28 @@
 
       assert(el.textContent.includes("🏆"), "emoji icon kept");
       assert(el.querySelector("b") === null, "icon text is escaped");
+    });
+  });
+
+  describe("Ghost Runner: pin lane flag", () => {
+    it("marks the track has-pins only while ghost pins are switched on", () => {
+      const KEYS = window.LiveSplit.Storage.KEYS;
+      const track = document.getElementById("track");
+      const savedGhosts = localStorage.getItem(KEYS.ACTIVE_GHOSTS);
+      const hadFlag = track.classList.contains("has-pins");
+      const runnerWith = (ghosts) => {
+        localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(ghosts));
+        return window.LiveSplit.GhostRunner.createGhostRunner({ getSplitsList: () => ["A", "B"] });
+      };
+      try {
+        runnerWith(["off"]).updateGhostRunner(null);
+        assert(!track.classList.contains("has-pins"), "no lane with ghosts off");
+        runnerWith(["wr"]).updateGhostRunner(null);
+        assert(track.classList.contains("has-pins"), "lane reserved before the run starts, so text does not jump");
+      } finally {
+        if (savedGhosts === null) localStorage.removeItem(KEYS.ACTIVE_GHOSTS); else localStorage.setItem(KEYS.ACTIVE_GHOSTS, savedGhosts);
+        track.classList.toggle("has-pins", hadFlag);
+      }
     });
   });
 })();

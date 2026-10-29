@@ -99,6 +99,8 @@
         "dotSize": { "type": "integer" },
         "ghostPinLength": { "type": "integer" },
         "ghostPinSize": { "type": "integer" },
+        "pinPos": { "type": "string", "enum": ["auto", "top", "bottom", "left", "right"] },
+        "pinLane": { "type": "boolean" },
         "logoHeight": { "type": "integer" }
       }
     },

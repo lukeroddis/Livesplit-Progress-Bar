@@ -165,6 +165,56 @@
         assertEqual(pos(map("vertical", "horizontal", "right", "right")), ["horizontal", "bottom", "top"]);
         assertEqual(pos(map("vertical", "vertical", "left", "right")), ["vertical", "left", "right"]);
       });
+
+      it("maps the pin side like split names (top <-> left, bottom <-> right) and keeps auto", () => {
+        const pin = (from, to, p) => map(from, to, "top", "bottom", p).pinPos;
+        assertEqual(pin("horizontal", "vertical", "top"), "left");
+        assertEqual(pin("horizontal", "vertical", "bottom"), "right");
+        assertEqual(pin("vertical", "horizontal", "left"), "top");
+        assertEqual(pin("vertical", "horizontal", "right"), "bottom");
+        assertEqual(pin("vertical", "vertical", "right"), "right", "same orientation keeps the side");
+        assertEqual(pin("horizontal", "vertical", "auto"), "auto");
+        assertEqual(pin("horizontal", "vertical", "sideways"), "auto", "unknown values fall back to auto");
+        assertEqual(pin("horizontal", "vertical", undefined), undefined, "callers without a pin side are unaffected");
+      });
+    });
+
+    describe("Track Style: ghost pin side", () => {
+      const resolve = window.LiveSplit.TrackStyle.resolvePinSide;
+
+      it("resolves auto to top, or to the delta side of a vertical track", () => {
+        assertEqual(resolve({ orientation: "horizontal", pinPos: "auto" }), "top");
+        assertEqual(resolve({ orientation: "horizontal" }), "top", "older styles without pinPos");
+        assertEqual(resolve({ orientation: "vertical", pinPos: "auto", deltaPos: "right" }), "right");
+        assertEqual(resolve({ orientation: "vertical", pinPos: "auto", deltaPos: "left" }), "left");
+        assertEqual(resolve(null), "top");
+      });
+
+      it("honours an explicit side valid for the orientation", () => {
+        assertEqual(resolve({ orientation: "horizontal", pinPos: "bottom" }), "bottom");
+        assertEqual(resolve({ orientation: "vertical", pinPos: "left", deltaPos: "right" }), "left");
+        assertEqual(resolve({ orientation: "horizontal", pinPos: "left" }), "top", "a vertical side on a horizontal track falls back");
+        assertEqual(resolve({ orientation: "vertical", pinPos: "top", deltaPos: "left" }), "left", "a horizontal side on a vertical track falls back");
+      });
+
+      it("applyStyle sets the pins-<side> and pin-lane classes on the track", () => {
+        const track = document.getElementById("track");
+        const origClass = track.className;
+        try {
+          let style = Object.assign({}, window.LiveSplit.TrackStyle.DEFAULT_TRACK_STYLE, { orientation: "vertical", namePos: "right", deltaPos: "right", pinPos: "left" });
+          const engine = window.LiveSplit.TrackStyle.createTrackStyle({ getCurrentStyle: () => style });
+          engine.applyStyle();
+          assert(track.classList.contains("pins-left"), "explicit left side");
+          assert(track.classList.contains("pin-lane"), "the lane is on by default");
+
+          style = Object.assign({}, style, { orientation: "horizontal", namePos: "top", deltaPos: "bottom", pinPos: "bottom", pinLane: false });
+          engine.applyStyle();
+          assert(track.classList.contains("pins-bottom") && !track.classList.contains("pins-left"), "side class is replaced");
+          assert(!track.classList.contains("pin-lane"), "lane switched off");
+        } finally {
+          track.className = origClass;
+        }
+      });
     });
 
 })();

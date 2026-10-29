@@ -27,12 +27,12 @@
    ------------------------------------------------------------ */
 .track.angled-text.pos-name-top,
 .track.angled-text:not(.pos-name-bottom) {
-  --dot-bottom: calc(var(--delta-font-size, 15px) + 16px);
+  --dot-bottom: calc(var(--delta-font-size, 15px) + 16px + var(--pin-lane-bottom));
 }
 
 .track.angled-text.pos-name-top .split-item,
 .track.angled-text:not(.pos-name-bottom) .split-item {
-  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + 120px);
+  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + 120px + var(--pin-lane-top));
 }
 
 .track.angled-text.pos-name-top .dot,
@@ -42,7 +42,7 @@
 
 .track.angled-text.pos-name-top .split-name,
 .track.angled-text:not(.pos-name-bottom) .split-name {
-  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 6px);
+  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 6px + var(--pin-lane-top));
   left: calc(50% + 4px);
   transform-origin: bottom left;
   transform: rotate(-40deg);
@@ -69,14 +69,15 @@
    High dot baseline prevents any downward angle clipping!
    ------------------------------------------------------------ */
 .track.angled-text.pos-name-bottom {
-  --dot-bottom: calc(var(--name-font-size, 17px) + 115px);
+  --dot-bottom: calc(var(--name-font-size, 17px) + 115px + var(--pin-lane-bottom));
+  --track-padding-bottom: 30px;
   padding-top: 20px;
-  padding-bottom: 30px;
+  padding-bottom: var(--track-padding-bottom, 30px);
   min-height: 235px;
 }
 
 .track.angled-text.pos-name-bottom .split-item {
-  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + var(--delta-font-size, 15px) + 24px);
+  height: calc(var(--dot-bottom) + var(--dot-size, 15px) + var(--delta-font-size, 15px) + 24px + var(--pin-lane-top));
 }
 
 .track.angled-text.pos-name-bottom .dot {
@@ -84,7 +85,7 @@
 }
 
 .track.angled-text.pos-name-bottom .split-name {
-  top: calc(100% - var(--dot-bottom) + 8px);
+  top: calc(100% - var(--dot-bottom) + 8px + var(--pin-lane-bottom));
   bottom: auto;
   left: calc(50% + 4px);
   transform-origin: top left;
@@ -95,7 +96,7 @@
 }
 
 .track.angled-text.pos-name-bottom .split-delta {
-  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 8px) !important;
+  bottom: calc(var(--dot-bottom) + var(--dot-size, 15px) + 8px + var(--pin-lane-top)) !important;
   top: auto !important;
   left: 50% !important;
   transform: translateX(-50%) !important;

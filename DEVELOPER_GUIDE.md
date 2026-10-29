@@ -238,6 +238,9 @@ Layout profiles are stored and exported as formatted JSON with the following ext
     "barHeight": 6,
     "dotSize": 15,
     "ghostPinLength": 16,
+    "ghostPinSize": 26,
+    "pinPos": "auto",
+    "pinLane": true,
     "logoHeight": 60
   },
   "preferences": {
@@ -254,6 +257,7 @@ Layout profiles are stored and exported as formatted JSON with the following ext
 }
 ```
 
+* **Ghost pin side**: `pinPos` is `auto` (top, or the delta side of a vertical track) or an explicit `top`/`bottom`/`left`/`right`, resolved by `TrackStyle.resolvePinSide` into a `pins-<side>` track class. With `pinLane` on, the track also gets `pin-lane`, and while any ghost or race pins are switched on the ghost runner adds `has-pins`; together they push split text on the pin side out by `--pin-lane` so pins never cover it.
 * **Backward Compatibility**: If an older layout missing newer properties (e.g. `logoHeight` or future properties) is loaded, `applyProfileData` deep-merges with `getDefaultLayout()` and `DEFAULT_TRACK_STYLE` so default values are gracefully applied without errors.
 * **Forward Compatibility**: Unknown future properties present in layout files do not throw errors or break loading.
 

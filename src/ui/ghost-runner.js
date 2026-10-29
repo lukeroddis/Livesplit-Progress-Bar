@@ -297,6 +297,9 @@
         ? rc.getRankedEntrants().filter(e => !e.isHost && !e.isMuted)
         : [];
 
+      // The pin lane (track-style "pinLane") only reserves space while pins are switched on
+      track.classList.toggle("has-pins", activeList.length > 0 || raceEntrants.length > 0);
+
       if ((activeList.length === 0 && raceEntrants.length === 0) || currentSec === null || currentSec < 0 || splitsList.length === 0) {
         hideAllGhostMarkers();
         if (edgeLeft) edgeLeft.style.display = "none";

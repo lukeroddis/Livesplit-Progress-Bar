@@ -73,6 +73,16 @@
   box-shadow: 0 0 14px var(--ghost-needle-color, #38bdf8), 0 4px 12px rgba(0, 0, 0, 0.95);
 }
 
+/* Pins below a horizontal bar: the tag hangs under the head */
+.track.pins-bottom:not(.vertical) .ghost-marker .racer-tag {
+  bottom: auto;
+  top: 100%;
+  transform: translateX(-50%) translateY(4px);
+}
+.track.pins-bottom:not(.vertical) .ghost-marker:hover .racer-tag {
+  transform: translateX(-50%) translateY(6px);
+}
+
 /* Vertical track: the tag sits on the outer side of the (splayed) head */
 .track.vertical .ghost-marker .racer-tag,
 .track.vertical .ghost-marker.race-competitor .racer-tag {
@@ -85,13 +95,13 @@
 .track.vertical .ghost-marker.race-competitor:hover .racer-tag {
   transform: translateY(-50%) translateX(8px);
 }
-.track.vertical.pos-delta-left .ghost-marker .racer-tag,
-.track.vertical.pos-delta-left .ghost-marker.race-competitor .racer-tag {
+.track.vertical.pins-left .ghost-marker .racer-tag,
+.track.vertical.pins-left .ghost-marker.race-competitor .racer-tag {
   left: auto;
   right: 100%;
   transform: translateY(-50%) translateX(-6px);
 }
-.track.vertical.pos-delta-left .ghost-marker:hover .racer-tag,
-.track.vertical.pos-delta-left .ghost-marker.race-competitor:hover .racer-tag {
+.track.vertical.pins-left .ghost-marker:hover .racer-tag,
+.track.vertical.pins-left .ghost-marker.race-competitor:hover .racer-tag {
   transform: translateY(-50%) translateX(-8px);
 }

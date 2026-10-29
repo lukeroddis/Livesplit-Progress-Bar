@@ -162,14 +162,14 @@
 .track.vertical.pos-name-left.pos-delta-right .split-name,
 .track.vertical:not(.pos-name-right):not(.pos-delta-left) .split-name {
   left: 14px;
-  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px + var(--pin-lane-left));
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .track.vertical.pos-name-left.pos-delta-right .split-delta,
 .track.vertical:not(.pos-name-right):not(.pos-delta-left) .split-delta {
-  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px + var(--pin-lane-right));
   right: 14px;
   text-align: left;
   justify-content: flex-start;
@@ -181,12 +181,12 @@
 }
 .track.vertical.pos-name-right.pos-delta-left .split-delta {
   left: 14px;
-  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  right: calc(50% + (var(--dot-size, 15px) / 2) + 12px + var(--pin-lane-left));
   text-align: right;
   justify-content: flex-end;
 }
 .track.vertical.pos-name-right.pos-delta-left .split-name {
-  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px);
+  left: calc(50% + (var(--dot-size, 15px) / 2) + 12px + var(--pin-lane-right));
   right: 14px;
   text-align: left;
   overflow: hidden;
@@ -195,12 +195,12 @@
 
 /* Layout 3: Both on Right (Classic LiveSplit Layout) */
 .track.vertical.pos-name-right.pos-delta-right {
-  --dot-left: 28px;
+  --dot-left: calc(28px + var(--pin-lane-left));
 }
 .track.vertical.pos-name-right.pos-delta-right .split-name {
-  left: calc(28px + (var(--dot-size, 15px) / 2) + 14px);
+  left: calc(var(--dot-left) + (var(--dot-size, 15px) / 2) + 14px + var(--pin-lane-right));
   right: auto;
-  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px);
+  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px - var(--pin-lane-left) - var(--pin-lane-right));
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -214,19 +214,19 @@
 
 /* Layout 4: Both on Left (Inverted Classic LiveSplit) */
 .track.vertical.pos-name-left.pos-delta-left {
-  --dot-left: calc(100% - 28px);
+  --dot-left: calc(100% - 28px - var(--pin-lane-right));
 }
 .track.vertical.pos-name-left.pos-delta-left .split-name {
   left: 16px;
   right: auto;
-  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px);
+  max-width: calc(100% - 28px - var(--dot-size, 15px) - 130px - var(--pin-lane-left) - var(--pin-lane-right));
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .track.vertical.pos-name-left.pos-delta-left .split-delta {
   left: auto;
-  right: calc(28px + (var(--dot-size, 15px) / 2) + 14px);
+  right: calc(28px + var(--pin-lane-right) + (var(--dot-size, 15px) / 2) + 14px + var(--pin-lane-left));
   text-align: right;
   justify-content: flex-end;
 }
@@ -238,21 +238,21 @@
   transform: translateY(-50%) scale(1.04);
 }
 
-/* Ghost pins on vertical tracks sit beside the bar, on the delta side
+/* Ghost pins on vertical tracks sit beside the bar on the pins-left / pins-right side
    (rules in ghost-markers.css). --ghost-track-x is the bar's x in the track's
    padding box, which the pins are positioned against. */
 .track.vertical {
   --ghost-track-x: 50%;
   --ghost-side: 1;
 }
-.track.vertical.pos-delta-left {
+.track.vertical.pins-left {
   --ghost-side: -1;
 }
 .track.vertical.pos-name-right.pos-delta-right {
-  --ghost-track-x: calc(16px + 28px);
+  --ghost-track-x: calc(16px + 28px + var(--pin-lane-left));
 }
 .track.vertical.pos-name-left.pos-delta-left {
-  --ghost-track-x: calc(100% - 16px - 28px);
+  --ghost-track-x: calc(100% - 16px - 28px - var(--pin-lane-right));
 }
 
 /* Vertical Off-Screen Edge Beacons */
