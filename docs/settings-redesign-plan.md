@@ -17,15 +17,15 @@ The settings menu and the HUD & Progress Bar Customizer modal have grown too lar
 | Race code, Connect / Disconnect | ✅ | 🏁 Live Race Settings (menu button, leaderboard ⚙) | One Connect / Disconnect button in both, kept in step |
 | Standings on/off | ✅ | Live Race Settings | Also the toolbar's Standings checkbox |
 | Race pins on/off | ✅ | Live Race Settings | |
-| Test race (dev) | ❌ | Live Race Settings (dev only) | Planned for the dock, not done |
-| Active comparison | ✅ | ⏱️ Timer Settings | Also hotkeys `C` / `Shift+C` |
+| Test race (dev) | | Live Race Settings (dev only) | Not for the dock: dev tools stay in the overlay |
+| Active comparison | ✅ | ⏱️ Timer Settings | Also hotkeys `C` / `Shift+C`, in the overlay and the dock |
 | Timing method, timers shown GT / RT / Both | ✅ | Timer Settings | Also click a timer |
-| Ghosts (which) and ghosts on/off | ✅ | 👻 Ghost Pins | On/off keeps the chosen ghosts |
+| Ghosts (which) and ghosts on/off | ✅ | 👻 Ghost Pins | On/off keeps the chosen ghosts; the dock has a Ghost Pins section of its own |
 | Golds on/off | ✅ | 🏃 Track Settings | |
 | Visible splits count / Fit all / Auto | ✅ | Track Settings, Layout toolbar | |
 | Scroll through splits | ✅ | Wheel / arrow keys over the track | Dock: ◀ / Current / ▶, a "Split view" slider and the wheel over either |
 | Show/hide title, timers, track, standings | ✅ | ✕ / 👁 on each widget, Layout toolbar | |
-| Layout profile switch | ❌ | Settings menu | Planned for the dock, not done (the dock shows the active profile) |
+| Layout profile switch | ✅ | Settings menu | Dock Profile section: quick switching between games |
 | Load `.lss` splits | | Settings menu | Needs the file picker / drop |
 | Track orientation, split angle, positions | | Track Settings, Layout toolbar (angle) | |
 | Typography, bar & dot geometry, always show last split | | Track Settings | |
@@ -76,7 +76,7 @@ The dock must never write settings straight into storage: the overlay holds them
 
 - In Layout Mode each widget (title, timers, track, leaderboard) shows a cog and a close (hide) button.
 - The cog opens a small popover anchored to that widget, listing only that widget's registry entries.
-- Keep the Customizer's **Save / Reset** draft model for appearance settings (live preview, then save or revert). Live controls apply instantly as they do now. The registry marks each setting as `instant` or `draft`.
+- ~~Keep the Customizer's Save / Reset draft model (live preview, then save or revert).~~ Dropped: every change applies and saves straight away; Reset restores the dialog's defaults.
 - Once every Customizer section has a home, remove the big modal.
 
 ## Steps
@@ -102,22 +102,24 @@ Each step ships on its own, with `npm test` and `npm run build` green.
    - ✅ The menu has a button per settings dialog (Title, Timer, Track, Ghost Pins, Live Race). Ghost pins moved out of the Track dialog into their own Ghost Pins dialog (beside the track, linked from the Track dialog; its reset covers the pin style, which race pins share).
    - **Still to do (Luke): new README screenshots** of a widget popover and the dock; `assets/HUDCustomiser.png` is no longer referenced.
 
-## Open questions
-
-- **Old saved data after switching to a `file:///` URL.** Users who move off *Local file* lose access to their saved data (different origin). Could the overlay offer a one-click "copy settings to clipboard / paste" migration, or is export/import enough?
-- **Dock without a URL source.** If many users keep *Local file*, consider obs-websocket as a second transport (dock connects to OBS, which forwards to browser sources). This needs the WebSocket server enabled and possibly a password.
-- **Multiple overlays.** If someone has two browser sources (e.g. two scenes), both hear dock commands. Probably fine (they share settings anyway), but status snapshots could flip between them. Add a source id if it causes trouble.
-- **Hotkeys in the dock.** OBS docks get keyboard focus; decide whether `C` / `Shift+C` should work there too.
-
 ## Remaining work
 
-Assessed 2026-10-31. Everything above is done except:
+Reassessed 2026-10-31 with Luke's decisions:
 
-1. **README screenshots (Luke).** A widget dialog (e.g. Track or Ghost Pins), the Settings menu and the dock. `assets/HUDCustomiser.png` is no longer referenced and can be deleted once replaced.
-2. **Dock: layout profile switch.** Planned in the table, not built. Needs a registry setting whose options are the profile names and whose `set` loads a profile; the dock must then re-render everything (the status snapshot already does on the next publish).
-3. **Dock: test race (dev only).** Planned, not built. A `run` action in the registry, shown only when dev mode is on (the schema would need a dev flag).
-4. **Draft settings (preview, then save or revert).** Design 4 planned it and the registry has an `apply: "instant" | "draft"` field, but every setting is `instant` and nothing reads the field: the dialogs apply and save as you change things, Done just closes, and Reset goes back to defaults rather than to how things were when the dialog opened. Decide whether a "Cancel" that reverts is wanted; if not, drop the `apply` field.
-5. **Dialogs built from the registry.** Design 1 hoped the widget dialogs would also be generated from the registry. Only the dock is; the dialogs are hand-written HTML (only Gold Splits is registry-bound, via `data-setting`). Fine to leave unless dialogs and dock drift apart.
-6. **Open questions below** are still open.
+1. **README screenshots (Luke), last**, once the UI has settled: a widget dialog, the Settings menu and the dock. `assets/HUDCustomiser.png` is no longer referenced and can be deleted then.
+2. **Dialogs built from the registry (next).** Keep the dock and the overlay's dialogs in step by sharing code: the dock already renders from the registry's schema; the dialogs are hand-written HTML (only Gold Splits is registry-bound, via `data-setting`). Proposed approach: move the dock's control renderer (bool / enum / splits / ghosts / range / action) into a shared module the overlay uses for its dialogs' registry settings and the build inlines into `dock.html`, then replace the dialogs' hand-written rows for registry settings with it, one dialog per commit. Appearance-only settings (fonts, geometry, plates, logo) stay hand-written unless they move into the registry too.
+3. ✅ Done since the assessment: dock layout profile switching, a Ghost Pins section in the dock, the overlay's hotkeys in the dock (`C` / `Shift+C`, `]` / `[`, NumPad 4 / 6, arrows), and the unused `apply` (`instant` / `draft`) field removed.
+
+Decided against (2026-10-31, Luke):
+
+- **Dev-only items in the dock** (test race, WS log): they stay in the overlay.
+- **Draft settings with a revert / Cancel**: changes are easy to undo, and the dialogs can be moved aside to watch them apply.
+
+## Open questions (resolved 2026-10-31)
+
+- **Old saved data after switching to a `file:///` URL**: accepted for now (few users); revisit a migration if people ask.
+- **Dock without a URL source (obs-websocket)**: only if people ask for it.
+- **Multiple overlays**: wanted (e.g. two browser sources focused on different widgets); the dock talking to both is a good thing. Note: each overlay keeps its own in-memory state, so a change made in one overlay's own UI only reaches the other after a reload, while dock commands reach both. Status snapshots alternate between them; fine while they share settings.
+- **Hotkeys in the dock**: done (see above).
 
 Seen in browser testing, not caused by this work: the Settings menu was open after page load and shows while the mouse hovers its corner, so it can cover a dialog (drag the dialog). Not checked whether OBS does the same.

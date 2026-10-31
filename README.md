@@ -143,12 +143,12 @@ For multi-scene or automated OBS setups, configure sources instantly with query 
 
 ### OBS Dock (Custom Browser Dock, experimental)
 
-A small OBS panel for changing things mid-stream without interacting with your scene: race code, comparison, timers, golds, visible splits, ghosts, scrolling through your splits (buttons, a slider or the mouse wheel) and which components show. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay. Everything in it is also available in the overlay itself.
+A small OBS panel for changing things mid-stream without interacting with your scene: race code, layout profile (quick switching between games), comparison, timers, golds, visible splits, ghosts, scrolling through your splits (buttons, a slider or the mouse wheel) and which components show. While the dock has keyboard focus, **`C`** / **`Shift+C`** (or **`]`** / **`[`**) step the comparison and the arrow keys scroll your splits. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay. Everything in it is also available in the overlay itself.
 
 1. **Export your layout first** (Settings → profiles → export) if you already use the overlay with *Local file* ticked: step 2 changes where OBS stores the overlay's saved data, so you'll re-import it afterwards.
 2. In the overlay's **Browser Source** properties, **untick *Local file*** and put a `file:///` URL in the **URL** field instead, e.g. `file:///C:/Overlays/speedrun-overlay-v2.0.4.html`. The dock and overlay can only talk to each other this way.
 3. **Docks → Custom Browser Docks…**: add a dock with a `file:///` URL to the dock file, e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.0.4.html`.
-4. The dock shows **Overlay linked** within a couple of seconds, then its Race, Run, Track and Visibility sections. *Overlay not found* almost always means the browser source still has *Local file* ticked.
+4. The dock shows **Overlay linked** within a couple of seconds, then its Race, Profile, Run, Track, Ghost Pins and Visibility sections. *Overlay not found* almost always means the browser source still has *Local file* ticked.
 
 ---
 

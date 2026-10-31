@@ -3,7 +3,7 @@
  *
  * Describes each user-facing setting once, so the HUD badges, the OBS dock and
  * the per-widget settings panels all drive it the same way:
- * - SETTINGS: frozen definitions { id, label, group, where, type, apply, ... }
+ * - SETTINGS: frozen definitions { id, label, group, where, type, ... }
  *   with get(app) / set(app, value) calling the existing controllers
  * - validateSettingValue: pure value normalisation per type
  * - describeSettings: the plain-data schema of a surface's settings (for the dock)
@@ -21,7 +21,6 @@
  * stored value, so no get / set and not in snapshots).
  * `optionLabels` (optional) maps option values to short display labels.
  * `where` lists the surfaces a setting belongs on: "dock", "widget".
- * `apply` is "instant" (applied on change) or "draft" (preview, then save / revert).
  */
 
 (function () {
@@ -55,7 +54,6 @@
     group: compId === "leaderboard" ? "leaderboard" : "visibility",
     where: ["dock"],
     type: "bool",
-    apply: "instant",
     get: () => getLayoutEntry(compId)?.visible !== false,
     set: (app, value) => {
       window.hudLayout?.setComponentVisible?.(compId, value);
@@ -65,12 +63,25 @@
 
   const SETTINGS = Object.freeze([
     {
+      id: "profile",
+      label: "Layout profile",
+      group: "profile",
+      where: ["dock"],
+      type: "enum",
+      // Quick switching between games: loads the profile like the settings menu's dropdown
+      options: () => {
+        const list = window.hudLayout?.getProfilesList?.() || [];
+        return list.length > 0 ? list : ["Default"];
+      },
+      get: () => window.hudLayout?.getActiveProfileName?.() || "Default",
+      set: (app, value) => window.hudLayout?.loadProfileByName?.(value)
+    },
+    {
       id: "comparison",
       label: "Comparison",
       group: "timers",
       where: ["dock", "widget"],
       type: "enum",
-      apply: "instant",
       options: (app) => app.state.comparisonsList,
       get: (app) => app.state.currentComparison,
       set: (app, value) => app.applyActiveComparison(value, true),
@@ -82,7 +93,6 @@
       group: "timers",
       where: ["dock", "widget"],
       type: "enum",
-      apply: "instant",
       options: ["gametime", "realtime", "both"],
       optionLabels: { gametime: "Game", realtime: "Real", both: "Both" },
       get: (app) => app.state.timerDisplayMode,
@@ -96,7 +106,6 @@
       group: "timers",
       where: ["dock", "widget"],
       type: "enum",
-      apply: "instant",
       options: ["GameTime", "RealTime"],
       optionLabels: { GameTime: "Game", RealTime: "Real" },
       get: (app) => app.state.currentTimingMethod,
@@ -108,7 +117,6 @@
       group: "track",
       where: ["dock", "widget"],
       type: "bool",
-      apply: "instant",
       get: (app) => app.state.cachedEnableGolds !== false,
       set: (app, value) => app.setGoldSegments(value)
     },
@@ -118,7 +126,6 @@
       group: "track",
       where: ["dock", "widget"],
       type: "splits",
-      apply: "instant",
       get: () => localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto",
       set: (app, value) => app.setVisibleSplits(value),
       cycle: (app) => app.cycleVisibleSplits()
@@ -126,10 +133,9 @@
     {
       id: "ghostsOn",
       label: "Ghosts on",
-      group: "track",
+      group: "ghosts",
       where: ["dock", "widget"],
       type: "bool",
-      apply: "instant",
       // Off remembers the chosen ghosts, on brings them back
       get: (app) => app.ghostRunner.areGhostsEnabled(),
       set: (app, value) => app.setGhostsEnabled(value)
@@ -137,10 +143,9 @@
     {
       id: "ghosts",
       label: "Ghosts",
-      group: "track",
+      group: "ghosts",
       where: ["dock", "widget"],
       type: "ghosts",
-      apply: "instant",
       // Built-in ghosts plus the loaded splits' own comparisons (custom ghosts)
       options: (app) => [...GHOST_IDS, ...app.state.comparisonsList.filter(isCustomGhostComparison)],
       optionLabels: { wr: "WR", pb: "PB", best: "Best", average: "Avg", worst: "Worst" },
@@ -154,7 +159,6 @@
       group: "track",
       where: ["dock"],
       type: "action",
-      apply: "instant",
       options: [-1, 0, 1],
       optionLabels: { "-1": "◀", "0": "Current", "1": "▶" },
       run: (app, value) => app.scrollTrack(value)
@@ -165,7 +169,6 @@
       group: "track",
       where: ["dock"],
       type: "range",
-      apply: "instant",
       // 0 = the start of the track; the end depends on split count, density and window
       options: (app) => Array.from({ length: app.getTrackScrollPosition().max + 1 }, (_, i) => i),
       get: (app) => app.getTrackScrollPosition().pos,
@@ -177,7 +180,6 @@
       group: "leaderboard",
       where: ["dock", "widget"],
       type: "bool",
-      apply: "instant",
       get: (app) => {
         const rc = raceClientOf(app);
         return typeof rc?.areRacePinsVisible === "function" ? rc.areRacePinsVisible() : true;

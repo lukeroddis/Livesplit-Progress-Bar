@@ -72,6 +72,7 @@
   <div id="sections"></div>
 
   <div id="error" class="error"></div>
+  <div class="muted" id="keys-hint">Keys: C / Shift+C (or ] / [) comparison · ← / → scroll splits</div>
   <div id="detail" class="muted"></div>
 
   <script>
@@ -86,8 +87,10 @@
       const WHEEL_STEP_PX = 100;
       // Registry groups -> dock sections ("race" settings join the Race section above)
       const SECTIONS = [
+        { group: "profile", title: "Profile" },
         { group: "timers", title: "Run" },
         { group: "track", title: "Track" },
+        { group: "ghosts", title: "Ghost Pins" },
         { group: "visibility", title: "Visibility" }
       ];
       const RACE_GROUPS = ["leaderboard"];
@@ -134,7 +137,9 @@
           return el("div", { className: "control" }, [btn]);
         },
         enum(def, options) {
-          if (options.length <= 3) {
+          // A few short options as buttons; more, or long names (profiles), as a dropdown
+          const short = options.every((opt) => optionLabel(def, opt).length <= 10);
+          if (options.length <= 3 && short) {
             const btns = options.map((opt) => el("button", { type: "button", textContent: optionLabel(def, opt), onclick: () => setSetting(def.id, opt) }));
             updaters.push((values) => btns.forEach((b, i) => b.classList.toggle("on", values[def.id] === options[i])));
             return el("div", { className: "control seg" }, btns);
@@ -284,6 +289,10 @@
           .forEach((c) => { c.disabled = !enabled; });
       }
 
+      function isLinked() {
+        return !!lastStatus && typeof lastStatus.at === "number" && Date.now() - lastStatus.at <= STALE_MS;
+      }
+
       function render() {
         const s = readStatus();
         lastStatus = s;
@@ -343,6 +352,29 @@
       });
       codeInp.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !isRaceActive(lastStatus)) $("btn-race").click();
+      });
+
+      // The overlay's hotkeys, while the dock has keyboard focus (OBS gives docks focus, not sources)
+      function stepSetting(id, dir) {
+        const settings = lastStatus && lastStatus.settings;
+        const opts = settings && settings.options && settings.options[id];
+        if (!opts || opts.length === 0) return;
+        const at = opts.indexOf(settings.values[id]);
+        setSetting(id, opts[((at === -1 ? 0 : at + dir) + opts.length) % opts.length]);
+      }
+
+      window.addEventListener("keydown", (e) => {
+        const t = e.target;
+        if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
+        if (e.ctrlKey || e.altKey || e.metaKey || !isLinked()) return;
+        let handled = true;
+        if (e.key === "c" || e.key === "C") stepSetting("comparison", e.shiftKey ? -1 : 1);
+        else if (e.code === "Numpad6" || e.key === "]") stepSetting("comparison", 1);
+        else if (e.code === "Numpad4" || e.key === "[") stepSetting("comparison", -1);
+        else if (e.key === "ArrowRight" || e.key === "ArrowDown") send({ action: "run", setting: "trackScroll", value: 1 });
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") send({ action: "run", setting: "trackScroll", value: -1 });
+        else handled = false;
+        if (handled) e.preventDefault();
       });
 
       window.addEventListener("storage", (e) => { if (e.key === STATUS_KEY) render(); });

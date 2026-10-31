@@ -55,7 +55,7 @@
   const validate = (id, raw, app = makeApp()) => R.validateSettingValue(R.getSettingDef(id), raw, app);
 
   describe("Settings Registry: definitions", () => {
-    it("every setting has a unique id, a known type / surface / apply mode and get + set", () => {
+    it("every setting has a unique id, a known type / surface and get + set", () => {
       const ids = new Set();
       R.SETTINGS.forEach((def) => {
         assert(!ids.has(def.id), `duplicate id ${def.id}`);
@@ -63,7 +63,6 @@
         assert(def.label && def.group, `${def.id} label / group`);
         assert(["bool", "enum", "splits", "ghosts", "range", "action"].includes(def.type), `${def.id} type`);
         assert(def.where.length > 0 && def.where.every((w) => w === "dock" || w === "widget"), `${def.id} where`);
-        assert(def.apply === "instant" || def.apply === "draft", `${def.id} apply`);
         if (def.type === "action") {
           assert(typeof def.run === "function" && Array.isArray(def.options), `${def.id} run / options`);
         } else {
@@ -276,6 +275,30 @@
       s.set("trackPosition", 4);
       assertEqual(app.calls.pop(), ["trackPosition", 4]);
       assertEqual(s.get("trackPosition"), 4);
+    });
+
+    it("profile lists, reads and loads layout profiles through the HUD layout", () => {
+      const loaded = [];
+      const hudLayout = {
+        getProfilesList: () => ["Default", "Mario 64"],
+        getActiveProfileName: () => "Default",
+        loadProfileByName: (name) => loaded.push(name)
+      };
+      stubWindow({ hudLayout }, () => {
+        const s = R.createSettingsController(makeApp());
+        assertEqual(s.options("profile"), ["Default", "Mario 64"]);
+        assertEqual(s.get("profile"), "Default");
+        assert(s.set("profile", "Mario 64").ok);
+        assert(!s.set("profile", "Zelda").ok, "only saved profiles");
+      });
+      assertEqual(loaded, ["Mario 64"]);
+      stubWindow({ hudLayout: undefined }, () => {
+        assertEqual(R.createSettingsController(makeApp()).options("profile"), ["Default"], "Default without a layout");
+      });
+    });
+
+    it("ghosts are a group of their own (the dock's Ghost Pins section)", () => {
+      assertEqual(R.listSettings("dock", "ghosts").map((d) => d.id), ["ghostsOn", "ghosts"]);
     });
 
     it("ghostsOn reads and switches ghosts through the ghost runner", () => {
