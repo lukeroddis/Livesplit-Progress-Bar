@@ -116,11 +116,14 @@
           openWidgetSettings(btn.closest(".hud-component")?.dataset.componentId);
         });
       });
-      // Settings menu buttons: data-open-widget-popover opens a popover in Layout Mode (Track Settings),
-      // data-open-popover without it (Live Race Settings: nothing to arrange)
+      // Settings menu buttons: data-open-widget-popover opens a popover in Layout Mode (Title / Timer /
+      // Track Settings: the menu closes for it), data-open-popover without it (Ghost Pins, Live Race
+      // Settings: the menu stays open beside it)
       document.querySelectorAll("[data-open-widget-popover], [data-open-popover]").forEach((btn) => btn.addEventListener("click", () => {
-        window.LiveSplit.Overlay.toggleSettingsMenu?.(false);
-        if (btn.dataset.openWidgetPopover) setEditMode(true);
+        if (btn.dataset.openWidgetPopover) {
+          window.LiveSplit.Overlay.toggleSettingsMenu?.(false);
+          setEditMode(true);
+        }
         popovers.open(btn.dataset.openWidgetPopover || btn.dataset.openPopover);
       }));
       popovers.bind();

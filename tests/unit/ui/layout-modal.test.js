@@ -156,7 +156,7 @@
       const menu = [];
       stubOverlay({ toggleSettingsMenu: (v) => menu.push(v) }, () => el("lm-open-race").click());
       assert(!pop.hidden, "opened from the settings menu");
-      assertEqual(menu, [false], "the settings menu gets out of the way");
+      assertEqual(menu, [], "the settings menu stays open beside it");
       assertEqual(called("setEdit").length, 0, "no Layout Mode for race settings");
       el("lm-cog-lb").click();
       assert(pop.hidden, "the cog toggles it closed");

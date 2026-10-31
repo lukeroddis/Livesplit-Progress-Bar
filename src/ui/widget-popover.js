@@ -9,7 +9,7 @@
  *   element for a component (beside `hud-comp-<data-anchor or data-widget>`); repositions after changes inside it (an orientation
  *   switch reshapes the track), pointer releases (dragging the widget) and resizes.
  *   Closes on its close / Done buttons, Escape (layout-modal.js) and clicks outside
- *   it, except on HUD widgets so they can still be dragged while it is open
+ *   it, except on HUD widgets (so they can still be dragged) and in the settings menu
  * - Drag a popover by its header and resize it from its corner grip; it then keeps
  *   that place and size (kept on screen) until the page reloads. Double-clicking the
  *   header puts it back beside its widget
@@ -250,7 +250,8 @@
       });
       document.addEventListener("pointerdown", (e) => {
         if (!current || !e.target || typeof e.target.closest !== "function") return;
-        if (current.el.contains(e.target) || e.target.closest(".hud-component")) return;
+        // Clicks on HUD widgets (to drag them) or in the settings menu (open beside it) keep it open
+        if (current.el.contains(e.target) || e.target.closest(".hud-component, .quick-settings-wrap")) return;
         close();
       }, true);
       document.addEventListener("pointerup", repositionSoon);

@@ -82,7 +82,8 @@
         <button data-popover-reset id="wp-reset"></button>
       </div>
       <div class="widget-popover" id="wp-anchored" data-widget="wpt-extra" data-anchor="wpt" hidden style="width: 300px; height: 200px;"></div>
-      <div id="wp-outside"></div>`;
+      <div id="wp-outside"></div>
+      <div class="quick-settings-wrap"><button id="wp-menu-btn"></button></div>`;
 
     function withPopovers(fn) {
       const dom = mountHtml(HTML);
@@ -137,7 +138,8 @@
       popovers.open("wpt");
       pointerdown(el("wp-input"));
       pointerdown(el("hud-comp-wpt"));
-      assert(popovers.isOpen(), "still open");
+      pointerdown(el("wp-menu-btn"));
+      assert(popovers.isOpen(), "still open after clicks on the widget and in the settings menu");
       pointerdown(el("wp-outside"));
       assert(!popovers.isOpen(), "closed by an outside click");
     }));
