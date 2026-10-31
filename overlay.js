@@ -208,8 +208,13 @@ function initOverlay() {
       return { splitsList: state.splitsList, gtComparisons, rtComparisons, isAlreadyRunning };
     }
   });
-  // OBS Custom Browser Dock commands (dock.html, src/ui/race-dock-bridge.js)
-  window.LiveSplit.RaceDockBridge.createRaceDockBridge({ raceClient, controls: raceControls }).start();
+  // OBS Custom Browser Dock commands and status (dock.html, src/ui/dock-bridge.js)
+  window.LiveSplit.DockBridge.createDockBridge({
+    settings: app.settings,
+    raceClient,
+    controls: raceControls,
+    getProfileName: () => window.hudLayout?.getActiveProfileName?.() || ""
+  }).start();
   window.LiveSplit.WsLogPanel.bindWsLogPanel(raceClient);
 
   window.LiveSplit.SettingsMenu.initSettingsMenuDraggable();

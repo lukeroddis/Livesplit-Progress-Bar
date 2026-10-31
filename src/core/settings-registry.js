@@ -6,7 +6,7 @@
  * - SETTINGS: frozen definitions { id, label, group, where, type, apply, ... }
  *   with get(app) / set(app, value) calling the existing controllers
  * - validateSettingValue: pure value normalisation per type
- * - createSettingsController(app): get / set / toggle / cycle / snapshot by id,
+ * - createSettingsController(app): get / set / toggle / cycle / snapshot / options by id,
  *   notifying subscribers after every change made through it
  *
  * Changes made outside the controller (modal selects, ghost pills) are not
@@ -250,12 +250,18 @@
       return out;
     }
 
+    /** The current options of an enum / ghosts setting ([] for other types). */
+    function options(id) {
+      const def = getSettingDef(id);
+      return def ? [...resolveOptions(def, app)] : [];
+    }
+
     function subscribe(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);
     }
 
-    return { get, set, toggle, cycle, snapshot, subscribe };
+    return { get, set, toggle, cycle, snapshot, options, subscribe };
   }
 
   /** Registers the overlay's settings controller as app.settings. */

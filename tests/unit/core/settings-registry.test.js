@@ -215,6 +215,17 @@
       assertEqual(heard, ["golds"]);
     });
 
+    it("options lists the current choices of enum / ghost settings, as copies", () => {
+      const app = makeApp();
+      const s = R.createSettingsController(app);
+      assertEqual(s.options("timingMethod"), ["GameTime", "RealTime"]);
+      assertEqual(s.options("ghosts"), [...R.GHOST_IDS, "Personal Best", "Best Segments", "Sub 1h"]);
+      s.options("comparison").push("x");
+      assertEqual(app.state.comparisonsList.length, 3, "not the app's own list");
+      assertEqual(s.options("golds"), []);
+      assertEqual(s.options("nope"), []);
+    });
+
     it("installSettingsRegistry registers app.settings", () => {
       const app = makeApp();
       R.installSettingsRegistry(app);
