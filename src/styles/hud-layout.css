@@ -141,16 +141,6 @@ body.edit-mode .hud-component-header {
   background: rgba(248, 113, 113, 0.2);
 }
 
-/* Section a widget cog jumped to (Customizer / settings menu) */
-.widget-settings-flash {
-  animation: widget-settings-flash 1.4s ease-out;
-}
-
-@keyframes widget-settings-flash {
-  0%, 30% { background: rgba(56, 189, 248, 0.35); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.6); }
-  100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
-}
-
 /* Resize corner handle */
 .hud-resize-handle {
   display: none;

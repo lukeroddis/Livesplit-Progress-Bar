@@ -43,6 +43,13 @@
       assertEqual(beside.top, 78, "clamped below the toolbar");
     });
 
+    it("centres it when its widget is not on screen", () => {
+      const placed = WP.placePopover(rect(0, 0, 0, 0), SIZE, VIEW);
+      assertEqual(placed.side, "center");
+      assertEqual([placed.left, placed.top], [(1920 - 360) / 2, (1080 - 500) / 2]);
+      assertEqual(WP.placePopover(null, SIZE, VIEW).side, "center", "no widget at all");
+    });
+
     it("stays on screen when it fits nowhere", () => {
       const placed = WP.placePopover(rect(0, 0, 800, 600), { width: 900, height: 700 }, { width: 900, height: 700 });
       assert(placed.left >= 8 && placed.top >= 8, "clamped to the margin");

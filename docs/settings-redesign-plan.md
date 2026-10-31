@@ -99,6 +99,7 @@ Each step ships on its own, with `npm test` and `npm run build` green.
 7. **Slim the settings menu** down to the global items. Update README screenshots and the developer guide.
    - ✅ Menu: the Pace & Comparisons and Track & Display badge sections are gone (each setting lives in a popover, the toolbar or the dock; Gold Splits joined the Track popover as a registry-bound `data-setting` checkbox) along with their badge code. Left: splits file, race, Widget Settings / Layout Mode, profiles, import / export. Loading a profile now applies its ghosts straight away.
    - ✅ README text and developer guide.
+   - ✅ Follow-up after OBS testing: the menu is just "Settings" (no hint line); Widget Settings is now Track Settings; the race section moved into a Live Race Settings popover (the leaderboard's popover: its cog opens it too, the menu button opens it without Layout Mode, centred when the standings are hidden).
    - **Still to do (Luke): new README screenshots** of a widget popover and the dock; `assets/HUDCustomiser.png` is no longer referenced.
 
 ## Open questions

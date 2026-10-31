@@ -4,8 +4,7 @@
  * Composes the settings panels shared by the edit-mode toolbar and the widget
  * settings popovers, and owns the controls that belong to the layout itself:
  * - Full settings sync (popover open, entering Layout Mode)
- * - Widget header cogs: toggle the component's settings popover (widget-popover.js); the
- *   leaderboard, which has none yet, opens the settings menu at its race section
+ * - Widget header cogs: toggle the component's settings popover (widget-popover.js)
  * - Settings panels: track (settings-track-panel.js), backgrounds
  *   (settings-background-panel.js), ghosts (settings-ghost-panel.js), timing
  *   (settings-timing-panel.js), profiles (layout-profiles-panel.js)
@@ -60,18 +59,9 @@
       }
     });
 
-    // Widget cog: the component's popover (toggled); the leaderboard has none yet, so its cog opens
-    // the settings menu at the race section, scrolled to and flashing
+    // Widget cog: toggles the component's settings popover
     function openWidgetSettings(compId) {
-      if (popovers.toggle(compId)) return;
-      if (compId !== "leaderboard") return;
-      window.LiveSplit.Overlay.toggleSettingsMenu?.(true);
-      const section = document.querySelector(`[data-widget-settings="${compId}"]`);
-      if (!section) return;
-      section.scrollIntoView({ block: "start", behavior: "smooth" });
-      section.classList.remove("widget-settings-flash");
-      section.getBoundingClientRect(); // restart the flash animation
-      section.classList.add("widget-settings-flash");
+      popovers.toggle(compId);
     }
 
     function syncUI() {
@@ -126,11 +116,12 @@
           openWidgetSettings(btn.closest(".hud-component")?.dataset.componentId);
         });
       });
-      // Buttons elsewhere (the settings menu's "Widget Settings") that open a widget's popover
-      document.querySelectorAll("[data-open-widget-popover]").forEach((btn) => btn.addEventListener("click", () => {
+      // Settings menu buttons: data-open-widget-popover opens a popover in Layout Mode (Track Settings),
+      // data-open-popover without it (Live Race Settings: nothing to arrange)
+      document.querySelectorAll("[data-open-widget-popover], [data-open-popover]").forEach((btn) => btn.addEventListener("click", () => {
         window.LiveSplit.Overlay.toggleSettingsMenu?.(false);
-        setEditMode(true);
-        popovers.open(btn.dataset.openWidgetPopover);
+        if (btn.dataset.openWidgetPopover) setEditMode(true);
+        popovers.open(btn.dataset.openWidgetPopover || btn.dataset.openPopover);
       }));
       popovers.bind();
       bindRegistryToggles();

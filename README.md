@@ -127,7 +127,7 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 | **`←` / `→`** (or **`↑` / `↓`**) | Pan splits / browse future and previous splits with keyboard arrow keys (works in continuous and windowed mode with pinned last split) |
 | **`E`** or **`F2`** | Toggle Interactive Layout Edit Mode (Drag & Scale) |
 | **`Esc`** | Close an open settings panel or dialog, else exit Edit Mode |
-| **`Settings`** | Bottom-right discreet pill: drop `.lss` files, race code, layout profiles, and **⚙ Widget Settings** (opens Layout Mode) |
+| **`Settings`** | Bottom-right discreet pill: drop `.lss` files, **⚙ Track Settings** (opens Layout Mode), **🏁 Live Race Settings** (race code, standings, race pins), layout profiles |
 
 For multi-scene or automated OBS setups, configure sources instantly with query parameters:
 

@@ -168,7 +168,7 @@
   <!-- Floating Settings Menu (Bottom Right Corner) -->
   <div class="quick-settings-wrap" id="quick-settings-wrap">
     <!-- Unobtrusive Trigger Pill in Bottom-Right Corner (Click to latch open / close) -->
-    <button type="button" class="settings-trigger-pill" id="settings-trigger-pill" onclick="toggleSettingsMenu()" aria-label="Open LiveSplit Settings" aria-pressed="false" title="Click to open LiveSplit Settings">
+    <button type="button" class="settings-trigger-pill" id="settings-trigger-pill" onclick="toggleSettingsMenu()" aria-label="Open Settings" aria-pressed="false" title="Click to open Settings">
       <span class="trigger-icon">⚙️</span>
       <span class="trigger-text">Settings</span>
     </button>
@@ -181,9 +181,8 @@
           <div class="settings-menu-title">
             <span class="settings-drag-grip" title="Drag to move">⠿</span>
             <span class="settings-title-icon">⚙️</span>
-            <span>LiveSplit Settings</span>
+            <span>Settings</span>
           </div>
-          <div class="settings-menu-subtitle">Drag header to reposition • Click ✕ or button to close</div>
         </div>
         <div class="settings-header-right">
           <div class="connection-status-pill" title="LiveSplit Server WebSocket Connection">
@@ -214,28 +213,15 @@
         <input type="file" id="file-input" accept=".lss,.xml">
       </div>
 
-      <!-- Section: Live Race Telemetry (therun.gg) -->
-      <div class="settings-section" id="section-race-mode">
-        <div class="settings-section-header" data-widget-settings="leaderboard">LIVE RACE TELEMETRY</div>
-        <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
-          <button type="button" class="settings-tile-btn dev-only" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
-          <button type="button" class="settings-tile-btn" id="btn-toggle-leaderboard" style="color: #38bdf8;" title="Click to toggle Live Standings Tower visibility">Standings: ON</button>
-          <button type="button" class="settings-tile-btn" id="btn-toggle-race-pins" style="color: #38bdf8;" title="Click to show/hide all competitor pins on the progress track (individual leaderboard mutes are preserved)">Pins: ON</button>
-        </div>
-        <div class="settings-profile-bar" style="margin-top: 6px;">
-          <input type="text" id="input-therun-race-code" class="settings-profile-input" maxlength="16" placeholder="Race Code (e.g. q38y)" title="Enter the therun.gg race room code (e.g. q38y) and click Connect">
-          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to or disconnect from the therun.gg race room">Connect</button>
-          <button type="button" class="settings-tile-btn profile-btn dev-only" id="btn-open-ws-logs" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.4);" title="View incoming WebSocket telemetry messages and copy debug logs">📜 WS Logs</button>
-        </div>
-      </div>
-
-      <!-- Section: Actions (widget settings popovers & Edit Layout mode) -->
+      <!-- Section: Actions (settings popovers & Edit Layout mode) -->
       <div class="settings-section">
         <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
         <div class="settings-actions-row">
-          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" data-open-widget-popover="track" title="Open Layout Mode with the track's settings (every widget has a ⚙ there)">⚙ Widget Settings</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" data-open-widget-popover="track" title="Open Layout Mode with the track settings (every widget has a ⚙ there)">⚙ Track Settings</button>
           <button type="button" class="settings-action-btn action-edit-layout" id="layout-edit-btn" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout Mode</button>
+        </div>
+        <div class="settings-actions-row" style="margin-top: 6px;">
+          <button type="button" class="settings-action-btn action-race" id="btn-open-race-settings" data-open-popover="leaderboard" title="Race code, standings and race pins for therun.gg races">🏁 Live Race Settings</button>
         </div>
       </div>
 
@@ -280,6 +266,32 @@
     </div>
   </div>
 
+  <!-- Live race settings popover: the leaderboard's Layout Mode cog, or Settings > Live Race Settings (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-leaderboard" data-widget="leaderboard" role="dialog" aria-label="Live race settings" hidden>
+    <div class="widget-popover-header">
+      <h3>🏁 Live Race Settings</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body" id="section-race-mode">
+      <div class="modal-section-title">therun.gg Race</div>
+      <div class="settings-grid">
+        <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
+        <button type="button" class="settings-tile-btn dev-only" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
+        <button type="button" class="settings-tile-btn" id="btn-toggle-leaderboard" style="color: #38bdf8;" title="Click to toggle Live Standings Tower visibility">Standings: ON</button>
+        <button type="button" class="settings-tile-btn" id="btn-toggle-race-pins" style="color: #38bdf8;" title="Click to show/hide all competitor pins on the progress track (individual leaderboard mutes are preserved)">Pins: ON</button>
+      </div>
+      <div class="settings-profile-bar" style="margin-top: 6px;">
+        <input type="text" id="input-therun-race-code" class="settings-profile-input" maxlength="16" placeholder="Race Code (e.g. q38y)" title="Enter the therun.gg race room code (e.g. q38y) and click Connect">
+        <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to or disconnect from the therun.gg race room">Connect</button>
+        <button type="button" class="settings-tile-btn profile-btn dev-only" id="btn-open-ws-logs" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.4);" title="View incoming WebSocket telemetry messages and copy debug logs">📜 WS Logs</button>
+      </div>
+    </div>
+    <div class="widget-popover-footer">
+      <span></span>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
+    </div>
+  </div>
+
   <!-- Title widget settings popover, opened by the Layout Mode cog on the title (src/ui/widget-popover.js) -->
   <div class="widget-popover" id="widget-popover-title" data-widget="title" role="dialog" aria-label="Title settings" hidden>
     <div class="widget-popover-header">
@@ -288,7 +300,7 @@
     </div>
     <div class="widget-popover-body">
       <!-- Game Title & Custom Logo -->
-      <div class="modal-section-title" data-widget-settings="title">Game Title &amp; Custom Logo</div>
+      <div class="modal-section-title">Game Title &amp; Custom Logo</div>
       <div class="modal-row">
         <label>Game Title / Custom Logo</label>
         <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
@@ -334,7 +346,7 @@
     </div>
     <div class="widget-popover-body">
       <!-- Track Orientation -->
-      <div class="modal-section-title" data-widget-settings="track">Track Orientation</div>
+      <div class="modal-section-title">Track Orientation</div>
       <div class="modal-row">
         <label>Orientation</label>
         <div class="segmented-control" id="ctrl-track-orient">
@@ -515,7 +527,7 @@
     </div>
     <div class="widget-popover-body">
       <!-- Comparisons & LiveSplit Sync -->
-      <div class="modal-section-title" data-widget-settings="timers">Comparisons & LiveSplit Sync</div>
+      <div class="modal-section-title">Comparisons & LiveSplit Sync</div>
       <div class="modal-row">
         <label>Active Comparison</label>
         <select id="select-active-comparison" class="modal-select">

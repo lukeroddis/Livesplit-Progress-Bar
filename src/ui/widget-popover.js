@@ -24,10 +24,22 @@
    * Prefers the side with the most room among those it fits on (right, left, below, above
    * on ties), else the roomiest side, and shrinks the height to what that side allows.
    * `viewport.top` (optional) keeps the popover below a bar along the top (the Layout toolbar).
+   * Without a visible anchor (a hidden widget) it is centred.
    * @returns {{side: string, left: number, top: number, maxHeight: number}}
    */
   function placePopover(anchor, size, viewport, gap = GAP, margin = MARGIN) {
     const minTop = (viewport.top || 0) + margin;
+    // No widget on screen to sit beside (hidden standings): centre it
+    if (!anchor || (anchor.width === 0 && anchor.height === 0)) {
+      const maxHeight = viewport.height - minTop - margin;
+      const height = Math.min(size.height, maxHeight);
+      return {
+        side: "center",
+        left: Math.max(margin, Math.round((viewport.width - size.width) / 2)),
+        top: Math.max(minTop, Math.round((viewport.height - height) / 2)),
+        maxHeight
+      };
+    }
     const room = {
       right: viewport.width - anchor.right - gap - margin,
       left: anchor.left - gap - margin,
@@ -80,7 +92,6 @@
     function reposition() {
       if (!current) return;
       const anchorEl = document.getElementById(`hud-comp-${current.compId}`);
-      if (!anchorEl) return;
       const { el } = current;
       el.style.maxHeight = "";
       // Stay clear of the Layout toolbar along the top while it shows (its resting place: it slides in
@@ -88,7 +99,7 @@
       const toolbar = document.getElementById("layout-toolbar");
       const toolbarBottom = toolbar && document.body.classList.contains("edit-mode") ? toolbar.offsetTop + toolbar.offsetHeight : 0;
       const placed = placePopover(
-        anchorEl.getBoundingClientRect(),
+        anchorEl ? anchorEl.getBoundingClientRect() : null,
         { width: el.offsetWidth, height: el.offsetHeight },
         { width: window.innerWidth, height: window.innerHeight, top: Math.max(0, toolbarBottom) });
       el.style.maxHeight = `${placed.maxHeight}px`;

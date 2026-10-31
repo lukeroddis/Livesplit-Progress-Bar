@@ -83,8 +83,8 @@
       <div class="widget-popover" data-widget="lm-no-style" hidden><button data-popover-reset id="lm-lb-reset"></button></div>
       <button id="lm-open-track" data-open-widget-popover="track"></button>
       <input type="checkbox" data-setting="golds" id="lm-golds">
-      <div class="lm-section" data-widget-settings="title"></div>
-      <div class="lm-section" data-widget-settings="leaderboard"></div>`;
+      <div class="widget-popover" id="lm-popover-lb" data-widget="leaderboard" hidden></div>
+      <button id="lm-open-race" data-open-popover="leaderboard"></button>`;
 
     // Mounts the toolbar / modal DOM, binds a controller with recording callbacks and captures
     // its window listeners (keydown, resize) so specs can fire them directly
@@ -149,18 +149,17 @@
       assertEqual(sets, [["visible.title", false]]);
     }));
 
-    it("the leaderboard cog opens the settings menu at its race section; a cog without a popover does nothing else", () => withModal(({ el, dom }) => {
-      const opened = [];
-      const [titleSection, lbSection] = dom.root.querySelectorAll(".lm-section");
-      stubOverlay({ toggleSettingsMenu: (v) => opened.push(["menu", v]) }, () => {
-        el("lm-cog-title").click();
-        assertEqual(opened, [], "no popover in this fixture: nothing opens");
-        assert(!titleSection.classList.contains("widget-settings-flash"));
-
-        el("lm-cog-lb").click();
-        assertEqual(opened, [["menu", true]], "settings menu opened");
-        assert(lbSection.classList.contains("widget-settings-flash"));
-      });
+    it("Live Race Settings opens the leaderboard popover without Layout Mode; the leaderboard cog toggles it", () => withModal(({ el, called }) => {
+      const pop = el("lm-popover-lb");
+      const menu = [];
+      stubOverlay({ toggleSettingsMenu: (v) => menu.push(v) }, () => el("lm-open-race").click());
+      assert(!pop.hidden, "opened from the settings menu");
+      assertEqual(menu, [false], "the settings menu gets out of the way");
+      assertEqual(called("setEdit").length, 0, "no Layout Mode for race settings");
+      el("lm-cog-lb").click();
+      assert(pop.hidden, "the cog toggles it closed");
+      el("lm-cog-title").click();
+      assert(pop.hidden, "a widget without a popover opens nothing");
     }));
 
     it("the track cog toggles its popover; Done saves, Reset restores only the track's keys", () => withModal(({ el, called }) => {
