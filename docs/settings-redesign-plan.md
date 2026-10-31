@@ -93,6 +93,8 @@ Each step ships on its own, with `npm test` and `npm run build` green.
 6. **Popovers replace the Customizer**, one widget per commit: Track first (the largest part), then Timers, Title / logo, Leaderboard, Backgrounds. Popovers open on the side of the widget with more free space so they don't cover it. Remove the modal at the end.
    - ✅ Track: `src/ui/widget-popover.js` + `#widget-popover-track` hold orientation, positions, visible splits / angle, typography, bar & dot, ghost pins and discard-golds. Changes apply live as before; Done saves, Reset Track restores only the track's style keys. The Customizer keeps a button that opens it. Resetting back to the default orientation now re-docks the track (also fixes the Customizer's Reset Styles).
    - ✅ Timers: `#widget-popover-timers` holds comparisons, hotkey info, LiveSplit sync, visible timers, primary timer and timer expansion (no reset: timers have no style keys).
+   - ✅ Title: `#widget-popover-title` holds the logo upload / text title switch and logo height; Reset Title restores the logo height and keeps the logo.
+   - Left in the Customizer: Background Plate & Readability (global opacity / blur plus per-widget plate checkboxes). The leaderboard cog still opens the settings menu's race section.
 7. **Slim the settings menu** down to the global items. Update README screenshots and the developer guide.
 
 ## Open questions

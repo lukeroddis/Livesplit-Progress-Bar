@@ -41,6 +41,7 @@
 
   // Style keys each widget popover's reset restores (the rest: logo, backgrounds)
   const WIDGET_STYLE_KEYS = Object.freeze({
+    title: Object.freeze(["logoHeight"]),
     track: Object.freeze(["orientation", "namePos", "deltaPos", "nameFontSize", "deltaFontSize", "barHeight",
       "dotSize", "ghostPinLength", "ghostPinSize", "pinPos", "pinLane"])
   });

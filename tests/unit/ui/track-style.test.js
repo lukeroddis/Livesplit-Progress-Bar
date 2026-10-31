@@ -111,6 +111,10 @@
         assertEqual([current.barHeight, current.orientation], [6, "horizontal"], "track keys reset");
         assertEqual([current.bgOpacity, current.logoHeight], [10, 99], "backgrounds and logo kept");
         assertEqual(logoRemoved, false);
+
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.title);
+        assertEqual(current.logoHeight, 60, "title reset: the logo height");
+        assertEqual(logoRemoved, false, "but keeps the logo itself");
       });
     });
 
