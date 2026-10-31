@@ -76,12 +76,8 @@
 
     function syncSplitCountControls(splitPref, isVertical, splitCount) {
       const numInput = document.getElementById("input-visible-splits");
-      const modalNumInput = document.getElementById("modal-input-visible-splits");
       const btnAll = document.getElementById("btn-splits-fit-all");
       const btnAuto = document.getElementById("btn-splits-auto");
-      const modalBtnAll = document.getElementById("modal-btn-splits-all");
-      const modalBtnAuto = document.getElementById("modal-btn-splits-auto");
-      const valBadge = document.getElementById("val-visible-splits");
 
       const isAll = (splitPref === "all");
       const isAuto = (splitPref === "auto");
@@ -89,24 +85,12 @@
       const isNum = !isNaN(intVal) && intVal > 0;
 
       if (btnAll) btnAll.classList.toggle("active", isAll);
-      if (modalBtnAll) modalBtnAll.classList.toggle("active", isAll);
       if (btnAuto) btnAuto.classList.toggle("active", isAuto);
-      if (modalBtnAuto) modalBtnAuto.classList.toggle("active", isAuto);
 
-      if (isNum) {
-        if (numInput) numInput.value = intVal;
-        if (modalNumInput) modalNumInput.value = intVal;
-        if (valBadge) valBadge.innerText = `${intVal} splits`;
-      } else if (isAll) {
-        const total = Math.max(1, splitCount);
-        if (numInput) numInput.value = total;
-        if (modalNumInput) modalNumInput.value = total;
-        if (valBadge) valBadge.innerText = `Fit All (${total})`;
-      } else {
-        if (numInput) numInput.value = isVertical ? 10 : 8;
-        if (modalNumInput) modalNumInput.value = isVertical ? 10 : 8;
-        if (valBadge) valBadge.innerText = "Auto";
-      }
+      if (!numInput) return;
+      if (isNum) numInput.value = intVal;
+      else if (isAll) numInput.value = Math.max(1, splitCount);
+      else numInput.value = isVertical ? 10 : 8;
     }
 
     function shouldAngleNames(track, isVertical, anglePref, spacing) {

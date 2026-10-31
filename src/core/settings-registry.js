@@ -152,7 +152,7 @@
       type: "ghosts",
       // Built-in ghosts plus the loaded splits' own comparisons (custom ghosts)
       options: (app) => [...GHOST_IDS, ...app.state.comparisonsList.filter(isCustomGhostComparison)],
-      optionLabels: { wr: "WR", pb: "PB", best: "Best", average: "Avg", worst: "Worst" },
+      optionLabels: { wr: "🏆 WR", pb: "🥈 PB", best: "⭐ Best", average: "📊 Avg", worst: "🐢 Worst" },
       get: (app) => app.ghostRunner.getActiveGhostComparisons().filter((g) => g !== "off"),
       set: (app, value) => app.setGhostComparison(value.length > 0 ? value : ["off"]),
       cycle: (app) => app.cycleGhostComparison()

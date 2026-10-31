@@ -280,9 +280,8 @@
       <div class="settings-grid">
         <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
         <button type="button" class="settings-tile-btn dev-only" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
-        <button type="button" class="settings-tile-btn" id="btn-toggle-leaderboard" style="color: #38bdf8;" title="Click to toggle Live Standings Tower visibility">Standings: ON</button>
-        <button type="button" class="settings-tile-btn" id="btn-toggle-race-pins" style="color: #38bdf8;" title="Click to show/hide all competitor pins on the progress track (individual leaderboard mutes are preserved)">Pins: ON</button>
       </div>
+      <div class="sr-rows" data-settings="visible.leaderboard racePins"></div>
       <div class="settings-profile-bar" style="margin-top: 6px;">
         <input type="text" id="input-therun-race-code" class="settings-profile-input" maxlength="16" placeholder="Race Code (e.g. q38y)" title="Enter the therun.gg race room code (e.g. q38y) and click Connect">
         <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to or disconnect from the therun.gg race room">Connect</button>
@@ -382,18 +381,7 @@
 
       <!-- Visible Splits & Angle -->
       <div class="modal-section-title">Visible Splits & Angle</div>
-      <div class="modal-row">
-        <label>Visible Splits on Screen <span class="val-badge" id="val-visible-splits">Auto</span></label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <div class="spinbox-control">
-            <button type="button" class="spinbox-btn" id="modal-splits-dec">-</button>
-            <input type="number" id="modal-input-visible-splits" min="2" max="60" step="1" value="8" style="width: 48px;">
-            <button type="button" class="spinbox-btn" id="modal-splits-inc">+</button>
-          </div>
-          <button type="button" class="toolbar-btn" id="modal-btn-splits-all">Fit All</button>
-          <button type="button" class="toolbar-btn" id="modal-btn-splits-auto">Auto (220px)</button>
-        </div>
-      </div>
+      <div class="sr-rows" data-settings="visibleSplits"></div>
       <div class="modal-row">
         <label>Split Text Angle</label>
         <div class="segmented-control" id="ctrl-modal-angle">
@@ -439,13 +427,7 @@
 
       <!-- Run & Reset Behavior -->
       <div class="modal-section-title">Run & Reset Behavior</div>
-      <div class="modal-row">
-        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-          <span>Gold Splits</span>
-          <input type="checkbox" data-setting="golds" id="cb-golds" checked style="width: 16px; height: 16px; accent-color: #facc15; cursor: pointer;">
-        </label>
-        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Highlights splits that beat your best segment in gold.</span>
-      </div>
+      <div class="sr-rows" data-settings="golds"></div>
       <div class="modal-row">
         <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
           <span>Discard In-Run Golds on Reset</span>
@@ -479,30 +461,7 @@
     <div class="widget-popover-body">
       <!-- Live Ghost Runner -->
       <div class="modal-section-title">Ghosts</div>
-      <div class="modal-row">
-        <label>Ghost Pins (Toggle Multiple)</label>
-        <div class="ghost-pill-row" id="ghost-pill-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
-          <button type="button" class="preset-pill-btn" data-ghost-pill="off" id="ghost-pill-off">Off</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="wr" id="ghost-pill-wr">🏆 WR</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="pb" id="ghost-pill-pb">🥈 PB</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="best" id="ghost-pill-best">⭐ Best</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="average" id="ghost-pill-average">📊 Avg</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="worst" id="ghost-pill-worst">🐢 Worst</button>
-        </div>
-      </div>
-      <div class="modal-row">
-        <label>Quick Preset</label>
-        <select id="select-ghost-comparison" class="modal-select">
-          <option value="off">Off (Disabled)</option>
-          <option value="wr">World Record (🏆)</option>
-          <option value="pb">Personal Best (🥈)</option>
-          <option value="wr,pb">Dual: WR (🏆) + PB (🥈)</option>
-          <option value="best">Best Segments (⭐)</option>
-          <option value="wr,best">Dual: WR (🏆) + Best (⭐)</option>
-          <option value="average">Average Segments (📊)</option>
-          <option value="worst">Worst Segments (🐢)</option>
-        </select>
-      </div>
+      <div class="sr-rows" data-settings="ghostsOn ghosts"></div>
       <!-- Pin style: ghost pins and race pins -->
       <div class="modal-section-title">Pin Style</div>
       <div class="modal-row" id="row-ghost-pin-length">

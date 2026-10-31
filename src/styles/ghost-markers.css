@@ -257,28 +257,28 @@
   border-bottom-width: 2px;
 }
 
-/* Modal Ghost Pill Toggle Colors */
-#ghost-pill-row .preset-pill-btn[data-ghost-pill="wr"].active {
+/* Ghost buttons (registry "ghosts" row in the Ghost Pins dialog): each ghost's own colour */
+.sr-row[data-setting="ghosts"] button[data-option="wr"].sr-on {
   background: #facc15;
   color: #0f172a;
   border-color: #facc15;
 }
-#ghost-pill-row .preset-pill-btn[data-ghost-pill="pb"].active {
+.sr-row[data-setting="ghosts"] button[data-option="pb"].sr-on {
   background: #38bdf8;
   color: #0f172a;
   border-color: #38bdf8;
 }
-#ghost-pill-row .preset-pill-btn[data-ghost-pill="best"].active {
+.sr-row[data-setting="ghosts"] button[data-option="best"].sr-on {
   background: #eab308;
   color: #0f172a;
   border-color: #eab308;
 }
-#ghost-pill-row .preset-pill-btn[data-ghost-pill="average"].active {
+.sr-row[data-setting="ghosts"] button[data-option="average"].sr-on {
   background: #a78bfa;
   color: #0f172a;
   border-color: #a78bfa;
 }
-#ghost-pill-row .preset-pill-btn[data-ghost-pill="worst"].active {
+.sr-row[data-setting="ghosts"] button[data-option="worst"].sr-on {
   background: #f87171;
   color: #0f172a;
   border-color: #f87171;

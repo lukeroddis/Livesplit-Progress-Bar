@@ -51,6 +51,11 @@
     /* Setting rows from src/ui/settings-renderer.js */
     .sr-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
     .sr-row[hidden] { display: none; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="wr"] { background: #facc15; border-color: #facc15; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="pb"] { background: #38bdf8; border-color: #38bdf8; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="best"] { background: #eab308; border-color: #eab308; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="average"] { background: #a78bfa; border-color: #a78bfa; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="worst"] { background: #f87171; border-color: #f87171; color: #0f172a; }
     .sr-label { flex: none; max-width: 45%; color: #cbd5e1; }
     .sr-control { display: flex; gap: 4px; flex: 1; justify-content: flex-end; flex-wrap: wrap; min-width: 0; }
     .sr-seg button { flex: 1; padding: 5px 4px; }

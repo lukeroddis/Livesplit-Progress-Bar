@@ -2,7 +2,6 @@
  * src/ui/race-controls.js - Live Race Settings Controls
  *
  * Wires the race section of the settings menu to the race client:
- * - Standings (leaderboard visibility) and race pin toggles, via the settings registry
  * - Connect / Disconnect button with code validation and cooldown countdown
  * - Race badge and Test Race (simulation) badge states
  * - Spectator leaderboard refresh tick while connected
@@ -13,30 +12,15 @@
   "use strict";
 
   const MUTED_COLOR = "rgba(148, 163, 184, 0.9)";
-  const ON_COLOR = "#38bdf8";
 
   // Same rule the race client enforces before building any request URL
   const isValidRaceCodeInput = (v) => window.LiveSplit.RaceIdentity.isValidRaceCode(v);
-
-  /** Mirrors a bool setting on an ON / OFF button and toggles it through the settings registry. */
-  function bindSettingToggle(button, settings, id, label) {
-    if (!button || !settings) return;
-    const sync = () => {
-      const isOn = settings.get(id) !== false;
-      button.textContent = `${label}: ${isOn ? "ON" : "OFF"}`;
-      button.style.color = isOn ? ON_COLOR : MUTED_COLOR;
-    };
-    sync();
-    button.addEventListener("click", () => settings.toggle(id));
-    settings.subscribe((changedId) => { if (changedId === id) sync(); });
-  }
 
   /**
    * Returns the race actions other controllers can drive (the OBS dock bridge),
    * or null without a race client.
    * @param {Object} options
    * @param {Object|null} options.raceClient
-   * @param {Object|null} options.settings - Settings controller (app.settings) for the Standings / Pins toggles
    * @param {Function} options.refreshLeaderboard
    * @param {Function} options.refreshGhosts - Re-render ghost/race markers at the last elapsed time
    * @param {Function} options.getSimulationInputs - () => { splitsList, gtComparisons, rtComparisons, isAlreadyRunning }
@@ -44,7 +28,6 @@
   function bindRaceControls(options = {}) {
     const {
       raceClient = null,
-      settings = null,
       refreshLeaderboard = () => {},
       refreshGhosts = () => {},
       getSimulationInputs = () => ({ splitsList: [], gtComparisons: [], rtComparisons: [], isAlreadyRunning: false })
@@ -54,10 +37,6 @@
     const raceSimBtn = document.getElementById("race-sim-badge");
     const therunRaceCodeInp = document.getElementById("input-therun-race-code");
     const therunSaveBtn = document.getElementById("btn-save-therun-username");
-    const btnToggleRacePins = document.getElementById("btn-toggle-race-pins");
-
-    bindSettingToggle(document.getElementById("btn-toggle-leaderboard"), settings, "visible.leaderboard", "Standings");
-    if (raceClient) bindSettingToggle(btnToggleRacePins, settings, "racePins", "Pins");
 
     if (!raceClient) return null;
 

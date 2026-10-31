@@ -26,7 +26,9 @@
   const optionLabel = (def, value) => (def.optionLabels && def.optionLabels[String(value)]) || String(value);
 
   function el(tag, props, children) {
-    const node = Object.assign(document.createElement(tag), props || {});
+    const { dataset, ...rest } = props || {};
+    const node = Object.assign(document.createElement(tag), rest);
+    Object.assign(node.dataset, dataset || {});
     (children || []).forEach((c) => node.appendChild(c));
     return node;
   }
@@ -66,7 +68,7 @@
       },
       ghosts(def, options) {
         const btns = options.map((opt) => el("button", {
-          type: "button", textContent: optionLabel(def, opt), title: opt,
+          type: "button", textContent: optionLabel(def, opt), title: opt, dataset: { option: opt },
           onclick: () => {
             const current = (getValue(def.id) || []).slice();
             const at = current.indexOf(opt);

@@ -29,9 +29,6 @@
     <input type="range" id="slider-dot-size"><span id="val-dot-size"></span>
     <button id="btn-splits-dec"></button><input id="input-visible-splits"><button id="btn-splits-inc"></button>
     <button id="btn-splits-fit-all"></button><button id="btn-splits-auto"></button>
-    <button id="modal-splits-dec"></button><input id="modal-input-visible-splits"><button id="modal-splits-inc"></button>
-    <button id="modal-btn-splits-all"></button><button id="modal-btn-splits-auto"></button>
-    <span id="val-visible-splits"></span>
     <input type="checkbox" id="cb-always-show-last-split">`;
 
   const TOUCHED_KEYS = [KEYS.SPLIT_ANGLE, KEYS.VISIBLE_SPLITS, KEYS.ALWAYS_SHOW_LAST];
@@ -74,8 +71,7 @@
       assertEqual(dom.root.querySelector('#ctrl-name-pos [data-val="left"]').style.display, "none", "Left/Right hidden");
       assertEqual(el("val-name-font").innerText, "17px");
       assertEqual(el("val-dot-size").innerText, "15px");
-      assertEqual(el("val-visible-splits").innerText, "Auto");
-      assert(el("btn-splits-auto").classList.contains("active") && el("modal-btn-splits-auto").classList.contains("active"));
+      assert(el("btn-splits-auto").classList.contains("active"));
       assert(el("cb-always-show-last-split").checked, "Always Show Last defaults on");
     }));
 
@@ -104,13 +100,10 @@
       localStorage.setItem(KEYS.VISIBLE_SPLITS, "12");
       panel.sync({});
       assertEqual(el("input-visible-splits").value, "12");
-      assertEqual(el("modal-input-visible-splits").value, "12");
-      assertEqual(el("val-visible-splits").innerText, "12 splits");
 
       localStorage.setItem(KEYS.VISIBLE_SPLITS, "all");
       panel.sync({});
-      assertEqual(el("val-visible-splits").innerText, "Fit All");
-      assert(el("modal-btn-splits-all").classList.contains("active"));
+      assert(el("btn-splits-fit-all").classList.contains("active"));
     }));
 
     it("orientation segments call setTrackOrientation", () => withPanel(({ panel, log, click }) => {
@@ -181,7 +174,7 @@
       el("btn-splits-dec").click();
       assertEqual(log.visible.slice(1), [8, 7]);
 
-      const input = el("modal-input-visible-splits");
+      const input = el("input-visible-splits");
       input.value = "99";
       input.dispatchEvent(new Event("input"));
       assertEqual(log.visible.length, 3, "out-of-range typing is ignored until committed");
@@ -192,7 +185,7 @@
       assertEqual(log.visible.slice(-2), [60, 5]);
 
       el("btn-splits-fit-all").click();
-      el("modal-btn-splits-auto").click();
+      el("btn-splits-auto").click();
       assertEqual(log.visible.slice(-2), ["all", "auto"]);
     }));
 

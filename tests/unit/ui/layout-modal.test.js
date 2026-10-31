@@ -84,7 +84,6 @@
       <div class="widget-popover" id="lm-popover-timers" data-widget="timers" hidden><button data-popover-reset id="lm-timers-reset"></button></div>
       <div class="widget-popover" data-widget="lm-no-style" hidden><button data-popover-reset id="lm-lb-reset"></button></div>
       <button id="lm-open-track" data-open-widget-popover="track"></button>
-      <input type="checkbox" data-setting="golds" id="lm-golds">
       <div class="widget-popover" id="lm-popover-lb" data-widget="leaderboard" hidden></div>
       <button id="lm-open-race" data-open-popover="leaderboard"></button>`;
 
@@ -211,28 +210,6 @@
       el("lm-lb-reset").click();
       assertEqual(called("resetStyle").length, 1, "a widget without style keys never resets the whole style");
     }));
-
-    it("data-setting checkboxes drive registry settings and follow changes made elsewhere", () => {
-      const values = { golds: false };
-      const listeners = [];
-      const settings = {
-        get: (id) => values[id],
-        set: (id, v) => { values[id] = v; listeners.forEach((fn) => fn(id, v)); return { ok: true, value: v }; },
-        subscribe: (fn) => { listeners.push(fn); return () => {}; },
-        snapshot: () => ({ ...values }),
-        options: () => []
-      };
-      stubOverlay({ settings }, () => withModal(({ el, ctrl }) => {
-        const cb = el("lm-golds");
-        ctrl.syncUI();
-        assertEqual(cb.checked, false, "synced from the registry");
-        cb.checked = true;
-        cb.dispatchEvent(new Event("change"));
-        assertEqual(values.golds, true, "set through the registry");
-        settings.set("golds", false);
-        assertEqual(cb.checked, false, "a change from the dock shows up");
-      }));
-    });
 
     it("binds the logo controller and its height slider", () => withModal(({ el, logo, style, called }) => {
       assertEqual(logo.bound, 1);

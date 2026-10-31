@@ -199,7 +199,6 @@ function initOverlay() {
   const raceClient = getRaceClient();
   const raceControls = window.LiveSplit.RaceControls.bindRaceControls({
     raceClient,
-    settings: app.settings,
     refreshLeaderboard: ghostRunner.refreshLeaderboard,
     refreshGhosts: () => ghostRunner.updateGhostRunner(state.lastElapsedSec),
     getSimulationInputs: () => {

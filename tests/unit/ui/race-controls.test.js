@@ -11,8 +11,6 @@
   const { mountHtml, withFakeTimers, stubWindow } = window.TestUtils;
 
   const CONTROLS_HTML = `
-    <button id="btn-toggle-leaderboard"></button>
-    <button id="btn-toggle-race-pins"></button>
     <button id="race-toggle-badge"></button>
     <button id="race-sim-badge"></button>
     <input type="text" id="input-therun-race-code">
@@ -44,35 +42,20 @@
     return Object.assign(rc, overrides);
   }
 
-  // The real settings registry over a minimal app, so the toggles take their production path
-  const makeSettings = (client, log) => window.LiveSplit.SettingsRegistry.createSettingsController({
-    state: {},
-    getRaceClient: () => client,
-    refreshLeaderboard: () => { log.leaderboard++; }
-  });
-
   function withControls(fn, { client = makeRaceClient(), layoutState = { leaderboard: { visible: true } }, simInputs } = {}) {
     const dom = mountHtml(CONTROLS_HTML);
-    const log = { leaderboard: 0, ghosts: 0, visibility: [] };
-    const hudLayout = {
-      getState: () => layoutState,
-      setComponentVisible: (id, visible) => {
-        layoutState[id] = Object.assign(layoutState[id] || {}, { visible });
-        log.visibility.push([id, visible]);
-      }
-    };
+    const log = { leaderboard: 0, ghosts: 0 };
+    const hudLayout = { getState: () => layoutState };
     try {
       return withFakeTimers((clock) => stubWindow({ hudLayout }, () => {
-        const settings = makeSettings(client, log);
         window.LiveSplit.RaceControls.bindRaceControls({
           raceClient: client,
-          settings,
           refreshLeaderboard: () => { log.leaderboard++; },
           refreshGhosts: () => { log.ghosts++; },
           getSimulationInputs: simInputs
         });
         const el = (id) => dom.el(id);
-        return fn({ dom, el, rc: client, log, clock, layoutState, settings, saveBtn: el("btn-save-therun-username") });
+        return fn({ dom, el, rc: client, log, clock, layoutState, saveBtn: el("btn-save-therun-username") });
       }));
     } finally {
       dom.remove();
@@ -90,40 +73,10 @@
       assert(!valid("x".repeat(25)), "too long");
     });
 
-    it("shows the idle state: Race Off, Connect, Test Race, Pins and Standings ON", () => withControls(({ el, saveBtn }) => {
+    it("shows the idle state: Race Off, Connect, Test Race", () => withControls(({ el, saveBtn }) => {
       assertEqual(el("race-toggle-badge").textContent, "Race: Off");
       assertEqual(saveBtn.textContent, "Connect");
       assertEqual(el("race-sim-badge").textContent, "🧪 Test Race");
-      assertEqual(el("btn-toggle-race-pins").textContent, "Pins: ON");
-      assertEqual(el("btn-toggle-leaderboard").textContent, "Standings: ON");
-    }));
-
-    it("toggles standings visibility through the HUD layout", () => withControls(({ el, log, layoutState }) => {
-      el("btn-toggle-leaderboard").click();
-      assertEqual(layoutState.leaderboard.visible, false);
-      assertEqual(el("btn-toggle-leaderboard").textContent, "Standings: OFF");
-      assertEqual(log.visibility, [["leaderboard", false]]);
-      assertEqual(log.leaderboard, 1);
-    }));
-
-    it("a layout without a leaderboard entry counts as visible", () => withControls(({ el, log }) => {
-      assertEqual(el("btn-toggle-leaderboard").textContent, "Standings: ON");
-      el("btn-toggle-leaderboard").click();
-      assertEqual(log.visibility, [["leaderboard", false]]);
-    }, { layoutState: {} }));
-
-    it("buttons follow changes made elsewhere through the settings registry", () => withControls(({ el, settings }) => {
-      settings.set("racePins", false);
-      settings.set("visible.leaderboard", false);
-      assertEqual(el("btn-toggle-race-pins").textContent, "Pins: OFF");
-      assertEqual(el("btn-toggle-leaderboard").textContent, "Standings: OFF");
-    }));
-
-    it("toggles race pins and re-renders markers", () => withControls(({ el, rc, log }) => {
-      el("btn-toggle-race-pins").click();
-      assertEqual(rc.pins, false);
-      assertEqual(el("btn-toggle-race-pins").textContent, "Pins: OFF");
-      assertEqual(log.ghosts, 1);
     }));
 
     it("connects with a valid code, then the same button disconnects", () => withControls(({ el, rc, saveBtn, log }) => {
@@ -285,15 +238,11 @@
       }
     });
 
-    it("without a race client only the standings toggle is wired", () => {
+    it("without a race client nothing is wired", () => {
       const dom = mountHtml(CONTROLS_HTML);
       try {
         stubWindow({ hudLayout: undefined }, () => {
-          const settings = makeSettings(null, { leaderboard: 0 });
-          window.LiveSplit.RaceControls.bindRaceControls({ settings });
-          assertEqual(dom.el("btn-toggle-leaderboard").textContent, "Standings: ON", "defaults to ON without a layout");
-          dom.el("btn-toggle-leaderboard").click();
-          assertEqual(dom.el("btn-toggle-race-pins").textContent, "", "pins button untouched");
+          assertEqual(window.LiveSplit.RaceControls.bindRaceControls({}), null);
           assertEqual(dom.el("btn-save-therun-username").textContent, "", "connect button untouched");
         });
       } finally {

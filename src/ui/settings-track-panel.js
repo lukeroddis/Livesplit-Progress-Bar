@@ -24,8 +24,7 @@
   ];
 
   const SPINNERS = [
-    { dec: "btn-splits-dec", inc: "btn-splits-inc", input: "input-visible-splits", all: "btn-splits-fit-all", auto: "btn-splits-auto" },
-    { dec: "modal-splits-dec", inc: "modal-splits-inc", input: "modal-input-visible-splits", all: "modal-btn-splits-all", auto: "modal-btn-splits-auto" }
+    { dec: "btn-splits-dec", inc: "btn-splits-inc", input: "input-visible-splits", all: "btn-splits-fit-all", auto: "btn-splits-auto" }
   ];
 
   function getAnglePref() {
@@ -72,24 +71,15 @@
     function syncVisibleSplits() {
       const splitPref = localStorage.getItem(STORAGE_KEYS.VISIBLE_SPLITS) || "auto";
       const spinInput = document.getElementById("input-visible-splits");
-      const modalSpinInput = document.getElementById("modal-input-visible-splits");
-      const valBadge = document.getElementById("val-visible-splits");
 
       const isAll = (splitPref === "all");
       const isAuto = (splitPref === "auto");
       const intVal = parseInt(splitPref, 10);
       const isNum = !isNaN(intVal) && intVal > 0;
 
-      ["btn-splits-fit-all", "modal-btn-splits-all"].forEach((id) => document.getElementById(id)?.classList.toggle("active", isAll));
-      ["btn-splits-auto", "modal-btn-splits-auto"].forEach((id) => document.getElementById(id)?.classList.toggle("active", isAuto));
-
-      if (isNum) {
-        if (spinInput) spinInput.value = intVal;
-        if (modalSpinInput) modalSpinInput.value = intVal;
-        if (valBadge) valBadge.innerText = `${intVal} splits`;
-      } else if (valBadge) {
-        valBadge.innerText = isAll ? "Fit All" : "Auto";
-      }
+      document.getElementById("btn-splits-fit-all")?.classList.toggle("active", isAll);
+      document.getElementById("btn-splits-auto")?.classList.toggle("active", isAuto);
+      if (isNum && spinInput) spinInput.value = intVal;
     }
 
     function sync(style) {

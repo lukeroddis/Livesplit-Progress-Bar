@@ -65,6 +65,7 @@
       ["wr", "pb"], ({ all, log }) => {
         const [wr, pb] = all("button");
         assert(wr.classList.contains("sr-on") && !pb.classList.contains("sr-on"));
+        assertEqual([wr.dataset.option, pb.dataset.option], ["wr", "pb"], "tagged for per-option styling (ghost colours)");
         pb.click();
         wr.click();
         assertEqual(log.set, [["ghosts", ["wr", "pb"]], ["ghosts", []]]);
