@@ -115,6 +115,9 @@
         return "disconnected";
       }
       if (!window.LiveSplit.RaceIdentity.isValidRaceCode(cmd.code)) return "invalid code";
+      // Already in that race (e.g. an older dock's Connect): reconnecting would reset the standings
+      const now = describeRaceStatus(raceClient);
+      if (now.state === "connected" && now.raceId === cmd.code) return "already connected";
       controls.connectWithCode(cmd.code);
       return describeRaceStatus(raceClient).state === "connected" ? "connected" : "not connected (cooldown?)";
     }

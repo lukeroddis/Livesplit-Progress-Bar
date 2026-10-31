@@ -36,7 +36,7 @@
     button:hover:not(:disabled) { background: #35373c; }
     button:disabled, select:disabled, input:disabled { opacity: 0.45; cursor: default; }
     button.on { background: #164e63; border-color: #38bdf8; color: #e0f2fe; }
-    #btn-disconnect { color: #f87171; }
+    #btn-race.disconnect { color: #f87171; }
     .status { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
     .dot { width: 9px; height: 9px; border-radius: 50%; background: #64748b; flex: none; }
     .dot.ok { background: #4ade80; }
@@ -65,8 +65,7 @@
     <summary>Race</summary>
     <div class="row">
       <input id="race-code" type="text" placeholder="Race code" autocomplete="off" spellcheck="false">
-      <button id="btn-connect">Connect</button>
-      <button id="btn-disconnect">Disconnect</button>
+      <button id="btn-race">Connect</button>
     </div>
     <div id="race-settings"></div>
   </details>
@@ -308,11 +307,33 @@
         $("dot").className = "dot " + (s.state === "connected" || s.state === "sim" ? "ok" : s.state === "standby" ? "warn" : "");
         $("status").textContent = "Overlay linked · " + (labels[s.state] || s.state) + (s.settings ? "" : " (update the overlay for more controls)");
 
+        syncRaceControls(s);
+
         const mine = pendingId !== null && s.lastCommandId === pendingId;
-        $("error").textContent = mine && s.lastResult && !/^(ok|connected|disconnected)$/.test(s.lastResult) ? s.lastResult : "";
+        $("error").textContent = mine && s.lastResult && !/^(ok|connected|disconnected|already connected)$/.test(s.lastResult) ? s.lastResult : "";
       }
 
-      $("btn-connect").addEventListener("click", () => {
+      // One Connect / Disconnect button following the overlay's race state, like the overlay's own
+      // button, so it stays in step whichever side connected
+      const isRaceActive = (s) => !!s && (s.state === "connected" || s.state === "standby" || s.state === "sim");
+      let shownRaceId = "";
+
+      function syncRaceControls(s) {
+        const active = isRaceActive(s);
+        const btn = $("btn-race");
+        btn.textContent = active ? "Disconnect" : "Connect";
+        btn.classList.toggle("disconnect", active);
+        // Show the code of the race the overlay is in (connected from either side), unless being typed in
+        const raceId = s.state === "connected" ? String(s.raceId || "") : "";
+        if (raceId && raceId !== shownRaceId && document.activeElement !== codeInp) codeInp.value = raceId;
+        shownRaceId = raceId;
+      }
+
+      $("btn-race").addEventListener("click", () => {
+        if (isRaceActive(lastStatus)) {
+          send({ action: "disconnect" });
+          return;
+        }
         const code = codeInp.value.trim();
         if (!/^[a-zA-Z0-9_-]{2,24}$/.test(code)) {
           $("error").textContent = "Enter a valid race code";
@@ -321,9 +342,8 @@
         send({ action: "connect", code });
       });
       codeInp.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") $("btn-connect").click();
+        if (e.key === "Enter" && !isRaceActive(lastStatus)) $("btn-race").click();
       });
-      $("btn-disconnect").addEventListener("click", () => send({ action: "disconnect" }));
 
       window.addEventListener("storage", (e) => { if (e.key === STATUS_KEY) render(); });
       setInterval(render, 1000);

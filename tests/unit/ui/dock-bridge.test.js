@@ -181,6 +181,15 @@
       assertEqual(status().lastResult, "connected");
     }));
 
+    it("connecting to the race it is already in does nothing (no standings reset)", () => withBridge(({ rc, calls, status, command }) => {
+      rc.connected = true; // getRaceId() is "abc1"
+      command({ action: "connect", code: "abc1", id: "c3" });
+      assertEqual(calls, [], "no reconnect");
+      assertEqual(status().lastResult, "already connected");
+      command({ action: "connect", code: "zz99", id: "c4" });
+      assertEqual(calls, [["connect", "zz99"]], "a different race still connects");
+    }));
+
     it("rejects invalid codes without touching the race", () => withBridge(({ calls, status, command }) => {
       command({ action: "connect", code: "https://therun.gg/x", id: "c2" });
       assertEqual(calls, []);
