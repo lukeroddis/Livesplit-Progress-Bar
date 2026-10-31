@@ -176,7 +176,6 @@
         applyTrackStyle: rec("applyStyle"),
         resetTrackStyle: rec("resetStyle"),
         getLayoutState: () => layout,
-        saveLayout: rec("saveLayout"),
         resetLayout: rec("resetLayout"),
         setEditMode: rec("setEdit"),
         toggleEditMode: rec("toggleEdit"),
@@ -207,13 +206,14 @@
       assertEqual(called("toggleEdit").length, 1);
     }));
 
-    it("visibility checkboxes show or hide a component and save", () => withModal(({ el, log, layout, called }) => {
-      const cb = el("cb-toggle-title");
-      cb.checked = false;
-      cb.dispatchEvent(new Event("change"));
-      assertEqual(layout.title.visible, false);
-      assertEqual(log.applied, ["title"]);
-      assertEqual(called("saveLayout").length, 1);
+    it("visibility checkboxes set the component's visible.* setting", () => withModal(({ el }) => {
+      const sets = [];
+      stubOverlay({ settings: { set: (id, value) => sets.push([id, value]) } }, () => {
+        const cb = el("cb-toggle-title");
+        cb.checked = false;
+        cb.dispatchEvent(new Event("change"));
+      });
+      assertEqual(sets, [["visible.title", false]]);
     }));
 
     it("modal triggers open, close (buttons and backdrop) and reset styles", () => withFakeTimers((clock) => withModal(({ dom, el, called, logo }) => {

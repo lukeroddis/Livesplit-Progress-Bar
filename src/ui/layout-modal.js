@@ -26,7 +26,6 @@
       setTrackOrientation = () => {},
       setVisibleSplits = () => {},
       getLayoutState = () => ({}),
-      saveLayout = () => {},
       resetLayout = () => {},
       setEditMode = () => {},
       toggleEditMode = () => {},
@@ -86,19 +85,11 @@
       document.getElementById("btn-reset-layout")?.addEventListener("click", resetLayout);
       document.getElementById("layout-edit-btn")?.addEventListener("click", toggleEditMode);
 
-      // Component visibility checkboxes
-      const layoutState = getLayoutState();
+      // Component visibility checkboxes (through the settings registry, so listeners hear it)
       COMPONENTS.forEach((id) => {
-        const cb = document.getElementById(`cb-toggle-${id}`);
-        if (cb) {
-          cb.addEventListener("change", () => {
-            if (layoutState[id]) {
-              layoutState[id].visible = cb.checked;
-              applyComponentLayout(id);
-              saveLayout();
-            }
-          });
-        }
+        document.getElementById(`cb-toggle-${id}`)?.addEventListener("change", (e) => {
+          window.LiveSplit.Overlay.settings?.set(`visible.${id}`, e.target.checked);
+        });
       });
     }
 

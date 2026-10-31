@@ -310,7 +310,6 @@
         setTrackOrientation,
         setVisibleSplits,
         getLayoutState: () => layoutState,
-        saveLayout,
         resetLayout,
         setEditMode,
         toggleEditMode,
@@ -435,6 +434,16 @@
     }
     Object.assign(state, drag.fitTrackBox(state, el.offsetWidth, el.offsetHeight, w, h));
     applyComponentLayout("track");
+    saveLayout();
+  }
+
+  // Shows or hides a HUD component and saves (settings registry visible.* entries)
+  function setComponentVisible(compId, visible) {
+    if (!COMPONENTS.includes(compId)) return;
+    if (!layoutState) layoutState = loadSavedLayout();
+    if (!layoutState[compId]) layoutState[compId] = getDefaultLayout()[compId];
+    layoutState[compId].visible = !!visible;
+    applyComponentLayout(compId);
     saveLayout();
   }
 
@@ -730,6 +739,7 @@
     saveLayout,
     loadSavedLayout,
     applyComponentLayout,
+    setComponentVisible,
     openTrackModal,
     closeTrackModal,
     resetTrackStyle,

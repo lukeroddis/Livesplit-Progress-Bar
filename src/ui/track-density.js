@@ -213,11 +213,14 @@
       const sequence = ["auto", "6", "8", "10", "12", "16", "all"];
       const curIdx = sequence.indexOf(current);
       const nextIdx = (curIdx !== -1) ? ((curIdx + 1) % sequence.length) : 0;
-      const nextVal = sequence[nextIdx];
+      setVisibleSplits(sequence[nextIdx]);
+    }
+
+    function setVisibleSplits(val) {
       if (window.hudLayout?.setVisibleSplits) {
-        window.hudLayout.setVisibleSplits(nextVal);
+        window.hudLayout.setVisibleSplits(val);
       } else {
-        localStorage.setItem(STORAGE_KEYS.VISIBLE_SPLITS, nextVal);
+        localStorage.setItem(STORAGE_KEYS.VISIBLE_SPLITS, val);
         refresh();
       }
     }
@@ -241,7 +244,7 @@
       refresh();
     }
 
-    return { update, computeSpacing, cycleVisibleSplits, cycleSplitAngle };
+    return { update, computeSpacing, cycleVisibleSplits, setVisibleSplits, cycleSplitAngle };
   }
 
   window.LiveSplit = window.LiveSplit || {};

@@ -15,6 +15,7 @@
  *   src/ui/timing-controls.js         timer display mode & gold toggle
  *   src/ui/hud-titles.js              game / category titles
  *   src/ui/hud-bindings.js            badge, hotkey and control bindings
+ *   src/core/settings-registry.js     live settings by id (app.settings)
  *   src/core/window-api.js            window.* API for layout.js and tests
  *
  * Controllers call each other through app.<fn> at call time, so script order
@@ -48,6 +49,7 @@ window.LiveSplit.TrackStatus.installTrackStatus(app);
 window.LiveSplit.TimingControls.installTimingControls(app);
 window.LiveSplit.HudTitles.installHudTitles(app);
 window.LiveSplit.HudBindings.installHudBindings(app);
+window.LiveSplit.SettingsRegistry.installSettingsRegistry(app);
 
 const ALL_DELTA_CLASSES = window.LiveSplit.TrackRenderer.ALL_DELTA_CLASSES;
 const ALL_SPLIT_STATE_CLASSES = window.LiveSplit.TrackRenderer.ALL_SPLIT_STATE_CLASSES;
@@ -196,6 +198,7 @@ function initOverlay() {
   const raceClient = getRaceClient();
   const raceControls = window.LiveSplit.RaceControls.bindRaceControls({
     raceClient,
+    settings: app.settings,
     refreshLeaderboard: ghostRunner.refreshLeaderboard,
     refreshGhosts: () => ghostRunner.updateGhostRunner(state.lastElapsedSec),
     getSimulationInputs: () => {
@@ -258,6 +261,7 @@ Object.assign(app, {
   setGhostOpacity: ghostRunner.setGhostOpacity,
   trackDensity,
   cycleVisibleSplits: trackDensity.cycleVisibleSplits,
+  setVisibleSplits: trackDensity.setVisibleSplits,
   cycleSplitAngle: trackDensity.cycleSplitAngle,
   updateTrackDensityAndAngle,
   setupTrackScrollInteractions,

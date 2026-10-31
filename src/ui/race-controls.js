@@ -2,7 +2,7 @@
  * src/ui/race-controls.js - Live Race Settings Controls
  *
  * Wires the race section of the settings menu to the race client:
- * - Standings (leaderboard visibility) and race pin toggles
+ * - Standings (leaderboard visibility) and race pin toggles, via the settings registry
  * - Connect / Disconnect button with code validation and cooldown countdown
  * - Race badge and Test Race (simulation) badge states
  * - Spectator leaderboard refresh tick while connected
@@ -13,39 +13,22 @@
   "use strict";
 
   const MUTED_COLOR = "rgba(148, 163, 184, 0.9)";
+  const ON_COLOR = "#38bdf8";
 
   // Same rule the race client enforces before building any request URL
   const isValidRaceCodeInput = (v) => window.LiveSplit.RaceIdentity.isValidRaceCode(v);
 
-  function bindLeaderboardToggle(refreshLeaderboard) {
-    const btnToggleLeaderboard = document.getElementById("btn-toggle-leaderboard");
-    if (!btnToggleLeaderboard) return;
-
-    const syncLeaderboardBtn = () => {
-      const state = window.hudLayout ? window.hudLayout.getState() : null;
-      const isVis = state ? (state.leaderboard?.visible !== false) : true;
-      btnToggleLeaderboard.textContent = isVis ? "Standings: ON" : "Standings: OFF";
-      btnToggleLeaderboard.style.color = isVis ? "#38bdf8" : MUTED_COLOR;
+  /** Mirrors a bool setting on an ON / OFF button and toggles it through the settings registry. */
+  function bindSettingToggle(button, settings, id, label) {
+    if (!button || !settings) return;
+    const sync = () => {
+      const isOn = settings.get(id) !== false;
+      button.textContent = `${label}: ${isOn ? "ON" : "OFF"}`;
+      button.style.color = isOn ? ON_COLOR : MUTED_COLOR;
     };
-    syncLeaderboardBtn();
-
-    btnToggleLeaderboard.addEventListener("click", () => {
-      if (!window.hudLayout) return;
-      const state = window.hudLayout.getState();
-      if (!state) return;
-      if (!state.leaderboard) {
-        state.leaderboard = { x: 42, y: 110, scale: 1.0, visible: true, docked: "none" };
-      }
-      state.leaderboard.visible = !(state.leaderboard.visible !== false);
-      if (typeof window.hudLayout.saveLayout === "function") {
-        window.hudLayout.saveLayout();
-      }
-      if (typeof window.hudLayout.applyComponentLayout === "function") {
-        window.hudLayout.applyComponentLayout("leaderboard");
-      }
-      syncLeaderboardBtn();
-      refreshLeaderboard();
-    });
+    sync();
+    button.addEventListener("click", () => settings.toggle(id));
+    settings.subscribe((changedId) => { if (changedId === id) sync(); });
   }
 
   /**
@@ -53,6 +36,7 @@
    * or null without a race client.
    * @param {Object} options
    * @param {Object|null} options.raceClient
+   * @param {Object|null} options.settings - Settings controller (app.settings) for the Standings / Pins toggles
    * @param {Function} options.refreshLeaderboard
    * @param {Function} options.refreshGhosts - Re-render ghost/race markers at the last elapsed time
    * @param {Function} options.getSimulationInputs - () => { splitsList, gtComparisons, rtComparisons, isAlreadyRunning }
@@ -60,6 +44,7 @@
   function bindRaceControls(options = {}) {
     const {
       raceClient = null,
+      settings = null,
       refreshLeaderboard = () => {},
       refreshGhosts = () => {},
       getSimulationInputs = () => ({ splitsList: [], gtComparisons: [], rtComparisons: [], isAlreadyRunning: false })
@@ -71,24 +56,8 @@
     const therunSaveBtn = document.getElementById("btn-save-therun-username");
     const btnToggleRacePins = document.getElementById("btn-toggle-race-pins");
 
-    bindLeaderboardToggle(refreshLeaderboard);
-
-    if (btnToggleRacePins && raceClient) {
-      const syncRacePinsBtn = () => {
-        const isVis = typeof raceClient.areRacePinsVisible === "function" ? raceClient.areRacePinsVisible() : true;
-        btnToggleRacePins.textContent = isVis ? "Pins: ON" : "Pins: OFF";
-        btnToggleRacePins.style.color = isVis ? "#38bdf8" : MUTED_COLOR;
-      };
-      syncRacePinsBtn();
-
-      btnToggleRacePins.addEventListener("click", () => {
-        if (typeof raceClient.toggleRacePinsVisible === "function") {
-          raceClient.toggleRacePinsVisible();
-        }
-        syncRacePinsBtn();
-        refreshGhosts();
-      });
-    }
+    bindSettingToggle(document.getElementById("btn-toggle-leaderboard"), settings, "visible.leaderboard", "Standings");
+    if (raceClient) bindSettingToggle(btnToggleRacePins, settings, "racePins", "Pins");
 
     if (!raceClient) return null;
 

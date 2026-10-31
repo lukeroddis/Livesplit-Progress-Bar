@@ -85,6 +85,9 @@
       },
       setupTrackScrollInteractions: app.setupTrackScrollInteractions,
 
+      // Live settings by id (src/core/settings-registry.js)
+      settings: app.settings,
+
       // Settings menu & dev mode
       resetSettingsMenuPosition: app.resetSettingsMenuPosition,
       toggleSettingsMenu: app.toggleSettingsMenu,

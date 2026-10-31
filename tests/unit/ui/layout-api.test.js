@@ -230,6 +230,21 @@
       HL().setEditMode(true);
       assert(title.classList.contains("edit-hidden") && !title.classList.contains("is-hidden"), "edit mode shows it dimmed");
     }));
+
+    it("setComponentVisible hides / shows a component, saves, and creates a missing entry", () => withHud(({ el, state }) => {
+      HL().setComponentVisible("title", false);
+      assertEqual(state.title.visible, false);
+      assert(el("hud-comp-title").classList.contains("is-hidden"));
+      assertEqual(JSON.parse(localStorage.getItem(KEYS.HUD_LAYOUT)).title.visible, false, "saved");
+
+      delete state.leaderboard;
+      HL().setComponentVisible("leaderboard", false);
+      assertEqual(state.leaderboard.visible, false, "created from the defaults, then hidden");
+      assert(typeof state.leaderboard.x === "number", "default position");
+
+      HL().setComponentVisible("nope", false);
+      assert(!("nope" in state), "unknown components ignored");
+    }));
   });
 
   describe("Layout API: edit mode, anchors and wrappers", () => {

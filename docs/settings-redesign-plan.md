@@ -1,6 +1,6 @@
 # Settings redesign plan: OBS dock + per-widget settings
 
-Status: proposal (2026-10-28). Step 1 (race-code dock) shipped in `22b83ee`.
+Status: in progress. Step 1 (race-code dock) shipped in `22b83ee`; step 2 (settings registry) shipped. Order revised 2026-10-31: widget cog / close buttons moved earlier.
 
 ## Goal
 
@@ -22,8 +22,10 @@ The settings menu and the HUD & Progress Bar Customizer modal have grown too lar
 | Ghost target (`ghost-badge`, ghost pills) | ✅ | Track | |
 | Timing method (`timing-method-badge`) | ✅ | Timers | |
 | Timer display mode GT/RT/Both | ✅ | Timers | |
+| Ghost pins on/off (keeps the chosen ghosts) | ✅ | Track | New: today "off" forgets the ghost selection |
 | Golds on/off (`gold-toggle-badge`) | ✅ | Track | |
 | Visible splits count / Fit all / Auto | ✅ | Track | Spinbox in dock |
+| Scroll through splits ◀ / ▶ / back to live | ✅ | | New. Action buttons; covers both the sliding window (`shiftTrackWindow`) and native scroll |
 | Show/hide title, timers, track (`cb-toggle-*`) | ✅ | (Layout toolbar) | Handy for scene changes |
 | Layout profile switch (`select-layout-profile`) | ✅ | (settings menu) | Dock must refresh its whole state after a switch |
 | Load `.lss` splits | | (settings menu) | Needs the file picker / drop |
@@ -84,11 +86,11 @@ The dock must never write settings straight into storage: the overlay holds them
 Each step ships on its own, with `npm test` and `npm run build` green.
 
 1. ✅ **Race-code dock** (done).
-2. **Settings registry.** Add `settings-registry.js` with the live controls from the table above. Route the existing badge and button handlers through `set`. No visible change; specs for the registry.
-3. **General dock bridge.** `set` commands and state snapshots, replacing the race-only bridge. Keep `connect` / `disconnect` working so old dock files still work.
-4. **Dock UI.** Generated sections for the live controls; build generates `dock.html`. Test in real OBS (Luke).
-5. **Widget cogs.** Layout Mode cog + close on each widget, popover from the registry, starting with the Track widget, the largest part of the Customizer.
-6. **Move the rest of the Customizer** onto the cogs (timers, title/logo, leaderboard, backgrounds). Remove the modal.
+2. ✅ **Settings registry.** `src/core/settings-registry.js` holds the live controls (comparison, timers shown, timing method, golds, visible splits, ghosts, race pins, component visibility) and `app.settings` routes the HUD badges, comparison hotkeys, timer blocks, Standings / Pins buttons and toolbar visibility checkboxes through it. Not yet in it: layout profile switch, ghost pins on/off, split scrolling (action type), test race.
+3. **Widget cog + close.** In Layout Mode each widget gets a cog and a close (hide) button. Close sets `visible.<widget>` (the Layout toolbar keeps the checkboxes to bring a widget back). The cog first opens the existing Customizer scrolled to that widget's section, so it is useful straight away.
+4. **General dock bridge.** `set` commands and state snapshots, replacing the race-only bridge. Keep `connect` / `disconnect` working so old dock files still work.
+5. **Dock UI.** Generated sections for the live controls, plus split scrolling and ghost pins on/off; build generates `dock.html`. Test in real OBS (Luke).
+6. **Popovers replace the Customizer**, one widget per commit: Track first (the largest part), then Timers, Title / logo, Leaderboard, Backgrounds. Popovers open on the side of the widget with more free space so they don't cover it. Remove the modal at the end.
 7. **Slim the settings menu** down to the global items. Update README screenshots and the developer guide.
 
 ## Open questions

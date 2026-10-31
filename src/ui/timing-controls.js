@@ -35,12 +35,14 @@
       }
     }
 
-    function toggleGoldSegments() {
-      const current = (localStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) !== "false");
-      const nextVal = (!current) ? "true" : "false";
-      localStorage.setItem(STORAGE_KEYS.ENABLE_GOLDS, nextVal);
-      state.cachedEnableGolds = (nextVal !== "false");
+    function setGoldSegments(enabled) {
+      localStorage.setItem(STORAGE_KEYS.ENABLE_GOLDS, enabled ? "true" : "false");
+      state.cachedEnableGolds = !!enabled;
       updateGoldBadge();
+    }
+
+    function toggleGoldSegments() {
+      setGoldSegments(localStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) === "false");
     }
 
     function setTimerDisplayMode(mode, focusMethod) {
@@ -118,6 +120,7 @@
       setTimingMethodFocus,
       toggleTimingMethod,
       updateGoldBadge,
+      setGoldSegments,
       toggleGoldSegments
     });
   }
