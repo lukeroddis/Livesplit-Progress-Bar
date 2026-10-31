@@ -59,9 +59,6 @@
       app.applyActiveTimingMethod(state.currentTimingMethod);
       updateTimerDisplayHierarchy();
 
-      // Sync modal segmented controls if open
-      window.LiveSplit.TimerDisplay.syncModalControls(mode, state.currentTimingMethod);
-
       if (state.currentTimingMethod === "GameTime") app.sendRaw("switchto gametime");
       else if (state.currentTimingMethod === "RealTime") app.sendRaw("switchto realtime");
     }
@@ -83,9 +80,6 @@
 
       app.applyActiveTimingMethod(state.currentTimingMethod);
       updateTimerDisplayHierarchy();
-
-      // Sync modal controls
-      window.LiveSplit.TimerDisplay.syncModalControls(state.timerDisplayMode, state.currentTimingMethod);
 
       if (method === "GameTime") app.sendRaw("switchto gametime");
       else if (method === "RealTime") app.sendRaw("switchto realtime");

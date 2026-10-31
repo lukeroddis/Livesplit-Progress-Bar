@@ -12,7 +12,6 @@
       assert(td !== undefined && td !== null, "TimerDisplay is exposed on window.LiveSplit");
       assertEqual(typeof td.updateTimerDisplayHierarchy, "function", "updateTimerDisplayHierarchy is a function");
       assertEqual(typeof td.calculateNextTimingMode, "function", "calculateNextTimingMode is a function");
-      assertEqual(typeof td.syncModalControls, "function", "syncModalControls is a function");
     });
 
     it("updateTimerDisplayHierarchy toggles block visibility and primary/secondary classes", () => {
@@ -75,36 +74,6 @@
       assertEqual(step4.focusMethod, "GameTime");
     });
 
-    it("syncModalControls updates segmented buttons and toggles focus row visibility", () => {
-      const td = window.LiveSplit.TimerDisplay;
-
-      // Mock segmented control buttons in the DOM for test runner
-      const ctrlDisplay = document.getElementById("ctrl-timer-display");
-      const ctrlFocus = document.getElementById("ctrl-timer-focus");
-      ctrlDisplay.innerHTML = '<button class="seg-btn" data-val="gametime">Game</button><button class="seg-btn" data-val="both">Both</button>';
-      ctrlFocus.innerHTML = '<button class="seg-btn" data-val="GameTime">Game</button><button class="seg-btn" data-val="RealTime">Real</button>';
-
-      // Ensure row-timer-focus exists
-      let rowFocus = document.getElementById("row-timer-focus");
-      if (!rowFocus) {
-        rowFocus = document.createElement("div");
-        rowFocus.id = "row-timer-focus";
-        document.body.appendChild(rowFocus);
-      }
-
-      td.syncModalControls("both", "RealTime");
-      assertEqual(rowFocus.style.display, "flex", "Row focus visible for both mode");
-      const activeDisplay = ctrlDisplay.querySelector(".seg-btn.active");
-      assertEqual(activeDisplay.getAttribute("data-val"), "both");
-      const activeFocus = ctrlFocus.querySelector(".seg-btn.active");
-      assertEqual(activeFocus.getAttribute("data-val"), "RealTime");
-
-      td.syncModalControls("gametime", "GameTime");
-      assertEqual(rowFocus.style.display, "none", "Row focus hidden for gametime mode");
-      assertEqual(ctrlDisplay.querySelector(".seg-btn.active").getAttribute("data-val"), "gametime");
-    });
-  });
-  describe("Timer Display: timing mode cycle", () => {
     it("cycles Game -> Real -> Both (Game) -> Both (Real) -> Game", () => {
       const next = window.LiveSplit.TimerDisplay.calculateNextTimingMode;
       const step = (s) => { const n = next(s[0], s[1]); return [n.mode, n.focusMethod]; };

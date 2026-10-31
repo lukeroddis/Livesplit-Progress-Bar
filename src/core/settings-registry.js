@@ -20,6 +20,7 @@
  * outside are clamped), "action" (run(app, value) with value one of options; no
  * stored value, so no get / set and not in snapshots).
  * `optionLabels` (optional) maps option values to short display labels.
+ * `showIf` (optional) { setting, equals }: only shown while another setting has that value.
  * `where` lists the surfaces a setting belongs on: "dock", "widget".
  */
 
@@ -83,6 +84,7 @@
       where: ["dock", "widget"],
       type: "enum",
       options: (app) => app.state.comparisonsList,
+      optionLabels: { "Personal Best": "Personal Best (PB)", "Best Segments": "Best Segments (Sum of Best)" },
       get: (app) => app.state.currentComparison,
       set: (app, value) => app.applyActiveComparison(value, true),
       cycle: (app, dir) => app.cycleComparison(dir < 0)
@@ -102,12 +104,14 @@
     },
     {
       id: "timingMethod",
-      label: "Timing method",
+      label: "Primary timer",
       group: "timers",
       where: ["dock", "widget"],
       type: "enum",
       options: ["GameTime", "RealTime"],
       optionLabels: { GameTime: "Game", RealTime: "Real" },
+      // Which timer leads only matters while both are shown
+      showIf: { setting: "timerDisplay", equals: "both" },
       get: (app) => app.state.currentTimingMethod,
       set: (app, value) => app.setTimingMethodFocus(value)
     },
@@ -206,6 +210,7 @@
     return listSettings(where).map((def) => {
       const out = { id: def.id, label: def.label, group: def.group, type: def.type };
       if (def.optionLabels) out.optionLabels = { ...def.optionLabels };
+      if (def.showIf) out.showIf = { ...def.showIf };
       if (def.type === "splits") Object.assign(out, { min: SPLITS_MIN, max: SPLITS_MAX });
       return out;
     });

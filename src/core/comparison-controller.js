@@ -96,11 +96,6 @@
         return activeTargets[i] ?? fallbackTargets[i] ?? null;
       });
 
-      const selComp = document.getElementById("select-active-comparison");
-      if (selComp && selComp.value !== state.currentComparison) {
-        selComp.value = state.currentComparison;
-      }
-
       let prevDiff = 0;
       for (let i = 0; i < state.splitsList.length; i++) {
         const splitTimeSec = state.completedSplitTimes[i] ?? state.lockedDeltas[i]?.splitTimeSec;

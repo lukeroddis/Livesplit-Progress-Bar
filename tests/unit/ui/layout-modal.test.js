@@ -218,7 +218,9 @@
       const settings = {
         get: (id) => values[id],
         set: (id, v) => { values[id] = v; listeners.forEach((fn) => fn(id, v)); return { ok: true, value: v }; },
-        subscribe: (fn) => { listeners.push(fn); return () => {}; }
+        subscribe: (fn) => { listeners.push(fn); return () => {}; },
+        snapshot: () => ({ ...values }),
+        options: () => []
       };
       stubOverlay({ settings }, () => withModal(({ el, ctrl }) => {
         const cb = el("lm-golds");

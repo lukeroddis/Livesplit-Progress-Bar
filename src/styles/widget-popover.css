@@ -97,6 +97,16 @@
   gap: 6px;
 }
 
+.sr-row[hidden] {
+  display: none;
+}
+
+.sr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .sr-label {
   font-size: 13px;
   font-weight: 600;

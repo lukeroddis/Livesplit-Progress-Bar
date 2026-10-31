@@ -8,6 +8,7 @@
  *   dropdown; splits: - / number / + / Auto / All; ghosts: multi-select buttons;
  *   range: slider (rate-limited while dragging); action: one button per option
  * - The mouse wheel steps a slider, or runs a back / forward action
+ * - A schema entry's `showIf` { setting, equals } hides its row while that setting differs
  *
  * The host supplies what a change does (`set`, `run`) and the current values
  * (`update`), so it works over the dock's commands or the overlay's app.settings.
@@ -169,6 +170,7 @@
       if (!make) return null;
       const node = el("div", { className: "sr-row" }, [el("label", { className: "sr-label", textContent: def.label }), make(def, options || [])]);
       node.dataset.setting = def.id;
+      if (def.showIf) updaters.push((values) => { node.hidden = values[def.showIf.setting] !== def.showIf.equals; });
       bindWheel(node, def, options || []);
       return node;
     }

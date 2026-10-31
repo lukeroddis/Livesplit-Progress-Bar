@@ -5,7 +5,6 @@
  * - Single vs dual timer display hierarchy (GameTime only, RealTime only, or Both)
  * - Primary vs secondary timer prominence based on focused timing method
  * - 4-state timing mode cycling (GameTime -> RealTime -> Both/Game -> Both/Real)
- * - Modal segmented control synchronization
  * - Time formatters delegation via LiveSplit.Time
  */
 
@@ -84,30 +83,11 @@
     }
   }
 
-  /**
-   * Synchronizes quick settings modal controls to match active timer display state.
-   * @param {string} displayMode - 'gametime' | 'realtime' | 'both'
-   * @param {string} timingMethod - 'GameTime' | 'RealTime'
-   */
-  function syncModalControls(displayMode, timingMethod) {
-    document.querySelectorAll("#ctrl-timer-display .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-val") === displayMode);
-    });
-    document.querySelectorAll("#ctrl-timer-focus .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.getAttribute("data-val") === timingMethod);
-    });
-    const rowTimerFocus = document.getElementById("row-timer-focus");
-    if (rowTimerFocus) {
-      rowTimerFocus.style.display = (displayMode === "both") ? "flex" : "none";
-    }
-  }
-
   // Export to namespace
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.TimerDisplay = {
     updateTimerDisplayHierarchy,
-    calculateNextTimingMode,
-    syncModalControls
+    calculateNextTimingMode
   };
 
 })();

@@ -552,15 +552,8 @@
     <div class="widget-popover-body">
       <!-- Comparisons & LiveSplit Sync -->
       <div class="modal-section-title">Comparisons & LiveSplit Sync</div>
-      <div class="modal-row">
-        <label>Active Comparison</label>
-        <select id="select-active-comparison" class="modal-select">
-          <option value="Personal Best">Personal Best (PB)</option>
-          <option value="Best Segments">Best Segments (Sum of Best)</option>
-          <option value="Average Segments">Average Segments</option>
-          <option value="Worst Segments">Worst Segments</option>
-        </select>
-      </div>
+      <!-- Registry settings, rendered like the dock (src/ui/settings-dialog-rows.js) -->
+      <div class="sr-rows" data-settings="comparison"></div>
       <div class="modal-row" id="row-comparison-hotkey">
         <label>Comparison Switch Hotkey</label>
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -576,21 +569,7 @@
         </label>
         <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Tracks LiveSplit comparison and timing method switches in real time without replicating hotkeys.</span>
       </div>
-      <div class="modal-row">
-        <label>Visible Timers</label>
-        <div class="seg-btn-group" id="ctrl-timer-display">
-          <button type="button" class="seg-btn" data-val="gametime">Game Time</button>
-          <button type="button" class="seg-btn" data-val="realtime">Real Time</button>
-          <button type="button" class="seg-btn active" data-val="both">Both</button>
-        </div>
-      </div>
-      <div class="modal-row" id="row-timer-focus">
-        <label>Primary Timer &amp; Splits Target</label>
-        <div class="seg-btn-group" id="ctrl-timer-focus">
-          <button type="button" class="seg-btn active" data-val="GameTime">Game Time</button>
-          <button type="button" class="seg-btn" data-val="RealTime">Real Time</button>
-        </div>
-      </div>
+      <div class="sr-rows" data-settings="timerDisplay timingMethod"></div>
       <div class="modal-row" id="row-timer-expansion">
         <label>Timer Expansion &amp; Alignment</label>
         <div class="seg-btn-group" id="ctrl-timer-expansion">
@@ -742,6 +721,7 @@
   <script src="src/ui/game-logo.js"></script>
   <script src="src/ui/settings-controls.js"></script>
   <script src="src/ui/settings-renderer.js"></script>
+  <script src="src/ui/settings-dialog-rows.js"></script>
   <script src="src/ui/settings-track-panel.js"></script>
   <script src="src/ui/settings-background-panel.js"></script>
   <script src="src/ui/settings-ghost-panel.js"></script>

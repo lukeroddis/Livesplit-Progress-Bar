@@ -47,6 +47,9 @@
       window.LiveSplit.SettingsTimingPanel.createTimingPanel()
     ];
 
+    // Registry settings in the dialogs, rendered like the dock
+    const dialogRows = window.LiveSplit.SettingsDialogRows.createDialogRows();
+
     const popovers = window.LiveSplit.WidgetPopover.createWidgetPopovers({
       onOpen: () => syncUI(),
       onClose: () => saveTrackStyle(),
@@ -77,6 +80,7 @@
 
       syncTimerAnchorUI();
       syncRegistryToggles();
+      dialogRows.build();
     }
 
     // Checkboxes marked data-setting="<id>" drive a bool setting of the registry (Overlay.settings)
