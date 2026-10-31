@@ -62,7 +62,7 @@
       DEFAULT_TARGETS: [10, 20],
       DEFAULT_BESTS: [9, 9]
     };
-    ["clearInRunState", "updateGoldBadge", "applyActiveComparison", "loadInRunState", "renderTrack",
+    ["clearInRunState", "applyActiveComparison", "loadInRunState", "renderTrack",
       "applyActiveTimingMethod", "initDefaultComparisons"].forEach((n) => { app[n] = record(n); });
     window.LiveSplit.SplitsLoader.installSplitsLoader(app);
     return app;

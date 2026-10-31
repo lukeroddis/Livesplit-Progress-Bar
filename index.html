@@ -214,28 +214,6 @@
         <input type="file" id="file-input" accept=".lss,.xml">
       </div>
 
-      <!-- Section: Pace & Comparisons -->
-      <div class="settings-section">
-        <div class="settings-section-header">PACE &amp; COMPARISONS</div>
-        <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="comparison-badge" style="color: #38bdf8;" title="Click or press 'C' to cycle active comparison (Shift+C for previous, NumPad 4/6)">Comp: PB</button>
-          <button type="button" class="settings-tile-btn" id="ghost-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle Live Ghost Runner (Off / 🏆 WR / 🥈 PB / ⭐ Best / 📊 Avg)">Ghost: Off</button>
-          <button type="button" class="settings-tile-btn" id="timing-method-badge" style="color: #facc15;" title="Click to cycle timer display: Game Time / Real Time / Both">Time: Both</button>
-          <button type="button" class="settings-tile-btn" id="gold-toggle-badge" style="color: #facc15;" title="Click to toggle Gold Splits">Golds: ON</button>
-        </div>
-      </div>
-
-      <!-- Section: Track & Display -->
-      <div class="settings-section">
-        <div class="settings-section-header">TRACK &amp; DISPLAY</div>
-        <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="track-orient-badge" style="color: #38bdf8;" title="Click to toggle Horizontal / Vertical layout">Orient: Horiz</button>
-          <button type="button" class="settings-tile-btn" id="split-density-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</button>
-          <button type="button" class="settings-tile-btn" id="split-angle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</button>
-          <button type="button" class="settings-tile-btn" id="bg-opacity-badge" style="color: #38bdf8;" title="Click to cycle background plate opacity (55% / 80% / Off / 35%)">BG: 55%</button>
-        </div>
-      </div>
-
       <!-- Section: Live Race Telemetry (therun.gg) -->
       <div class="settings-section" id="section-race-mode">
         <div class="settings-section-header" data-widget-settings="leaderboard">LIVE RACE TELEMETRY</div>
@@ -252,7 +230,7 @@
         </div>
       </div>
 
-      <!-- Section: Actions (Bar Styles modal & Edit Layout mode) -->
+      <!-- Section: Actions (widget settings popovers & Edit Layout mode) -->
       <div class="settings-section">
         <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
         <div class="settings-actions-row">
@@ -498,6 +476,13 @@
 
       <!-- Run & Reset Behavior -->
       <div class="modal-section-title">Run & Reset Behavior</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Gold Splits</span>
+          <input type="checkbox" data-setting="golds" id="cb-golds" checked style="width: 16px; height: 16px; accent-color: #facc15; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Highlights splits that beat your best segment in gold.</span>
+      </div>
       <div class="modal-row">
         <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
           <span>Discard In-Run Golds on Reset</span>

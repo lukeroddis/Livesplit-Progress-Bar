@@ -4,7 +4,6 @@
  * Manages timer HUD presentation:
  * - Single vs dual timer display hierarchy (GameTime only, RealTime only, or Both)
  * - Primary vs secondary timer prominence based on focused timing method
- * - Timing method badge styling ("Time: Game", "Time: Real", "Time: Both (Game/Real)")
  * - 4-state timing mode cycling (GameTime -> RealTime -> Both/Game -> Both/Real)
  * - Modal segmented control synchronization
  * - Time formatters delegation via LiveSplit.Time
@@ -12,35 +11,6 @@
 
 (function () {
   "use strict";
-
-  /**
-   * Updates the timing method HUD badge element with text and accent color.
-   * @param {string} displayMode - 'gametime' | 'realtime' | 'both'
-   * @param {string} timingMethod - 'GameTime' | 'RealTime'
-   * @returns {HTMLElement|null} Badge element or null
-   */
-  function updateTimingMethodBadge(displayMode, timingMethod) {
-    const badge = document.getElementById("timing-method-badge");
-    if (!badge) return null;
-
-    if (displayMode === "gametime") {
-      badge.innerText = "Time: Game";
-      badge.style.color = "#38bdf8";
-    } else if (displayMode === "realtime") {
-      badge.innerText = "Time: Real";
-      badge.style.color = "#a78bfa";
-    } else {
-      // Both timers visible
-      if (timingMethod === "GameTime") {
-        badge.innerText = "Time: Both (Game)";
-        badge.style.color = "#38bdf8";
-      } else {
-        badge.innerText = "Time: Both (Real)";
-        badge.style.color = "#a78bfa";
-      }
-    }
-    return badge;
-  }
 
   /**
    * Updates CSS display hierarchy for primary and secondary timers.
@@ -135,7 +105,6 @@
   // Export to namespace
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.TimerDisplay = {
-    updateTimingMethodBadge,
     updateTimerDisplayHierarchy,
     calculateNextTimingMode,
     syncModalControls

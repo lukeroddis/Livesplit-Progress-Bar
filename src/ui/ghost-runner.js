@@ -30,14 +30,6 @@
     ["worst"]
   ];
 
-  const GHOST_BADGE_LABELS = {
-    wr: "🏆 WR",
-    pb: "🥈 PB",
-    best: "⭐ Best",
-    average: "📊 Avg",
-    worst: "🐢 Worst"
-  };
-
   function loadActiveGhostComparisons() {
     const savedMulti = localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS);
     if (savedMulti) {
@@ -451,35 +443,9 @@
       refreshLeaderboard();
     }
 
-    function updateGhostBadge() {
-      const badge = document.getElementById("ghost-badge");
-      if (!badge) return;
-      const active = activeGhostComparisons.filter(g => g && g !== "off");
-      if (active.length === 0) {
-        badge.innerText = "Ghost: Off";
-        badge.style.color = "rgba(148, 163, 184, 0.9)";
-        return;
-      }
-
-      const labels = active.map(id => {
-        const low = id.toLowerCase();
-        if (GHOST_BADGE_LABELS[low]) return GHOST_BADGE_LABELS[low];
-        if (low.includes("world record")) return "🏆 WR";
-        if (low === "personal best") return "🥈 PB";
-        if (low === "best segments") return "⭐ Best";
-        if (low === "average segments") return "📊 Avg";
-        if (low === "worst segments") return "🐢 Worst";
-        return `👤 ${id.slice(0, 8)}`;
-      });
-
-      badge.innerText = `Ghost: ${labels.join(" + ")}`;
-      badge.style.color = active.includes("wr") ? "#facc15" : (active.includes("pb") ? "#38bdf8" : "#eab308");
-    }
-
-    // Persist, refresh badge and markers after the active ghost list changes
+    // Persist and refresh the markers after the active ghost list changes
     function onActiveGhostsChanged() {
       saveActiveGhostComparisons();
-      updateGhostBadge();
       hideAllGhostMarkers();
 
       const lastElapsedSec = getLastElapsedSec();
@@ -571,7 +537,6 @@
       refreshLeaderboard,
       hideAllGhostMarkers,
       updateGhostRunner,
-      updateGhostBadge,
       setGhostComparison,
       toggleGhostComparison,
       cycleGhostComparison,

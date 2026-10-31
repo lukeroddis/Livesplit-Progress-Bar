@@ -1,11 +1,10 @@
 /**
- * src/ui/hud-bindings.js - HUD Badge, Hotkey & Control Bindings
+ * src/ui/hud-bindings.js - HUD Hotkey & Control Bindings
  *
  * Wires the static HUD controls to the overlay controllers once at startup:
- * - Settings badges (golds, timing method, comparison, ghost, split density, angle),
- *   stepped through the settings registry (app.settings) except the angle
  * - Latching settings trigger pill, close button and Escape to dismiss
- * - Comparison hotkeys: C / Shift+C, NumPad 6 / 4, ] / [ (ignored in inputs and Edit Mode)
+ * - Comparison hotkeys: C / Shift+C, NumPad 6 / 4, ] / [ through the settings registry
+ *   (ignored in inputs and Edit Mode)
  * - Click a timer block to focus its timing method
  * - "Always Show Last Split" checkbox
  *
@@ -29,17 +28,6 @@
 
   function installHudBindings(app) {
     const { state } = app;
-
-    function bindBadges() {
-      const cycleOnClick = (badgeId, settingId) =>
-        document.getElementById(badgeId)?.addEventListener("click", () => app.settings.cycle(settingId));
-      cycleOnClick("gold-toggle-badge", "golds");
-      cycleOnClick("timing-method-badge", "timerDisplay");
-      cycleOnClick("comparison-badge", "comparison");
-      cycleOnClick("ghost-badge", "ghosts");
-      cycleOnClick("split-density-badge", "visibleSplits");
-      document.getElementById("split-angle-badge")?.addEventListener("click", app.cycleSplitAngle);
-    }
 
     function bindSettingsPill() {
       // Latching pressed-down trigger pill and close button
@@ -111,7 +99,6 @@
     }
 
     function bindHudControls() {
-      bindBadges();
       bindSettingsPill();
       bindComparisonHotkeys();
       bindTimerControls();

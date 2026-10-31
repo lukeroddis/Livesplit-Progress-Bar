@@ -18,7 +18,6 @@
   const PANEL_HTML = `
     <div id="track"></div>
     ${seg("ctrl-track-orient", ["horizontal", "vertical"])}
-    <button id="track-orient-badge"></button>
     <div id="opposing-hint"></div>
     ${seg("ctrl-name-pos", ["top", "bottom", "left", "right"], posClass)}
     ${seg("ctrl-delta-pos", ["top", "bottom", "left", "right"], posClass)}
@@ -67,7 +66,6 @@
     it("syncs a horizontal track: segments, badge, Top/Bottom buttons, sliders and defaults", () => withPanel(({ dom, el, panel, active }) => {
       panel.sync({ orientation: "horizontal", namePos: "top", deltaPos: "bottom", nameFontSize: 17, deltaFontSize: 15, barHeight: 6, dotSize: 15 });
       assertEqual(active("ctrl-track-orient"), "horizontal");
-      assertEqual(el("track-orient-badge").innerText, "Orient: Horiz");
       assertEqual(active("ctrl-name-pos"), "top");
       assertEqual(active("ctrl-delta-pos"), "bottom");
       assertEqual(active("ctrl-modal-angle"), "auto");
@@ -83,7 +81,6 @@
 
     it("syncs a vertical track with Left/Right buttons and the vertical hint", () => withPanel(({ dom, el, panel }) => {
       panel.sync({ orientation: "vertical", namePos: "left", deltaPos: "right" });
-      assertEqual(el("track-orient-badge").innerText, "Orient: Vert");
       assertEqual(el("opposing-hint").style.display, "block");
       assert(el("opposing-hint").innerText.includes("vertical timeline"));
       assertEqual(dom.root.querySelector('#ctrl-name-pos [data-val="top"]').style.display, "none", "Top/Bottom hidden");
@@ -116,13 +113,11 @@
       assert(el("modal-btn-splits-all").classList.contains("active"));
     }));
 
-    it("orientation segments and the badge call setTrackOrientation", () => withPanel(({ el, panel, log, click, style }) => {
+    it("orientation segments call setTrackOrientation", () => withPanel(({ panel, log, click }) => {
       panel.bind();
       click("ctrl-track-orient", "vertical");
-      el("track-orient-badge").click();
-      style.orientation = "vertical";
-      el("track-orient-badge").click();
-      assertEqual(log.orientation, ["vertical", "vertical", "horizontal"], "badge flips the current orientation");
+      click("ctrl-track-orient", "horizontal");
+      assertEqual(log.orientation, ["vertical", "horizontal"]);
     }));
 
     it("positions move freely when flat, and stay opposite in angle mode", () => withPanel(({ panel, style, log, click }) => {

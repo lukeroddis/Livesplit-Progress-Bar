@@ -61,7 +61,6 @@
         assertEqual(fresh.getActiveGhostComparisons(), ["pb"], "PB when nothing was ever chosen");
       } finally {
         saved.forEach(([k, v]) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v)));
-        window.LiveSplit.Overlay.updateGhostBadge?.();
       }
     });
   });

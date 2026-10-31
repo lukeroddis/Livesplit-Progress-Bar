@@ -33,11 +33,6 @@
 
       controller.syncUI();
 
-      const orientBadge = document.getElementById("track-orient-badge");
-      if (orientBadge) {
-        assertEqual(orientBadge.innerText, "Orient: Vert", "orient badge synced to Vert");
-      }
-
       const sBgOpacity = document.getElementById("slider-bg-opacity");
       if (sBgOpacity) {
         assertEqual(parseInt(sBgOpacity.value, 10), 45, "bg opacity slider synced to 45");
@@ -87,6 +82,7 @@
       <div class="widget-popover" id="lm-popover-timers" data-widget="timers" hidden><button data-popover-reset id="lm-timers-reset"></button></div>
       <div class="widget-popover" data-widget="lm-no-style" hidden><button data-popover-reset id="lm-lb-reset"></button></div>
       <button id="lm-open-track" data-open-widget-popover="track"></button>
+      <input type="checkbox" data-setting="golds" id="lm-golds">
       <div class="lm-section" data-widget-settings="title"></div>
       <div class="lm-section" data-widget-settings="leaderboard"></div>`;
 
@@ -205,6 +201,26 @@
       el("lm-lb-reset").click();
       assertEqual(called("resetStyle").length, 1, "a widget without style keys never resets the whole style");
     }));
+
+    it("data-setting checkboxes drive registry settings and follow changes made elsewhere", () => {
+      const values = { golds: false };
+      const listeners = [];
+      const settings = {
+        get: (id) => values[id],
+        set: (id, v) => { values[id] = v; listeners.forEach((fn) => fn(id, v)); return { ok: true, value: v }; },
+        subscribe: (fn) => { listeners.push(fn); return () => {}; }
+      };
+      stubOverlay({ settings }, () => withModal(({ el, ctrl }) => {
+        const cb = el("lm-golds");
+        ctrl.syncUI();
+        assertEqual(cb.checked, false, "synced from the registry");
+        cb.checked = true;
+        cb.dispatchEvent(new Event("change"));
+        assertEqual(values.golds, true, "set through the registry");
+        settings.set("golds", false);
+        assertEqual(cb.checked, false, "a change from the dock shows up");
+      }));
+    });
 
     it("binds the logo controller and its height slider", () => withModal(({ el, logo, style, called }) => {
       assertEqual(logo.bound, 1);

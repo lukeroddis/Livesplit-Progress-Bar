@@ -86,6 +86,24 @@
       }
 
       syncTimerAnchorUI();
+      syncRegistryToggles();
+    }
+
+    // Checkboxes marked data-setting="<id>" drive a bool setting of the registry (Overlay.settings)
+    function syncRegistryToggles() {
+      const settings = window.LiveSplit.Overlay.settings;
+      if (!settings) return;
+      document.querySelectorAll("input[type=checkbox][data-setting]").forEach((cb) => {
+        cb.checked = settings.get(cb.dataset.setting) === true;
+      });
+    }
+
+    function bindRegistryToggles() {
+      document.querySelectorAll("input[type=checkbox][data-setting]").forEach((cb) => {
+        cb.addEventListener("change", () => window.LiveSplit.Overlay.settings?.set(cb.dataset.setting, cb.checked));
+      });
+      // Changes from elsewhere (the dock) show up while a popover is open
+      window.LiveSplit.Overlay.settings?.subscribe(syncRegistryToggles);
     }
 
     function bindToolbar() {
@@ -115,6 +133,7 @@
         popovers.open(btn.dataset.openWidgetPopover);
       }));
       popovers.bind();
+      bindRegistryToggles();
     }
 
     function bindLogoControls() {

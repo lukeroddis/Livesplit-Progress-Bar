@@ -198,7 +198,8 @@
         if (prefs.activeGhosts.length > 0) {
           localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, prefs.activeGhosts[0]);
         }
-        overlay.updateGhostBadge?.();
+        // Apply them to the live ghost runner too (storage alone only takes effect on reload)
+        overlay.setGhostComparison?.(prefs.activeGhosts.length > 0 ? prefs.activeGhosts : ["off"]);
       } else if (prefs.ghostComparison != null) {
         overlay.setGhostComparison?.(prefs.ghostComparison);
       }
@@ -234,7 +235,6 @@
 
       // 5. Update UI controls
       syncTrackModalUI();
-      window.LiveSplit.Overlay.updateGhostBadge?.();
 
       // 6. Optionally save into named profiles
       if (saveAsName) {

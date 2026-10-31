@@ -10,31 +10,9 @@
     it("exports complete public API on window.LiveSplit.TimerDisplay", () => {
       const td = window.LiveSplit && window.LiveSplit.TimerDisplay;
       assert(td !== undefined && td !== null, "TimerDisplay is exposed on window.LiveSplit");
-      assertEqual(typeof td.updateTimingMethodBadge, "function", "updateTimingMethodBadge is a function");
       assertEqual(typeof td.updateTimerDisplayHierarchy, "function", "updateTimerDisplayHierarchy is a function");
       assertEqual(typeof td.calculateNextTimingMode, "function", "calculateNextTimingMode is a function");
       assertEqual(typeof td.syncModalControls, "function", "syncModalControls is a function");
-    });
-
-    it("updateTimingMethodBadge updates text and accent color for each mode", () => {
-      const td = window.LiveSplit.TimerDisplay;
-
-      // GameTime only
-      td.updateTimingMethodBadge("gametime", "GameTime");
-      const badge = document.getElementById("timing-method-badge");
-      assertEqual(badge.innerText, "Time: Game");
-
-      // RealTime only
-      td.updateTimingMethodBadge("realtime", "RealTime");
-      assertEqual(badge.innerText, "Time: Real");
-
-      // Both timers: GameTime focused
-      td.updateTimingMethodBadge("both", "GameTime");
-      assertEqual(badge.innerText, "Time: Both (Game)");
-
-      // Both timers: RealTime focused
-      td.updateTimingMethodBadge("both", "RealTime");
-      assertEqual(badge.innerText, "Time: Both (Real)");
     });
 
     it("updateTimerDisplayHierarchy toggles block visibility and primary/secondary classes", () => {

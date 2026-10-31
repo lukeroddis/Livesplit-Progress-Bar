@@ -75,13 +75,6 @@
     }
 
     function syncSplitCountControls(splitPref, isVertical, splitCount) {
-      const splitBadge = document.getElementById("split-density-badge");
-      if (splitBadge) {
-        splitBadge.innerText = (splitPref === "all")
-          ? "Splits: All"
-          : (splitPref === "auto" ? "Splits: Auto" : `Splits: ${splitPref}`);
-      }
-
       const numInput = document.getElementById("input-visible-splits");
       const modalNumInput = document.getElementById("modal-input-visible-splits");
       const btnAll = document.getElementById("btn-splits-fit-all");
@@ -149,16 +142,6 @@
         track.classList.remove("angled-text");
       }
 
-      const angleBadge = document.getElementById("split-angle-badge");
-      if (angleBadge) {
-        if (isVertical) {
-          angleBadge.innerText = "Angle: Flat";
-        } else {
-          angleBadge.innerText = (anglePref === "auto")
-            ? (shouldAngle ? "Angle: Auto (40°)" : "Angle: Auto (Flat)")
-            : (anglePref === "angled" ? "Angle: 40°" : "Angle: Flat");
-        }
-      }
       const angleSelect = document.getElementById("select-split-angle");
       if (angleSelect) {
         angleSelect.value = isVertical ? "horizontal" : anglePref;
@@ -225,26 +208,7 @@
       }
     }
 
-    function cycleSplitAngle() {
-      const current = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
-      const sequence = ["auto", "angled", "horizontal"];
-      const nextIdx = (sequence.indexOf(current) + 1) % sequence.length;
-      const nextVal = sequence[nextIdx];
-      localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, nextVal);
-      if (window.hudLayout) {
-        if (nextVal === "angled") {
-          const style = window.hudLayout.getTrackStyle();
-          if (style && style.orientation !== "vertical") {
-            style.deltaPos = (style.namePos === "top") ? "bottom" : "top";
-            window.hudLayout.saveTrackStyle();
-          }
-        }
-        window.hudLayout.applyTrackStyle();
-      }
-      refresh();
-    }
-
-    return { update, computeSpacing, cycleVisibleSplits, setVisibleSplits, cycleSplitAngle };
+    return { update, computeSpacing, cycleVisibleSplits, setVisibleSplits };
   }
 
   window.LiveSplit = window.LiveSplit || {};

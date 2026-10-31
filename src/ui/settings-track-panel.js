@@ -53,12 +53,6 @@
     function syncOrientation(isVert) {
       C.syncSegmented("#ctrl-track-orient", isVert ? "vertical" : "horizontal");
 
-      const orientBadge = document.getElementById("track-orient-badge");
-      if (orientBadge) {
-        orientBadge.innerText = isVert ? "Orient: Vert" : "Orient: Horiz";
-        orientBadge.style.color = isVert ? "#a78bfa" : "#38bdf8";
-      }
-
       const hint = document.getElementById("opposing-hint");
       if (hint) {
         if (isVert) {
@@ -159,11 +153,6 @@
       C.bindSegmented("#ctrl-modal-angle", applySplitAngle);
 
       C.bindSegmented("#ctrl-track-orient", setTrackOrientation);
-      document.getElementById("track-orient-badge")?.addEventListener("click", () => {
-        const style = getCurrentTrackStyle();
-        const cur = (style && style.orientation) || "horizontal";
-        setTrackOrientation(cur === "vertical" ? "horizontal" : "vertical");
-      });
 
       bindPositions();
 

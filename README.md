@@ -100,6 +100,8 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 </p>
 
 * Press **`E`** (or **`F2`**) to drag and scale (`40%`–`250%`) any component, or dock the track to the bottom (**`⚓`**).
+* Each component has a **`⚙`** for its own settings, opened in a panel beside it so you can see what you change, and a **`✕`** to hide it (**`👁`** brings it back).
+* The toolbar holds HUD-wide controls: visibility, split count, text angle and the shared **plate** opacity and blur.
 * **Per-game profiles** load automatically when LiveSplit connects or a `.lss` file is dropped.
 * **Import/export** as JSON ([schema/layout-v1.json](schema/layout-v1.json)), or copy/paste via the clipboard inside OBS.
 
@@ -113,10 +115,6 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 * Upload a PNG, SVG or WebP **game logo** in place of the title text.
 * **Frosted-glass plates** with adjustable blur and opacity keep text readable over bright games.
 
-<p align="center">
-  <img src="assets/HUDCustomiser.png" alt="HUD Customizer Modal" width="380">
-</p>
-
 ---
 
 ## 🎛️ OBS Hotkeys & URL Parameters
@@ -128,8 +126,8 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 | **`Scroll Wheel`** | Scroll splits left/right (or up/down if sidebar) like LiveSplit |
 | **`←` / `→`** (or **`↑` / `↓`**) | Pan splits / browse future and previous splits with keyboard arrow keys (works in continuous and windowed mode with pinned last split) |
 | **`E`** or **`F2`** | Toggle Interactive Layout Edit Mode (Drag & Scale) |
-| **`Esc`** | Exit Edit Mode or close open modals |
-| **`Settings`** | Bottom-right discreet pill to configure styles, profiles, and drop `.lss` files |
+| **`Esc`** | Close an open settings panel or dialog, else exit Edit Mode |
+| **`Settings`** | Bottom-right discreet pill: drop `.lss` files, race code, layout profiles, and **⚙ Widget Settings** (opens Layout Mode) |
 
 For multi-scene or automated OBS setups, configure sources instantly with query parameters:
 
@@ -143,14 +141,14 @@ For multi-scene or automated OBS setups, configure sources instantly with query 
 | `?bg=0..95` | Set background plate opacity percentage | `index.html?bg=55` |
 | `?logo=path/to/logo.png` | Set custom logo image path | `index.html?logo=logo.png` |
 
-### Race Dock (OBS Custom Browser Dock, experimental)
+### OBS Dock (Custom Browser Dock, experimental)
 
-A small OBS panel for joining or leaving a therun.gg race room without interacting with your scene or opening the settings mid-stream. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay.
+A small OBS panel for changing things mid-stream without interacting with your scene: race code, comparison, timers, golds, visible splits, ghosts, scrolling through your splits (buttons, a slider or the mouse wheel) and which components show. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay. Everything in it is also available in the overlay itself.
 
 1. **Export your layout first** (Settings → profiles → export) if you already use the overlay with *Local file* ticked: step 2 changes where OBS stores the overlay's saved data, so you'll re-import it afterwards.
 2. In the overlay's **Browser Source** properties, **untick *Local file*** and put a `file:///` URL in the **URL** field instead, e.g. `file:///C:/Overlays/speedrun-overlay-v2.0.4.html`. The dock and overlay can only talk to each other this way.
 3. **Docks → Custom Browser Docks…**: add a dock with a `file:///` URL to the dock file, e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.0.4.html`.
-4. The dock shows **Overlay linked** within a couple of seconds. Type a race code and press **Connect** (or **Disconnect** to leave). *Overlay not found* almost always means the browser source still has *Local file* ticked.
+4. The dock shows **Overlay linked** within a couple of seconds, then its Race, Run, Track and Visibility sections. *Overlay not found* almost always means the browser source still has *Local file* ticked.
 
 ---
 
@@ -192,7 +190,6 @@ For WebSocket architecture details, LiveSplit protocol constraints, algorithm sp
 For post-v2.0.0 feature specifications and technical explorations, see:
 * **Extreme minimalist track bar**: square bars for each split, hover over to see split information.
 * **Current split overlay**: Show segment time, personal best, world record etc
-* **Settings overhaul**: Modularise settings with cog and close button for each widget
 * **Minimalist graph overlay**: Visual representation of deltas over time
 * **Racer tile improvements**: Hover over for context menu with runner information
 * **Add partial support for racetime.gg**: Allow for tracking of racetime.gg races, though full split telemetry still requires therun.gg player profiles

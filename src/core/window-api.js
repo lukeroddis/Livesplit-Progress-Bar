@@ -38,7 +38,6 @@
       setTimingMethodFocus: app.setTimingMethodFocus,
       getTimerDisplayMode: () => state.timerDisplayMode,
       toggleTimingMethod: app.toggleTimingMethod,
-      updateTimingMethodBadge: app.updateTimingMethodBadge,
       updateTimerDisplayHierarchy: app.updateTimerDisplayHierarchy,
 
       // Time formatting
@@ -59,7 +58,6 @@
       calculateGhostProgress: app.calculateGhostProgress,
       getNodeTextThreshold: app.getNodeTextThreshold,
       setGhostOpacity: app.setGhostOpacity,
-      updateGhostBadge: app.updateGhostBadge,
       updateGhostRunner: app.updateGhostRunner,
 
       // Run progress & track

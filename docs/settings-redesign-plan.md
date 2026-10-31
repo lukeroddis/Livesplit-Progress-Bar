@@ -97,6 +97,9 @@ Each step ships on its own, with `npm test` and `npm run build` green.
    - ✅ Backgrounds: each popover has its own plate toggle (and its reset restores it); the shared opacity / blur are "Plates" / "Blur" sliders in the Layout toolbar.
    - ✅ Customizer removed. The toolbar's Bar Styles button is gone (the toolbar fits a 1280 canvas again); the settings menu's button is now ⚙ Widget Settings (Layout Mode + Track popover). Popovers keep clear of the toolbar. The leaderboard cog still opens the settings menu's race section (a Leaderboard popover can come with step 7).
 7. **Slim the settings menu** down to the global items. Update README screenshots and the developer guide.
+   - ✅ Menu: the Pace & Comparisons and Track & Display badge sections are gone (each setting lives in a popover, the toolbar or the dock; Gold Splits joined the Track popover as a registry-bound `data-setting` checkbox) along with their badge code. Left: splits file, race, Widget Settings / Layout Mode, profiles, import / export. Loading a profile now applies its ghosts straight away.
+   - ✅ README text and developer guide.
+   - **Still to do (Luke): new README screenshots** of a widget popover and the dock; `assets/HUDCustomiser.png` is no longer referenced.
 
 ## Open questions
 

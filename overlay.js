@@ -221,7 +221,6 @@ function initOverlay() {
   setupTrackScrollInteractions();
   app.loadCachedSplits();
   updateTrackDensityAndAngle();
-  ghostRunner.updateGhostBadge();
 
   window.LiveSplit.DevMode.initDevMode();
 
@@ -259,7 +258,6 @@ Object.assign(app, {
   getOrCreateGhostMarker: ghostRunner.getOrCreateGhostMarker,
   refreshLeaderboard: ghostRunner.refreshLeaderboard,
   updateGhostRunner: ghostRunner.updateGhostRunner,
-  updateGhostBadge: ghostRunner.updateGhostBadge,
   setGhostComparison: ghostRunner.setGhostComparison,
   toggleGhostComparison: ghostRunner.toggleGhostComparison,
   cycleGhostComparison: ghostRunner.cycleGhostComparison,
@@ -268,7 +266,6 @@ Object.assign(app, {
   trackDensity,
   cycleVisibleSplits: trackDensity.cycleVisibleSplits,
   setVisibleSplits: trackDensity.setVisibleSplits,
-  cycleSplitAngle: trackDensity.cycleSplitAngle,
   updateTrackDensityAndAngle,
   setupTrackScrollInteractions,
   resetSettingsMenuPosition: window.LiveSplit.SettingsMenu.resetSettingsMenuPosition,
