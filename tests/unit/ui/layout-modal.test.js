@@ -155,6 +155,11 @@
         <button data-action="open-settings" id="lm-cog-timers"></button>
       </div>
       <div class="hud-component" data-component-id="leaderboard"><button data-action="open-settings" id="lm-cog-lb"></button></div>
+      <div id="hud-comp-track" class="hud-component" data-component-id="track"><button data-action="open-settings" id="lm-cog-track"></button></div>
+      <div class="widget-popover" id="lm-popover-track" data-widget="track" hidden>
+        <button data-popover-reset id="lm-popover-reset"></button><button data-popover-close id="lm-popover-done"></button>
+      </div>
+      <button id="btn-open-track-popover"></button>
       <div class="lm-section" data-widget-settings="timers"></div>
       <div class="lm-section" data-widget-settings="leaderboard"></div>`;
 
@@ -258,6 +263,35 @@
         assertEqual(opened, [["menu", true]], "settings menu opened");
         assert(lbSection.classList.contains("widget-settings-flash"));
       });
+    }));
+
+    it("the track cog toggles its popover; Done saves, Reset restores only the track's keys", () => withModal(({ el, called }) => {
+      const pop = el("lm-popover-track");
+      el("lm-cog-track").click();
+      assert(!pop.hidden, "popover opened");
+      assertEqual(el("track-modal").style.display, "none", "not the Customizer");
+
+      el("lm-popover-reset").click();
+      assertEqual(called("resetStyle")[0], ["resetStyle", window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.track]);
+
+      const saves = called("saveStyle").length;
+      el("lm-popover-done").click();
+      assert(pop.hidden, "closed");
+      assertEqual(called("saveStyle").length, saves + 1, "closing saves the style");
+
+      el("lm-cog-track").click();
+      el("lm-cog-track").click();
+      assert(pop.hidden, "the cog toggles it closed");
+    }));
+
+    it("Escape closes the popover first; the Customizer's button opens it in Layout Mode", () => withModal(({ el, key, called }) => {
+      const pop = el("lm-popover-track");
+      el("btn-open-track-popover").click();
+      assert(!pop.hidden, "opened from the Customizer");
+      assertEqual(called("setEdit"), [["setEdit", true]], "entered Layout Mode");
+      key("Escape");
+      assert(pop.hidden, "Escape closed it");
+      assertEqual(called("setEdit").length, 1, "without leaving Layout Mode");
     }));
 
     it("binds the logo controller and its height slider", () => withModal(({ el, logo, style, called }) => {

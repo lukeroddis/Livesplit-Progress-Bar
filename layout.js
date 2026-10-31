@@ -407,10 +407,11 @@
     }
   }
 
-  function resetTrackStyle() {
+  // keys: only reset these style keys (a widget popover's reset); none: everything, logo included
+  function resetTrackStyle(keys) {
     const e = getTrackStyleEngine();
     if (e) {
-      e.resetStyle();
+      e.resetStyle(keys);
     } else {
       currentTrackStyle = Object.assign({}, DEFAULT_TRACK_STYLE);
       saveTrackStyle();
@@ -644,6 +645,7 @@
       }
     } else {
       document.body.classList.remove("edit-mode");
+      getLayoutModalController()?.closeWidgetPopover();
       if (rtaBlock && rtaBlock.dataset.origTitle) {
         rtaBlock.title = rtaBlock.dataset.origTitle;
       }

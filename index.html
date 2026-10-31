@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="src/styles/settings-menu.css">
   <link rel="stylesheet" href="src/styles/settings-profiles.css">
   <link rel="stylesheet" href="src/styles/track-modal.css">
+  <link rel="stylesheet" href="src/styles/widget-popover.css">
   <link rel="stylesheet" href="src/styles/ghost-markers.css">
   <link rel="stylesheet" href="src/styles/toast.css">
   <link rel="stylesheet" href="src/styles/race-pins.css">
@@ -357,88 +358,11 @@
           </div>
         </div>
 
-        <!-- Track Orientation -->
-        <div class="modal-section-title" data-widget-settings="track">Track Orientation</div>
+        <!-- Track settings moved to the popover beside the track (Layout Mode cog) -->
+        <div class="modal-section-title">Progress Track</div>
         <div class="modal-row">
-          <label>Orientation</label>
-          <div class="segmented-control" id="ctrl-track-orient">
-            <button class="seg-btn active" data-val="horizontal">Horizontal</button>
-            <button class="seg-btn" data-val="vertical">Vertical</button>
-          </div>
-        </div>
-        
-        <!-- Positions -->
-        <div class="modal-section-title">Layout Positions</div>
-        <div class="modal-row">
-          <label>Split Name Position</label>
-          <div class="segmented-control" id="ctrl-name-pos">
-            <button class="seg-btn seg-btn-horiz active" data-val="top">Top</button>
-            <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
-            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
-            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
-          </div>
-        </div>
-        <div class="modal-row">
-          <label>Delta / Time Position</label>
-          <div class="segmented-control" id="ctrl-delta-pos">
-            <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
-            <button class="seg-btn seg-btn-horiz active" data-val="bottom">Bottom</button>
-            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
-            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
-          </div>
-        </div>
-        <div class="modal-hint" id="opposing-hint">💡 When 40° angle is active, timers stay horizontal on the opposite side to eliminate overlap.</div>
-
-        <!-- Visible Splits & Angle -->
-        <div class="modal-section-title">Visible Splits & Angle</div>
-        <div class="modal-row">
-          <label>Visible Splits on Screen <span class="val-badge" id="val-visible-splits">Auto</span></label>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <div class="spinbox-control">
-              <button type="button" class="spinbox-btn" id="modal-splits-dec">-</button>
-              <input type="number" id="modal-input-visible-splits" min="2" max="60" step="1" value="8" style="width: 48px;">
-              <button type="button" class="spinbox-btn" id="modal-splits-inc">+</button>
-            </div>
-            <button type="button" class="toolbar-btn" id="modal-btn-splits-all">Fit All</button>
-            <button type="button" class="toolbar-btn" id="modal-btn-splits-auto">Auto (220px)</button>
-          </div>
-        </div>
-        <div class="modal-row">
-          <label>Split Text Angle</label>
-          <div class="segmented-control" id="ctrl-modal-angle">
-            <button class="seg-btn" data-val="auto">Auto (Smart)</button>
-            <button class="seg-btn" data-val="angled">40° Tilt</button>
-            <button class="seg-btn" data-val="horizontal">Flat</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-always-show-last-split">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Always Show Last Split</span>
-            <input type="checkbox" id="cb-always-show-last-split" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Pins the final split at the end of the track. If intermediate splits are hidden, displays an engineering schematic double-slash break.</span>
-        </div>
-
-        <!-- Typography -->
-        <div class="modal-section-title">Typography</div>
-        <div class="modal-row">
-          <label>Split Name Font Size <span class="val-badge" id="val-name-font">17px</span></label>
-          <input type="range" id="slider-name-font" min="12" max="24" value="17" step="1">
-        </div>
-        <div class="modal-row">
-          <label>Delta & Time Font Size <span class="val-badge" id="val-delta-font">15px</span></label>
-          <input type="range" id="slider-delta-font" min="11" max="22" value="15" step="1">
-        </div>
-
-        <!-- Bar & Dot Sizes -->
-        <div class="modal-section-title">Bar & Dot Geometry</div>
-        <div class="modal-row">
-          <label>Bar Thickness <span class="val-badge" id="val-bar-height">6px</span></label>
-          <input type="range" id="slider-bar-height" min="3" max="16" value="6" step="1">
-        </div>
-        <div class="modal-row">
-          <label>Node Dot Size <span class="val-badge" id="val-dot-size">15px</span></label>
-          <input type="range" id="slider-dot-size" min="8" max="24" value="15" step="1">
+          <span style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">Track layout, splits, fonts, ghost pins and reset behaviour now open beside the track: click ⚙ on the track in Layout Mode.</span>
+          <button type="button" class="toolbar-btn" id="btn-open-track-popover">⚙ Open Track Settings</button>
         </div>
 
         <!-- Comparisons & LiveSplit Sync -->
@@ -491,78 +415,175 @@
           </div>
         </div>
 
-        <!-- Live Ghost Runner -->
-        <div class="modal-section-title">Live Ghost Runner</div>
-        <div class="modal-row">
-          <label>Ghost Pins (Toggle Multiple)</label>
-          <div class="ghost-pill-row" id="ghost-pill-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
-            <button type="button" class="preset-pill-btn" data-ghost-pill="off" id="ghost-pill-off">Off</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="wr" id="ghost-pill-wr">🏆 WR</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="pb" id="ghost-pill-pb">🥈 PB</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="best" id="ghost-pill-best">⭐ Best</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="average" id="ghost-pill-average">📊 Avg</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="worst" id="ghost-pill-worst">🐢 Worst</button>
-          </div>
-        </div>
-        <div class="modal-row">
-          <label>Quick Preset</label>
-          <select id="select-ghost-comparison" class="modal-select">
-            <option value="off">Off (Disabled)</option>
-            <option value="wr">World Record (🏆)</option>
-            <option value="pb">Personal Best (🥈)</option>
-            <option value="wr,pb">Dual: WR (🏆) + PB (🥈)</option>
-            <option value="best">Best Segments (⭐)</option>
-            <option value="wr,best">Dual: WR (🏆) + Best (⭐)</option>
-            <option value="average">Average Segments (📊)</option>
-            <option value="worst">Worst Segments (🐢)</option>
-          </select>
-        </div>
-        <div class="modal-row" id="row-ghost-pin-length">
-          <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
-          <input type="range" id="slider-ghost-pin-length" min="0" max="36" value="16" step="1">
-        </div>
-        <div class="modal-row" id="row-ghost-pin-size">
-          <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
-          <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
-        </div>
-        <div class="modal-row" id="row-ghost-pin-pos">
-          <label>Ghost Pin Side</label>
-          <div class="segmented-control" id="ctrl-pin-pos">
-            <button class="seg-btn active" data-val="auto">Auto</button>
-            <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
-            <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
-            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
-            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-pin-lane">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Keep Pins Clear of Split Text</span>
-            <input type="checkbox" id="cb-pin-lane" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Reserves a lane beside the bar for the pins while ghosts or race pins are on. Auto puts pins on top, or on the delta side of a vertical track.</span>
-        </div>
-        <div class="modal-row" id="row-ghost-opacity">
-          <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
-          <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
-        </div>
-        <div class="modal-hint" id="ghost-hint">💡 Pins extend to this length in open track space and automatically compact over split text. Toggle multiple pins to compare paces live.</div>
-
-        <!-- Run & Reset Behavior -->
-        <div class="modal-section-title">Run & Reset Behavior</div>
-        <div class="modal-row">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Discard In-Run Golds on Reset</span>
-            <input type="checkbox" id="cb-discard-golds-reset" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">When resetting an aborted run, discard temporary gold segments and preserve canonical .lss baseline.</span>
-        </div>
-
       </div>
       <div class="track-modal-footer">
         <button class="toolbar-btn" id="btn-reset-track-style">↺ Reset Styles</button>
         <button class="toolbar-btn btn-primary" id="btn-save-track-style">Done</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Track widget settings popover, opened by the Layout Mode cog on the track (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-track" data-widget="track" role="dialog" aria-label="Track settings" hidden>
+    <div class="widget-popover-header">
+      <h3>⚙ Track Settings</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body">
+      <!-- Track Orientation -->
+      <div class="modal-section-title" data-widget-settings="track">Track Orientation</div>
+      <div class="modal-row">
+        <label>Orientation</label>
+        <div class="segmented-control" id="ctrl-track-orient">
+          <button class="seg-btn active" data-val="horizontal">Horizontal</button>
+          <button class="seg-btn" data-val="vertical">Vertical</button>
+        </div>
+      </div>
+      
+      <!-- Positions -->
+      <div class="modal-section-title">Layout Positions</div>
+      <div class="modal-row">
+        <label>Split Name Position</label>
+        <div class="segmented-control" id="ctrl-name-pos">
+          <button class="seg-btn seg-btn-horiz active" data-val="top">Top</button>
+          <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+        </div>
+      </div>
+      <div class="modal-row">
+        <label>Delta / Time Position</label>
+        <div class="segmented-control" id="ctrl-delta-pos">
+          <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
+          <button class="seg-btn seg-btn-horiz active" data-val="bottom">Bottom</button>
+          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+        </div>
+      </div>
+      <div class="modal-hint" id="opposing-hint">💡 When 40° angle is active, timers stay horizontal on the opposite side to eliminate overlap.</div>
+
+      <!-- Visible Splits & Angle -->
+      <div class="modal-section-title">Visible Splits & Angle</div>
+      <div class="modal-row">
+        <label>Visible Splits on Screen <span class="val-badge" id="val-visible-splits">Auto</span></label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="spinbox-control">
+            <button type="button" class="spinbox-btn" id="modal-splits-dec">-</button>
+            <input type="number" id="modal-input-visible-splits" min="2" max="60" step="1" value="8" style="width: 48px;">
+            <button type="button" class="spinbox-btn" id="modal-splits-inc">+</button>
+          </div>
+          <button type="button" class="toolbar-btn" id="modal-btn-splits-all">Fit All</button>
+          <button type="button" class="toolbar-btn" id="modal-btn-splits-auto">Auto (220px)</button>
+        </div>
+      </div>
+      <div class="modal-row">
+        <label>Split Text Angle</label>
+        <div class="segmented-control" id="ctrl-modal-angle">
+          <button class="seg-btn" data-val="auto">Auto (Smart)</button>
+          <button class="seg-btn" data-val="angled">40° Tilt</button>
+          <button class="seg-btn" data-val="horizontal">Flat</button>
+        </div>
+      </div>
+      <div class="modal-row" id="row-always-show-last-split">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Always Show Last Split</span>
+          <input type="checkbox" id="cb-always-show-last-split" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Pins the final split at the end of the track. If intermediate splits are hidden, displays an engineering schematic double-slash break.</span>
+      </div>
+
+      <!-- Typography -->
+      <div class="modal-section-title">Typography</div>
+      <div class="modal-row">
+        <label>Split Name Font Size <span class="val-badge" id="val-name-font">17px</span></label>
+        <input type="range" id="slider-name-font" min="12" max="24" value="17" step="1">
+      </div>
+      <div class="modal-row">
+        <label>Delta & Time Font Size <span class="val-badge" id="val-delta-font">15px</span></label>
+        <input type="range" id="slider-delta-font" min="11" max="22" value="15" step="1">
+      </div>
+
+      <!-- Bar & Dot Sizes -->
+      <div class="modal-section-title">Bar & Dot Geometry</div>
+      <div class="modal-row">
+        <label>Bar Thickness <span class="val-badge" id="val-bar-height">6px</span></label>
+        <input type="range" id="slider-bar-height" min="3" max="16" value="6" step="1">
+      </div>
+      <div class="modal-row">
+        <label>Node Dot Size <span class="val-badge" id="val-dot-size">15px</span></label>
+        <input type="range" id="slider-dot-size" min="8" max="24" value="15" step="1">
+      </div>
+
+      <!-- Live Ghost Runner -->
+      <div class="modal-section-title">Live Ghost Runner</div>
+      <div class="modal-row">
+        <label>Ghost Pins (Toggle Multiple)</label>
+        <div class="ghost-pill-row" id="ghost-pill-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
+          <button type="button" class="preset-pill-btn" data-ghost-pill="off" id="ghost-pill-off">Off</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="wr" id="ghost-pill-wr">🏆 WR</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="pb" id="ghost-pill-pb">🥈 PB</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="best" id="ghost-pill-best">⭐ Best</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="average" id="ghost-pill-average">📊 Avg</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="worst" id="ghost-pill-worst">🐢 Worst</button>
+        </div>
+      </div>
+      <div class="modal-row">
+        <label>Quick Preset</label>
+        <select id="select-ghost-comparison" class="modal-select">
+          <option value="off">Off (Disabled)</option>
+          <option value="wr">World Record (🏆)</option>
+          <option value="pb">Personal Best (🥈)</option>
+          <option value="wr,pb">Dual: WR (🏆) + PB (🥈)</option>
+          <option value="best">Best Segments (⭐)</option>
+          <option value="wr,best">Dual: WR (🏆) + Best (⭐)</option>
+          <option value="average">Average Segments (📊)</option>
+          <option value="worst">Worst Segments (🐢)</option>
+        </select>
+      </div>
+      <div class="modal-row" id="row-ghost-pin-length">
+        <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
+        <input type="range" id="slider-ghost-pin-length" min="0" max="36" value="16" step="1">
+      </div>
+      <div class="modal-row" id="row-ghost-pin-size">
+        <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
+        <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
+      </div>
+      <div class="modal-row" id="row-ghost-pin-pos">
+        <label>Ghost Pin Side</label>
+        <div class="segmented-control" id="ctrl-pin-pos">
+          <button class="seg-btn active" data-val="auto">Auto</button>
+          <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
+          <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+        </div>
+      </div>
+      <div class="modal-row" id="row-pin-lane">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Keep Pins Clear of Split Text</span>
+          <input type="checkbox" id="cb-pin-lane" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Reserves a lane beside the bar for the pins while ghosts or race pins are on. Auto puts pins on top, or on the delta side of a vertical track.</span>
+      </div>
+      <div class="modal-row" id="row-ghost-opacity">
+        <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
+        <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
+      </div>
+      <div class="modal-hint" id="ghost-hint">💡 Pins extend to this length in open track space and automatically compact over split text. Toggle multiple pins to compare paces live.</div>
+
+      <!-- Run & Reset Behavior -->
+      <div class="modal-section-title">Run & Reset Behavior</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Discard In-Run Golds on Reset</span>
+          <input type="checkbox" id="cb-discard-golds-reset" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">When resetting an aborted run, discard temporary gold segments and preserve canonical .lss baseline.</span>
+      </div>
+    </div>
+    <div class="widget-popover-footer">
+      <button type="button" class="toolbar-btn" data-popover-reset title="Reset the track's own style (not the logo or backgrounds)">↺ Reset Track</button>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
     </div>
   </div>
 
@@ -696,6 +717,7 @@
   <script src="src/ui/settings-ghost-panel.js"></script>
   <script src="src/ui/settings-timing-panel.js"></script>
   <script src="src/ui/layout-profiles-panel.js"></script>
+  <script src="src/ui/widget-popover.js"></script>
   <script src="src/ui/layout-modal.js"></script>
   <script src="src/ui/layout-params.js"></script>
   <script src="src/ui/settings-menu.js"></script>

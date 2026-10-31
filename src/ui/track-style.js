@@ -39,6 +39,12 @@
     logoHeight: 60         // px (25 to 140)
   });
 
+  // Style keys each widget popover's reset restores (the rest: logo, backgrounds)
+  const WIDGET_STYLE_KEYS = Object.freeze({
+    track: Object.freeze(["orientation", "namePos", "deltaPos", "nameFontSize", "deltaFontSize", "barHeight",
+      "dotSize", "ghostPinLength", "ghostPinSize", "pinPos", "pinLane"])
+  });
+
   // Pin sides map across orientations the way split names do: top <-> left, bottom <-> right
   const PIN_POS_TO_VERTICAL = { top: "left", bottom: "right" };
   const PIN_POS_TO_HORIZONTAL = { left: "top", right: "bottom" };
@@ -125,12 +131,23 @@
       }
     }
 
-    function resetStyle() {
-      const reset = Object.assign({}, DEFAULT_TRACK_STYLE);
+    // Resets the whole style (and the custom logo), or only `keys` (a widget's popover reset)
+    function resetStyle(keys) {
+      const before = getCurrentStyle();
+      const wasOrientation = before ? before.orientation : DEFAULT_TRACK_STYLE.orientation;
+      let reset;
+      if (Array.isArray(keys)) {
+        reset = before || {};
+        keys.forEach((k) => { if (k in DEFAULT_TRACK_STYLE) reset[k] = DEFAULT_TRACK_STYLE[k]; });
+      } else {
+        reset = Object.assign({}, DEFAULT_TRACK_STYLE);
+      }
       setCurrentStyle(reset);
       saveStyle(reset);
-      applyStyle();
-      removeGameLogo();
+      // Back to the default orientation: dock the track where that orientation belongs
+      if (reset.orientation !== wasOrientation) syncTrackDockToOrientation(reset.orientation);
+      else applyStyle();
+      if (!Array.isArray(keys)) removeGameLogo();
       return reset;
     }
 
@@ -150,13 +167,33 @@
       }
     }
 
+    // A docked track moves to an edge that suits its orientation (bottom <-> left), then re-lays out
+    function syncTrackDockToOrientation(orientation) {
+      const layoutState = getLayoutState();
+      const track = layoutState && layoutState.track;
+      if (orientation === "vertical") {
+        if (track && (track.docked === "bottom" || track.docked === "top")) {
+          Object.assign(track, { docked: "left", x: 0, y: 0 });
+          saveLayout();
+        }
+      } else if (track && (track.docked === "left" || track.docked === "right")) {
+        const h = (typeof window !== "undefined" && window.innerHeight) || 1080;
+        Object.assign(track, { docked: "bottom", x: 0, y: Math.max(0, h - 90) });
+        saveLayout();
+      }
+
+      applyComponentLayout("track");
+      applyStyle();
+      // The old orientation's scale can push the new shape off screen (e.g. a scaled-up bar turned upright)
+      fitTrackOnScreen();
+    }
+
     function setOrientation(orient) {
       let currentTrackStyle = getCurrentStyle();
       if (!currentTrackStyle) {
         currentTrackStyle = loadSavedStyle();
         setCurrentStyle(currentTrackStyle);
       }
-      const layoutState = getLayoutState();
       const mapped = mapOrientationSwitch(
         currentTrackStyle.orientation,
         orient,
@@ -170,26 +207,7 @@
       currentTrackStyle.deltaPos = mapped.deltaPos;
       currentTrackStyle.pinPos = mapped.pinPos;
 
-      if (mapped.orientation === "vertical") {
-        if (layoutState && layoutState.track && (layoutState.track.docked === "bottom" || layoutState.track.docked === "top")) {
-          layoutState.track.docked = "left";
-          layoutState.track.x = 0;
-          layoutState.track.y = 0;
-          saveLayout();
-        }
-      } else {
-        if (layoutState && layoutState.track && (layoutState.track.docked === "left" || layoutState.track.docked === "right")) {
-          layoutState.track.docked = "bottom";
-          layoutState.track.x = 0;
-          layoutState.track.y = Math.max(0, ((typeof window !== "undefined" && window.innerHeight) || 1080) - 90);
-          saveLayout();
-        }
-      }
-
-      applyComponentLayout("track");
-      applyStyle();
-      // The old orientation's scale can push the new shape off screen (e.g. a scaled-up bar turned upright)
-      fitTrackOnScreen();
+      syncTrackDockToOrientation(mapped.orientation);
       saveStyle(currentTrackStyle);
       syncTrackModalUI();
 
@@ -318,6 +336,7 @@
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.TrackStyle = {
     DEFAULT_TRACK_STYLE,
+    WIDGET_STYLE_KEYS,
     TRACK_STYLE_KEY,
     SPLIT_DENSITY_KEY,
     mapOrientationSwitch,

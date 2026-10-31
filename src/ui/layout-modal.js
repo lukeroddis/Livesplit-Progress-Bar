@@ -4,7 +4,8 @@
  * Composes the settings panels shared by the edit-mode toolbar and the track
  * customizer modal, and owns the controls that belong to the layout itself:
  * - Modal open / close (backdrop, buttons, Escape) and full settings sync
- * - Widget header cogs: open the settings for one component at its section
+ * - Widget header cogs: toggle the component's settings popover (widget-popover.js), or
+ *   open the Customizer / settings menu at its section while it has no popover yet
  * - Settings panels: track (settings-track-panel.js), backgrounds
  *   (settings-background-panel.js), ghosts (settings-ghost-panel.js), timing
  *   (settings-timing-panel.js), profiles (layout-profiles-panel.js)
@@ -47,6 +48,15 @@
       window.LiveSplit.SettingsTimingPanel.createTimingPanel()
     ];
 
+    const popovers = window.LiveSplit.WidgetPopover.createWidgetPopovers({
+      onOpen: () => syncUI(),
+      onClose: () => saveTrackStyle(),
+      onReset: (compId) => {
+        resetTrackStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS[compId]);
+        syncUI();
+      }
+    });
+
     function openTrackModal() {
       const modal = document.getElementById("track-modal");
       if (modal) {
@@ -67,9 +77,10 @@
       }
     }
 
-    // Widget cog: the settings for one HUD component, scrolled to and flashing its section
-    // (the Customizer for title / timers / track, the settings menu's race section for the leaderboard)
+    // Widget cog: the component's popover (toggled), else its section, scrolled to and flashing,
+    // in the Customizer (title / timers) or the settings menu's race section (leaderboard)
     function openWidgetSettings(compId) {
+      if (popovers.toggle(compId)) return;
       if (compId === "leaderboard") {
         window.LiveSplit.Overlay.toggleSettingsMenu?.(true);
       } else {
@@ -121,6 +132,13 @@
         });
       });
       document.getElementById("btn-save-track-style")?.addEventListener("click", closeTrackModal);
+      // The Customizer's pointer to the settings that moved into the track's popover
+      document.getElementById("btn-open-track-popover")?.addEventListener("click", () => {
+        closeTrackModal();
+        setEditMode(true);
+        popovers.open("track");
+      });
+      popovers.bind();
       document.getElementById("btn-reset-track-style")?.addEventListener("click", resetTrackStyle);
 
       document.getElementById("track-modal")?.addEventListener("click", (e) => {
@@ -170,7 +188,10 @@
             return;
           }
           const modal = document.getElementById("track-modal");
-          if (modal && modal.classList.contains("is-open")) {
+          if (popovers.isOpen()) {
+            e.preventDefault();
+            popovers.close();
+          } else if (modal && modal.classList.contains("is-open")) {
             e.preventDefault();
             closeTrackModal();
           } else if (isEditMode()) {
@@ -248,6 +269,7 @@
       openTrackModal,
       closeTrackModal,
       openWidgetSettings,
+      closeWidgetPopover: popovers.close,
       syncUI,
       bindToolbarAndControls
     };

@@ -91,6 +91,7 @@ Each step ships on its own, with `npm test` and `npm run build` green.
 4. ✅ **General dock bridge.** `set` commands and state snapshots, replacing the race-only bridge. Keep `connect` / `disconnect` working so old dock files still work. Done as `src/ui/dock-bridge.js`; status v2 is `{ v, state, raceId, race, settings: { values, options }, profile, lastCommandId, lastResult, at }`.
 5. ✅ **Dock UI.** Generated sections for the live controls, plus split scrolling and ghost pins on/off. Done: sections built from the status schema (see Design 3); new `ghostsOn` (remembers the selection in `LAST_GHOSTS`) and the `trackScroll` action (◀ / Current / ▶, sliding window or native scroll). **Still to do: test in real OBS (Luke).**
 6. **Popovers replace the Customizer**, one widget per commit: Track first (the largest part), then Timers, Title / logo, Leaderboard, Backgrounds. Popovers open on the side of the widget with more free space so they don't cover it. Remove the modal at the end.
+   - ✅ Track: `src/ui/widget-popover.js` + `#widget-popover-track` hold orientation, positions, visible splits / angle, typography, bar & dot, ghost pins and discard-golds. Changes apply live as before; Done saves, Reset Track restores only the track's style keys. The Customizer keeps a button that opens it. Resetting back to the default orientation now re-docks the track (also fixes the Customizer's Reset Styles).
 7. **Slim the settings menu** down to the global items. Update README screenshots and the developer guide.
 
 ## Open questions
