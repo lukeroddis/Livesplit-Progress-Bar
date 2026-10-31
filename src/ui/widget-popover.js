@@ -10,6 +10,9 @@
  *   switch reshapes the track), pointer releases (dragging the widget) and resizes.
  *   Closes on its close / Done buttons, Escape (layout-modal.js) and clicks outside
  *   it, except on HUD widgets so they can still be dragged while it is open
+ * - Drag a popover by its header and resize it from its corner grip; it then keeps
+ *   that place and size (kept on screen) until the page reloads. Double-clicking the
+ *   header puts it back beside its widget
  */
 
 (function () {
@@ -18,6 +21,8 @@
   const GAP = 12;
   const MARGIN = 8;
   const SIDES = ["right", "left", "below", "above"];
+  const MIN_WIDTH = 260;
+  const MIN_HEIGHT = 160;
 
   /**
    * Pure: where to put a popover of `size` beside the `anchor` rect inside `viewport`.
@@ -78,6 +83,23 @@
   }
 
   /**
+   * Pure: a moved / resized popover box kept usable and on screen: at least the minimum
+   * size, at most the viewport (below `viewport.top`), and fully inside it.
+   * @returns {{left: number, top: number, width: number, height: number}}
+   */
+  function clampBox(box, viewport, margin = MARGIN) {
+    const minTop = (viewport.top || 0) + margin;
+    const width = Math.max(MIN_WIDTH, Math.min(box.width, viewport.width - 2 * margin));
+    const height = Math.max(MIN_HEIGHT, Math.min(box.height, viewport.height - minTop - margin));
+    return {
+      left: Math.max(margin, Math.min(box.left, viewport.width - width - margin)),
+      top: Math.max(minTop, Math.min(box.top, viewport.height - height - margin)),
+      width,
+      height
+    };
+  }
+
+  /**
    * @param {Object} [options]
    * @param {Function} [options.onOpen] - (compId) after a popover opens (sync its controls)
    * @param {Function} [options.onClose] - (compId) after it closes (save)
@@ -86,22 +108,45 @@
   function createWidgetPopovers({ onOpen = () => {}, onClose = () => {}, onReset = () => {} } = {}) {
     let current = null; // { compId, el }
     let frame = 0;
+    const manualBoxes = new Map(); // compId -> { left, top, width, height } once dragged / resized
 
     const popoverFor = (compId) => document.querySelector(`.widget-popover[data-widget="${compId}"]`);
 
-    function reposition() {
-      if (!current) return;
-      const anchorEl = document.getElementById(`hud-comp-${current.compId}`);
-      const { el } = current;
-      el.style.maxHeight = "";
-      // Stay clear of the Layout toolbar along the top while it shows (its resting place: it slides in
-      // with a transform, which offsetTop ignores)
+    // The screen area popovers may use: clear of the Layout toolbar along the top while it shows
+    // (its resting place: it slides in with a transform, which offsetTop ignores)
+    function getViewport() {
       const toolbar = document.getElementById("layout-toolbar");
       const toolbarBottom = toolbar && document.body.classList.contains("edit-mode") ? toolbar.offsetTop + toolbar.offsetHeight : 0;
+      return { width: window.innerWidth, height: window.innerHeight, top: Math.max(0, toolbarBottom) };
+    }
+
+    function applyBox(el, box) {
+      el.style.left = `${box.left}px`;
+      el.style.top = `${box.top}px`;
+      el.style.width = `${box.width}px`;
+      el.style.height = `${box.height}px`;
+      el.style.maxHeight = "none";
+      el.dataset.side = "manual";
+    }
+
+    function reposition() {
+      if (!current) return;
+      const { compId, el } = current;
+      const viewport = getViewport();
+      if (manualBoxes.has(compId)) {
+        const box = clampBox(manualBoxes.get(compId), viewport);
+        manualBoxes.set(compId, box);
+        applyBox(el, box);
+        return;
+      }
+      const anchorEl = document.getElementById(`hud-comp-${compId}`);
+      el.style.maxHeight = "";
+      el.style.width = "";
+      el.style.height = "";
       const placed = placePopover(
         anchorEl ? anchorEl.getBoundingClientRect() : null,
         { width: el.offsetWidth, height: el.offsetHeight },
-        { width: window.innerWidth, height: window.innerHeight, top: Math.max(0, toolbarBottom) });
+        viewport);
       el.style.maxHeight = `${placed.maxHeight}px`;
       el.style.left = `${placed.left}px`;
       el.style.top = `${placed.top}px`;
@@ -141,8 +186,61 @@
       return open(compId);
     }
 
+    // Drags from the header move the popover, drags from the corner grip resize it
+    function bindMoveAndResize(el) {
+      const header = el.querySelector(".widget-popover-header");
+      const grip = document.createElement("div");
+      grip.className = "widget-popover-resize";
+      grip.title = "Drag to resize";
+      el.appendChild(grip);
+
+      const startDrag = (e, mode) => {
+        if (!current || current.el !== el) return;
+        e.preventDefault();
+        const r = el.getBoundingClientRect();
+        const start = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, height: r.height };
+        const target = e.currentTarget;
+        try { target.setPointerCapture(e.pointerId); } catch (_) {}
+        el.classList.add(mode === "move" ? "is-moving" : "is-resizing");
+        const onMove = (ev) => {
+          const dx = ev.clientX - start.x;
+          const dy = ev.clientY - start.y;
+          const box = mode === "move"
+            ? { left: start.left + dx, top: start.top + dy, width: start.width, height: start.height }
+            : { left: start.left, top: start.top, width: start.width + dx, height: start.height + dy };
+          const clamped = clampBox(box, getViewport());
+          manualBoxes.set(el.dataset.widget, clamped);
+          applyBox(el, clamped);
+        };
+        const onUp = () => {
+          target.removeEventListener("pointermove", onMove);
+          target.removeEventListener("pointerup", onUp);
+          target.removeEventListener("pointercancel", onUp);
+          el.classList.remove("is-moving", "is-resizing");
+        };
+        target.addEventListener("pointermove", onMove);
+        target.addEventListener("pointerup", onUp);
+        target.addEventListener("pointercancel", onUp);
+      };
+
+      header?.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0 || e.target.closest("button")) return;
+        startDrag(e, "move");
+      });
+      header?.addEventListener("dblclick", (e) => {
+        if (e.target.closest("button")) return;
+        manualBoxes.delete(el.dataset.widget);
+        reposition();
+      });
+      grip.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        startDrag(e, "resize");
+      });
+    }
+
     function bind() {
       document.querySelectorAll(".widget-popover").forEach((el) => {
+        bindMoveAndResize(el);
         el.querySelectorAll("[data-popover-close]").forEach((btn) => btn.addEventListener("click", close));
         el.querySelectorAll("[data-popover-reset]").forEach((btn) => btn.addEventListener("click", () => {
           onReset(el.dataset.widget);
@@ -173,6 +271,7 @@
   window.LiveSplit = window.LiveSplit || {};
   window.LiveSplit.WidgetPopover = {
     placePopover,
+    clampBox,
     createWidgetPopovers
   };
 })();

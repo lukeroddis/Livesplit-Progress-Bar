@@ -25,6 +25,8 @@
 }
 
 .widget-popover-header {
+  cursor: grab;
+  user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -32,6 +34,15 @@
   background: rgba(30, 41, 59, 0.85);
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
   flex: none;
+}
+
+.widget-popover.is-moving .widget-popover-header {
+  cursor: grabbing;
+}
+
+.widget-popover.is-moving,
+.widget-popover.is-resizing {
+  opacity: 0.92;
 }
 
 .widget-popover-header h3 {
@@ -58,4 +69,22 @@
   background: rgba(30, 41, 59, 0.85);
   border-top: 1px solid rgba(148, 163, 184, 0.2);
   flex: none;
+}
+
+/* Corner grip: drag to resize (the popover keeps that size until reload) */
+.widget-popover-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.45) 50%, rgba(148, 163, 184, 0.45) 60%,
+    transparent 60%, transparent 72%, rgba(148, 163, 184, 0.45) 72%, rgba(148, 163, 184, 0.45) 82%, transparent 82%);
+  border-bottom-right-radius: 12px;
+}
+
+.widget-popover-resize:hover {
+  background-color: rgba(56, 189, 248, 0.2);
 }

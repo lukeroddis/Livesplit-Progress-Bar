@@ -100,7 +100,7 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 </p>
 
 * Press **`E`** (or **`F2`**) to drag and scale (`40%`–`250%`) any component, or dock the track to the bottom (**`⚓`**).
-* Each component has a **`⚙`** for its own settings, opened in a panel beside it so you can see what you change, and a **`✕`** to hide it (**`👁`** brings it back).
+* Each component has a **`⚙`** for its own settings, opened in a panel beside it so you can see what you change (drag it by its header or resize it from its corner if it is in the way; double-click the header to put it back), and a **`✕`** to hide it (**`👁`** brings it back).
 * The toolbar holds HUD-wide controls: visibility, split count, text angle and the shared **plate** opacity and blur.
 * **Per-game profiles** load automatically when LiveSplit connects or a `.lss` file is dropped.
 * **Import/export** as JSON ([schema/layout-v1.json](schema/layout-v1.json)), or copy/paste via the clipboard inside OBS.

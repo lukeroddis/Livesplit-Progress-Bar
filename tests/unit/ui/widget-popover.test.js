@@ -57,11 +57,27 @@
     });
   });
 
+  describe("Widget Popover: moved / resized boxes", () => {
+    const VIEWPORT = { width: 1280, height: 720, top: 70 };
+
+    it("keeps a box inside the screen and below the toolbar", () => {
+      assertEqual(WP.clampBox({ left: 2000, top: -50, width: 300, height: 200 }, VIEWPORT),
+        { left: 1280 - 300 - 8, top: 78, width: 300, height: 200 });
+    });
+
+    it("keeps a box between the minimum size and the screen size", () => {
+      const tiny = WP.clampBox({ left: 100, top: 100, width: 50, height: 20 }, VIEWPORT);
+      assertEqual([tiny.width, tiny.height], [260, 160]);
+      const huge = WP.clampBox({ left: 0, top: 0, width: 5000, height: 5000 }, VIEWPORT);
+      assertEqual([huge.width, huge.height, huge.left, huge.top], [1280 - 16, 720 - 78 - 8, 8, 78]);
+    });
+  });
+
   describe("Widget Popover: controller", () => {
     const HTML = `
       <div id="hud-comp-wpt" class="hud-component" style="position: fixed; left: 10px; top: 10px; width: 100px; height: 40px;"></div>
-      <div class="widget-popover" id="wp-test" data-widget="wpt" hidden>
-        <button data-popover-close id="wp-x"></button>
+      <div class="widget-popover" id="wp-test" data-widget="wpt" hidden style="width: 300px; height: 240px;">
+        <div class="widget-popover-header" id="wp-header"><span id="wp-title">Title</span><button data-popover-close id="wp-x"></button></div>
         <input id="wp-input">
         <button data-popover-reset id="wp-reset"></button>
       </div>
@@ -116,6 +132,52 @@
       assert(popovers.isOpen(), "still open");
       pointerdown(el("wp-outside"));
       assert(!popovers.isOpen(), "closed by an outside click");
+    }));
+
+    // Fires a pointer drag on an element (the handlers listen on the element itself)
+    const drag = (target, dx, dy) => {
+      const r = target.getBoundingClientRect();
+      const at = (x, y) => ({ bubbles: true, button: 0, pointerId: 1, clientX: x, clientY: y });
+      target.dispatchEvent(new PointerEvent("pointerdown", at(r.left + 5, r.top + 5)));
+      target.dispatchEvent(new PointerEvent("pointermove", at(r.left + 5 + dx, r.top + 5 + dy)));
+      target.dispatchEvent(new PointerEvent("pointerup", at(r.left + 5 + dx, r.top + 5 + dy)));
+    };
+
+    it("drags by the header and resizes from the grip, keeping both when reopened", () => withPopovers(({ el, popovers }) => {
+      popovers.open("wpt");
+      const pop = el("wp-test");
+      const before = pop.getBoundingClientRect();
+      // The same screen area the controller uses (the test window may be small, so boxes get clamped)
+      const toolbar = document.getElementById("layout-toolbar");
+      const top = toolbar && document.body.classList.contains("edit-mode") ? toolbar.offsetTop + toolbar.offsetHeight : 0;
+      const viewport = { width: window.innerWidth, height: window.innerHeight, top };
+      drag(el("wp-header"), 120, 60);
+      assertEqual(pop.dataset.side, "manual");
+      const moved = WP.clampBox({ left: before.left + 120, top: before.top + 60, width: before.width, height: before.height }, viewport);
+      assertEqual([parseFloat(pop.style.left), parseFloat(pop.style.top)], [moved.left, moved.top], "moved with the pointer");
+      assert(!pop.classList.contains("is-moving"), "drag finished");
+
+      drag(pop.querySelector(".widget-popover-resize"), 40, 30);
+      const sized = WP.clampBox({ left: moved.left, top: moved.top, width: moved.width + 40, height: moved.height + 30 }, viewport);
+      assertEqual([parseFloat(pop.style.width), parseFloat(pop.style.height)], [sized.width, sized.height], "resized");
+
+      const box = [pop.style.left, pop.style.top, pop.style.width, pop.style.height];
+      popovers.close();
+      popovers.open("wpt");
+      assertEqual([pop.style.left, pop.style.top, pop.style.width, pop.style.height], box, "same place and size when reopened");
+    }));
+
+    it("double-clicking the header puts it back beside its widget; buttons in the header do not drag", () => withPopovers(({ el, popovers }) => {
+      popovers.open("wpt");
+      const pop = el("wp-test");
+      const auto = [pop.style.left, pop.style.top];
+      drag(el("wp-x"), 200, 200);
+      assertEqual([pop.style.left, pop.style.top], auto, "the close button is not a drag handle");
+      drag(el("wp-title"), 200, 100);
+      assert(pop.style.left !== auto[0], "moved");
+      el("wp-header").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      assertEqual([pop.style.left, pop.style.top], auto, "back beside the widget");
+      assert(pop.dataset.side !== "manual");
     }));
 
     it("repositions on the next frame after a change inside it", async () => {
