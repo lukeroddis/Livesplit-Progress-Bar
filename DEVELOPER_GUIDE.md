@@ -263,7 +263,7 @@ Layout profiles are stored and exported as formatted JSON with the following ext
 }
 ```
 
-* **Ghost pin side**: `pinPos` is `auto` (top, or the delta side of a vertical track) or an explicit `top`/`bottom`/`left`/`right`, resolved by `TrackStyle.resolvePinSide` into a `pins-<side>` track class. With `pinLane` on, the track also gets `pin-lane`, and while any ghost or race pins are switched on the ghost runner adds `has-pins`; together they push split text on the pin side out by `--pin-lane` so pins never cover it.
+* **Ghost pin side**: `pinPos` is `auto` (top, or the delta side of a vertical track) or an explicit `top`/`bottom`/`left`/`right`, resolved by `TrackStyle.resolvePinSide` into a `pins-<side>` track class. With `pinLane` on, the track also gets `pin-lane`, and while any ghost or race pins are switched on the ghost runner adds `has-pins`; together they keep pins clear of split text. Flat horizontal text stays next to the bar and the pins reach past it: `--pin-length` (used for every horizontal pin) becomes the larger of the configured length and the text's reach on the pin side (`--text-top` / `--text-bottom`, set per name/delta layout), the needle passing behind the text (z-index 5 vs 15), with `--pin-room-top` growing the splits for the heads. Angled text and vertical tracks instead push the text out by `--pin-lane`.
 * **Backward Compatibility**: If an older layout missing newer properties (e.g. `logoHeight` or future properties) is loaded, `applyProfileData` deep-merges with `getDefaultLayout()` and `DEFAULT_TRACK_STYLE` so default values are gracefully applied without errors.
 * **Forward Compatibility**: Unknown future properties present in layout files do not throw errors or break loading.
 

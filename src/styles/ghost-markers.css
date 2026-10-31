@@ -3,7 +3,7 @@
    ============================================================ */
 .ghost-marker {
   position: absolute;
-  bottom: calc(var(--ghost-pin-bottom, calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--ghost-needle-length, 16px))) + var(--ghost-stack-offset, 0px));
+  bottom: calc(var(--ghost-pin-bottom, calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) + var(--bar-height, 6px)) / 2 + var(--pin-length, var(--ghost-needle-length, 16px)))) + var(--ghost-stack-offset, 0px));
   left: 0;
   display: flex;
   align-items: center;
@@ -45,7 +45,7 @@
   top: 100%;
   left: calc(50% - 1px);
   width: 2px;
-  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+  height: var(--ghost-needle-height, calc(var(--pin-length, var(--ghost-needle-length, 16px)) + var(--ghost-stack-offset, 0px)));
   background: var(--ghost-needle-color, #facc15);
   box-shadow: 0 0 6px var(--ghost-needle-glow, rgba(250, 204, 21, 0.9));
   border-radius: 1px;
@@ -58,7 +58,7 @@
 .ghost-marker.splay-right .ghost-needle {
   left: 50%;
   width: var(--ghost-splay-x);
-  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+  height: var(--ghost-needle-height, calc(var(--pin-length, var(--ghost-needle-length, 16px)) + var(--ghost-stack-offset, 0px)));
   background: transparent !important;
   box-shadow: none !important;
   border-radius: 0;
@@ -72,7 +72,7 @@
 .ghost-marker.splay-left .ghost-needle {
   left: calc(50% + var(--ghost-splay-x));
   width: calc(-1 * var(--ghost-splay-x));
-  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+  height: var(--ghost-needle-height, calc(var(--pin-length, var(--ghost-needle-length, 16px)) + var(--ghost-stack-offset, 0px)));
   background: transparent !important;
   box-shadow: none !important;
   border-radius: 0;
@@ -85,7 +85,7 @@
 
 /* Stems always extend full length down to track dot/bar (passing behind split text at z-index: 5) */
 .ghost-marker.compact .ghost-needle {
-  height: var(--ghost-needle-height, calc(var(--ghost-needle-length, 16px) + var(--ghost-stack-offset, 0px)));
+  height: var(--ghost-needle-height, calc(var(--pin-length, var(--ghost-needle-length, 16px)) + var(--ghost-stack-offset, 0px)));
 }
 
 .ghost-marker.compact .ghost-icon-wrap {
@@ -182,7 +182,7 @@
 
 /* Pins below a horizontal bar: the head hangs under it and the needle rises to the bar */
 .track.pins-bottom:not(.vertical) .ghost-marker {
-  bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) - var(--bar-height, 6px)) / 2 - var(--ghost-needle-length, 16px) - var(--ghost-pin-size, 26px));
+  bottom: calc(var(--track-padding-bottom, 10px) + var(--dot-bottom, 5px) + (var(--dot-size, 15px) - var(--bar-height, 6px)) / 2 - var(--pin-length, var(--ghost-needle-length, 16px)) - var(--ghost-pin-size, 26px));
 }
 
 .track.pins-bottom:not(.vertical) .ghost-marker .ghost-needle {
