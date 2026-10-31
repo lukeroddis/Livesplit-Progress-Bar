@@ -101,6 +101,7 @@ Each step ships on its own, with `npm test` and `npm run build` green.
    - ✅ README text and developer guide.
    - ✅ Follow-up after OBS testing: the menu is just "Settings" (no hint line); Widget Settings is now Track Settings; the race section moved into a Live Race Settings popover (the leaderboard's popover: its cog opens it too, the menu button opens it without Layout Mode, centred when the standings are hidden).
    - ✅ Settings popovers can be dragged by their header and resized from a corner grip; they keep that box until reload (double-click the header to put one back).
+   - ✅ The menu has a button per settings dialog (Title, Timer, Track, Ghost Pins, Live Race). Ghost pins moved out of the Track dialog into their own Ghost Pins dialog (beside the track, linked from the Track dialog; its reset covers the pin style, which race pins share).
    - **Still to do (Luke): new README screenshots** of a widget popover and the dock; `assets/HUDCustomiser.png` is no longer referenced.
 
 ## Open questions

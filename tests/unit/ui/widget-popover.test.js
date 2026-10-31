@@ -81,6 +81,7 @@
         <input id="wp-input">
         <button data-popover-reset id="wp-reset"></button>
       </div>
+      <div class="widget-popover" id="wp-anchored" data-widget="wpt-extra" data-anchor="wpt" hidden style="width: 300px; height: 200px;"></div>
       <div id="wp-outside"></div>`;
 
     function withPopovers(fn) {
@@ -114,6 +115,13 @@
       assert(pop.hidden && !popovers.isOpen(), "second cog click closes");
       assertEqual(log.pop(), ["close", "wpt"]);
       assert(!popovers.open("nope"), "widgets without a popover report false");
+    }));
+
+    it("a popover with data-anchor sits beside that widget instead of its own", () => withPopovers(({ el, popovers }) => {
+      popovers.open("wpt-extra");
+      const pop = el("wp-anchored");
+      assert(pop.dataset.side !== "center", "placed beside the anchor widget, not centred");
+      assertEqual(popovers.getOpenWidget(), "wpt-extra");
     }));
 
     it("closes from its close button and resets through onReset", () => withPopovers(({ el, popovers, log }) => {

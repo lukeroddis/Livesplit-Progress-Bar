@@ -6,7 +6,7 @@
  * - placePopover: pure placement on the side of the widget with the most room,
  *   clamped to the screen, with the height the popover may use there
  * - createWidgetPopovers: open / close / toggle the `.widget-popover[data-widget]`
- *   element for a component; repositions after changes inside it (an orientation
+ *   element for a component (beside `hud-comp-<data-anchor or data-widget>`); repositions after changes inside it (an orientation
  *   switch reshapes the track), pointer releases (dragging the widget) and resizes.
  *   Closes on its close / Done buttons, Escape (layout-modal.js) and clicks outside
  *   it, except on HUD widgets so they can still be dragged while it is open
@@ -139,7 +139,7 @@
         applyBox(el, box);
         return;
       }
-      const anchorEl = document.getElementById(`hud-comp-${compId}`);
+      const anchorEl = document.getElementById(`hud-comp-${el.dataset.anchor || compId}`);
       el.style.maxHeight = "";
       el.style.width = "";
       el.style.height = "";

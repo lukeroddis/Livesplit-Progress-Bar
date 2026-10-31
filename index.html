@@ -217,11 +217,14 @@
       <div class="settings-section">
         <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
         <div class="settings-actions-row">
-          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" data-open-widget-popover="track" title="Open Layout Mode with the track settings (every widget has a ⚙ there)">⚙ Track Settings</button>
-          <button type="button" class="settings-action-btn action-edit-layout" id="layout-edit-btn" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout Mode</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="btn-open-title-settings" data-open-widget-popover="title" title="Open Layout Mode with the title and logo settings">⚙ Title Settings</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="btn-open-timer-settings" data-open-widget-popover="timers" title="Open Layout Mode with the timer and comparison settings">⚙ Timer Settings</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" data-open-widget-popover="track" title="Open Layout Mode with the track settings">⚙ Track Settings</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="btn-open-ghost-settings" data-open-popover="ghosts" title="Ghosts to race against and the pin style">👻 Ghost Pins</button>
         </div>
         <div class="settings-actions-row" style="margin-top: 6px;">
           <button type="button" class="settings-action-btn action-race" id="btn-open-race-settings" data-open-popover="leaderboard" title="Race code, standings and race pins for therun.gg races">🏁 Live Race Settings</button>
+          <button type="button" class="settings-action-btn action-edit-layout" id="layout-edit-btn" title="Enter Edit Mode to move/resize components (Hotkey: E); every widget has a ⚙ there">⚙ Edit Layout Mode</button>
         </div>
       </div>
 
@@ -429,62 +432,10 @@
         <input type="range" id="slider-dot-size" min="8" max="24" value="15" step="1">
       </div>
 
-      <!-- Live Ghost Runner -->
-      <div class="modal-section-title">Live Ghost Runner</div>
+      <!-- Ghost pins have their own dialog (they ride on the track) -->
       <div class="modal-row">
-        <label>Ghost Pins (Toggle Multiple)</label>
-        <div class="ghost-pill-row" id="ghost-pill-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
-          <button type="button" class="preset-pill-btn" data-ghost-pill="off" id="ghost-pill-off">Off</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="wr" id="ghost-pill-wr">🏆 WR</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="pb" id="ghost-pill-pb">🥈 PB</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="best" id="ghost-pill-best">⭐ Best</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="average" id="ghost-pill-average">📊 Avg</button>
-          <button type="button" class="preset-pill-btn" data-ghost-pill="worst" id="ghost-pill-worst">🐢 Worst</button>
-        </div>
+        <button type="button" class="toolbar-btn" data-open-popover="ghosts" title="Ghost and race pin settings">👻 Ghost Pin Settings</button>
       </div>
-      <div class="modal-row">
-        <label>Quick Preset</label>
-        <select id="select-ghost-comparison" class="modal-select">
-          <option value="off">Off (Disabled)</option>
-          <option value="wr">World Record (🏆)</option>
-          <option value="pb">Personal Best (🥈)</option>
-          <option value="wr,pb">Dual: WR (🏆) + PB (🥈)</option>
-          <option value="best">Best Segments (⭐)</option>
-          <option value="wr,best">Dual: WR (🏆) + Best (⭐)</option>
-          <option value="average">Average Segments (📊)</option>
-          <option value="worst">Worst Segments (🐢)</option>
-        </select>
-      </div>
-      <div class="modal-row" id="row-ghost-pin-length">
-        <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
-        <input type="range" id="slider-ghost-pin-length" min="0" max="36" value="16" step="1">
-      </div>
-      <div class="modal-row" id="row-ghost-pin-size">
-        <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
-        <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
-      </div>
-      <div class="modal-row" id="row-ghost-pin-pos">
-        <label>Ghost Pin Side</label>
-        <div class="segmented-control" id="ctrl-pin-pos">
-          <button class="seg-btn active" data-val="auto">Auto</button>
-          <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
-          <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
-          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
-          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
-        </div>
-      </div>
-      <div class="modal-row" id="row-pin-lane">
-        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-          <span>Keep Pins Clear of Split Text</span>
-          <input type="checkbox" id="cb-pin-lane" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-        </label>
-        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Reserves a lane beside the bar for the pins while ghosts or race pins are on. Auto puts pins on top, or on the delta side of a vertical track.</span>
-      </div>
-      <div class="modal-row" id="row-ghost-opacity">
-        <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
-        <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
-      </div>
-      <div class="modal-hint" id="ghost-hint">💡 Pins extend to this length in open track space and automatically compact over split text. Toggle multiple pins to compare paces live.</div>
 
       <!-- Run & Reset Behavior -->
       <div class="modal-section-title">Run & Reset Behavior</div>
@@ -515,6 +466,79 @@
     </div>
     <div class="widget-popover-footer">
       <button type="button" class="toolbar-btn" data-popover-reset title="Reset the track's own style (not the logo or backgrounds)">↺ Reset Track</button>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
+    </div>
+  </div>
+
+  <!-- Ghost pins settings popover, beside the track: Settings > Ghost Pins or the Track dialog link (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-ghosts" data-widget="ghosts" data-anchor="track" role="dialog" aria-label="Ghost pin settings" hidden>
+    <div class="widget-popover-header" title="Drag to move; double-click to put it back beside the widget">
+      <h3>👻 Ghost Pins</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body">
+      <!-- Live Ghost Runner -->
+      <div class="modal-section-title">Ghosts</div>
+      <div class="modal-row">
+        <label>Ghost Pins (Toggle Multiple)</label>
+        <div class="ghost-pill-row" id="ghost-pill-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
+          <button type="button" class="preset-pill-btn" data-ghost-pill="off" id="ghost-pill-off">Off</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="wr" id="ghost-pill-wr">🏆 WR</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="pb" id="ghost-pill-pb">🥈 PB</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="best" id="ghost-pill-best">⭐ Best</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="average" id="ghost-pill-average">📊 Avg</button>
+          <button type="button" class="preset-pill-btn" data-ghost-pill="worst" id="ghost-pill-worst">🐢 Worst</button>
+        </div>
+      </div>
+      <div class="modal-row">
+        <label>Quick Preset</label>
+        <select id="select-ghost-comparison" class="modal-select">
+          <option value="off">Off (Disabled)</option>
+          <option value="wr">World Record (🏆)</option>
+          <option value="pb">Personal Best (🥈)</option>
+          <option value="wr,pb">Dual: WR (🏆) + PB (🥈)</option>
+          <option value="best">Best Segments (⭐)</option>
+          <option value="wr,best">Dual: WR (🏆) + Best (⭐)</option>
+          <option value="average">Average Segments (📊)</option>
+          <option value="worst">Worst Segments (🐢)</option>
+        </select>
+      </div>
+      <!-- Pin style: ghost pins and race pins -->
+      <div class="modal-section-title">Pin Style</div>
+      <div class="modal-row" id="row-ghost-pin-length">
+        <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
+        <input type="range" id="slider-ghost-pin-length" min="0" max="36" value="16" step="1">
+      </div>
+      <div class="modal-row" id="row-ghost-pin-size">
+        <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
+        <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
+      </div>
+      <div class="modal-row" id="row-ghost-pin-pos">
+        <label>Ghost Pin Side</label>
+        <div class="segmented-control" id="ctrl-pin-pos">
+          <button class="seg-btn active" data-val="auto">Auto</button>
+          <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
+          <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+        </div>
+      </div>
+      <div class="modal-row" id="row-pin-lane">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Keep Pins Clear of Split Text</span>
+          <input type="checkbox" id="cb-pin-lane" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Reserves a lane beside the bar for the pins while ghosts or race pins are on. Auto puts pins on top, or on the delta side of a vertical track.</span>
+      </div>
+      <div class="modal-row" id="row-ghost-opacity">
+        <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
+        <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
+      </div>
+      <div class="modal-hint" id="ghost-hint">💡 Pins extend to this length in open track space and automatically compact over split text. Toggle multiple pins to compare paces live.</div>
+      <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Pin style also applies to competitors' race pins.</span>
+    </div>
+    <div class="widget-popover-footer">
+      <button type="button" class="toolbar-btn" data-popover-reset title="Reset the pin style (keeps the chosen ghosts)">↺ Reset Pins</button>
       <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
     </div>
   </div>

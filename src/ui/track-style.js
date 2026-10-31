@@ -44,7 +44,8 @@
     title: Object.freeze(["logoHeight", "bgTitle"]),
     timers: Object.freeze(["bgTimers"]),
     track: Object.freeze(["orientation", "namePos", "deltaPos", "nameFontSize", "deltaFontSize", "barHeight",
-      "dotSize", "ghostPinLength", "ghostPinSize", "pinPos", "pinLane", "bgTrack"])
+      "dotSize", "bgTrack"]),
+    ghosts: Object.freeze(["ghostPinLength", "ghostPinSize", "pinPos", "pinLane"])
   });
 
   // Pin sides map across orientations the way split names do: top <-> left, bottom <-> right

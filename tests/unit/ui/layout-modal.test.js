@@ -78,7 +78,9 @@
       <div id="hud-comp-track" class="hud-component" data-component-id="track"><button data-action="open-settings" id="lm-cog-track"></button></div>
       <div class="widget-popover" id="lm-popover-track" data-widget="track" hidden>
         <button data-popover-reset id="lm-popover-reset"></button><button data-popover-close id="lm-popover-done"></button>
+        <button data-open-popover="ghosts" id="lm-open-ghosts"></button>
       </div>
+      <div class="widget-popover" id="lm-popover-ghosts" data-widget="ghosts" data-anchor="track" hidden></div>
       <div class="widget-popover" id="lm-popover-timers" data-widget="timers" hidden><button data-popover-reset id="lm-timers-reset"></button></div>
       <div class="widget-popover" data-widget="lm-no-style" hidden><button data-popover-reset id="lm-lb-reset"></button></div>
       <button id="lm-open-track" data-open-widget-popover="track"></button>
@@ -160,6 +162,15 @@
       assert(pop.hidden, "the cog toggles it closed");
       el("lm-cog-title").click();
       assert(pop.hidden, "a widget without a popover opens nothing");
+    }));
+
+    it("the Track dialog's link swaps it for the Ghost Pins dialog, saving on the way", () => withModal(({ el, called }) => {
+      el("lm-cog-track").click();
+      const saves = called("saveStyle").length;
+      el("lm-open-ghosts").click();
+      assert(el("lm-popover-track").hidden, "track dialog closed");
+      assert(!el("lm-popover-ghosts").hidden, "ghost pins dialog open");
+      assertEqual(called("saveStyle").length, saves + 1, "closing the track dialog saved");
     }));
 
     it("the track cog toggles its popover; Done saves, Reset restores only the track's keys", () => withModal(({ el, called }) => {

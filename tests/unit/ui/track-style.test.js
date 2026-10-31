@@ -112,6 +112,12 @@
         assertEqual([current.bgOpacity, current.logoHeight], [10, 99], "backgrounds and logo kept");
         assertEqual(logoRemoved, false);
 
+        current.ghostPinLength = 30;
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.track);
+        assertEqual(current.ghostPinLength, 30, "the track reset leaves the pin style alone");
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.ghosts);
+        assertEqual(current.ghostPinLength, 16, "the ghost pins reset restores it");
+
         engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.title);
         assertEqual(current.logoHeight, 60, "title reset: the logo height");
         assertEqual(logoRemoved, false, "but keeps the logo itself");

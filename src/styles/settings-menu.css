@@ -454,7 +454,6 @@ body.edit-mode .settings-menu-panel {
 }
 
 .settings-action-btn.action-race {
-  grid-column: 1 / -1;
   background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(30, 41, 59, 0.85) 100%);
   border: 1px solid rgba(74, 222, 128, 0.4);
   color: #4ade80;
