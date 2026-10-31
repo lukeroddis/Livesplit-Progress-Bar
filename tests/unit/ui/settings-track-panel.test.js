@@ -18,7 +18,6 @@
   const PANEL_HTML = `
     <div id="track"></div>
     ${seg("ctrl-track-orient", ["horizontal", "vertical"])}
-    <button id="track-orient-badge"></button>
     <div id="opposing-hint"></div>
     ${seg("ctrl-name-pos", ["top", "bottom", "left", "right"], posClass)}
     ${seg("ctrl-delta-pos", ["top", "bottom", "left", "right"], posClass)}
@@ -30,9 +29,6 @@
     <input type="range" id="slider-dot-size"><span id="val-dot-size"></span>
     <button id="btn-splits-dec"></button><input id="input-visible-splits"><button id="btn-splits-inc"></button>
     <button id="btn-splits-fit-all"></button><button id="btn-splits-auto"></button>
-    <button id="modal-splits-dec"></button><input id="modal-input-visible-splits"><button id="modal-splits-inc"></button>
-    <button id="modal-btn-splits-all"></button><button id="modal-btn-splits-auto"></button>
-    <span id="val-visible-splits"></span>
     <input type="checkbox" id="cb-always-show-last-split">`;
 
   const TOUCHED_KEYS = [KEYS.SPLIT_ANGLE, KEYS.VISIBLE_SPLITS, KEYS.ALWAYS_SHOW_LAST];
@@ -67,7 +63,6 @@
     it("syncs a horizontal track: segments, badge, Top/Bottom buttons, sliders and defaults", () => withPanel(({ dom, el, panel, active }) => {
       panel.sync({ orientation: "horizontal", namePos: "top", deltaPos: "bottom", nameFontSize: 17, deltaFontSize: 15, barHeight: 6, dotSize: 15 });
       assertEqual(active("ctrl-track-orient"), "horizontal");
-      assertEqual(el("track-orient-badge").innerText, "Orient: Horiz");
       assertEqual(active("ctrl-name-pos"), "top");
       assertEqual(active("ctrl-delta-pos"), "bottom");
       assertEqual(active("ctrl-modal-angle"), "auto");
@@ -76,14 +71,12 @@
       assertEqual(dom.root.querySelector('#ctrl-name-pos [data-val="left"]').style.display, "none", "Left/Right hidden");
       assertEqual(el("val-name-font").innerText, "17px");
       assertEqual(el("val-dot-size").innerText, "15px");
-      assertEqual(el("val-visible-splits").innerText, "Auto");
-      assert(el("btn-splits-auto").classList.contains("active") && el("modal-btn-splits-auto").classList.contains("active"));
+      assert(el("btn-splits-auto").classList.contains("active"));
       assert(el("cb-always-show-last-split").checked, "Always Show Last defaults on");
     }));
 
     it("syncs a vertical track with Left/Right buttons and the vertical hint", () => withPanel(({ dom, el, panel }) => {
       panel.sync({ orientation: "vertical", namePos: "left", deltaPos: "right" });
-      assertEqual(el("track-orient-badge").innerText, "Orient: Vert");
       assertEqual(el("opposing-hint").style.display, "block");
       assert(el("opposing-hint").innerText.includes("vertical timeline"));
       assertEqual(dom.root.querySelector('#ctrl-name-pos [data-val="top"]').style.display, "none", "Top/Bottom hidden");
@@ -107,22 +100,17 @@
       localStorage.setItem(KEYS.VISIBLE_SPLITS, "12");
       panel.sync({});
       assertEqual(el("input-visible-splits").value, "12");
-      assertEqual(el("modal-input-visible-splits").value, "12");
-      assertEqual(el("val-visible-splits").innerText, "12 splits");
 
       localStorage.setItem(KEYS.VISIBLE_SPLITS, "all");
       panel.sync({});
-      assertEqual(el("val-visible-splits").innerText, "Fit All");
-      assert(el("modal-btn-splits-all").classList.contains("active"));
+      assert(el("btn-splits-fit-all").classList.contains("active"));
     }));
 
-    it("orientation segments and the badge call setTrackOrientation", () => withPanel(({ el, panel, log, click, style }) => {
+    it("orientation segments call setTrackOrientation", () => withPanel(({ panel, log, click }) => {
       panel.bind();
       click("ctrl-track-orient", "vertical");
-      el("track-orient-badge").click();
-      style.orientation = "vertical";
-      el("track-orient-badge").click();
-      assertEqual(log.orientation, ["vertical", "vertical", "horizontal"], "badge flips the current orientation");
+      click("ctrl-track-orient", "horizontal");
+      assertEqual(log.orientation, ["vertical", "horizontal"]);
     }));
 
     it("positions move freely when flat, and stay opposite in angle mode", () => withPanel(({ panel, style, log, click }) => {
@@ -186,7 +174,7 @@
       el("btn-splits-dec").click();
       assertEqual(log.visible.slice(1), [8, 7]);
 
-      const input = el("modal-input-visible-splits");
+      const input = el("input-visible-splits");
       input.value = "99";
       input.dispatchEvent(new Event("input"));
       assertEqual(log.visible.length, 3, "out-of-range typing is ignored until committed");
@@ -197,7 +185,7 @@
       assertEqual(log.visible.slice(-2), [60, 5]);
 
       el("btn-splits-fit-all").click();
-      el("modal-btn-splits-auto").click();
+      el("btn-splits-auto").click();
       assertEqual(log.visible.slice(-2), ["all", "auto"]);
     }));
 

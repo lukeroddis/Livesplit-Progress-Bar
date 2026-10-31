@@ -97,6 +97,52 @@
       });
     });
 
+    it("a widget reset restores only that widget's keys and keeps the logo", () => {
+      withCleanTrackStyleEnv(() => {
+        let current = { barHeight: 20, orientation: "vertical", bgOpacity: 10, logoHeight: 99 };
+        let logoRemoved = false;
+        const engine = window.LiveSplit.TrackStyle.createTrackStyle({
+          getCurrentStyle: () => current,
+          setCurrentStyle: (s) => { current = s; },
+          removeGameLogo: () => { logoRemoved = true; }
+        });
+
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.track);
+        assertEqual([current.barHeight, current.orientation], [6, "horizontal"], "track keys reset");
+        assertEqual([current.bgOpacity, current.logoHeight], [10, 99], "backgrounds and logo kept");
+        assertEqual(logoRemoved, false);
+
+        current.ghostPinLength = 30;
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.track);
+        assertEqual(current.ghostPinLength, 30, "the track reset leaves the pin style alone");
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.ghosts);
+        assertEqual(current.ghostPinLength, 16, "the ghost pins reset restores it");
+
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.title);
+        assertEqual(current.logoHeight, 60, "title reset: the logo height");
+        assertEqual(logoRemoved, false, "but keeps the logo itself");
+      });
+    });
+
+    it("a reset that changes the orientation re-docks the track for it", () => {
+      withCleanTrackStyleEnv(() => {
+        let current = { orientation: "vertical", namePos: "left", deltaPos: "right" };
+        const layout = { track: { docked: "left", x: 0, y: 0 } };
+        const applied = [];
+        const engine = window.LiveSplit.TrackStyle.createTrackStyle({
+          getCurrentStyle: () => current,
+          setCurrentStyle: (s) => { current = s; },
+          getLayoutState: () => layout,
+          applyComponentLayout: (id) => applied.push(id)
+        });
+
+        engine.resetStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.track);
+        assertEqual(current.orientation, "horizontal");
+        assertEqual(layout.track.docked, "bottom", "a left-docked vertical track goes back to the bottom");
+        assertEqual(applied, ["track"], "and is laid out again");
+      });
+    });
+
     it("handles setVisibleSplits with auto, all, and clamped integers (2..60)", () => {
       withCleanTrackStyleEnv(() => {
         const engine = window.LiveSplit.TrackStyle.createTrackStyle();

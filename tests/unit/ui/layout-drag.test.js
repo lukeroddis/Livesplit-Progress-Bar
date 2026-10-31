@@ -348,11 +348,12 @@
       assert(!dom.el("hud-comp-leaderboard").classList.contains("is-dragging"));
     }, { editMode: false }));
 
-    it("the visibility toggle flips a component and saves", () => withHud(({ dom, layout, log }) => {
-      dom.root.querySelector('[data-action="toggle-visibility"]').click();
-      assertEqual(layout.title.visible, false);
-      assertEqual(log.applied, ["title"]);
-      assertEqual(log.saves, 1);
+    it("the header hide button toggles the component's visible.* setting", () => withHud(({ dom }) => {
+      const toggled = [];
+      window.TestUtils.stubOverlay({ settings: { toggle: (id) => toggled.push(id) } }, () => {
+        dom.root.querySelector('[data-action="toggle-visibility"]').click();
+      });
+      assertEqual(toggled, ["visible.title"]);
     }));
 
     function withTrackRefreshStubs(fn) {

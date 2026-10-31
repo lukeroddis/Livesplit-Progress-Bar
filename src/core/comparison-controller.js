@@ -43,7 +43,6 @@
       if (method && (method === "GameTime" || method === "RealTime")) {
         state.currentTimingMethod = method;
       }
-      app.updateTimingMethodBadge();
       app.updateTimerDisplayHierarchy();
 
       const isRT = state.currentTimingMethod === "RealTime";
@@ -96,16 +95,6 @@
       state.comparisonTimes = state.splitsList.map((_, i) => {
         return activeTargets[i] ?? fallbackTargets[i] ?? null;
       });
-
-      const badge = document.getElementById("comparison-badge");
-      if (badge) {
-        badge.innerText = `Comp: ${app.getShortComparisonName(state.currentComparison)}`;
-      }
-
-      const selComp = document.getElementById("select-active-comparison");
-      if (selComp && selComp.value !== state.currentComparison) {
-        selComp.value = state.currentComparison;
-      }
 
       let prevDiff = 0;
       for (let i = 0; i < state.splitsList.length; i++) {

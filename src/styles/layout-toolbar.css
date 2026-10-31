@@ -113,6 +113,34 @@ body.edit-mode .layout-toolbar {
   color: #ffffff;
 }
 
+/* Shared background plate opacity / blur */
+.toolbar-plate-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.toolbar-plate-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.toolbar-plate-group input[type="range"] {
+  width: 72px;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
+.toolbar-plate-group .val-badge {
+  min-width: 30px;
+  font-size: 10px;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
 .toolbar-spinbox-group {
   display: flex;
   align-items: center;

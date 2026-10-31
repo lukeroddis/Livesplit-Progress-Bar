@@ -1,112 +1,259 @@
 <!DOCTYPE html>
 <!--
-  dock.html - Experimental OBS Custom Browser Dock for the race code.
+  dock.html - OBS Custom Browser Dock (optional): race code and live settings.
 
   Add it in OBS via Docks > Custom Browser Docks, using a file:/// URL to this file.
-  It talks to the overlay through localStorage (see src/ui/race-dock-bridge.js), so
-  the overlay's browser source must use the same kind of URL (file:///...) for both
-  pages to share storage. The status line shows whether the overlay is reachable.
+  It talks to the overlay through localStorage (see src/ui/dock-bridge.js), so the
+  overlay's browser source must use the same kind of URL (file:///...) for both pages
+  to share storage. The status line shows whether the overlay is reachable.
+
+  The overlay is the only writer of settings: this page sends commands and renders
+  purely from the overlay's status snapshot, including the settings' schema, so new
+  dock settings in src/core/settings-registry.js appear here without editing it.
 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Race Dock</title>
+  <title>Overlay Dock</title>
   <style>
     :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
     body {
-      margin: 0; padding: 10px; background: #1e1f22; color: #e2e8f0;
+      margin: 0; padding: 8px; background: #1e1f22; color: #e2e8f0;
       font: 13px/1.4 system-ui, "Segoe UI", sans-serif;
     }
-    .row { display: flex; gap: 6px; margin-bottom: 8px; }
+    .row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
     input {
-      flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid #3f4248; border-radius: 4px;
+      flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid #3f4248; border-radius: 4px;
       background: #111214; color: inherit; font: inherit;
     }
-    button {
-      padding: 6px 10px; border: 1px solid #3f4248; border-radius: 4px; background: #2b2d31;
+    button, select {
+      padding: 5px 9px; border: 1px solid #3f4248; border-radius: 4px; background: #2b2d31;
       color: inherit; font: inherit; cursor: pointer;
     }
-    button:hover { background: #35373c; }
-    #btn-disconnect { color: #f87171; }
-    .status { display: flex; align-items: center; gap: 6px; }
+    select { min-width: 0; flex: 1; }
+    button:hover:not(:disabled) { background: #35373c; }
+    button:disabled, select:disabled, input:disabled { opacity: 0.45; cursor: default; }
+    button.sr-on { background: #164e63; border-color: #38bdf8; color: #e0f2fe; }
+    #btn-race.disconnect { color: #f87171; }
+    .status { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
     .dot { width: 9px; height: 9px; border-radius: 50%; background: #64748b; flex: none; }
     .dot.ok { background: #4ade80; }
     .dot.warn { background: #f59e0b; }
     .dot.bad { background: #ef4444; }
-    .muted { color: #94a3b8; font-size: 11px; margin-top: 6px; word-break: break-all; }
+    .muted { color: #94a3b8; font-size: 11px; word-break: break-all; }
+    details { border-top: 1px solid #2f3136; padding: 6px 0 2px; }
+    summary {
+      cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; user-select: none;
+    }
+    /* Setting rows from src/ui/settings-renderer.js */
+    .sr-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    .sr-row[hidden] { display: none; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="wr"] { background: #facc15; border-color: #facc15; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="pb"] { background: #38bdf8; border-color: #38bdf8; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="best"] { background: #eab308; border-color: #eab308; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="average"] { background: #a78bfa; border-color: #a78bfa; color: #0f172a; }
+    .sr-row[data-setting="ghosts"] button.sr-on[data-option="worst"] { background: #f87171; border-color: #f87171; color: #0f172a; }
+    .sr-label { flex: none; max-width: 45%; color: #cbd5e1; }
+    .sr-control { display: flex; gap: 4px; flex: 1; justify-content: flex-end; flex-wrap: wrap; min-width: 0; }
+    .sr-seg button { flex: 1; padding: 5px 4px; }
+    .sr-num { width: 44px; flex: none; text-align: center; padding: 5px 2px; }
+    .sr-slider { flex: 1; min-width: 0; accent-color: #38bdf8; cursor: pointer; }
+    .sr-slider-val { flex: none; min-width: 3.2em; text-align: right; color: #94a3b8; font-size: 11px; }
+    .error { color: #fca5a5; font-size: 11px; min-height: 1em; }
   </style>
 </head>
 <body>
-  <div class="row">
-    <input id="race-code" type="text" placeholder="Race code" autocomplete="off" spellcheck="false">
-    <button id="btn-connect">Connect</button>
-  </div>
-  <div class="row">
-    <button id="btn-disconnect">Disconnect</button>
-  </div>
   <div class="status"><span id="dot" class="dot"></span><span id="status">Waiting for overlay…</span></div>
+
+  <details open id="section-race">
+    <summary>Race</summary>
+    <div class="row">
+      <input id="race-code" type="text" placeholder="Race code" autocomplete="off" spellcheck="false">
+      <button id="btn-race">Connect</button>
+    </div>
+    <div id="race-settings"></div>
+  </details>
+  <div id="sections"></div>
+
+  <div id="error" class="error"></div>
+  <div class="muted" id="keys-hint">Keys: C / Shift+C (or ] / [) comparison · ← / → scroll splits</div>
   <div id="detail" class="muted"></div>
 
+  <!-- Shared with the overlay's settings dialogs; the build inlines it into dist/dock.html -->
+  <script src="src/ui/settings-renderer.js"></script>
   <script>
     (function () {
       "use strict";
 
-      // Must match Storage.KEYS.DOCK_COMMAND / DOCK_STATUS in src/core/storage.js
+      // Must match Storage.KEYS.DOCK_COMMAND / DOCK_STATUS in src/core/storage.js (tests/test_structure.py checks)
       const COMMAND_KEY = "livesplit_dock_command";
       const STATUS_KEY = "livesplit_dock_status";
       const STALE_MS = 6000;
+      // Registry groups -> dock sections ("race" settings join the Race section above)
+      const SECTIONS = [
+        { group: "profile", title: "Profile" },
+        { group: "timers", title: "Run" },
+        { group: "track", title: "Track" },
+        { group: "ghosts", title: "Ghost Pins" },
+        { group: "visibility", title: "Visibility" }
+      ];
+      const RACE_GROUPS = ["leaderboard"];
 
-      const codeInp = document.getElementById("race-code");
-      const dot = document.getElementById("dot");
-      const statusEl = document.getElementById("status");
-      const detailEl = document.getElementById("detail");
+      const $ = (id) => document.getElementById(id);
+      const codeInp = $("race-code");
       let pendingId = null;
+      let builtKey = "";
+      let lastStatus = null;
 
       function readStatus() {
         try { return JSON.parse(localStorage.getItem(STATUS_KEY) || "null"); } catch (_) { return null; }
       }
 
+      function send(cmd) {
+        pendingId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+        try {
+          localStorage.setItem(COMMAND_KEY, JSON.stringify(Object.assign({ id: pendingId }, cmd)));
+        } catch (e) {
+          $("status").textContent = "Could not write storage: " + e.message;
+          $("dot").className = "dot bad";
+        }
+      }
+
+      const setSetting = (setting, value) => send({ action: "set", setting, value });
+      const renderer = window.LiveSplit.SettingsRenderer.createSettingsRenderer({
+        set: setSetting,
+        run: (setting, value) => send({ action: "run", setting, value }),
+        getValue: (id) => lastStatus && lastStatus.settings ? lastStatus.settings.values[id] : undefined
+      });
+
+      function el(tag, props, children) {
+        const node = Object.assign(document.createElement(tag), props || {});
+        (children || []).forEach((c) => node.appendChild(c));
+        return node;
+      }
+
+      // Rebuilds the controls only when the schema or options change, so focus survives value updates
+      function build(settings) {
+        const key = JSON.stringify([settings.schema, settings.options]);
+        if (key === builtKey) return;
+        builtKey = key;
+        renderer.reset();
+        const raceBox = $("race-settings");
+        const sections = $("sections");
+        const openState = {};
+        sections.querySelectorAll("details").forEach((d) => { openState[d.dataset.group] = d.open; });
+        raceBox.replaceChildren();
+        sections.replaceChildren();
+
+        settings.schema.filter((def) => RACE_GROUPS.includes(def.group)).forEach((def) => {
+          const row = renderer.row(def, settings.options[def.id]);
+          if (row) raceBox.appendChild(row);
+        });
+        SECTIONS.forEach(({ group, title }) => {
+          const rows = settings.schema.filter((def) => def.group === group)
+            .map((def) => renderer.row(def, settings.options[def.id])).filter(Boolean);
+          if (rows.length === 0) return;
+          const details = el("details", { open: openState[group] !== false }, [el("summary", { textContent: title }), ...rows]);
+          details.dataset.group = group;
+          sections.appendChild(details);
+        });
+      }
+
+      function setEnabled(enabled) {
+        document.querySelectorAll("#race-settings button, #sections button, #sections input, #sections select")
+          .forEach((c) => { c.disabled = !enabled; });
+      }
+
+      function isLinked() {
+        return !!lastStatus && typeof lastStatus.at === "number" && Date.now() - lastStatus.at <= STALE_MS;
+      }
+
       function render() {
         const s = readStatus();
+        lastStatus = s;
         const age = s && typeof s.at === "number" ? Date.now() - s.at : Infinity;
-        detailEl.textContent = "Dock origin: " + location.origin + (location.protocol === "file:" ? " (file)" : "");
+        $("detail").textContent = "Dock origin: " + location.origin + (location.protocol === "file:" ? " (file)" : "") +
+          (s && s.profile ? " · Profile: " + s.profile : "");
 
-        if (!s || age > STALE_MS) {
-          dot.className = "dot bad";
-          statusEl.textContent = s ? "Overlay not seen for " + Math.round(age / 1000) + "s" : "Overlay not found (no shared storage yet)";
+        if (s && s.settings && Array.isArray(s.settings.schema)) {
+          build(s.settings);
+          renderer.update(s.settings.values);
+        }
+
+        const linked = !!s && age <= STALE_MS;
+        setEnabled(linked);
+        if (!linked) {
+          $("dot").className = "dot bad";
+          $("status").textContent = s ? "Overlay not seen for " + Math.round(age / 1000) + "s" : "Overlay not found (no shared storage yet)";
           return;
         }
         const labels = { connected: "Connected: " + s.raceId, standby: "Standby", sim: "Test race running", off: "Not connected" };
-        dot.className = "dot " + (s.state === "connected" || s.state === "sim" ? "ok" : s.state === "standby" ? "warn" : "");
-        let text = "Overlay linked · " + (labels[s.state] || s.state);
-        if (pendingId !== null && s.lastCommandId === pendingId && s.lastResult) text += " (" + s.lastResult + ")";
-        statusEl.textContent = text;
+        $("dot").className = "dot " + (s.state === "connected" || s.state === "sim" ? "ok" : s.state === "standby" ? "warn" : "");
+        $("status").textContent = "Overlay linked · " + (labels[s.state] || s.state) + (s.settings ? "" : " (update the overlay for more controls)");
+
+        syncRaceControls(s);
+
+        const mine = pendingId !== null && s.lastCommandId === pendingId;
+        $("error").textContent = mine && s.lastResult && !/^(ok|connected|disconnected|already connected)$/.test(s.lastResult) ? s.lastResult : "";
       }
 
-      function send(action, code) {
-        pendingId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-        try {
-          localStorage.setItem(COMMAND_KEY, JSON.stringify({ action, code: code || "", id: pendingId }));
-        } catch (e) {
-          statusEl.textContent = "Could not write storage: " + e.message;
-          dot.className = "dot bad";
-        }
+      // One Connect / Disconnect button following the overlay's race state, like the overlay's own
+      // button, so it stays in step whichever side connected
+      const isRaceActive = (s) => !!s && (s.state === "connected" || s.state === "standby" || s.state === "sim");
+      let shownRaceId = "";
+
+      function syncRaceControls(s) {
+        const active = isRaceActive(s);
+        const btn = $("btn-race");
+        btn.textContent = active ? "Disconnect" : "Connect";
+        btn.classList.toggle("disconnect", active);
+        // Show the code of the race the overlay is in (connected from either side), unless being typed in
+        const raceId = s.state === "connected" ? String(s.raceId || "") : "";
+        if (raceId && raceId !== shownRaceId && document.activeElement !== codeInp) codeInp.value = raceId;
+        shownRaceId = raceId;
       }
 
-      document.getElementById("btn-connect").addEventListener("click", () => {
-        const code = codeInp.value.trim();
-        if (!/^[a-zA-Z0-9_-]{2,24}$/.test(code)) {
-          statusEl.textContent = "Enter a valid race code";
-          dot.className = "dot warn";
+      $("btn-race").addEventListener("click", () => {
+        if (isRaceActive(lastStatus)) {
+          send({ action: "disconnect" });
           return;
         }
-        send("connect", code);
+        const code = codeInp.value.trim();
+        if (!/^[a-zA-Z0-9_-]{2,24}$/.test(code)) {
+          $("error").textContent = "Enter a valid race code";
+          return;
+        }
+        send({ action: "connect", code });
       });
       codeInp.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") document.getElementById("btn-connect").click();
+        if (e.key === "Enter" && !isRaceActive(lastStatus)) $("btn-race").click();
       });
-      document.getElementById("btn-disconnect").addEventListener("click", () => send("disconnect"));
+
+      // The overlay's hotkeys, while the dock has keyboard focus (OBS gives docks focus, not sources)
+      function stepSetting(id, dir) {
+        const settings = lastStatus && lastStatus.settings;
+        const opts = settings && settings.options && settings.options[id];
+        if (!opts || opts.length === 0) return;
+        const at = opts.indexOf(settings.values[id]);
+        setSetting(id, opts[((at === -1 ? 0 : at + dir) + opts.length) % opts.length]);
+      }
+
+      window.addEventListener("keydown", (e) => {
+        const t = e.target;
+        if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
+        if (e.ctrlKey || e.altKey || e.metaKey || !isLinked()) return;
+        let handled = true;
+        if (e.key === "c" || e.key === "C") stepSetting("comparison", e.shiftKey ? -1 : 1);
+        else if (e.code === "Numpad6" || e.key === "]") stepSetting("comparison", 1);
+        else if (e.code === "Numpad4" || e.key === "[") stepSetting("comparison", -1);
+        else if (e.key === "ArrowRight" || e.key === "ArrowDown") send({ action: "run", setting: "trackScroll", value: 1 });
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") send({ action: "run", setting: "trackScroll", value: -1 });
+        else handled = false;
+        if (handled) e.preventDefault();
+      });
 
       window.addEventListener("storage", (e) => { if (e.key === STATUS_KEY) render(); });
       setInterval(render, 1000);

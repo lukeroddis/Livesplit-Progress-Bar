@@ -1,15 +1,16 @@
 /**
- * src/ui/layout-modal.js - Layout Toolbar & Track Customizer Modal Controller
+ * src/ui/layout-modal.js - Layout Toolbar & Widget Settings Controller
  *
- * Composes the settings panels shared by the edit-mode toolbar and the track
- * customizer modal, and owns the controls that belong to the layout itself:
- * - Modal open / close (backdrop, buttons, Escape) and full settings sync
+ * Composes the settings panels shared by the edit-mode toolbar and the widget
+ * settings popovers, and owns the controls that belong to the layout itself:
+ * - Full settings sync (popover open, entering Layout Mode)
+ * - Widget header cogs: toggle the component's settings popover (widget-popover.js)
  * - Settings panels: track (settings-track-panel.js), backgrounds
  *   (settings-background-panel.js), ghosts (settings-ghost-panel.js), timing
  *   (settings-timing-panel.js), profiles (layout-profiles-panel.js)
  * - Toolbar lock / reset / edit buttons and component visibility checkboxes
  * - Custom logo height slider
- * - Global hotkeys ('E' / 'F2' edit mode, 'Escape' closes modals) and resize clamping
+ * - Global hotkeys ('E' / 'F2' edit mode, 'Escape' closes modals / the popover) and resize clamping
  */
 
 (function () {
@@ -26,7 +27,6 @@
       setTrackOrientation = () => {},
       setVisibleSplits = () => {},
       getLayoutState = () => ({}),
-      saveLayout = () => {},
       resetLayout = () => {},
       setEditMode = () => {},
       toggleEditMode = () => {},
@@ -47,24 +47,24 @@
       window.LiveSplit.SettingsTimingPanel.createTimingPanel()
     ];
 
-    function openTrackModal() {
-      const modal = document.getElementById("track-modal");
-      if (modal) {
-        modal.style.display = "flex";
-        setTimeout(() => modal.classList.add("is-open"), 10);
+    // Registry settings in the dialogs, rendered like the dock
+    const dialogRows = window.LiveSplit.SettingsDialogRows.createDialogRows();
+
+    const popovers = window.LiveSplit.WidgetPopover.createWidgetPopovers({
+      onOpen: () => syncUI(),
+      onClose: () => saveTrackStyle(),
+      // Only widgets with style keys of their own have a reset (never the whole style)
+      onReset: (compId) => {
+        const keys = window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS[compId];
+        if (!keys) return;
+        resetTrackStyle(keys);
         syncUI();
       }
-    }
+    });
 
-    function closeTrackModal() {
-      const modal = document.getElementById("track-modal");
-      if (modal) {
-        modal.classList.remove("is-open");
-        setTimeout(() => {
-          modal.style.display = "none";
-        }, 200);
-        saveTrackStyle();
-      }
+    // Widget cog: toggles the component's settings popover
+    function openWidgetSettings(compId) {
+      popovers.toggle(compId);
     }
 
     function syncUI() {
@@ -79,6 +79,7 @@
       }
 
       syncTimerAnchorUI();
+      dialogRows.build();
     }
 
     function bindToolbar() {
@@ -86,34 +87,32 @@
       document.getElementById("btn-reset-layout")?.addEventListener("click", resetLayout);
       document.getElementById("layout-edit-btn")?.addEventListener("click", toggleEditMode);
 
-      // Component visibility checkboxes
-      const layoutState = getLayoutState();
+      // Component visibility checkboxes (through the settings registry, so listeners hear it)
       COMPONENTS.forEach((id) => {
-        const cb = document.getElementById(`cb-toggle-${id}`);
-        if (cb) {
-          cb.addEventListener("change", () => {
-            if (layoutState[id]) {
-              layoutState[id].visible = cb.checked;
-              applyComponentLayout(id);
-              saveLayout();
-            }
-          });
-        }
+        document.getElementById(`cb-toggle-${id}`)?.addEventListener("change", (e) => {
+          window.LiveSplit.Overlay.settings?.set(`visible.${id}`, e.target.checked);
+        });
       });
     }
 
     function bindModalTriggers() {
-      document.getElementById("btn-open-track-modal")?.addEventListener("click", openTrackModal);
-      document.getElementById("track-style-badge")?.addEventListener("click", openTrackModal);
-      document.getElementById("btn-close-track-modal")?.addEventListener("click", closeTrackModal);
-      document.getElementById("btn-save-track-style")?.addEventListener("click", closeTrackModal);
-      document.getElementById("btn-reset-track-style")?.addEventListener("click", resetTrackStyle);
-
-      document.getElementById("track-modal")?.addEventListener("click", (e) => {
-        if (e.target.id === "track-modal") {
-          closeTrackModal();
-        }
+      document.querySelectorAll('.hud-component [data-action="open-settings"]').forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openWidgetSettings(btn.closest(".hud-component")?.dataset.componentId);
+        });
       });
+      // Settings menu buttons: data-open-widget-popover opens a popover in Layout Mode (Title / Timer /
+      // Track Settings: the menu closes for it), data-open-popover without it (Ghost Pins, Live Race
+      // Settings: the menu stays open beside it)
+      document.querySelectorAll("[data-open-widget-popover], [data-open-popover]").forEach((btn) => btn.addEventListener("click", () => {
+        if (btn.dataset.openWidgetPopover) {
+          window.LiveSplit.Overlay.toggleSettingsMenu?.(false);
+          setEditMode(true);
+        }
+        popovers.open(btn.dataset.openWidgetPopover || btn.dataset.openPopover);
+      }));
+      popovers.bind();
     }
 
     function bindLogoControls() {
@@ -155,10 +154,9 @@
             if (pe) pe.closeExportModal();
             return;
           }
-          const modal = document.getElementById("track-modal");
-          if (modal && modal.classList.contains("is-open")) {
+          if (popovers.isOpen()) {
             e.preventDefault();
-            closeTrackModal();
+            popovers.close();
           } else if (isEditMode()) {
             e.preventDefault();
             setEditMode(false);
@@ -231,8 +229,8 @@
     }
 
     return {
-      openTrackModal,
-      closeTrackModal,
+      openWidgetSettings,
+      closeWidgetPopover: popovers.close,
       syncUI,
       bindToolbarAndControls
     };

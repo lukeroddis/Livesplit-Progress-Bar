@@ -15,6 +15,7 @@
  *   src/ui/timing-controls.js         timer display mode & gold toggle
  *   src/ui/hud-titles.js              game / category titles
  *   src/ui/hud-bindings.js            badge, hotkey and control bindings
+ *   src/core/settings-registry.js     live settings by id (app.settings)
  *   src/core/window-api.js            window.* API for layout.js and tests
  *
  * Controllers call each other through app.<fn> at call time, so script order
@@ -48,6 +49,7 @@ window.LiveSplit.TrackStatus.installTrackStatus(app);
 window.LiveSplit.TimingControls.installTimingControls(app);
 window.LiveSplit.HudTitles.installHudTitles(app);
 window.LiveSplit.HudBindings.installHudBindings(app);
+window.LiveSplit.SettingsRegistry.installSettingsRegistry(app);
 
 const ALL_DELTA_CLASSES = window.LiveSplit.TrackRenderer.ALL_DELTA_CLASSES;
 const ALL_SPLIT_STATE_CLASSES = window.LiveSplit.TrackRenderer.ALL_SPLIT_STATE_CLASSES;
@@ -150,7 +152,8 @@ const ghostRunner = window.LiveSplit.GhostRunner.createGhostRunner({
   getLastSplitRecordedSec: () => state.lastSplitRecordedSec,
   getLastElapsedSec: () => state.lastElapsedSec,
   getGhostInfo: (ghostId) => app.getGhostComparisonInfo(ghostId),
-  getRaceClient
+  getRaceClient,
+  getTrackWindowStart: () => state.trackWindowStart
 });
 
 // ============================================================
@@ -205,15 +208,19 @@ function initOverlay() {
       return { splitsList: state.splitsList, gtComparisons, rtComparisons, isAlreadyRunning };
     }
   });
-  // OBS Custom Browser Dock commands (dock.html, src/ui/race-dock-bridge.js)
-  window.LiveSplit.RaceDockBridge.createRaceDockBridge({ raceClient, controls: raceControls }).start();
+  // OBS Custom Browser Dock commands and status (dock.html, src/ui/dock-bridge.js)
+  window.LiveSplit.DockBridge.createDockBridge({
+    settings: app.settings,
+    raceClient,
+    controls: raceControls,
+    getProfileName: () => window.hudLayout?.getActiveProfileName?.() || ""
+  }).start();
   window.LiveSplit.WsLogPanel.bindWsLogPanel(raceClient);
 
   window.LiveSplit.SettingsMenu.initSettingsMenuDraggable();
   setupTrackScrollInteractions();
   app.loadCachedSplits();
   updateTrackDensityAndAngle();
-  ghostRunner.updateGhostBadge();
 
   window.LiveSplit.DevMode.initDevMode();
 
@@ -251,14 +258,14 @@ Object.assign(app, {
   getOrCreateGhostMarker: ghostRunner.getOrCreateGhostMarker,
   refreshLeaderboard: ghostRunner.refreshLeaderboard,
   updateGhostRunner: ghostRunner.updateGhostRunner,
-  updateGhostBadge: ghostRunner.updateGhostBadge,
   setGhostComparison: ghostRunner.setGhostComparison,
   toggleGhostComparison: ghostRunner.toggleGhostComparison,
   cycleGhostComparison: ghostRunner.cycleGhostComparison,
+  setGhostsEnabled: ghostRunner.setGhostsEnabled,
   setGhostOpacity: ghostRunner.setGhostOpacity,
   trackDensity,
   cycleVisibleSplits: trackDensity.cycleVisibleSplits,
-  cycleSplitAngle: trackDensity.cycleSplitAngle,
+  setVisibleSplits: trackDensity.setVisibleSplits,
   updateTrackDensityAndAngle,
   setupTrackScrollInteractions,
   resetSettingsMenuPosition: window.LiveSplit.SettingsMenu.resetSettingsMenuPosition,

@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="src/styles/settings-menu.css">
   <link rel="stylesheet" href="src/styles/settings-profiles.css">
   <link rel="stylesheet" href="src/styles/track-modal.css">
+  <link rel="stylesheet" href="src/styles/widget-popover.css">
   <link rel="stylesheet" href="src/styles/ghost-markers.css">
   <link rel="stylesheet" href="src/styles/toast.css">
   <link rel="stylesheet" href="src/styles/race-pins.css">
@@ -53,7 +54,14 @@
         <option value="horizontal">Angle: Flat</option>
       </select>
     </div>
-    <button class="toolbar-btn" id="btn-open-track-modal" title="Customize progress bar geometry, font sizes, and layout">🎨 Bar Styles</button>
+    <div class="toolbar-plate-group" title="Background plates behind the title, timers and track (switch each one in its ⚙ settings)">
+      <label for="slider-bg-opacity">Plates:</label>
+      <input type="range" id="slider-bg-opacity" min="0" max="95" value="55" step="5" title="Plate opacity">
+      <span class="val-badge" id="val-bg-opacity">55%</span>
+      <label for="slider-bg-blur">Blur:</label>
+      <input type="range" id="slider-bg-blur" min="0" max="20" value="8" step="1" title="Frosted glass blur">
+      <span class="val-badge" id="val-bg-blur">8px</span>
+    </div>
     <button class="toolbar-btn" id="btn-reset-layout" title="Reset all elements to default positions">↺ Reset</button>
     <button class="toolbar-btn btn-primary" id="btn-lock-layout" title="Lock layout and save (Press Esc or E)">🔒 Lock Layout</button>
   </div>
@@ -64,7 +72,8 @@
       <span class="hud-drag-handle">::: Game Info</span>
       <div class="hud-comp-controls">
         <span class="hud-scale-badge" id="badge-scale-title">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="title-group">
@@ -82,7 +91,8 @@
       <div class="hud-comp-controls">
         <button type="button" class="hud-btn-icon" id="badge-anchor-timers" title="Click to cycle Timer Expansion: Auto / Expand Left / Expand Right">⇥ Auto</button>
         <span class="hud-scale-badge" id="badge-scale-timers">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="timer-group">
@@ -105,7 +115,8 @@
       <div class="hud-comp-controls">
         <button class="hud-btn-icon" id="btn-dock-track" title="Toggle bottom dock / free float">⚓ Dock</button>
         <span class="hud-scale-badge" id="badge-scale-track">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="track-viewport" id="track-viewport" tabindex="0">
@@ -132,7 +143,8 @@
       <span class="hud-drag-handle">::: THERUN.GG STANDINGS</span>
       <div class="hud-comp-controls">
         <span class="hud-scale-badge" id="badge-scale-leaderboard">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="race-leaderboard" id="race-leaderboard">
@@ -156,7 +168,7 @@
   <!-- Floating Settings Menu (Bottom Right Corner) -->
   <div class="quick-settings-wrap" id="quick-settings-wrap">
     <!-- Unobtrusive Trigger Pill in Bottom-Right Corner (Click to latch open / close) -->
-    <button type="button" class="settings-trigger-pill" id="settings-trigger-pill" onclick="toggleSettingsMenu()" aria-label="Open LiveSplit Settings" aria-pressed="false" title="Click to open LiveSplit Settings">
+    <button type="button" class="settings-trigger-pill" id="settings-trigger-pill" onclick="toggleSettingsMenu()" aria-label="Open Settings" aria-pressed="false" title="Click to open Settings">
       <span class="trigger-icon">⚙️</span>
       <span class="trigger-text">Settings</span>
     </button>
@@ -169,9 +181,8 @@
           <div class="settings-menu-title">
             <span class="settings-drag-grip" title="Drag to move">⠿</span>
             <span class="settings-title-icon">⚙️</span>
-            <span>LiveSplit Settings</span>
+            <span>Settings</span>
           </div>
-          <div class="settings-menu-subtitle">Drag header to reposition • Click ✕ or button to close</div>
         </div>
         <div class="settings-header-right">
           <div class="connection-status-pill" title="LiveSplit Server WebSocket Connection">
@@ -202,50 +213,18 @@
         <input type="file" id="file-input" accept=".lss,.xml">
       </div>
 
-      <!-- Section: Pace & Comparisons -->
-      <div class="settings-section">
-        <div class="settings-section-header">PACE &amp; COMPARISONS</div>
-        <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="comparison-badge" style="color: #38bdf8;" title="Click or press 'C' to cycle active comparison (Shift+C for previous, NumPad 4/6)">Comp: PB</button>
-          <button type="button" class="settings-tile-btn" id="ghost-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle Live Ghost Runner (Off / 🏆 WR / 🥈 PB / ⭐ Best / 📊 Avg)">Ghost: Off</button>
-          <button type="button" class="settings-tile-btn" id="timing-method-badge" style="color: #facc15;" title="Click to cycle timer display: Game Time / Real Time / Both">Time: Both</button>
-          <button type="button" class="settings-tile-btn" id="gold-toggle-badge" style="color: #facc15;" title="Click to toggle Gold Splits">Golds: ON</button>
-        </div>
-      </div>
-
-      <!-- Section: Track & Display -->
-      <div class="settings-section">
-        <div class="settings-section-header">TRACK &amp; DISPLAY</div>
-        <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="track-orient-badge" style="color: #38bdf8;" title="Click to toggle Horizontal / Vertical layout">Orient: Horiz</button>
-          <button type="button" class="settings-tile-btn" id="split-density-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle visible splits (Auto / 8 / 10 / 12 / 16 / All)">Splits: Auto</button>
-          <button type="button" class="settings-tile-btn" id="split-angle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to cycle text angle (Auto / 40° / Flat)">Angle: Auto</button>
-          <button type="button" class="settings-tile-btn" id="bg-opacity-badge" style="color: #38bdf8;" title="Click to cycle background plate opacity (55% / 80% / Off / 35%)">BG: 55%</button>
-        </div>
-      </div>
-
-      <!-- Section: Live Race Telemetry (therun.gg) -->
-      <div class="settings-section" id="section-race-mode">
-        <div class="settings-section-header">LIVE RACE TELEMETRY</div>
-        <div class="settings-grid">
-          <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
-          <button type="button" class="settings-tile-btn dev-only" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
-          <button type="button" class="settings-tile-btn" id="btn-toggle-leaderboard" style="color: #38bdf8;" title="Click to toggle Live Standings Tower visibility">Standings: ON</button>
-          <button type="button" class="settings-tile-btn" id="btn-toggle-race-pins" style="color: #38bdf8;" title="Click to show/hide all competitor pins on the progress track (individual leaderboard mutes are preserved)">Pins: ON</button>
-        </div>
-        <div class="settings-profile-bar" style="margin-top: 6px;">
-          <input type="text" id="input-therun-race-code" class="settings-profile-input" maxlength="16" placeholder="Race Code (e.g. q38y)" title="Enter the therun.gg race room code (e.g. q38y) and click Connect">
-          <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to or disconnect from the therun.gg race room">Connect</button>
-          <button type="button" class="settings-tile-btn profile-btn dev-only" id="btn-open-ws-logs" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.4);" title="View incoming WebSocket telemetry messages and copy debug logs">📜 WS Logs</button>
-        </div>
-      </div>
-
-      <!-- Section: Actions (Bar Styles modal & Edit Layout mode) -->
+      <!-- Section: Actions (settings popovers & Edit Layout mode) -->
       <div class="settings-section">
         <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
         <div class="settings-actions-row">
-          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" title="Customize progress bar positions, fonts, and sizes">🎨 Bar Styles Modal</button>
-          <button type="button" class="settings-action-btn action-edit-layout" id="layout-edit-btn" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout Mode</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="btn-open-title-settings" data-open-widget-popover="title" title="Open Layout Mode with the title and logo settings">📝 Title Settings</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="btn-open-timer-settings" data-open-widget-popover="timers" title="Open Layout Mode with the timer and comparison settings">⏱️ Timer Settings</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" data-open-widget-popover="track" title="Open Layout Mode with the track settings">🏃 Track Settings</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="btn-open-ghost-settings" data-open-popover="ghosts" title="Ghosts to race against and the pin style">👻 Ghost Pins</button>
+        </div>
+        <div class="settings-actions-row" style="margin-top: 6px;">
+          <button type="button" class="settings-action-btn action-race" id="btn-open-race-settings" data-open-popover="leaderboard" title="Race code, standings and race pins for therun.gg races">🏁 Live Race Settings</button>
+          <button type="button" class="settings-action-btn action-edit-layout" id="layout-edit-btn" title="Enter Edit Mode to move/resize components (Hotkey: E); every widget has a ⚙ there">⚙ Edit Layout Mode</button>
         </div>
       </div>
 
@@ -290,275 +269,288 @@
     </div>
   </div>
 
-  <!-- Track Customizer Modal -->
-  <div class="track-modal-backdrop" id="track-modal" style="display: none;">
-    <div class="track-modal-dialog">
-      <div class="track-modal-header">
-        <h3>🎨 HUD & Progress Bar Customizer</h3>
-        <button class="track-modal-close" id="btn-close-track-modal" title="Close">✕</button>
+  <!-- Live race settings popover: the leaderboard's Layout Mode cog, or Settings > Live Race Settings (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-leaderboard" data-widget="leaderboard" role="dialog" aria-label="Live race settings" hidden>
+    <div class="widget-popover-header" title="Drag to move; double-click to put it back beside the widget">
+      <h3>🏁 Live Race Settings</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body" id="section-race-mode">
+      <div class="modal-section-title">therun.gg Race</div>
+      <div class="settings-grid">
+        <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
+        <button type="button" class="settings-tile-btn dev-only" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
       </div>
-      <div class="track-modal-body">
-
-        <!-- Game Title & Custom Logo -->
-        <div class="modal-section-title">Game Title &amp; Custom Logo</div>
-        <div class="modal-row">
-          <label>Game Title / Custom Logo</label>
-          <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <label for="input-game-logo" class="preset-pill-btn active" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Upload a PNG, JPG, or SVG game logo to replace the text title">
-                <span>📁 Upload Logo PNG/Image</span>
-              </label>
-              <input type="file" id="input-game-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
-              <button type="button" class="preset-pill-btn" id="btn-remove-game-logo" style="display:none; color:#f87171;" title="Remove uploaded logo and restore LiveSplit text title">✕ Use Text Title</button>
-            </div>
-            <div id="game-logo-preview-wrap" style="display:none; align-items:center; gap:12px; padding:6px 12px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid rgba(148,163,184,0.2);">
-              <img id="game-logo-preview" src="" alt="Preview" style="max-height:40px; max-width:140px; object-fit:contain;">
-              <span id="game-logo-status" style="font-size:11px; color:#38bdf8; font-weight:600;">Custom Logo Active</span>
-            </div>
-          </div>
-        </div>
-        <div class="modal-row" id="row-logo-height" style="display:none;">
-          <label>Logo Max Height <span class="val-badge" id="val-logo-height">60px</span></label>
-          <input type="range" id="slider-logo-height" min="25" max="140" value="60" step="5">
-        </div>
-
-        <!-- Background Plate & Readability -->
-        <div class="modal-section-title">Background Plate & Readability</div>
-        <div class="modal-row">
-          <label>Background Opacity <span class="val-badge" id="val-bg-opacity">55%</span></label>
-          <div style="display:flex; gap:6px; margin-bottom: 4px;">
-            <button type="button" class="preset-pill-btn" data-preset-bg="0">0% (Off)</button>
-            <button type="button" class="preset-pill-btn" data-preset-bg="35">35% Subtle</button>
-            <button type="button" class="preset-pill-btn active" data-preset-bg="55">55% Glass</button>
-            <button type="button" class="preset-pill-btn" data-preset-bg="80">80% Dark</button>
-          </div>
-          <input type="range" id="slider-bg-opacity" min="0" max="95" value="55" step="5">
-        </div>
-        <div class="modal-row">
-          <label>Frosted Glass Blur <span class="val-badge" id="val-bg-blur">8px</span></label>
-          <input type="range" id="slider-bg-blur" min="0" max="20" value="8" step="1">
-        </div>
-        <div class="modal-row">
-          <label>Apply Background To</label>
-          <div style="display:flex; gap:14px; align-items:center; font-size:12px; color:#cbd5e1; padding: 4px 0;">
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:normal;">
-              <input type="checkbox" id="cb-bg-title" checked> Title
-            </label>
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:normal;">
-              <input type="checkbox" id="cb-bg-timers" checked> Timers
-            </label>
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:normal;">
-              <input type="checkbox" id="cb-bg-track" checked> Track
-            </label>
-          </div>
-        </div>
-
-        <!-- Track Orientation -->
-        <div class="modal-section-title">Track Orientation</div>
-        <div class="modal-row">
-          <label>Orientation</label>
-          <div class="segmented-control" id="ctrl-track-orient">
-            <button class="seg-btn active" data-val="horizontal">Horizontal</button>
-            <button class="seg-btn" data-val="vertical">Vertical</button>
-          </div>
-        </div>
-        
-        <!-- Positions -->
-        <div class="modal-section-title">Layout Positions</div>
-        <div class="modal-row">
-          <label>Split Name Position</label>
-          <div class="segmented-control" id="ctrl-name-pos">
-            <button class="seg-btn seg-btn-horiz active" data-val="top">Top</button>
-            <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
-            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
-            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
-          </div>
-        </div>
-        <div class="modal-row">
-          <label>Delta / Time Position</label>
-          <div class="segmented-control" id="ctrl-delta-pos">
-            <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
-            <button class="seg-btn seg-btn-horiz active" data-val="bottom">Bottom</button>
-            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
-            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
-          </div>
-        </div>
-        <div class="modal-hint" id="opposing-hint">💡 When 40° angle is active, timers stay horizontal on the opposite side to eliminate overlap.</div>
-
-        <!-- Visible Splits & Angle -->
-        <div class="modal-section-title">Visible Splits & Angle</div>
-        <div class="modal-row">
-          <label>Visible Splits on Screen <span class="val-badge" id="val-visible-splits">Auto</span></label>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <div class="spinbox-control">
-              <button type="button" class="spinbox-btn" id="modal-splits-dec">-</button>
-              <input type="number" id="modal-input-visible-splits" min="2" max="60" step="1" value="8" style="width: 48px;">
-              <button type="button" class="spinbox-btn" id="modal-splits-inc">+</button>
-            </div>
-            <button type="button" class="toolbar-btn" id="modal-btn-splits-all">Fit All</button>
-            <button type="button" class="toolbar-btn" id="modal-btn-splits-auto">Auto (220px)</button>
-          </div>
-        </div>
-        <div class="modal-row">
-          <label>Split Text Angle</label>
-          <div class="segmented-control" id="ctrl-modal-angle">
-            <button class="seg-btn" data-val="auto">Auto (Smart)</button>
-            <button class="seg-btn" data-val="angled">40° Tilt</button>
-            <button class="seg-btn" data-val="horizontal">Flat</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-always-show-last-split">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Always Show Last Split</span>
-            <input type="checkbox" id="cb-always-show-last-split" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Pins the final split at the end of the track. If intermediate splits are hidden, displays an engineering schematic double-slash break.</span>
-        </div>
-
-        <!-- Typography -->
-        <div class="modal-section-title">Typography</div>
-        <div class="modal-row">
-          <label>Split Name Font Size <span class="val-badge" id="val-name-font">17px</span></label>
-          <input type="range" id="slider-name-font" min="12" max="24" value="17" step="1">
-        </div>
-        <div class="modal-row">
-          <label>Delta & Time Font Size <span class="val-badge" id="val-delta-font">15px</span></label>
-          <input type="range" id="slider-delta-font" min="11" max="22" value="15" step="1">
-        </div>
-
-        <!-- Bar & Dot Sizes -->
-        <div class="modal-section-title">Bar & Dot Geometry</div>
-        <div class="modal-row">
-          <label>Bar Thickness <span class="val-badge" id="val-bar-height">6px</span></label>
-          <input type="range" id="slider-bar-height" min="3" max="16" value="6" step="1">
-        </div>
-        <div class="modal-row">
-          <label>Node Dot Size <span class="val-badge" id="val-dot-size">15px</span></label>
-          <input type="range" id="slider-dot-size" min="8" max="24" value="15" step="1">
-        </div>
-
-        <!-- Comparisons & LiveSplit Sync -->
-        <div class="modal-section-title">Comparisons & LiveSplit Sync</div>
-        <div class="modal-row">
-          <label>Active Comparison</label>
-          <select id="select-active-comparison" class="modal-select">
-            <option value="Personal Best">Personal Best (PB)</option>
-            <option value="Best Segments">Best Segments (Sum of Best)</option>
-            <option value="Average Segments">Average Segments</option>
-            <option value="Worst Segments">Worst Segments</option>
-          </select>
-        </div>
-        <div class="modal-row" id="row-comparison-hotkey">
-          <label>Comparison Switch Hotkey</label>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size: 13px; color: #38bdf8; font-weight: 600;">⌨️ C / Shift+C &bull; NumPad 4 / 6</span>
-            <span class="val-badge">Active</span>
-          </div>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Press <strong>C</strong> (or <strong>NumPad 6</strong> / <strong>&#93;</strong>) to cycle to the next comparison, or <strong>Shift+C</strong> (or <strong>NumPad 4</strong> / <strong>&#91;</strong>) for previous.</span>
-        </div>
-        <div class="modal-row">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Auto-Sync with LiveSplit Hotkeys</span>
-            <input type="checkbox" id="cb-sync-livesplit-hotkeys" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Tracks LiveSplit comparison and timing method switches in real time without replicating hotkeys.</span>
-        </div>
-        <div class="modal-row">
-          <label>Visible Timers</label>
-          <div class="seg-btn-group" id="ctrl-timer-display">
-            <button type="button" class="seg-btn" data-val="gametime">Game Time</button>
-            <button type="button" class="seg-btn" data-val="realtime">Real Time</button>
-            <button type="button" class="seg-btn active" data-val="both">Both</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-timer-focus">
-          <label>Primary Timer &amp; Splits Target</label>
-          <div class="seg-btn-group" id="ctrl-timer-focus">
-            <button type="button" class="seg-btn active" data-val="GameTime">Game Time</button>
-            <button type="button" class="seg-btn" data-val="RealTime">Real Time</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-timer-expansion">
-          <label>Timer Expansion &amp; Alignment</label>
-          <div class="seg-btn-group" id="ctrl-timer-expansion">
-            <button type="button" class="seg-btn active" data-val="auto" title="Intelligently anchors to right/left based on screen placement">Auto</button>
-            <button type="button" class="seg-btn" data-val="right" title="Anchors to the right edge and expands towards the left">Expand Left</button>
-            <button type="button" class="seg-btn" data-val="left" title="Anchors to the left edge and expands towards the right">Expand Right</button>
-          </div>
-        </div>
-
-        <!-- Live Ghost Runner -->
-        <div class="modal-section-title">Live Ghost Runner</div>
-        <div class="modal-row">
-          <label>Ghost Pins (Toggle Multiple)</label>
-          <div class="ghost-pill-row" id="ghost-pill-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;">
-            <button type="button" class="preset-pill-btn" data-ghost-pill="off" id="ghost-pill-off">Off</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="wr" id="ghost-pill-wr">🏆 WR</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="pb" id="ghost-pill-pb">🥈 PB</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="best" id="ghost-pill-best">⭐ Best</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="average" id="ghost-pill-average">📊 Avg</button>
-            <button type="button" class="preset-pill-btn" data-ghost-pill="worst" id="ghost-pill-worst">🐢 Worst</button>
-          </div>
-        </div>
-        <div class="modal-row">
-          <label>Quick Preset</label>
-          <select id="select-ghost-comparison" class="modal-select">
-            <option value="off">Off (Disabled)</option>
-            <option value="wr">World Record (🏆)</option>
-            <option value="pb">Personal Best (🥈)</option>
-            <option value="wr,pb">Dual: WR (🏆) + PB (🥈)</option>
-            <option value="best">Best Segments (⭐)</option>
-            <option value="wr,best">Dual: WR (🏆) + Best (⭐)</option>
-            <option value="average">Average Segments (📊)</option>
-            <option value="worst">Worst Segments (🐢)</option>
-          </select>
-        </div>
-        <div class="modal-row" id="row-ghost-pin-length">
-          <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
-          <input type="range" id="slider-ghost-pin-length" min="0" max="36" value="16" step="1">
-        </div>
-        <div class="modal-row" id="row-ghost-pin-size">
-          <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
-          <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
-        </div>
-        <div class="modal-row" id="row-ghost-pin-pos">
-          <label>Ghost Pin Side</label>
-          <div class="segmented-control" id="ctrl-pin-pos">
-            <button class="seg-btn active" data-val="auto">Auto</button>
-            <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
-            <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
-            <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
-            <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-pin-lane">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Keep Pins Clear of Split Text</span>
-            <input type="checkbox" id="cb-pin-lane" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Reserves a lane beside the bar for the pins while ghosts or race pins are on. Auto puts pins on top, or on the delta side of a vertical track.</span>
-        </div>
-        <div class="modal-row" id="row-ghost-opacity">
-          <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
-          <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
-        </div>
-        <div class="modal-hint" id="ghost-hint">💡 Pins extend to this length in open track space and automatically compact over split text. Toggle multiple pins to compare paces live.</div>
-
-        <!-- Run & Reset Behavior -->
-        <div class="modal-section-title">Run & Reset Behavior</div>
-        <div class="modal-row">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Discard In-Run Golds on Reset</span>
-            <input type="checkbox" id="cb-discard-golds-reset" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">When resetting an aborted run, discard temporary gold segments and preserve canonical .lss baseline.</span>
-        </div>
-
+      <div class="sr-rows" data-settings="visible.leaderboard racePins"></div>
+      <div class="settings-profile-bar" style="margin-top: 6px;">
+        <input type="text" id="input-therun-race-code" class="settings-profile-input" maxlength="16" placeholder="Race Code (e.g. q38y)" title="Enter the therun.gg race room code (e.g. q38y) and click Connect">
+        <button type="button" class="settings-tile-btn profile-btn" id="btn-save-therun-username" title="Connect to or disconnect from the therun.gg race room">Connect</button>
+        <button type="button" class="settings-tile-btn profile-btn dev-only" id="btn-open-ws-logs" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.4);" title="View incoming WebSocket telemetry messages and copy debug logs">📜 WS Logs</button>
       </div>
-      <div class="track-modal-footer">
-        <button class="toolbar-btn" id="btn-reset-track-style">↺ Reset Styles</button>
-        <button class="toolbar-btn btn-primary" id="btn-save-track-style">Done</button>
+    </div>
+    <div class="widget-popover-footer">
+      <span></span>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
+    </div>
+  </div>
+
+  <!-- Title widget settings popover, opened by the Layout Mode cog on the title (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-title" data-widget="title" role="dialog" aria-label="Title settings" hidden>
+    <div class="widget-popover-header" title="Drag to move; double-click to put it back beside the widget">
+      <h3>📝 Title Settings</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body">
+      <!-- Game Title & Custom Logo -->
+      <div class="modal-section-title">Game Title &amp; Custom Logo</div>
+      <div class="modal-row">
+        <label>Game Title / Custom Logo</label>
+        <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label for="input-game-logo" class="preset-pill-btn active" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Upload a PNG, JPG, or SVG game logo to replace the text title">
+              <span>📁 Upload Logo PNG/Image</span>
+            </label>
+            <input type="file" id="input-game-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+            <button type="button" class="preset-pill-btn" id="btn-remove-game-logo" style="display:none; color:#f87171;" title="Remove uploaded logo and restore LiveSplit text title">✕ Use Text Title</button>
+          </div>
+          <div id="game-logo-preview-wrap" style="display:none; align-items:center; gap:12px; padding:6px 12px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid rgba(148,163,184,0.2);">
+            <img id="game-logo-preview" src="" alt="Preview" style="max-height:40px; max-width:140px; object-fit:contain;">
+            <span id="game-logo-status" style="font-size:11px; color:#38bdf8; font-weight:600;">Custom Logo Active</span>
+          </div>
+        </div>
       </div>
+      <div class="modal-row" id="row-logo-height" style="display:none;">
+        <label>Logo Max Height <span class="val-badge" id="val-logo-height">60px</span></label>
+        <input type="range" id="slider-logo-height" min="25" max="140" value="60" step="5">
+      </div>
+
+      <!-- Background Plate (opacity / blur are shared: Layout Mode toolbar) -->
+      <div class="modal-section-title">Background Plate</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Show Background Plate</span>
+          <input type="checkbox" id="cb-bg-title" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Opacity and blur are shared by all plates: set them with the Plates sliders in the Layout Mode toolbar.</span>
+      </div>
+    </div>
+    <div class="widget-popover-footer">
+      <button type="button" class="toolbar-btn" data-popover-reset title="Reset the logo height and plate (keeps the logo)">↺ Reset Title</button>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
+    </div>
+  </div>
+
+  <!-- Track widget settings popover, opened by the Layout Mode cog on the track (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-track" data-widget="track" role="dialog" aria-label="Track settings" hidden>
+    <div class="widget-popover-header" title="Drag to move; double-click to put it back beside the widget">
+      <h3>🏃 Track Settings</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body">
+      <!-- Track Orientation -->
+      <div class="modal-section-title">Track Orientation</div>
+      <div class="modal-row">
+        <label>Orientation</label>
+        <div class="segmented-control" id="ctrl-track-orient">
+          <button class="seg-btn active" data-val="horizontal">Horizontal</button>
+          <button class="seg-btn" data-val="vertical">Vertical</button>
+        </div>
+      </div>
+      
+      <!-- Positions -->
+      <div class="modal-section-title">Layout Positions</div>
+      <div class="modal-row">
+        <label>Split Name Position</label>
+        <div class="segmented-control" id="ctrl-name-pos">
+          <button class="seg-btn seg-btn-horiz active" data-val="top">Top</button>
+          <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+        </div>
+      </div>
+      <div class="modal-row">
+        <label>Delta / Time Position</label>
+        <div class="segmented-control" id="ctrl-delta-pos">
+          <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
+          <button class="seg-btn seg-btn-horiz active" data-val="bottom">Bottom</button>
+          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+        </div>
+      </div>
+      <div class="modal-hint" id="opposing-hint">💡 When 40° angle is active, timers stay horizontal on the opposite side to eliminate overlap.</div>
+
+      <!-- Visible Splits & Angle -->
+      <div class="modal-section-title">Visible Splits & Angle</div>
+      <div class="sr-rows" data-settings="visibleSplits"></div>
+      <div class="modal-row">
+        <label>Split Text Angle</label>
+        <div class="segmented-control" id="ctrl-modal-angle">
+          <button class="seg-btn" data-val="auto">Auto (Smart)</button>
+          <button class="seg-btn" data-val="angled">40° Tilt</button>
+          <button class="seg-btn" data-val="horizontal">Flat</button>
+        </div>
+      </div>
+      <div class="modal-row" id="row-always-show-last-split">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Always Show Last Split</span>
+          <input type="checkbox" id="cb-always-show-last-split" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Pins the final split at the end of the track. If intermediate splits are hidden, displays an engineering schematic double-slash break.</span>
+      </div>
+
+      <!-- Typography -->
+      <div class="modal-section-title">Typography</div>
+      <div class="modal-row">
+        <label>Split Name Font Size <span class="val-badge" id="val-name-font">17px</span></label>
+        <input type="range" id="slider-name-font" min="12" max="24" value="17" step="1">
+      </div>
+      <div class="modal-row">
+        <label>Delta & Time Font Size <span class="val-badge" id="val-delta-font">15px</span></label>
+        <input type="range" id="slider-delta-font" min="11" max="22" value="15" step="1">
+      </div>
+
+      <!-- Bar & Dot Sizes -->
+      <div class="modal-section-title">Bar & Dot Geometry</div>
+      <div class="modal-row">
+        <label>Bar Thickness <span class="val-badge" id="val-bar-height">6px</span></label>
+        <input type="range" id="slider-bar-height" min="3" max="16" value="6" step="1">
+      </div>
+      <div class="modal-row">
+        <label>Node Dot Size <span class="val-badge" id="val-dot-size">15px</span></label>
+        <input type="range" id="slider-dot-size" min="8" max="24" value="15" step="1">
+      </div>
+
+      <!-- Ghost pins have their own dialog (they ride on the track) -->
+      <div class="modal-row">
+        <button type="button" class="toolbar-btn" data-open-popover="ghosts" title="Ghost and race pin settings">👻 Ghost Pin Settings</button>
+      </div>
+
+      <!-- Run & Reset Behavior -->
+      <div class="modal-section-title">Run & Reset Behavior</div>
+      <div class="sr-rows" data-settings="golds"></div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Discard In-Run Golds on Reset</span>
+          <input type="checkbox" id="cb-discard-golds-reset" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">When resetting an aborted run, discard temporary gold segments and preserve canonical .lss baseline.</span>
+      </div>
+
+      <!-- Background Plate (opacity / blur are shared: Layout Mode toolbar) -->
+      <div class="modal-section-title">Background Plate</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Show Background Plate</span>
+          <input type="checkbox" id="cb-bg-track" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Opacity and blur are shared by all plates: set them with the Plates sliders in the Layout Mode toolbar.</span>
+      </div>
+    </div>
+    <div class="widget-popover-footer">
+      <button type="button" class="toolbar-btn" data-popover-reset title="Reset the track's own style (not the logo or backgrounds)">↺ Reset Track</button>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
+    </div>
+  </div>
+
+  <!-- Ghost pins settings popover, beside the track: Settings > Ghost Pins or the Track dialog link (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-ghosts" data-widget="ghosts" data-anchor="track" role="dialog" aria-label="Ghost pin settings" hidden>
+    <div class="widget-popover-header" title="Drag to move; double-click to put it back beside the widget">
+      <h3>👻 Ghost Pins</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body">
+      <!-- Live Ghost Runner -->
+      <div class="modal-section-title">Ghosts</div>
+      <div class="sr-rows" data-settings="ghostsOn ghosts"></div>
+      <!-- Pin style: ghost pins and race pins -->
+      <div class="modal-section-title">Pin Style</div>
+      <div class="modal-row" id="row-ghost-pin-length">
+        <label>Ghost Pin Length (Open Track) <span class="val-badge" id="val-ghost-pin-length">16px</span></label>
+        <input type="range" id="slider-ghost-pin-length" min="0" max="36" value="16" step="1">
+      </div>
+      <div class="modal-row" id="row-ghost-pin-size">
+        <label>Ghost Pinhead Size <span class="val-badge" id="val-ghost-pin-size">26px</span></label>
+        <input type="range" id="slider-ghost-pin-size" min="18" max="44" value="26" step="1">
+      </div>
+      <div class="modal-row" id="row-ghost-pin-pos">
+        <label>Ghost Pin Side</label>
+        <div class="segmented-control" id="ctrl-pin-pos">
+          <button class="seg-btn active" data-val="auto">Auto</button>
+          <button class="seg-btn seg-btn-horiz" data-val="top">Top</button>
+          <button class="seg-btn seg-btn-horiz" data-val="bottom">Bottom</button>
+          <button class="seg-btn seg-btn-vert" data-val="left" style="display:none;">Left</button>
+          <button class="seg-btn seg-btn-vert" data-val="right" style="display:none;">Right</button>
+        </div>
+      </div>
+      <div class="modal-row" id="row-pin-lane">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Keep Pins Clear of Split Text</span>
+          <input type="checkbox" id="cb-pin-lane" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">While ghosts or race pins are on, split text stays next to the bar and the pin heads sit beyond it, their lines passing behind the text (angled names and vertical tracks keep a lane beside the bar instead). Auto puts pins on top, or on the delta side of a vertical track.</span>
+      </div>
+      <div class="modal-row" id="row-ghost-opacity">
+        <label>Ghost Pin Opacity <span class="val-badge" id="val-ghost-opacity">85%</span></label>
+        <input type="range" id="slider-ghost-opacity" min="30" max="100" value="85" step="5">
+      </div>
+      <div class="modal-hint" id="ghost-hint">💡 Pins extend to this length in open track space and automatically compact over split text. Toggle multiple pins to compare paces live.</div>
+      <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Pin style also applies to competitors' race pins.</span>
+    </div>
+    <div class="widget-popover-footer">
+      <button type="button" class="toolbar-btn" data-popover-reset title="Reset the pin style (keeps the chosen ghosts)">↺ Reset Pins</button>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
+    </div>
+  </div>
+
+  <!-- Timers widget settings popover, opened by the Layout Mode cog on the timers (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-timers" data-widget="timers" role="dialog" aria-label="Timer settings" hidden>
+    <div class="widget-popover-header" title="Drag to move; double-click to put it back beside the widget">
+      <h3>⏱️ Timer Settings</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body">
+      <!-- Comparisons & LiveSplit Sync -->
+      <div class="modal-section-title">Comparisons & LiveSplit Sync</div>
+      <!-- Registry settings, rendered like the dock (src/ui/settings-dialog-rows.js) -->
+      <div class="sr-rows" data-settings="comparison"></div>
+      <div class="modal-row" id="row-comparison-hotkey">
+        <label>Comparison Switch Hotkey</label>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size: 13px; color: #38bdf8; font-weight: 600;">⌨️ C / Shift+C &bull; NumPad 4 / 6</span>
+          <span class="val-badge">Active</span>
+        </div>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Press <strong>C</strong> (or <strong>NumPad 6</strong> / <strong>&#93;</strong>) to cycle to the next comparison, or <strong>Shift+C</strong> (or <strong>NumPad 4</strong> / <strong>&#91;</strong>) for previous.</span>
+      </div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Auto-Sync with LiveSplit Hotkeys</span>
+          <input type="checkbox" id="cb-sync-livesplit-hotkeys" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Tracks LiveSplit comparison and timing method switches in real time without replicating hotkeys.</span>
+      </div>
+      <div class="sr-rows" data-settings="timerDisplay timingMethod"></div>
+      <div class="modal-row" id="row-timer-expansion">
+        <label>Timer Expansion &amp; Alignment</label>
+        <div class="seg-btn-group" id="ctrl-timer-expansion">
+          <button type="button" class="seg-btn active" data-val="auto" title="Intelligently anchors to right/left based on screen placement">Auto</button>
+          <button type="button" class="seg-btn" data-val="right" title="Anchors to the right edge and expands towards the left">Expand Left</button>
+          <button type="button" class="seg-btn" data-val="left" title="Anchors to the left edge and expands towards the right">Expand Right</button>
+        </div>
+      </div>
+
+      <!-- Background Plate (opacity / blur are shared: Layout Mode toolbar) -->
+      <div class="modal-section-title">Background Plate</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Show Background Plate</span>
+          <input type="checkbox" id="cb-bg-timers" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Opacity and blur are shared by all plates: set them with the Plates sliders in the Layout Mode toolbar.</span>
+      </div>
+    </div>
+    <div class="widget-popover-footer">
+      <button type="button" class="toolbar-btn" data-popover-reset title="Turn the timers' background plate back on">↺ Reset Timers</button>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
     </div>
   </div>
 
@@ -687,11 +679,14 @@
   <script src="src/ui/timer-anchor.js"></script>
   <script src="src/ui/game-logo.js"></script>
   <script src="src/ui/settings-controls.js"></script>
+  <script src="src/ui/settings-renderer.js"></script>
+  <script src="src/ui/settings-dialog-rows.js"></script>
   <script src="src/ui/settings-track-panel.js"></script>
   <script src="src/ui/settings-background-panel.js"></script>
   <script src="src/ui/settings-ghost-panel.js"></script>
   <script src="src/ui/settings-timing-panel.js"></script>
   <script src="src/ui/layout-profiles-panel.js"></script>
+  <script src="src/ui/widget-popover.js"></script>
   <script src="src/ui/layout-modal.js"></script>
   <script src="src/ui/layout-params.js"></script>
   <script src="src/ui/settings-menu.js"></script>
@@ -701,7 +696,7 @@
   <script src="src/ui/track-scroll.js"></script>
   <script src="src/ui/ghost-runner.js"></script>
   <script src="src/ui/race-controls.js"></script>
-  <script src="src/ui/race-dock-bridge.js"></script>
+  <script src="src/ui/dock-bridge.js"></script>
   <script src="src/ui/ws-log-panel.js"></script>
 
   <!-- Overlay controllers installed onto the shared app registry by overlay.js (any order) -->
@@ -713,6 +708,7 @@
   <script src="src/ui/timing-controls.js"></script>
   <script src="src/ui/hud-titles.js"></script>
   <script src="src/ui/hud-bindings.js"></script>
+  <script src="src/core/settings-registry.js"></script>
   <script src="src/core/window-api.js"></script>
 
   <!-- Composition roots -->

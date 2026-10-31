@@ -86,7 +86,7 @@
     const HUD_HTML = `
       <div id="hud-comp-track" style="position: absolute;"></div>
       <div id="hud-comp-timers" style="position: absolute; width: 300px;"></div>
-      <div id="hud-comp-title" style="position: absolute;"><span class="hud-scale-badge"></span></div>
+      <div id="hud-comp-title" style="position: absolute;"><span class="hud-scale-badge"></span><button data-action="toggle-visibility"></button></div>
       <button id="btn-dock-track"></button>
       <input type="checkbox" id="cb-toggle-title">`;
 
@@ -226,9 +226,28 @@
       assert(title.classList.contains("is-hidden"));
       assertEqual(title.querySelector(".hud-scale-badge").innerText, "150%");
       assert(!el("cb-toggle-title").checked, "toolbar checkbox synced");
+      const visBtn = el("hud-comp-title").querySelector('[data-action="toggle-visibility"]');
+      assertEqual([visBtn.textContent, visBtn.title], ["👁", "Show widget"], "header button offers to show it again");
 
       HL().setEditMode(true);
       assert(title.classList.contains("edit-hidden") && !title.classList.contains("is-hidden"), "edit mode shows it dimmed");
+    }));
+
+    it("setComponentVisible hides / shows a component, saves, and creates a missing entry", () => withHud(({ el, state }) => {
+      HL().setComponentVisible("title", true);
+      assertEqual(el("hud-comp-title").querySelector('[data-action="toggle-visibility"]').textContent, "✕", "visible: offers to hide");
+      HL().setComponentVisible("title", false);
+      assertEqual(state.title.visible, false);
+      assert(el("hud-comp-title").classList.contains("is-hidden"));
+      assertEqual(JSON.parse(localStorage.getItem(KEYS.HUD_LAYOUT)).title.visible, false, "saved");
+
+      delete state.leaderboard;
+      HL().setComponentVisible("leaderboard", false);
+      assertEqual(state.leaderboard.visible, false, "created from the defaults, then hidden");
+      assert(typeof state.leaderboard.x === "number", "default position");
+
+      HL().setComponentVisible("nope", false);
+      assert(!("nope" in state), "unknown components ignored");
     }));
   });
 

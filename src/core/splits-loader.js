@@ -89,7 +89,6 @@
           safeStorage.setItem(STORAGE_KEYS.COMPARISONS_GT, JSON.stringify(state.comparisonsDataGT));
           safeStorage.setItem(STORAGE_KEYS.COMPARISONS_RT, JSON.stringify(state.comparisonsDataRT));
 
-          app.updateGoldBadge();
           app.applyActiveComparison(state.currentComparison, false, false);
           if (!isNewDrop) {
             app.loadInRunState();
@@ -196,7 +195,6 @@
           }
           app.applyActiveTimingMethod(state.currentTimingMethod);
 
-          app.updateGoldBadge();
           app.applyActiveComparison(state.currentComparison, false, false);
           app.loadInRunState();
           app.renderTrack();
@@ -225,7 +223,6 @@
       state.baselineBestSegmentTimesRT = [...app.DEFAULT_BESTS];
       app.initDefaultComparisons();
 
-      app.updateGoldBadge();
       app.applyActiveComparison(state.currentComparison, false, false);
       app.loadInRunState();
       app.renderTrack();

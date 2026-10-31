@@ -38,7 +38,6 @@
       setTimingMethodFocus: app.setTimingMethodFocus,
       getTimerDisplayMode: () => state.timerDisplayMode,
       toggleTimingMethod: app.toggleTimingMethod,
-      updateTimingMethodBadge: app.updateTimingMethodBadge,
       updateTimerDisplayHierarchy: app.updateTimerDisplayHierarchy,
 
       // Time formatting
@@ -59,7 +58,6 @@
       calculateGhostProgress: app.calculateGhostProgress,
       getNodeTextThreshold: app.getNodeTextThreshold,
       setGhostOpacity: app.setGhostOpacity,
-      updateGhostBadge: app.updateGhostBadge,
       updateGhostRunner: app.updateGhostRunner,
 
       // Run progress & track
@@ -74,6 +72,9 @@
       updateTrackStatus: app.updateTrackStatus,
       updateTrackWindow: app.updateTrackWindow,
       shiftTrackWindow: app.shiftTrackWindow,
+      scrollTrack: app.scrollTrack,
+      getTrackScrollPosition: app.getTrackScrollPosition,
+      setTrackScrollPosition: app.setTrackScrollPosition,
       isTrackWindowed: app.isTrackWindowed,
       getVisibleSplitsCapacity: app.getVisibleSplitsCapacity,
       getTrackManualScrollOffset: () => state.trackManualScrollOffset,
@@ -84,6 +85,9 @@
         app.updateTrackStatus(state.currentIndex);
       },
       setupTrackScrollInteractions: app.setupTrackScrollInteractions,
+
+      // Live settings by id (src/core/settings-registry.js)
+      settings: app.settings,
 
       // Settings menu & dev mode
       resetSettingsMenuPosition: app.resetSettingsMenuPosition,

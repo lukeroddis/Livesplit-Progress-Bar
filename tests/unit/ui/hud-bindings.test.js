@@ -1,12 +1,12 @@
 /**
  * tests/unit/ui/hud-bindings.test.js
- * Unit tests for hud-bindings (badge clicks and comparison hotkeys)
+ * Unit tests for hud-bindings (comparison hotkeys)
  */
 
 (function () {
   "use strict";
 
-  describe("HUD Bindings: comparison badge and hotkeys", () => {
+  describe("HUD Bindings: comparison hotkeys", () => {
     const list = () => window.getComparisonsList();
     const current = () => window.getCurrentComparison();
     const startAt = (name) => window.applyActiveComparison(name, false, false);
@@ -15,13 +15,6 @@
       return comps[(comps.indexOf(name) + step + comps.length) % comps.length];
     };
     const press = (init) => window.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ bubbles: true }, init)));
-
-    it("clicking the comparison badge cycles forward", () => {
-      startAt("Personal Best");
-      document.getElementById("comparison-badge").click();
-      assertEqual(current(), next("Personal Best", 1));
-      startAt("Personal Best");
-    });
 
     it("C cycles forward and Shift+C cycles backward", () => {
       startAt("Personal Best");

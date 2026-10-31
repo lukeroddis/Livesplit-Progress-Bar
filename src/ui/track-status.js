@@ -70,6 +70,8 @@
       const V = enabled ? app.getVisibleSplitsCapacity() : N + 1;
       const win = window.LiveSplit.TrackRenderer.calculateTrackWindow(idx, N, V, state.trackManualScrollOffset, enabled);
       window.LiveSplit.TrackRenderer.applyTrackWindow(N, win);
+      // Ghost and race pins in splits hidden before the window are off-screen to the left
+      state.trackWindowStart = win.isWindowed ? win.windowStart : 0;
       return win.isWindowed;
     }
 
@@ -138,6 +140,71 @@
       // Update sliding window & discontinuity after status classes are updated
       const isWindowed = updateTrackWindow(idx);
       window.LiveSplit.TrackRenderer.scrollTrackToIndex(idx, isWindowed, isVertical);
+    }
+
+    /**
+     * Scrolls the track one split back (-1) or forward (+1), or back to the current split (0):
+     * shifts the sliding window when windowed, else scrolls the viewport natively.
+     */
+    function scrollTrack(direction) {
+      const isVertical = document.getElementById("track")?.classList.contains("vertical");
+      if (direction === 0) {
+        state.trackManualScrollOffset = 0;
+        const isWindowed = updateTrackWindow(state.currentIndex);
+        window.LiveSplit.TrackRenderer.scrollTrackToIndex(state.currentIndex, isWindowed, isVertical);
+        if (state.lastElapsedSec > 0) app.updateGhostRunner(state.lastElapsedSec);
+        return;
+      }
+      if (isTrackWindowed()) {
+        shiftTrackWindow(direction);
+        return;
+      }
+      const viewport = document.getElementById("track-viewport");
+      if (!viewport || typeof viewport.scrollBy !== "function") return;
+      const spacing = getNodeSpacing();
+      viewport.scrollBy(isVertical ? { top: direction * spacing, behavior: "smooth" } : { left: direction * spacing, behavior: "smooth" });
+    }
+
+    function getNodeSpacing() {
+      return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--node-spacing")) || 100;
+    }
+
+    /**
+     * Where the track view is, in splits: { pos, max } with 0 = the start. The sliding window's
+     * first slot when windowed, else the native scroll offset in node spacings (dock slider).
+     */
+    function getTrackScrollPosition() {
+      const N = state.splitsList.length;
+      if (isTrackWindowed()) {
+        const { k, maxK } = window.LiveSplit.TrackRenderer.getTrackWindowPosition(state.currentIndex, N, app.getVisibleSplitsCapacity(), state.trackManualScrollOffset);
+        return { pos: k, max: maxK };
+      }
+      const viewport = document.getElementById("track-viewport");
+      if (!viewport) return { pos: 0, max: 0 };
+      const isVertical = document.getElementById("track")?.classList.contains("vertical");
+      const spacing = getNodeSpacing();
+      const extent = isVertical ? viewport.scrollHeight - viewport.clientHeight : viewport.scrollWidth - viewport.clientWidth;
+      const max = Math.max(0, Math.ceil(extent / spacing));
+      const offset = isVertical ? viewport.scrollTop : viewport.scrollLeft;
+      return { pos: Math.min(max, Math.round(offset / spacing)), max };
+    }
+
+    /** Moves the track view to a position from getTrackScrollPosition (clamped). */
+    function setTrackScrollPosition(pos) {
+      const { max } = getTrackScrollPosition();
+      const target = Math.max(0, Math.min(max, Math.round(pos) || 0));
+      if (isTrackWindowed()) {
+        const N = state.splitsList.length;
+        const { defaultK } = window.LiveSplit.TrackRenderer.getTrackWindowPosition(state.currentIndex, N, app.getVisibleSplitsCapacity(), 0);
+        state.trackManualScrollOffset = target - defaultK;
+        updateTrackWindow(state.currentIndex);
+        if (state.lastElapsedSec > 0) app.updateGhostRunner(state.lastElapsedSec);
+        return;
+      }
+      const viewport = document.getElementById("track-viewport");
+      if (!viewport || typeof viewport.scrollTo !== "function") return;
+      const isVertical = document.getElementById("track")?.classList.contains("vertical");
+      viewport.scrollTo(isVertical ? { top: target * getNodeSpacing() } : { left: target * getNodeSpacing() });
     }
 
     let liveElementCache = null;
@@ -280,6 +347,9 @@
       isTrackWindowingEnabled,
       isTrackWindowed,
       shiftTrackWindow,
+      scrollTrack,
+      getTrackScrollPosition,
+      setTrackScrollPosition,
       updateTrackWindow,
       clearDeltaSpan,
       updateTrackStatus,

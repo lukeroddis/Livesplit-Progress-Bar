@@ -46,15 +46,28 @@ function singleFileEntryPlugin() {
 }
 
 /**
- * Copies dock.html (the optional OBS Custom Browser Dock, already a single
- * self-contained page) into dist/ next to index.html.
+ * Pure: inlines a page's local classic scripts (<script src="..."></script>) as
+ * <script> blocks, reading each file with readFile(src).
+ */
+export function inlineLocalScripts(html, readFile) {
+  // A "</script" inside the code would end the block early: escape it as "<\/script"
+  return html.replace(/<script src="([^":]+)"><\/script>/g, (_, src) =>
+    `<script>\n${readFile(src).replace(/<\/script/gi, "<\\/script")}\n</script>`);
+}
+
+/**
+ * Emits dock.html (the optional OBS Custom Browser Dock) into dist/ next to
+ * index.html as one self-contained page: the shared scripts it loads from src/
+ * (the settings renderer) are inlined.
  */
 function dockPagePlugin() {
   return {
     name: "livesplit-dock-page",
     apply: "build",
     generateBundle() {
-      this.emitFile({ type: "asset", fileName: "dock.html", source: readFileSync(new URL("./dock.html", import.meta.url), "utf8") });
+      const html = readFileSync(new URL("./dock.html", import.meta.url), "utf8");
+      const source = inlineLocalScripts(html, (src) => readFileSync(new URL(`./${src}`, import.meta.url), "utf8"));
+      this.emitFile({ type: "asset", fileName: "dock.html", source });
     }
   };
 }

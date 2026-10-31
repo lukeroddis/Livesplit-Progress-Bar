@@ -39,25 +39,13 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
    * *(Important: Select **WebSocket Server**, not TCP Server, as browser overlays communicate via WebSockets).*
 2. **Open the Overlay**:
    * Download the latest `speedrun-overlay-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases). The release is one fully self-contained HTML file; no server or companion files are required.
-   * **In OBS Studio (Recommended)**: Add a **Browser Source** pointing to the downloaded HTML file, set resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
+   * **In OBS Studio (Recommended)**: Add a **Browser Source**, **untick *Local file*** and put a `file:///` URL to the downloaded HTML file in the **URL** field (e.g. `file:///C:/Overlays/speedrun-overlay-v2.1.0.html`). Set the resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
    * **In Desktop Browser**: Open the downloaded HTML file in Chrome, Edge, or Firefox.
 3. **Load Your Splits**:
    * Drag and drop your `.lss` splits file directly onto the window. Splits, targets, and history are cached locally.
-
----
-
-## 🧑‍💻 Development
-
-Building from source requires Node.js `^20.19.0` or `>=22.12.0`; the test suite also requires Python 3.11.
-
-```bash
-npm ci
-npm run dev      # Vite dev server with live reload
-npm test         # Python + in-browser test suite
-npm run build    # → dist/index.html (single self-contained file)
-```
-
-The application source remains classic, dependency-free scripts. `vite.config.mjs` swaps the script tags for a generated module entry (built from the same `index.html` script list) during a build, and `vite-plugin-singlefile` inlines the resulting JS and CSS. The `postbuild` check ([scripts/verify-single-file.mjs](scripts/verify-single-file.mjs)) fails the build if `dist/` contains anything other than `index.html` or if the output references an external asset. The source [index.html](index.html) can still be opened directly for quick debugging, but the supported distribution is the built single file.
+4. **(Optional) Add the OBS Dock**:
+   * Change settings such as the comparison, ghosts, visible splits, layout profile, race code and more from an OBS panel, without opening your scene.
+   * Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases), then in OBS open **Docks → Custom Browser Docks…** and add it with a `file:///` URL (e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.1.0.html`). It shows **Overlay linked** within a couple of seconds. See [OBS Dock](#6-obs-dock) for details.
 
 ---
 
@@ -96,10 +84,12 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 ### 4. Layout Editor & Game Profiles
 
 <p align="center">
-  <img src="assets/LayoutMode.png" alt="Interactive Layout Edit Mode" width="850">
+  <img src="assets/tracksettings.png" alt="Track Settings" width="450">
 </p>
 
 * Press **`E`** (or **`F2`**) to drag and scale (`40%`–`250%`) any component, or dock the track to the bottom (**`⚓`**).
+* Each component has a **`⚙`** for its own settings, opened in a panel beside it so you can see what you change (drag it by its header or resize it from its corner if it is in the way; double-click the header to put it back), and a **`✕`** to hide it (**`👁`** brings it back).
+* The toolbar holds HUD-wide controls: visibility, split count, text angle and the shared **plate** opacity and blur.
 * **Per-game profiles** load automatically when LiveSplit connects or a `.lss` file is dropped.
 * **Import/export** as JSON ([schema/layout-v1.json](schema/layout-v1.json)), or copy/paste via the clipboard inside OBS.
 
@@ -113,9 +103,23 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 * Upload a PNG, SVG or WebP **game logo** in place of the title text.
 * **Frosted-glass plates** with adjustable blur and opacity keep text readable over bright games.
 
+### 6. OBS Dock
+
 <p align="center">
-  <img src="assets/HUDCustomiser.png" alt="HUD Customizer Modal" width="380">
+  <img src="assets/DockSettings.png" alt="Dynamic Game & Real Timers" width="300">
 </p>
+
+An optional OBS panel (a Custom Browser Dock) for changing key settings mid-stream without interacting with your scene. While the dock has keyboard focus, **`C`** / **`Shift+C`** (or **`]`** / **`[`**) step the comparison and the arrow keys scroll your splits.
+
+1. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay.
+2. The overlay's **Browser Source** must use a `file:///` URL with *Local file* **unticked** (as in the [Quick Start](#-quick-start-60-seconds)); the dock and overlay can only talk to each other this way.
+3. **Docks → Custom Browser Docks…**: add a dock with a `file:///` URL to the dock file, e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.1.0.html`.
+4. The dock shows **Overlay linked** within a couple of seconds, then its Race, Profile, Run, Track, Ghost Pins and Visibility sections. *Overlay not found* almost always means the browser source still has *Local file* ticked.
+
+If your source still has *Local file* ticked, **export your layout first** (Settings → Export (.json)), switch to the URL, then re-import it: the switch changes where OBS stores the overlay's saved data.
+     * *Why a URL instead of Local file?* The overlay works the same either way, but only a `file:///` URL lets the OBS Dock talk to it. Switching later moves where OBS keeps the overlay's saved layouts, so it is easiest to start this way.
+
+If you have more than one overlay browser source (e.g. in different scenes), the dock controls all of them.
 
 ---
 
@@ -128,8 +132,8 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 | **`Scroll Wheel`** | Scroll splits left/right (or up/down if sidebar) like LiveSplit |
 | **`←` / `→`** (or **`↑` / `↓`**) | Pan splits / browse future and previous splits with keyboard arrow keys (works in continuous and windowed mode with pinned last split) |
 | **`E`** or **`F2`** | Toggle Interactive Layout Edit Mode (Drag & Scale) |
-| **`Esc`** | Exit Edit Mode or close open modals |
-| **`Settings`** | Bottom-right discreet pill to configure styles, profiles, and drop `.lss` files |
+| **`Esc`** | Close an open settings panel or dialog, else exit Edit Mode |
+| **`Settings`** | Bottom-right discreet pill: drop `.lss` files, **⚙ Title / Timer / Track Settings** (open Layout Mode), **👻 Ghost Pins**, **🏁 Live Race Settings** (race code, standings, race pins), layout profiles |
 
 For multi-scene or automated OBS setups, configure sources instantly with query parameters:
 
@@ -143,14 +147,20 @@ For multi-scene or automated OBS setups, configure sources instantly with query 
 | `?bg=0..95` | Set background plate opacity percentage | `index.html?bg=55` |
 | `?logo=path/to/logo.png` | Set custom logo image path | `index.html?logo=logo.png` |
 
-### Race Dock (OBS Custom Browser Dock, experimental)
+---
 
-A small OBS panel for joining or leaving a therun.gg race room without interacting with your scene or opening the settings mid-stream. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay.
+## 🧑‍💻 Development
 
-1. **Export your layout first** (Settings → profiles → export) if you already use the overlay with *Local file* ticked: step 2 changes where OBS stores the overlay's saved data, so you'll re-import it afterwards.
-2. In the overlay's **Browser Source** properties, **untick *Local file*** and put a `file:///` URL in the **URL** field instead, e.g. `file:///C:/Overlays/speedrun-overlay-v2.0.4.html`. The dock and overlay can only talk to each other this way.
-3. **Docks → Custom Browser Docks…**: add a dock with a `file:///` URL to the dock file, e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.0.4.html`.
-4. The dock shows **Overlay linked** within a couple of seconds. Type a race code and press **Connect** (or **Disconnect** to leave). *Overlay not found* almost always means the browser source still has *Local file* ticked.
+Building from source requires Node.js `^20.19.0` or `>=22.12.0`; the test suite also requires Python 3.11.
+
+```bash
+npm ci
+npm run dev      # Vite dev server with live reload
+npm test         # Python + in-browser test suite
+npm run build    # → dist/index.html (single self-contained file)
+```
+
+The application source remains classic, dependency-free scripts. `vite.config.mjs` swaps the script tags for a generated module entry (built from the same `index.html` script list) during a build, and `vite-plugin-singlefile` inlines the resulting JS and CSS. The `postbuild` check ([scripts/verify-single-file.mjs](scripts/verify-single-file.mjs)) fails the build if `dist/` contains anything other than `index.html` or if the output references an external asset. The source [index.html](index.html) can still be opened directly for quick debugging, but the supported distribution is the built single file.
 
 ---
 
@@ -192,7 +202,6 @@ For WebSocket architecture details, LiveSplit protocol constraints, algorithm sp
 For post-v2.0.0 feature specifications and technical explorations, see:
 * **Extreme minimalist track bar**: square bars for each split, hover over to see split information.
 * **Current split overlay**: Show segment time, personal best, world record etc
-* **Settings overhaul**: Modularise settings with cog and close button for each widget
 * **Minimalist graph overlay**: Visual representation of deltas over time
 * **Racer tile improvements**: Hover over for context menu with runner information
 * **Add partial support for racetime.gg**: Allow for tracking of racetime.gg races, though full split telemetry still requires therun.gg player profiles

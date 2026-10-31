@@ -32,6 +32,68 @@
     });
   });
 
+  describe("Ghost Runner: ghosts on / off", () => {
+    it("off remembers the chosen ghosts and on brings them back, also across reloads", () => {
+      const KEYS = window.LiveSplit.Storage.KEYS;
+      const keys = [KEYS.ACTIVE_GHOSTS, KEYS.GHOST_COMPARISON, KEYS.LAST_GHOSTS];
+      const saved = keys.map((k) => [k, localStorage.getItem(k)]);
+      const runner = () => window.LiveSplit.GhostRunner.createGhostRunner({ getSplitsList: () => ["A", "B"], getLastElapsedSec: () => 0 });
+      try {
+        keys.forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(["wr", "best"]));
+        const r = runner();
+        assert(r.areGhostsEnabled());
+        r.setGhostsEnabled(false);
+        assertEqual(r.getActiveGhostComparisons(), ["off"]);
+        r.setGhostsEnabled(true);
+        assertEqual(r.getActiveGhostComparisons(), ["wr", "best"], "selection restored");
+
+        r.setGhostsEnabled(false);
+        const reloaded = runner();
+        assert(!reloaded.areGhostsEnabled());
+        reloaded.setGhostsEnabled(true);
+        assertEqual(reloaded.getActiveGhostComparisons(), ["wr", "best"], "remembered in storage");
+
+        localStorage.removeItem(KEYS.LAST_GHOSTS);
+        localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(["off"]));
+        const fresh = runner();
+        fresh.setGhostsEnabled(true);
+        assertEqual(fresh.getActiveGhostComparisons(), ["pb"], "PB when nothing was ever chosen");
+      } finally {
+        saved.forEach(([k, v]) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v)));
+      }
+    });
+  });
+
+  describe("Ghost Runner: off-screen pills with a sliding track window", () => {
+    it("a ghost in the splits hidden before the window becomes a left edge pill", () => {
+      const KEYS = window.LiveSplit.Storage.KEYS;
+      const saved = localStorage.getItem(KEYS.ACTIVE_GHOSTS);
+      // The test page has the track but not the edge pills
+      const dom = window.TestUtils.mountHtml('<div id="ghost-edge-left" style="display: none;"></div><div id="ghost-edge-right" style="display: none;"></div>');
+      const left = dom.el("ghost-edge-left");
+      const splits = Array.from({ length: 10 }, (_, i) => `S${i}`);
+      const times = splits.map((_, i) => (i + 1) * 10);
+      const runner = (windowStart) => window.LiveSplit.GhostRunner.createGhostRunner({
+        getSplitsList: () => splits,
+        getComparisonTimes: () => times,
+        getCurrentIndex: () => 6,
+        getGhostInfo: () => ({ id: "wr", name: "World Record", icon: "🏆", color: "#facc15", times }),
+        getTrackWindowStart: () => windowStart
+      });
+      try {
+        localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(["wr"]));
+        runner(5).updateGhostRunner(25); // the ghost is in segment 2, the window starts at split 5
+        assertEqual(left.style.display, "flex", "left pill shown");
+        assert(left.textContent.includes("❮"), "pointing left");
+      } finally {
+        if (saved === null) localStorage.removeItem(KEYS.ACTIVE_GHOSTS); else localStorage.setItem(KEYS.ACTIVE_GHOSTS, saved);
+        dom.remove();
+        document.getElementById("ghost-marker-wr")?.style.setProperty("display", "none");
+      }
+    });
+  });
+
   describe("Ghost Runner: pin lane flag", () => {
     it("marks the track has-pins only while ghost pins are switched on", () => {
       const KEYS = window.LiveSplit.Storage.KEYS;

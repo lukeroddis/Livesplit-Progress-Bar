@@ -124,8 +124,9 @@
       if (layoutState && layoutState.leaderboard) {
         localStorage.setItem(STORAGE_KEYS.LEADERBOARD_LAYOUT, JSON.stringify(layoutState.leaderboard));
       }
+      // Positions also autosave into the active profile (Default too, once it has been saved)
       const activeProf = getActiveProfileName();
-      if (activeProf && activeProf !== "Default") {
+      if (activeProf) {
         const profData = getProfileData(activeProf);
         if (profData) {
           profData.components = Object.assign({}, profData.components || {}, layoutState);
@@ -310,7 +311,6 @@
         setTrackOrientation,
         setVisibleSplits,
         getLayoutState: () => layoutState,
-        saveLayout,
         resetLayout,
         setEditMode,
         toggleEditMode,
@@ -374,40 +374,15 @@
     if (e) e.syncUI();
   }
 
-  function openTrackModal() {
-    const ctrl = getLayoutModalController();
-    if (ctrl) {
-      ctrl.openTrackModal();
-      return;
-    }
-    const modal = document.getElementById("track-modal");
-    if (modal) {
-      modal.style.display = "flex";
-      setTimeout(() => modal.classList.add("is-open"), 10);
-      syncTrackModalUI();
-    }
+  function openWidgetSettings(compId) {
+    getLayoutModalController()?.openWidgetSettings(compId);
   }
 
-  function closeTrackModal() {
-    const ctrl = getLayoutModalController();
-    if (ctrl) {
-      ctrl.closeTrackModal();
-      return;
-    }
-    const modal = document.getElementById("track-modal");
-    if (modal) {
-      modal.classList.remove("is-open");
-      setTimeout(() => {
-        modal.style.display = "none";
-      }, 200);
-      saveTrackStyle();
-    }
-  }
-
-  function resetTrackStyle() {
+  // keys: only reset these style keys (a widget popover's reset); none: everything, logo included
+  function resetTrackStyle(keys) {
     const e = getTrackStyleEngine();
     if (e) {
-      e.resetStyle();
+      e.resetStyle(keys);
     } else {
       currentTrackStyle = Object.assign({}, DEFAULT_TRACK_STYLE);
       saveTrackStyle();
@@ -435,6 +410,16 @@
     }
     Object.assign(state, drag.fitTrackBox(state, el.offsetWidth, el.offsetHeight, w, h));
     applyComponentLayout("track");
+    saveLayout();
+  }
+
+  // Shows or hides a HUD component and saves (settings registry visible.* entries)
+  function setComponentVisible(compId, visible) {
+    if (!COMPONENTS.includes(compId)) return;
+    if (!layoutState) layoutState = loadSavedLayout();
+    if (!layoutState[compId]) layoutState[compId] = getDefaultLayout()[compId];
+    layoutState[compId].visible = !!visible;
+    applyComponentLayout(compId);
     saveLayout();
   }
 
@@ -468,10 +453,17 @@
       badge.innerText = `${Math.round(state.scale * 100)}%`;
     }
 
-    // Toolbar checkbox sync
+    // Toolbar checkbox and header hide / show button sync
     const cb = document.getElementById(`cb-toggle-${compId}`);
     if (cb) {
       cb.checked = state.visible !== false;
+    }
+    const visBtn = el.querySelector('[data-action="toggle-visibility"]');
+    if (visBtn) {
+      const label = state.visible === false ? "Show widget" : "Hide widget";
+      visBtn.textContent = state.visible === false ? "👁" : "✕";
+      visBtn.title = label;
+      visBtn.setAttribute("aria-label", label);
     }
 
     // Dock logic for track
@@ -614,6 +606,8 @@
     const igtBlock = document.getElementById("block-igt");
     if (isEditMode) {
       document.body.classList.add("edit-mode");
+      // The toolbar's plate sliders show the saved style
+      getLayoutModalController()?.syncUI();
       if (rtaBlock) {
         if (!rtaBlock.dataset.origTitle && rtaBlock.title) rtaBlock.dataset.origTitle = rtaBlock.title;
         rtaBlock.removeAttribute("title");
@@ -624,6 +618,7 @@
       }
     } else {
       document.body.classList.remove("edit-mode");
+      getLayoutModalController()?.closeWidgetPopover();
       if (rtaBlock && rtaBlock.dataset.origTitle) {
         rtaBlock.title = rtaBlock.dataset.origTitle;
       }
@@ -730,8 +725,8 @@
     saveLayout,
     loadSavedLayout,
     applyComponentLayout,
-    openTrackModal,
-    closeTrackModal,
+    setComponentVisible,
+    openWidgetSettings,
     resetTrackStyle,
     applyTrackStyle,
     saveTrackStyle,

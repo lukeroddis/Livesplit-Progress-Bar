@@ -2,9 +2,9 @@
  * src/ui/timing-controls.js - Timer Display Mode, Timing Method & Gold Toggle Controls
  *
  * - Game / Real / Both timer display mode and primary timing method focus
- * - Timing badge and timer hierarchy (delegating to LiveSplit.TimerDisplay)
+ * - Timer hierarchy (delegating to LiveSplit.TimerDisplay)
  * - switchto gametime/realtime sync with LiveSplit
- * - Gold split highlighting toggle and badge
+ * - Gold split highlighting toggle
  *
  * Installed onto the shared overlay `app` registry: reads/writes `app.state`
  * and calls other controllers through `app.<fn>` at call time.
@@ -18,29 +18,17 @@
   function installTimingControls(app) {
     const { state } = app;
 
-    function updateTimingMethodBadge() {
-      return window.LiveSplit.TimerDisplay.updateTimingMethodBadge(state.timerDisplayMode, state.currentTimingMethod);
-    }
-
     function updateTimerDisplayHierarchy() {
       return window.LiveSplit.TimerDisplay.updateTimerDisplayHierarchy(state.timerDisplayMode, state.currentTimingMethod);
     }
 
-    function updateGoldBadge() {
-      const badge = document.getElementById("gold-toggle-badge");
-      if (badge) {
-        const isEnabled = state.cachedEnableGolds;
-        badge.innerText = isEnabled ? "Golds: ON" : "Golds: OFF";
-        badge.style.color = isEnabled ? "#facc15" : "rgba(148, 163, 184, 0.7)";
-      }
+    function setGoldSegments(enabled) {
+      localStorage.setItem(STORAGE_KEYS.ENABLE_GOLDS, enabled ? "true" : "false");
+      state.cachedEnableGolds = !!enabled;
     }
 
     function toggleGoldSegments() {
-      const current = (localStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) !== "false");
-      const nextVal = (!current) ? "true" : "false";
-      localStorage.setItem(STORAGE_KEYS.ENABLE_GOLDS, nextVal);
-      state.cachedEnableGolds = (nextVal !== "false");
-      updateGoldBadge();
+      setGoldSegments(localStorage.getItem(STORAGE_KEYS.ENABLE_GOLDS) === "false");
     }
 
     function setTimerDisplayMode(mode, focusMethod) {
@@ -70,10 +58,6 @@
 
       app.applyActiveTimingMethod(state.currentTimingMethod);
       updateTimerDisplayHierarchy();
-      updateTimingMethodBadge();
-
-      // Sync modal segmented controls if open
-      window.LiveSplit.TimerDisplay.syncModalControls(mode, state.currentTimingMethod);
 
       if (state.currentTimingMethod === "GameTime") app.sendRaw("switchto gametime");
       else if (state.currentTimingMethod === "RealTime") app.sendRaw("switchto realtime");
@@ -96,10 +80,6 @@
 
       app.applyActiveTimingMethod(state.currentTimingMethod);
       updateTimerDisplayHierarchy();
-      updateTimingMethodBadge();
-
-      // Sync modal controls
-      window.LiveSplit.TimerDisplay.syncModalControls(state.timerDisplayMode, state.currentTimingMethod);
 
       if (method === "GameTime") app.sendRaw("switchto gametime");
       else if (method === "RealTime") app.sendRaw("switchto realtime");
@@ -112,12 +92,11 @@
     }
 
     return Object.assign(app, {
-      updateTimingMethodBadge,
       updateTimerDisplayHierarchy,
       setTimerDisplayMode,
       setTimingMethodFocus,
       toggleTimingMethod,
-      updateGoldBadge,
+      setGoldSegments,
       toggleGoldSegments
     });
   }

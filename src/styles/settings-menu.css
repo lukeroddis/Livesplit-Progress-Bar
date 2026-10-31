@@ -453,6 +453,20 @@ body.edit-mode .settings-menu-panel {
   box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
 }
 
+.settings-action-btn.action-race {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.16) 0%, rgba(30, 41, 59, 0.85) 100%);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  color: #4ade80;
+}
+
+.settings-action-btn.action-race:hover {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.32) 0%, rgba(51, 65, 85, 0.95) 100%);
+  border-color: #4ade80;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(74, 222, 128, 0.3);
+}
+
 .settings-action-btn.action-edit-layout {
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(30, 41, 59, 0.85) 100%);
   border: 1px solid rgba(168, 85, 247, 0.4);

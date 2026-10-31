@@ -75,20 +75,9 @@
     }
 
     function syncSplitCountControls(splitPref, isVertical, splitCount) {
-      const splitBadge = document.getElementById("split-density-badge");
-      if (splitBadge) {
-        splitBadge.innerText = (splitPref === "all")
-          ? "Splits: All"
-          : (splitPref === "auto" ? "Splits: Auto" : `Splits: ${splitPref}`);
-      }
-
       const numInput = document.getElementById("input-visible-splits");
-      const modalNumInput = document.getElementById("modal-input-visible-splits");
       const btnAll = document.getElementById("btn-splits-fit-all");
       const btnAuto = document.getElementById("btn-splits-auto");
-      const modalBtnAll = document.getElementById("modal-btn-splits-all");
-      const modalBtnAuto = document.getElementById("modal-btn-splits-auto");
-      const valBadge = document.getElementById("val-visible-splits");
 
       const isAll = (splitPref === "all");
       const isAuto = (splitPref === "auto");
@@ -96,24 +85,12 @@
       const isNum = !isNaN(intVal) && intVal > 0;
 
       if (btnAll) btnAll.classList.toggle("active", isAll);
-      if (modalBtnAll) modalBtnAll.classList.toggle("active", isAll);
       if (btnAuto) btnAuto.classList.toggle("active", isAuto);
-      if (modalBtnAuto) modalBtnAuto.classList.toggle("active", isAuto);
 
-      if (isNum) {
-        if (numInput) numInput.value = intVal;
-        if (modalNumInput) modalNumInput.value = intVal;
-        if (valBadge) valBadge.innerText = `${intVal} splits`;
-      } else if (isAll) {
-        const total = Math.max(1, splitCount);
-        if (numInput) numInput.value = total;
-        if (modalNumInput) modalNumInput.value = total;
-        if (valBadge) valBadge.innerText = `Fit All (${total})`;
-      } else {
-        if (numInput) numInput.value = isVertical ? 10 : 8;
-        if (modalNumInput) modalNumInput.value = isVertical ? 10 : 8;
-        if (valBadge) valBadge.innerText = "Auto";
-      }
+      if (!numInput) return;
+      if (isNum) numInput.value = intVal;
+      else if (isAll) numInput.value = Math.max(1, splitCount);
+      else numInput.value = isVertical ? 10 : 8;
     }
 
     function shouldAngleNames(track, isVertical, anglePref, spacing) {
@@ -149,16 +126,6 @@
         track.classList.remove("angled-text");
       }
 
-      const angleBadge = document.getElementById("split-angle-badge");
-      if (angleBadge) {
-        if (isVertical) {
-          angleBadge.innerText = "Angle: Flat";
-        } else {
-          angleBadge.innerText = (anglePref === "auto")
-            ? (shouldAngle ? "Angle: Auto (40°)" : "Angle: Auto (Flat)")
-            : (anglePref === "angled" ? "Angle: 40°" : "Angle: Flat");
-        }
-      }
       const angleSelect = document.getElementById("select-split-angle");
       if (angleSelect) {
         angleSelect.value = isVertical ? "horizontal" : anglePref;
@@ -213,35 +180,19 @@
       const sequence = ["auto", "6", "8", "10", "12", "16", "all"];
       const curIdx = sequence.indexOf(current);
       const nextIdx = (curIdx !== -1) ? ((curIdx + 1) % sequence.length) : 0;
-      const nextVal = sequence[nextIdx];
+      setVisibleSplits(sequence[nextIdx]);
+    }
+
+    function setVisibleSplits(val) {
       if (window.hudLayout?.setVisibleSplits) {
-        window.hudLayout.setVisibleSplits(nextVal);
+        window.hudLayout.setVisibleSplits(val);
       } else {
-        localStorage.setItem(STORAGE_KEYS.VISIBLE_SPLITS, nextVal);
+        localStorage.setItem(STORAGE_KEYS.VISIBLE_SPLITS, val);
         refresh();
       }
     }
 
-    function cycleSplitAngle() {
-      const current = localStorage.getItem(STORAGE_KEYS.SPLIT_ANGLE) || "auto";
-      const sequence = ["auto", "angled", "horizontal"];
-      const nextIdx = (sequence.indexOf(current) + 1) % sequence.length;
-      const nextVal = sequence[nextIdx];
-      localStorage.setItem(STORAGE_KEYS.SPLIT_ANGLE, nextVal);
-      if (window.hudLayout) {
-        if (nextVal === "angled") {
-          const style = window.hudLayout.getTrackStyle();
-          if (style && style.orientation !== "vertical") {
-            style.deltaPos = (style.namePos === "top") ? "bottom" : "top";
-            window.hudLayout.saveTrackStyle();
-          }
-        }
-        window.hudLayout.applyTrackStyle();
-      }
-      refresh();
-    }
-
-    return { update, computeSpacing, cycleVisibleSplits, cycleSplitAngle };
+    return { update, computeSpacing, cycleVisibleSplits, setVisibleSplits };
   }
 
   window.LiveSplit = window.LiveSplit || {};

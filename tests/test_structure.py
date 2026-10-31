@@ -141,3 +141,13 @@ def test_css_classes_toggled_by_js_are_styled():
                     missing.setdefault(cls, set()).add(rel)
     assert not missing, "Classes toggled in JS without CSS rules: " + ", ".join(
         f"{c} ({', '.join(sorted(f))})" for c, f in sorted(missing.items()))
+
+
+def test_dock_page_storage_keys_match_storage_js():
+    """dock.html is self-contained, so its copies of the dock storage keys must match Storage.KEYS."""
+    storage = read_text("src/core/storage.js")
+    dock = read_text("dock.html")
+    for dock_const, storage_key in (("COMMAND_KEY", "DOCK_COMMAND"), ("STATUS_KEY", "DOCK_STATUS")):
+        expected = re.search(storage_key + r':\s*"([^"]+)"', storage).group(1)
+        actual = re.search(r"const " + dock_const + r'\s*=\s*"([^"]+)"', dock)
+        assert actual and actual.group(1) == expected, f"dock.html {dock_const} must be {expected!r}"

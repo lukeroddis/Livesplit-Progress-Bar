@@ -1,0 +1,199 @@
+/* ============================================================
+   WIDGET SETTINGS POPOVERS (Layout Mode cogs, src/ui/widget-popover.js)
+   Rows reuse the Customizer's .modal-section-title / .modal-row styles.
+   ============================================================ */
+.widget-popover {
+  position: fixed;
+  z-index: 1900;
+  width: 360px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 18px rgba(56, 189, 248, 0.15);
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.widget-popover[hidden] {
+  display: none;
+}
+
+.widget-popover-header {
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(30, 41, 59, 0.85);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  flex: none;
+}
+
+.widget-popover.is-moving .widget-popover-header {
+  cursor: grabbing;
+}
+
+.widget-popover.is-moving,
+.widget-popover.is-resizing {
+  opacity: 0.92;
+}
+
+.widget-popover-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.widget-popover-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.widget-popover-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(30, 41, 59, 0.85);
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  flex: none;
+}
+
+/* Corner grip: drag to resize (the popover keeps that size until reload) */
+.widget-popover-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.45) 50%, rgba(148, 163, 184, 0.45) 60%,
+    transparent 60%, transparent 72%, rgba(148, 163, 184, 0.45) 72%, rgba(148, 163, 184, 0.45) 82%, transparent 82%);
+  border-bottom-right-radius: 12px;
+}
+
+.widget-popover-resize:hover {
+  background-color: rgba(56, 189, 248, 0.2);
+}
+
+/* Registry setting rows (src/ui/settings-renderer.js, shared with the dock), styled
+   like the dialogs' own rows: label above, segmented buttons / dropdown below */
+.sr-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sr-row[hidden] {
+  display: none;
+}
+
+.sr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sr-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.sr-control {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sr-control button {
+  padding: 5px 10px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sr-control button:hover {
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.sr-control button.sr-on {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Segmented: one joined bar like .segmented-control */
+.sr-seg {
+  gap: 0;
+  flex-wrap: nowrap;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sr-seg button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.sr-select {
+  flex: 1;
+  background: rgba(30, 41, 59, 0.9);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sr-num {
+  width: 52px;
+  padding: 5px 4px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.sr-slider {
+  flex: 1;
+  accent-color: #38bdf8;
+}
+
+.sr-slider-val {
+  min-width: 3.2em;
+  text-align: right;
+  color: #94a3b8;
+  font-size: 11px;
+}

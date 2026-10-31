@@ -1,10 +1,10 @@
 /**
- * src/ui/hud-bindings.js - HUD Badge, Hotkey & Control Bindings
+ * src/ui/hud-bindings.js - HUD Hotkey & Control Bindings
  *
  * Wires the static HUD controls to the overlay controllers once at startup:
- * - Settings badges (golds, timing method, comparison, ghost, split density, angle)
  * - Latching settings trigger pill, close button and Escape to dismiss
- * - Comparison hotkeys: C / Shift+C, NumPad 6 / 4, ] / [ (ignored in inputs and Edit Mode)
+ * - Comparison hotkeys: C / Shift+C, NumPad 6 / 4, ] / [ through the settings registry
+ *   (ignored in inputs and Edit Mode)
  * - Click a timer block to focus its timing method
  * - "Always Show Last Split" checkbox
  *
@@ -28,16 +28,6 @@
 
   function installHudBindings(app) {
     const { state } = app;
-
-    function bindBadges() {
-      document.getElementById("gold-toggle-badge")?.addEventListener("click", app.toggleGoldSegments);
-      document.getElementById("timing-method-badge")?.addEventListener("click", app.toggleTimingMethod);
-      // Wrapped so the click event is not passed as cycleComparison's `reverse` flag
-      document.getElementById("comparison-badge")?.addEventListener("click", () => app.cycleComparison());
-      document.getElementById("ghost-badge")?.addEventListener("click", app.cycleGhostComparison);
-      document.getElementById("split-density-badge")?.addEventListener("click", app.cycleVisibleSplits);
-      document.getElementById("split-angle-badge")?.addEventListener("click", app.cycleSplitAngle);
-    }
 
     function bindSettingsPill() {
       // Latching pressed-down trigger pill and close button
@@ -79,13 +69,13 @@
 
         if (e.key === "c" || e.key === "C") {
           e.preventDefault();
-          app.cycleComparison(e.shiftKey);
+          app.settings.cycle("comparison", e.shiftKey ? -1 : 1);
         } else if (e.code === "Numpad6" || e.key === "]") {
           e.preventDefault();
-          app.cycleComparison(false);
+          app.settings.cycle("comparison", 1);
         } else if (e.code === "Numpad4" || e.key === "[") {
           e.preventDefault();
-          app.cycleComparison(true);
+          app.settings.cycle("comparison", -1);
         }
       });
     }
@@ -94,11 +84,11 @@
       // Direct click on timer blocks to focus timing method
       document.getElementById("block-igt")?.addEventListener("click", () => {
         if (window.hudLayout && window.hudLayout.isEditMode && window.hudLayout.isEditMode()) return;
-        app.setTimingMethodFocus("GameTime");
+        app.settings.set("timingMethod", "GameTime");
       });
       document.getElementById("block-rta")?.addEventListener("click", () => {
         if (window.hudLayout && window.hudLayout.isEditMode && window.hudLayout.isEditMode()) return;
-        app.setTimingMethodFocus("RealTime");
+        app.settings.set("timingMethod", "RealTime");
       });
 
       document.getElementById("cb-always-show-last-split")?.addEventListener("change", (e) => {
@@ -109,7 +99,6 @@
     }
 
     function bindHudControls() {
-      bindBadges();
       bindSettingsPill();
       bindComparisonHotkeys();
       bindTimerControls();

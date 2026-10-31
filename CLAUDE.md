@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Speedrun Overlay: an OBS browser-source HUD (track, timers, ghosts, live race leaderboard) driven by LiveSplit Server's WebSocket. Plain browser JS, no runtime dependencies, released as one self-contained `dist/index.html` (plus the optional, also self-contained OBS dock page `dock.html`, copied to `dist/` by the build).
+Speedrun Overlay: an OBS browser-source HUD (track, timers, ghosts, live race leaderboard) driven by LiveSplit Server's WebSocket. Plain browser JS, no runtime dependencies, released as one self-contained `dist/index.html` (plus the optional OBS dock page `dock.html`, emitted to `dist/` by the build with the shared scripts it loads from `src/` inlined, so it is self-contained too).
 
 [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) is the reference for the module map, LiveSplit protocol, algorithms, storage keys and profile schema. Read the relevant section on demand rather than all of it.
 

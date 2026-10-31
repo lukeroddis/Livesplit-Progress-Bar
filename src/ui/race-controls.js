@@ -2,7 +2,6 @@
  * src/ui/race-controls.js - Live Race Settings Controls
  *
  * Wires the race section of the settings menu to the race client:
- * - Standings (leaderboard visibility) and race pin toggles
  * - Connect / Disconnect button with code validation and cooldown countdown
  * - Race badge and Test Race (simulation) badge states
  * - Spectator leaderboard refresh tick while connected
@@ -16,37 +15,6 @@
 
   // Same rule the race client enforces before building any request URL
   const isValidRaceCodeInput = (v) => window.LiveSplit.RaceIdentity.isValidRaceCode(v);
-
-  function bindLeaderboardToggle(refreshLeaderboard) {
-    const btnToggleLeaderboard = document.getElementById("btn-toggle-leaderboard");
-    if (!btnToggleLeaderboard) return;
-
-    const syncLeaderboardBtn = () => {
-      const state = window.hudLayout ? window.hudLayout.getState() : null;
-      const isVis = state ? (state.leaderboard?.visible !== false) : true;
-      btnToggleLeaderboard.textContent = isVis ? "Standings: ON" : "Standings: OFF";
-      btnToggleLeaderboard.style.color = isVis ? "#38bdf8" : MUTED_COLOR;
-    };
-    syncLeaderboardBtn();
-
-    btnToggleLeaderboard.addEventListener("click", () => {
-      if (!window.hudLayout) return;
-      const state = window.hudLayout.getState();
-      if (!state) return;
-      if (!state.leaderboard) {
-        state.leaderboard = { x: 42, y: 110, scale: 1.0, visible: true, docked: "none" };
-      }
-      state.leaderboard.visible = !(state.leaderboard.visible !== false);
-      if (typeof window.hudLayout.saveLayout === "function") {
-        window.hudLayout.saveLayout();
-      }
-      if (typeof window.hudLayout.applyComponentLayout === "function") {
-        window.hudLayout.applyComponentLayout("leaderboard");
-      }
-      syncLeaderboardBtn();
-      refreshLeaderboard();
-    });
-  }
 
   /**
    * Returns the race actions other controllers can drive (the OBS dock bridge),
@@ -69,26 +37,6 @@
     const raceSimBtn = document.getElementById("race-sim-badge");
     const therunRaceCodeInp = document.getElementById("input-therun-race-code");
     const therunSaveBtn = document.getElementById("btn-save-therun-username");
-    const btnToggleRacePins = document.getElementById("btn-toggle-race-pins");
-
-    bindLeaderboardToggle(refreshLeaderboard);
-
-    if (btnToggleRacePins && raceClient) {
-      const syncRacePinsBtn = () => {
-        const isVis = typeof raceClient.areRacePinsVisible === "function" ? raceClient.areRacePinsVisible() : true;
-        btnToggleRacePins.textContent = isVis ? "Pins: ON" : "Pins: OFF";
-        btnToggleRacePins.style.color = isVis ? "#38bdf8" : MUTED_COLOR;
-      };
-      syncRacePinsBtn();
-
-      btnToggleRacePins.addEventListener("click", () => {
-        if (typeof raceClient.toggleRacePinsVisible === "function") {
-          raceClient.toggleRacePinsVisible();
-        }
-        syncRacePinsBtn();
-        refreshGhosts();
-      });
-    }
 
     if (!raceClient) return null;
 

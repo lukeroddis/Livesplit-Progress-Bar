@@ -30,14 +30,6 @@
     ["worst"]
   ];
 
-  const GHOST_BADGE_LABELS = {
-    wr: "🏆 WR",
-    pb: "🥈 PB",
-    best: "⭐ Best",
-    average: "📊 Avg",
-    worst: "🐢 Worst"
-  };
-
   function loadActiveGhostComparisons() {
     const savedMulti = localStorage.getItem(STORAGE_KEYS.ACTIVE_GHOSTS);
     if (savedMulti) {
@@ -49,6 +41,17 @@
     }
     const single = localStorage.getItem(STORAGE_KEYS.GHOST_COMPARISON) || "off";
     return single === "off" ? ["off"] : [single];
+  }
+
+  // The ghosts to bring back when ghosts are switched on again: the current ones, else the last saved
+  function loadLastEnabledGhosts(active) {
+    const current = active.filter(g => g !== "off");
+    if (current.length > 0) return current;
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.LAST_GHOSTS) || "null");
+      if (Array.isArray(saved) && saved.length > 0) return saved;
+    } catch (e) {}
+    return ["pb"];
   }
 
   function clearMarkerOffsets(m) {
@@ -103,6 +106,7 @@
    * @param {Function} options.getLastElapsedSec
    * @param {Function} options.getGhostInfo - (ghostId) => { id, name, icon, color, times } | null
    * @param {Function} options.getRaceClient
+   * @param {Function} [options.getTrackWindowStart] - First split shown by the sliding track window (0 when not windowed)
    */
   function createGhostRunner(options = {}) {
     const {
@@ -112,11 +116,13 @@
       getLastSplitRecordedSec = () => 0,
       getLastElapsedSec = () => 0,
       getGhostInfo = () => null,
-      getRaceClient = () => null
+      getRaceClient = () => null,
+      getTrackWindowStart = () => 0
     } = options;
 
     let activeGhostComparisons = loadActiveGhostComparisons();
     let ghostComparison = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
+    let lastEnabledGhosts = loadLastEnabledGhosts(activeGhostComparisons);
     let ghostOpacity = parseFloat(localStorage.getItem(STORAGE_KEYS.GHOST_OPACITY) || "85") / 100;
     const nodeThresholdCache = new Map();
     const knownGhostMarkers = new Set();
@@ -126,6 +132,10 @@
       const primary = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
       ghostComparison = primary;
       localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, primary);
+      if (primary !== "off") {
+        lastEnabledGhosts = activeGhostComparisons.filter(g => g !== "off");
+        localStorage.setItem(STORAGE_KEYS.LAST_GHOSTS, JSON.stringify(lastEnabledGhosts));
+      }
     }
 
     function getNodeTextThreshold(nodeEl, isNext = false) {
@@ -235,7 +245,12 @@
      * Track-space start/end coordinates (and bounding nodes) for a segment,
      * following omitted splits and schematic discontinuities.
      */
+    // A segment in the splits the sliding window hides before its start: left of the view, so its
+    // pins become left / top edge pills (the "//" break only stands for splits after the window)
+    const BEHIND_WINDOW = Object.freeze({ startCoord: -1e6, endCoord: -1e6, prevNode: null, nextNode: null });
+
     function getSegmentCoords(segIdx, isVertical, nodeStart, splitCount) {
+      if (segIdx < getTrackWindowStart()) return BEHIND_WINDOW;
       let startCoord = 0;
       let endCoord = 0;
       let prevNode = null;
@@ -435,35 +450,9 @@
       refreshLeaderboard();
     }
 
-    function updateGhostBadge() {
-      const badge = document.getElementById("ghost-badge");
-      if (!badge) return;
-      const active = activeGhostComparisons.filter(g => g && g !== "off");
-      if (active.length === 0) {
-        badge.innerText = "Ghost: Off";
-        badge.style.color = "rgba(148, 163, 184, 0.9)";
-        return;
-      }
-
-      const labels = active.map(id => {
-        const low = id.toLowerCase();
-        if (GHOST_BADGE_LABELS[low]) return GHOST_BADGE_LABELS[low];
-        if (low.includes("world record")) return "🏆 WR";
-        if (low === "personal best") return "🥈 PB";
-        if (low === "best segments") return "⭐ Best";
-        if (low === "average segments") return "📊 Avg";
-        if (low === "worst segments") return "🐢 Worst";
-        return `👤 ${id.slice(0, 8)}`;
-      });
-
-      badge.innerText = `Ghost: ${labels.join(" + ")}`;
-      badge.style.color = active.includes("wr") ? "#facc15" : (active.includes("pb") ? "#38bdf8" : "#eab308");
-    }
-
-    // Persist, refresh badge and markers after the active ghost list changes
+    // Persist and refresh the markers after the active ghost list changes
     function onActiveGhostsChanged() {
       saveActiveGhostComparisons();
-      updateGhostBadge();
       hideAllGhostMarkers();
 
       const lastElapsedSec = getLastElapsedSec();
@@ -525,6 +514,16 @@
       setGhostComparison(GHOST_PRESETS[nextIdx]);
     }
 
+    // Ghosts on / off without losing the selection (off remembers it, on restores it)
+    function areGhostsEnabled() {
+      return activeGhostComparisons.some(g => g !== "off");
+    }
+
+    function setGhostsEnabled(enabled) {
+      if (!!enabled === areGhostsEnabled()) return;
+      setGhostComparison(enabled ? [...lastEnabledGhosts] : ["off"]);
+    }
+
     function setGhostOpacity(pct) {
       const parsed = parseInt(pct, 10);
       if (!isNaN(parsed) && parsed >= 30 && parsed <= 100) {
@@ -545,10 +544,11 @@
       refreshLeaderboard,
       hideAllGhostMarkers,
       updateGhostRunner,
-      updateGhostBadge,
       setGhostComparison,
       toggleGhostComparison,
       cycleGhostComparison,
+      areGhostsEnabled,
+      setGhostsEnabled,
       setGhostOpacity
     };
   }

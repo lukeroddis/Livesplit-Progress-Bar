@@ -156,12 +156,12 @@
       quickWrap.classList.add("menu-open");
       triggerPill.classList.add("is-pressed");
       triggerPill.setAttribute("aria-pressed", "true");
-      triggerPill.setAttribute("title", "Click to close LiveSplit Settings");
+      triggerPill.setAttribute("title", "Click to close Settings");
     } else {
       quickWrap.classList.remove("menu-open");
       triggerPill.classList.remove("is-pressed");
       triggerPill.setAttribute("aria-pressed", "false");
-      triggerPill.setAttribute("title", "Click to open LiveSplit Settings");
+      triggerPill.setAttribute("title", "Click to open Settings");
     }
   }
 

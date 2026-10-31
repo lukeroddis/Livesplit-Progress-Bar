@@ -64,6 +64,7 @@
    * @property {number} lastElapsedSec - Latest run time from LiveSplit
    * @property {HostSplitFlash|null} pendingHostSplitFlash
    * @property {number} trackManualScrollOffset - User scroll offset of the track window
+   * @property {number} trackWindowStart - First split shown by the sliding track window (0 when not windowed)
    * @property {boolean} canQueryComparison - False once getcomparisonname gets no reply (older servers); stops asking
    * @property {number} pollTick - Poll loop counter
    */
@@ -104,6 +105,7 @@
 
       // UI / protocol flags
       trackManualScrollOffset: 0,
+      trackWindowStart: 0,
       canQueryComparison: true,
       pollTick: 0
     };
