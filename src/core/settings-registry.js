@@ -15,7 +15,9 @@
  *
  * Types: "bool", "enum" (options: array or (app) => array), "splits"
  * ("auto" | "all" | "2".."60"), "ghosts" (array of ghost ids or comparison
- * names, [] = off), "action" (run(app, value) with value one of options; no
+ * names, [] = off), "range" (a whole number; options are the consecutive
+ * allowed values, so a dock renders a slider from first to last, and values
+ * outside are clamped), "action" (run(app, value) with value one of options; no
  * stored value, so no get / set and not in snapshots).
  * `optionLabels` (optional) maps option values to short display labels.
  * `where` lists the surfaces a setting belongs on: "dock", "widget".
@@ -158,6 +160,18 @@
       run: (app, value) => app.scrollTrack(value)
     },
     {
+      id: "trackPosition",
+      label: "Split view",
+      group: "track",
+      where: ["dock"],
+      type: "range",
+      apply: "instant",
+      // 0 = the start of the track; the end depends on split count, density and window
+      options: (app) => Array.from({ length: app.getTrackScrollPosition().max + 1 }, (_, i) => i),
+      get: (app) => app.getTrackScrollPosition().pos,
+      set: (app, value) => app.setTrackScrollPosition(value)
+    },
+    {
       id: "racePins",
       label: "Race pins",
       group: "leaderboard",
@@ -219,6 +233,13 @@
         const num = typeof raw === "number" ? raw : (typeof raw === "string" && /^\s*\d+\s*$/.test(raw) ? parseInt(raw, 10) : NaN);
         if (!Number.isInteger(num)) return { ok: false, error: "expected auto, all or a whole number" };
         return { ok: true, value: String(Math.max(SPLITS_MIN, Math.min(SPLITS_MAX, num))) };
+      }
+      case "range": {
+        const num = typeof raw === "number" ? raw : (typeof raw === "string" && /^\s*-?\d+\s*$/.test(raw) ? parseInt(raw, 10) : NaN);
+        if (!Number.isInteger(num)) return { ok: false, error: "expected a whole number" };
+        const opts = resolveOptions(def, app);
+        if (opts.length === 0) return { ok: false, error: "no range" };
+        return { ok: true, value: Math.max(opts[0], Math.min(opts[opts.length - 1], num)) };
       }
       case "ghosts": {
         const list = Array.isArray(raw) ? raw : (typeof raw === "string" ? raw.split(",") : null);

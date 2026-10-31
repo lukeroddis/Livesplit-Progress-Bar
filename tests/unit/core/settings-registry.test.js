@@ -43,6 +43,9 @@
       },
       setGhostsEnabled: rec("setGhostsEnabled"),
       scrollTrack: rec("scrollTrack"),
+      trackPos: { pos: 2, max: 5 },
+      getTrackScrollPosition: () => ({ ...app.trackPos }),
+      setTrackScrollPosition: (v) => { calls.push(["trackPosition", v]); app.trackPos.pos = v; },
       refreshLeaderboard: rec("refreshLeaderboard"),
       getRaceClient: () => ({ areRacePinsVisible: () => app.pins, setRacePinsVisible: (v) => { app.pins = v; } })
     };
@@ -58,7 +61,7 @@
         assert(!ids.has(def.id), `duplicate id ${def.id}`);
         ids.add(def.id);
         assert(def.label && def.group, `${def.id} label / group`);
-        assert(["bool", "enum", "splits", "ghosts", "action"].includes(def.type), `${def.id} type`);
+        assert(["bool", "enum", "splits", "ghosts", "range", "action"].includes(def.type), `${def.id} type`);
         assert(def.where.length > 0 && def.where.every((w) => w === "dock" || w === "widget"), `${def.id} where`);
         assert(def.apply === "instant" || def.apply === "draft", `${def.id} apply`);
         if (def.type === "action") {
@@ -123,6 +126,15 @@
     it("only splits comparisons the built-in ghosts don't cover are custom ghosts", () => {
       ["Sub 1h", "Glitchless PB"].forEach((c) => assert(R.isCustomGhostComparison(c), c));
       ["Personal Best", "best segments", "World Record", "WR", "pb", "", null].forEach((c) => assert(!R.isCustomGhostComparison(c), String(c)));
+    });
+
+    it("range accepts whole numbers, clamped to its options", () => {
+      assertEqual(validate("trackPosition", 3).value, 3);
+      assertEqual(validate("trackPosition", "4").value, 4);
+      assertEqual(validate("trackPosition", 99).value, 5, "clamped to the last position");
+      assertEqual(validate("trackPosition", -2).value, 0);
+      assert(!validate("trackPosition", 1.5).ok);
+      assert(!validate("trackPosition", "end").ok);
     });
 
     it("rejects unknown settings", () => {
@@ -254,6 +266,16 @@
       assert(!s.cycle("trackScroll").ok);
       assertEqual(s.get("trackScroll"), undefined);
       assertEqual(heard, [], "running an action changes no setting");
+    });
+
+    it("trackPosition reads and moves the split view; its options are every position", () => {
+      const app = makeApp();
+      const s = R.createSettingsController(app);
+      assertEqual(s.get("trackPosition"), 2);
+      assertEqual(s.options("trackPosition"), [0, 1, 2, 3, 4, 5]);
+      s.set("trackPosition", 4);
+      assertEqual(app.calls.pop(), ["trackPosition", 4]);
+      assertEqual(s.get("trackPosition"), 4);
     });
 
     it("ghostsOn reads and switches ghosts through the ghost runner", () => {

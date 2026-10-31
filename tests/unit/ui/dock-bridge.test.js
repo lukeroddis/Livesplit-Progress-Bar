@@ -53,6 +53,8 @@
       applyActiveComparison: (name) => { app.state.currentComparison = name; },
       ghostRunner: { getActiveGhostComparisons: () => ["off"], areGhostsEnabled: () => false },
       scrollTrack: (dir) => { app.scrolled.push(dir); },
+      getTrackScrollPosition: () => ({ pos: 0, max: 3 }),
+      setTrackScrollPosition: () => {},
       scrolled: []
     };
     return { app, settings: window.LiveSplit.SettingsRegistry.createSettingsController(app) };
@@ -128,6 +130,7 @@
       assertEqual(s.profile, "Speedy");
       assertEqual(s.settings.schema.map((d) => d.id), window.LiveSplit.SettingsRegistry.listSettings("dock").map((d) => d.id), "schema for the dock UI");
       assertEqual(s.settings.options.trackScroll, [-1, 0, 1], "actions' options too");
+      assertEqual(s.settings.options.trackPosition, [0, 1, 2, 3], "slider range");
       assert(!("trackScroll" in s.settings.values), "actions have no value");
     }));
 

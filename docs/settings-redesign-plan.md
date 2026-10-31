@@ -25,7 +25,7 @@ The settings menu and the HUD & Progress Bar Customizer modal have grown too lar
 | Ghost pins on/off (keeps the chosen ghosts) | ✅ | Track | New: today "off" forgets the ghost selection |
 | Golds on/off (`gold-toggle-badge`) | ✅ | Track | |
 | Visible splits count / Fit all / Auto | ✅ | Track | Spinbox in dock |
-| Scroll through splits ◀ / ▶ / back to live | ✅ | | New. Action buttons; covers both the sliding window (`shiftTrackWindow`) and native scroll |
+| Scroll through splits ◀ / ▶ / back to live | ✅ | | New. Action buttons plus a "Split view" slider (`trackPosition`) and the mouse wheel over either; covers both the sliding window (`shiftTrackWindow`) and native scroll |
 | Show/hide title, timers, track (`cb-toggle-*`) | ✅ | (Layout toolbar) | Handy for scene changes |
 | Layout profile switch (`select-layout-profile`) | ✅ | (settings menu) | Dock must refresh its whole state after a switch |
 | Load `.lss` splits | | (settings menu) | Needs the file picker / drop |

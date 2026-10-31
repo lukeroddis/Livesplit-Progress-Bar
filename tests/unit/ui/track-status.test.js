@@ -35,6 +35,49 @@
     }
   }
 
+  // Fakes the viewport's scroll geometry (getters on the prototype) for the duration of fn
+  function withViewportGeometry(geometry, fn) {
+    const viewport = document.getElementById("track-viewport");
+    const scrolled = [];
+    Object.entries(geometry).forEach(([k, v]) => Object.defineProperty(viewport, k, { configurable: true, value: v, writable: true }));
+    viewport.scrollTo = (opts) => scrolled.push(opts);
+    try {
+      return fn(scrolled);
+    } finally {
+      Object.keys(geometry).concat("scrollTo").forEach((k) => delete viewport[k]);
+    }
+  }
+
+  describe("Track Status: split view position (dock slider)", () => {
+    it("windowed: the window's first slot, 0..last start, clamped when set", () => withWindowing("true", "4", () => {
+      const splitsList = Array.from({ length: 12 }, (_, i) => `S${i}`);
+      const { app } = makeApp({ splitsList, currentIndex: 0 });
+      assertEqual(app.getTrackScrollPosition(), { pos: 0, max: 8 }, "12 splits, 5 slots");
+      app.setTrackScrollPosition(3);
+      assertEqual(app.getTrackScrollPosition().pos, 3);
+      app.setTrackScrollPosition(99);
+      assertEqual(app.getTrackScrollPosition().pos, 8, "clamped to the last window");
+      app.scrollTrack(0);
+      assertEqual(app.getTrackScrollPosition().pos, 0, "Current goes back");
+    }));
+
+    it("native scroll: the scroll offset in node spacings", () => withWindowing("false", "auto", () => {
+      const { app } = makeApp();
+      const spacing = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--node-spacing")) || 100;
+      const extent = spacing * 6;
+      withViewportGeometry({
+        scrollWidth: 400 + extent, clientWidth: 400, scrollLeft: spacing * 2,
+        scrollHeight: 300 + extent, clientHeight: 300, scrollTop: spacing * 2
+      }, (scrolled) => {
+        assertEqual(app.getTrackScrollPosition(), { pos: 2, max: 6 });
+        app.setTrackScrollPosition(4);
+        app.setTrackScrollPosition(-3);
+        const axis = document.getElementById("track").classList.contains("vertical") ? "top" : "left";
+        assertEqual(scrolled.map((o) => o[axis]), [spacing * 4, 0], "jumps (no smooth scroll while dragging), clamped at 0");
+      });
+    }));
+  });
+
   describe("Track Status: scrollTrack", () => {
     it("scrolls the viewport natively by one split spacing when not windowed", () => withWindowing("false", "auto", () => {
       const { app } = makeApp();

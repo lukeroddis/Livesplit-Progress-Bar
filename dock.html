@@ -53,6 +53,8 @@
     .control { display: flex; gap: 4px; flex: 1; justify-content: flex-end; flex-wrap: wrap; min-width: 0; }
     .seg button { flex: 1; padding: 5px 4px; }
     .num { width: 44px; flex: none; text-align: center; padding: 5px 2px; }
+    .slider { flex: 1; min-width: 0; accent-color: #38bdf8; cursor: pointer; }
+    .slider-val { flex: none; min-width: 3.2em; text-align: right; color: #94a3b8; font-size: 11px; }
     .error { color: #fca5a5; font-size: 11px; min-height: 1em; }
   </style>
 </head>
@@ -81,6 +83,8 @@
       const COMMAND_KEY = "livesplit_dock_command";
       const STATUS_KEY = "livesplit_dock_status";
       const STALE_MS = 6000;
+      const SLIDER_SEND_MS = 60;
+      const WHEEL_STEP_PX = 100;
       // Registry groups -> dock sections ("race" settings join the Race section above)
       const SECTIONS = [
         { group: "timers", title: "Run" },
@@ -172,6 +176,37 @@
             el("button", { type: "button", textContent: "+", onclick: () => step(1) }), auto, all
           ]);
         },
+        // A slider; dragging or the mouse wheel sends at most one change per SLIDER_SEND_MS
+        range(def, options) {
+          const max = options.length > 0 ? options[options.length - 1] : 0;
+          const slider = el("input", { type: "range", className: "slider", min: options[0] || 0, max, step: 1 });
+          const label = el("span", { className: "slider-val" });
+          let dragging = false;
+          let lastSent = 0;
+          let timer = null;
+          const showValue = () => { label.textContent = slider.value + " / " + max; };
+          const sendSoon = () => {
+            showValue();
+            clearTimeout(timer);
+            const wait = SLIDER_SEND_MS - (Date.now() - lastSent);
+            const sendNow = () => { lastSent = Date.now(); setSetting(def.id, Number(slider.value)); };
+            if (wait <= 0) sendNow(); else timer = setTimeout(sendNow, wait);
+          };
+          slider.addEventListener("pointerdown", () => { dragging = true; });
+          // A range input captures the pointer, so its own pointerup / change end the drag
+          ["pointerup", "pointercancel", "change"].forEach((type) => slider.addEventListener(type, () => { dragging = false; }));
+          slider.addEventListener("input", sendSoon);
+          slider.wheelStep = (steps) => {
+            slider.value = String(Number(slider.value) + steps);
+            sendSoon();
+          };
+          updaters.push((values) => {
+            if (dragging || Date.now() - lastSent < 500) return;
+            slider.value = values[def.id];
+            showValue();
+          });
+          return el("div", { className: "control" }, [slider, label]);
+        },
         action(def, options) {
           return el("div", { className: "control seg" }, options.map((opt) => el("button", {
             type: "button", textContent: optionLabel(def, opt), onclick: () => send({ action: "run", setting: def.id, value: opt })
@@ -179,10 +214,43 @@
         }
       };
 
+      // Mouse wheel over a slider steps it; over a back / forward action row it runs the action
+      function bindWheel(row, def, options) {
+        const slider = row.querySelector(".slider");
+        const canStep = slider || (def.type === "action" && options.includes(-1) && options.includes(1));
+        if (!canStep) return;
+        // At least one split per mouse wheel notch (its size varies with OS / display scaling);
+        // trackpads' small deltas add up, one split per WHEEL_STEP_PX
+        let pending = 0;
+        row.addEventListener("wheel", (e) => {
+          let delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+          if (delta === 0 || (slider && slider.disabled)) return;
+          e.preventDefault();
+          if (e.deltaMode === 1) delta *= WHEEL_STEP_PX / 3; // lines: 3 per notch
+          let steps;
+          if (Math.abs(delta) >= WHEEL_STEP_PX / 2) {
+            steps = Math.sign(delta) * Math.max(1, Math.round(Math.abs(delta) / WHEEL_STEP_PX));
+            pending = 0;
+          } else {
+            pending += delta;
+            steps = Math.trunc(pending / WHEEL_STEP_PX);
+            pending -= steps * WHEEL_STEP_PX;
+          }
+          if (steps === 0) return;
+          if (slider) {
+            slider.wheelStep(steps);
+          } else {
+            for (let i = 0; i < Math.abs(steps); i++) send({ action: "run", setting: def.id, value: Math.sign(steps) });
+          }
+        }, { passive: false });
+      }
+
       function settingRow(def, options) {
         const make = CONTROLS[def.type];
         if (!make) return null;
-        return el("div", { className: "setting" }, [el("label", { textContent: def.label }), make(def, options || [])]);
+        const row = el("div", { className: "setting" }, [el("label", { textContent: def.label }), make(def, options || [])]);
+        bindWheel(row, def, options || []);
+        return row;
       }
 
       // Rebuilds the controls only when the schema or options change, so focus survives value updates
