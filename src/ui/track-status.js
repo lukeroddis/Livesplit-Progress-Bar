@@ -140,6 +140,29 @@
       window.LiveSplit.TrackRenderer.scrollTrackToIndex(idx, isWindowed, isVertical);
     }
 
+    /**
+     * Scrolls the track one split back (-1) or forward (+1), or back to the current split (0):
+     * shifts the sliding window when windowed, else scrolls the viewport natively.
+     */
+    function scrollTrack(direction) {
+      const isVertical = document.getElementById("track")?.classList.contains("vertical");
+      if (direction === 0) {
+        state.trackManualScrollOffset = 0;
+        const isWindowed = updateTrackWindow(state.currentIndex);
+        window.LiveSplit.TrackRenderer.scrollTrackToIndex(state.currentIndex, isWindowed, isVertical);
+        if (state.lastElapsedSec > 0) app.updateGhostRunner(state.lastElapsedSec);
+        return;
+      }
+      if (isTrackWindowed()) {
+        shiftTrackWindow(direction);
+        return;
+      }
+      const viewport = document.getElementById("track-viewport");
+      if (!viewport || typeof viewport.scrollBy !== "function") return;
+      const spacing = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--node-spacing")) || 100;
+      viewport.scrollBy(isVertical ? { top: direction * spacing, behavior: "smooth" } : { left: direction * spacing, behavior: "smooth" });
+    }
+
     let liveElementCache = null;
 
     function getLiveElements(idx) {
@@ -280,6 +303,7 @@
       isTrackWindowingEnabled,
       isTrackWindowed,
       shiftTrackWindow,
+      scrollTrack,
       updateTrackWindow,
       clearDeltaSpan,
       updateTrackStatus,

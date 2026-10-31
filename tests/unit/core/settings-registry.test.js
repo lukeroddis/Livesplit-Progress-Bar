@@ -37,7 +37,12 @@
       cycleVisibleSplits: rec("cycleVisibleSplits"),
       setGhostComparison: (list) => { calls.push(["ghosts", list]); app.ghosts = list; },
       cycleGhostComparison: rec("cycleGhostComparison"),
-      ghostRunner: { getActiveGhostComparisons: () => [...app.ghosts] },
+      ghostRunner: {
+        getActiveGhostComparisons: () => [...app.ghosts],
+        areGhostsEnabled: () => app.ghosts.some((g) => g !== "off")
+      },
+      setGhostsEnabled: rec("setGhostsEnabled"),
+      scrollTrack: rec("scrollTrack"),
       refreshLeaderboard: rec("refreshLeaderboard"),
       getRaceClient: () => ({ areRacePinsVisible: () => app.pins, setRacePinsVisible: (v) => { app.pins = v; } })
     };
@@ -53,10 +58,14 @@
         assert(!ids.has(def.id), `duplicate id ${def.id}`);
         ids.add(def.id);
         assert(def.label && def.group, `${def.id} label / group`);
-        assert(["bool", "enum", "splits", "ghosts"].includes(def.type), `${def.id} type`);
+        assert(["bool", "enum", "splits", "ghosts", "action"].includes(def.type), `${def.id} type`);
         assert(def.where.length > 0 && def.where.every((w) => w === "dock" || w === "widget"), `${def.id} where`);
         assert(def.apply === "instant" || def.apply === "draft", `${def.id} apply`);
-        assert(typeof def.get === "function" && typeof def.set === "function", `${def.id} get / set`);
+        if (def.type === "action") {
+          assert(typeof def.run === "function" && Array.isArray(def.options), `${def.id} run / options`);
+        } else {
+          assert(typeof def.get === "function" && typeof def.set === "function", `${def.id} get / set`);
+        }
         assert(Object.isFrozen(def), `${def.id} frozen`);
       });
       assert(Object.isFrozen(R.SETTINGS));
@@ -109,6 +118,11 @@
       assertEqual(validate("ghosts", ["Sub 1h"]).value, ["Sub 1h"], "the splits' own comparisons work as ghosts");
       assert(!validate("ghosts", ["nope"]).ok);
       assert(!validate("ghosts", 5).ok);
+    });
+
+    it("only splits comparisons the built-in ghosts don't cover are custom ghosts", () => {
+      ["Sub 1h", "Glitchless PB"].forEach((c) => assert(R.isCustomGhostComparison(c), c));
+      ["Personal Best", "best segments", "World Record", "WR", "pb", "", null].forEach((c) => assert(!R.isCustomGhostComparison(c), String(c)));
     });
 
     it("rejects unknown settings", () => {
@@ -183,7 +197,7 @@
       assertEqual(snap.racePins, true);
       assertEqual(snap["visible.title"], false);
       assertEqual(snap["visible.track"], true, "missing layout entries count as visible");
-      assertEqual(Object.keys(snap).length, R.listSettings("dock").length);
+      assertEqual(Object.keys(snap).length, R.listSettings("dock").filter((d) => d.type !== "action").length, "actions have no value");
     }));
 
     it("visibility settings go through the HUD layout; standings also refresh the leaderboard", () => {
@@ -219,11 +233,45 @@
       const app = makeApp();
       const s = R.createSettingsController(app);
       assertEqual(s.options("timingMethod"), ["GameTime", "RealTime"]);
-      assertEqual(s.options("ghosts"), [...R.GHOST_IDS, "Personal Best", "Best Segments", "Sub 1h"]);
+      assertEqual(s.options("ghosts"), [...R.GHOST_IDS, "Sub 1h"], "built-in comparisons are already ghosts");
       s.options("comparison").push("x");
       assertEqual(app.state.comparisonsList.length, 3, "not the app's own list");
       assertEqual(s.options("golds"), []);
       assertEqual(s.options("nope"), []);
+    });
+
+    it("actions validate and run, but cannot be set, cycled or read", () => {
+      const app = makeApp();
+      const s = R.createSettingsController(app);
+      const heard = [];
+      s.subscribe((id) => heard.push(id));
+      assertEqual(s.run("trackScroll", 1), { ok: true, value: 1 });
+      assertEqual(s.run("trackScroll", 0).ok, true);
+      assertEqual(app.calls.slice(-2), [["scrollTrack", 1], ["scrollTrack", 0]]);
+      assert(!s.run("trackScroll", 5).ok, "only listed directions");
+      assert(!s.run("golds", true).ok, "settings are not actions");
+      assert(!s.set("trackScroll", 1).ok);
+      assert(!s.cycle("trackScroll").ok);
+      assertEqual(s.get("trackScroll"), undefined);
+      assertEqual(heard, [], "running an action changes no setting");
+    });
+
+    it("ghostsOn reads and switches ghosts through the ghost runner", () => {
+      const app = makeApp();
+      const s = R.createSettingsController(app);
+      assertEqual(s.get("ghostsOn"), true);
+      s.set("ghostsOn", false);
+      assertEqual(app.calls.pop(), ["setGhostsEnabled", false]);
+    });
+
+    it("describeSettings is plain data: labels, groups, types, option labels and split limits", () => {
+      const schema = R.describeSettings("dock");
+      assertEqual(schema.map((d) => d.id), R.listSettings("dock").map((d) => d.id));
+      const byId = Object.fromEntries(schema.map((d) => [d.id, d]));
+      assertEqual(byId.golds, { id: "golds", label: "Gold splits", group: "track", type: "bool" });
+      assertEqual(byId.trackScroll.optionLabels["0"], "Current");
+      assertEqual([byId.visibleSplits.min, byId.visibleSplits.max], [2, 60]);
+      assertEqual(JSON.parse(JSON.stringify(schema)), schema, "survives JSON");
     });
 
     it("installSettingsRegistry registers app.settings", () => {

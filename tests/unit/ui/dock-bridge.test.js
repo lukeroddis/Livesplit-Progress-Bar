@@ -51,7 +51,9 @@
       getRaceClient: () => rc,
       setGoldSegments: (v) => { app.state.cachedEnableGolds = v; },
       applyActiveComparison: (name) => { app.state.currentComparison = name; },
-      ghostRunner: { getActiveGhostComparisons: () => ["off"] }
+      ghostRunner: { getActiveGhostComparisons: () => ["off"], areGhostsEnabled: () => false },
+      scrollTrack: (dir) => { app.scrolled.push(dir); },
+      scrolled: []
     };
     return { app, settings: window.LiveSplit.SettingsRegistry.createSettingsController(app) };
   }
@@ -88,6 +90,8 @@
       assertEqual(Bridge.parseDockCommand('{"action":"set","setting":"golds","value":false,"id":"s"}'),
         { action: "set", setting: "golds", value: false, id: "s" });
       assertEqual(Bridge.parseDockCommand('{"action":"set","value":true}'), null, "set needs a setting");
+      assertEqual(Bridge.parseDockCommand('{"action":"run","setting":"trackScroll","value":-1}'),
+        { action: "run", setting: "trackScroll", value: -1, id: null });
       assertEqual(Bridge.parseDockCommand('{"action":"reset"}'), null);
       assertEqual(Bridge.parseDockCommand("not json"), null);
       assertEqual(Bridge.parseDockCommand("null"), null);
@@ -122,6 +126,9 @@
       assertEqual(s.settings.options.comparison, ["Personal Best", "Best Segments"]);
       assert(!("golds" in s.settings.options), "bools have no options");
       assertEqual(s.profile, "Speedy");
+      assertEqual(s.settings.schema.map((d) => d.id), window.LiveSplit.SettingsRegistry.listSettings("dock").map((d) => d.id), "schema for the dock UI");
+      assertEqual(s.settings.options.trackScroll, [-1, 0, 1], "actions' options too");
+      assert(!("trackScroll" in s.settings.values), "actions have no value");
     }));
 
     it("publishes on every heartbeat", () => withBridge(({ status, clock }) => {
@@ -138,6 +145,15 @@
 
       command({ action: "set", setting: "comparison", value: "Best Segments", id: "s2" });
       assertEqual(app.state.currentComparison, "Best Segments");
+    }));
+
+    it("runs actions (split scrolling) from a dock command", () => withBridge(({ app, status, command }) => {
+      command({ action: "run", setting: "trackScroll", value: 1, id: "r1" });
+      command({ action: "run", setting: "trackScroll", value: 0, id: "r2" });
+      assertEqual(app.scrolled, [1, 0]);
+      assertEqual(status().lastResult, "ok");
+      command({ action: "run", setting: "golds", value: true, id: "r3" });
+      assertEqual(status().lastResult, "invalid value: not an action");
     }));
 
     it("rejects unknown settings and invalid values without changing anything", () => withBridge(({ app, status, command }) => {

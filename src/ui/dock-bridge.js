@@ -5,14 +5,17 @@
  * the overlay without interacting with the browser source:
  * - The dock writes a command to localStorage (DOCK_COMMAND); the overlay hears
  *   it through the `storage` event, which only fires in *other* documents.
- *   Commands: connect / disconnect (race code) and set (a dock setting from the
- *   settings registry, validated there before anything changes)
+ *   Commands: connect / disconnect (race code), set (a dock setting from the
+ *   settings registry, validated there before anything changes) and run (a
+ *   registry action such as split scrolling)
  * - The overlay is the only writer of settings. It publishes a full status
  *   snapshot (DOCK_STATUS) after every command, every settings change, race
  *   events and on a heartbeat, so the dock renders purely from the snapshot and
  *   can tell whether the overlay is reachable at all
  *
- * Status v2 keeps the v1 race fields (state, raceId, lastCommandId, lastResult,
+ * Status v2 carries the dock settings' schema (labels, types, groups), values and
+ * options, so dock.html builds its controls from it and needs no copy of the
+ * registry. It keeps the v1 race fields (state, raceId, lastCommandId, lastResult,
  * at) at the top level so older dock.html files keep working.
  *
  * Experimental: only works if OBS gives the dock and the browser source the
@@ -25,7 +28,7 @@
   const STORAGE_KEYS = window.LiveSplit.Storage.KEYS;
   const HEARTBEAT_MS = 2000;
   const STATUS_VERSION = 2;
-  const ACTIONS = ["connect", "disconnect", "set"];
+  const ACTIONS = ["connect", "disconnect", "set", "run"];
 
   /** Pure: the dock-facing status for a race client. */
   function describeRaceStatus(raceClient) {
@@ -43,9 +46,9 @@
     try { cmd = JSON.parse(raw); } catch (_) { return null; }
     if (!cmd || typeof cmd !== "object" || !ACTIONS.includes(cmd.action)) return null;
     const id = cmd.id ?? null;
-    if (cmd.action === "set") {
+    if (cmd.action === "set" || cmd.action === "run") {
       if (typeof cmd.setting !== "string" || !cmd.setting) return null;
-      return { action: "set", setting: cmd.setting, value: cmd.value, id };
+      return { action: cmd.action, setting: cmd.setting, value: cmd.value, id };
     }
     return { action: cmd.action, code: typeof cmd.code === "string" ? cmd.code.trim() : "", id };
   }
@@ -80,13 +83,13 @@
     let unsubscribeRace = null;
 
     function describeSettings() {
-      const values = settings.snapshot("dock");
+      const schema = window.LiveSplit.SettingsRegistry.describeSettings("dock");
       const options = {};
-      Object.keys(values).forEach((id) => {
+      schema.forEach(({ id }) => {
         const opts = settings.options(id);
         if (opts.length > 0) options[id] = opts;
       });
-      return { values, options };
+      return { schema, values: settings.snapshot("dock"), options };
     }
 
     const publishStatus = () => {
@@ -116,9 +119,10 @@
       return describeRaceStatus(raceClient).state === "connected" ? "connected" : "not connected (cooldown?)";
     }
 
-    function runSetCommand(cmd) {
+    // set changes a setting, run triggers an action (split scrolling)
+    function runSettingCommand(cmd) {
       if (!isDockSetting(cmd.setting)) return "unknown setting";
-      const result = settings.set(cmd.setting, cmd.value);
+      const result = cmd.action === "run" ? settings.run(cmd.setting, cmd.value) : settings.set(cmd.setting, cmd.value);
       return result.ok ? "ok" : `invalid value: ${result.error}`;
     }
 
@@ -126,7 +130,7 @@
       const cmd = parseDockCommand(raw);
       if (!cmd) return;
       lastCommandId = cmd.id;
-      lastResult = cmd.action === "set" ? runSetCommand(cmd) : runRaceCommand(cmd);
+      lastResult = (cmd.action === "set" || cmd.action === "run") ? runSettingCommand(cmd) : runRaceCommand(cmd);
       publishStatus();
     };
 

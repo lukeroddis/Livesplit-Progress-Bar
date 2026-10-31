@@ -1,112 +1,261 @@
 <!DOCTYPE html>
 <!--
-  dock.html - Experimental OBS Custom Browser Dock for the race code.
+  dock.html - Experimental OBS Custom Browser Dock: race code and live settings.
 
   Add it in OBS via Docks > Custom Browser Docks, using a file:/// URL to this file.
-  It talks to the overlay through localStorage (see src/ui/dock-bridge.js), so
-  the overlay's browser source must use the same kind of URL (file:///...) for both
-  pages to share storage. The status line shows whether the overlay is reachable.
+  It talks to the overlay through localStorage (see src/ui/dock-bridge.js), so the
+  overlay's browser source must use the same kind of URL (file:///...) for both pages
+  to share storage. The status line shows whether the overlay is reachable.
+
+  The overlay is the only writer of settings: this page sends commands and renders
+  purely from the overlay's status snapshot, including the settings' schema, so new
+  dock settings in src/core/settings-registry.js appear here without editing it.
 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Race Dock</title>
+  <title>Overlay Dock</title>
   <style>
     :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
     body {
-      margin: 0; padding: 10px; background: #1e1f22; color: #e2e8f0;
+      margin: 0; padding: 8px; background: #1e1f22; color: #e2e8f0;
       font: 13px/1.4 system-ui, "Segoe UI", sans-serif;
     }
-    .row { display: flex; gap: 6px; margin-bottom: 8px; }
+    .row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
     input {
-      flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid #3f4248; border-radius: 4px;
+      flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid #3f4248; border-radius: 4px;
       background: #111214; color: inherit; font: inherit;
     }
-    button {
-      padding: 6px 10px; border: 1px solid #3f4248; border-radius: 4px; background: #2b2d31;
+    button, select {
+      padding: 5px 9px; border: 1px solid #3f4248; border-radius: 4px; background: #2b2d31;
       color: inherit; font: inherit; cursor: pointer;
     }
-    button:hover { background: #35373c; }
+    select { min-width: 0; flex: 1; }
+    button:hover:not(:disabled) { background: #35373c; }
+    button:disabled, select:disabled, input:disabled { opacity: 0.45; cursor: default; }
+    button.on { background: #164e63; border-color: #38bdf8; color: #e0f2fe; }
     #btn-disconnect { color: #f87171; }
-    .status { display: flex; align-items: center; gap: 6px; }
+    .status { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
     .dot { width: 9px; height: 9px; border-radius: 50%; background: #64748b; flex: none; }
     .dot.ok { background: #4ade80; }
     .dot.warn { background: #f59e0b; }
     .dot.bad { background: #ef4444; }
-    .muted { color: #94a3b8; font-size: 11px; margin-top: 6px; word-break: break-all; }
+    .muted { color: #94a3b8; font-size: 11px; word-break: break-all; }
+    details { border-top: 1px solid #2f3136; padding: 6px 0 2px; }
+    summary {
+      cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; user-select: none;
+    }
+    .setting { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    .setting > label { flex: none; max-width: 45%; color: #cbd5e1; }
+    .control { display: flex; gap: 4px; flex: 1; justify-content: flex-end; flex-wrap: wrap; min-width: 0; }
+    .seg button { flex: 1; padding: 5px 4px; }
+    .num { width: 44px; flex: none; text-align: center; padding: 5px 2px; }
+    .error { color: #fca5a5; font-size: 11px; min-height: 1em; }
   </style>
 </head>
 <body>
-  <div class="row">
-    <input id="race-code" type="text" placeholder="Race code" autocomplete="off" spellcheck="false">
-    <button id="btn-connect">Connect</button>
-  </div>
-  <div class="row">
-    <button id="btn-disconnect">Disconnect</button>
-  </div>
   <div class="status"><span id="dot" class="dot"></span><span id="status">Waiting for overlay…</span></div>
+
+  <details open id="section-race">
+    <summary>Race</summary>
+    <div class="row">
+      <input id="race-code" type="text" placeholder="Race code" autocomplete="off" spellcheck="false">
+      <button id="btn-connect">Connect</button>
+      <button id="btn-disconnect">Disconnect</button>
+    </div>
+    <div id="race-settings"></div>
+  </details>
+  <div id="sections"></div>
+
+  <div id="error" class="error"></div>
   <div id="detail" class="muted"></div>
 
   <script>
     (function () {
       "use strict";
 
-      // Must match Storage.KEYS.DOCK_COMMAND / DOCK_STATUS in src/core/storage.js
+      // Must match Storage.KEYS.DOCK_COMMAND / DOCK_STATUS in src/core/storage.js (tests/test_structure.py checks)
       const COMMAND_KEY = "livesplit_dock_command";
       const STATUS_KEY = "livesplit_dock_status";
       const STALE_MS = 6000;
+      // Registry groups -> dock sections ("race" settings join the Race section above)
+      const SECTIONS = [
+        { group: "timers", title: "Run" },
+        { group: "track", title: "Track" },
+        { group: "visibility", title: "Visibility" }
+      ];
+      const RACE_GROUPS = ["leaderboard"];
 
-      const codeInp = document.getElementById("race-code");
-      const dot = document.getElementById("dot");
-      const statusEl = document.getElementById("status");
-      const detailEl = document.getElementById("detail");
+      const $ = (id) => document.getElementById(id);
+      const codeInp = $("race-code");
       let pendingId = null;
+      let builtKey = "";
+      let lastStatus = null;
+      const updaters = [];
 
       function readStatus() {
         try { return JSON.parse(localStorage.getItem(STATUS_KEY) || "null"); } catch (_) { return null; }
       }
 
+      function send(cmd) {
+        pendingId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+        try {
+          localStorage.setItem(COMMAND_KEY, JSON.stringify(Object.assign({ id: pendingId }, cmd)));
+        } catch (e) {
+          $("status").textContent = "Could not write storage: " + e.message;
+          $("dot").className = "dot bad";
+        }
+      }
+
+      const setSetting = (setting, value) => send({ action: "set", setting, value });
+      const optionLabel = (def, value) => (def.optionLabels && def.optionLabels[String(value)]) || String(value);
+
+      function el(tag, props, children) {
+        const node = Object.assign(document.createElement(tag), props || {});
+        (children || []).forEach((c) => node.appendChild(c));
+        return node;
+      }
+
+      // One control per type; each returns its element and registers an updater(values, options)
+      const CONTROLS = {
+        bool(def) {
+          const btn = el("button", { type: "button", onclick: () => setSetting(def.id, !btn.classList.contains("on")) });
+          updaters.push((values) => {
+            const on = values[def.id] === true;
+            btn.classList.toggle("on", on);
+            btn.textContent = on ? "On" : "Off";
+          });
+          return el("div", { className: "control" }, [btn]);
+        },
+        enum(def, options) {
+          if (options.length <= 3) {
+            const btns = options.map((opt) => el("button", { type: "button", textContent: optionLabel(def, opt), onclick: () => setSetting(def.id, opt) }));
+            updaters.push((values) => btns.forEach((b, i) => b.classList.toggle("on", values[def.id] === options[i])));
+            return el("div", { className: "control seg" }, btns);
+          }
+          const select = el("select", { onchange: () => setSetting(def.id, select.value) },
+            options.map((opt) => el("option", { value: opt, textContent: optionLabel(def, opt) })));
+          updaters.push((values) => { if (document.activeElement !== select) select.value = values[def.id]; });
+          return el("div", { className: "control" }, [select]);
+        },
+        ghosts(def, options) {
+          const btns = options.map((opt) => el("button", {
+            type: "button", textContent: optionLabel(def, opt), title: opt,
+            onclick: () => {
+              const current = (lastStatus.settings.values[def.id] || []).slice();
+              const at = current.indexOf(opt);
+              if (at === -1) current.push(opt); else current.splice(at, 1);
+              setSetting(def.id, current);
+            }
+          }));
+          updaters.push((values) => btns.forEach((b, i) => b.classList.toggle("on", (values[def.id] || []).includes(options[i]))));
+          return el("div", { className: "control" }, btns);
+        },
+        splits(def) {
+          const num = el("input", { type: "number", className: "num", min: def.min, max: def.max });
+          const step = (d) => setSetting(def.id, Math.max(def.min, Math.min(def.max, (parseInt(num.value, 10) || 8) + d)));
+          num.addEventListener("change", () => setSetting(def.id, num.value));
+          const auto = el("button", { type: "button", textContent: "Auto", onclick: () => setSetting(def.id, "auto") });
+          const all = el("button", { type: "button", textContent: "All", onclick: () => setSetting(def.id, "all") });
+          updaters.push((values) => {
+            const v = values[def.id];
+            auto.classList.toggle("on", v === "auto");
+            all.classList.toggle("on", v === "all");
+            if (document.activeElement !== num) num.value = /^\d+$/.test(v) ? v : "";
+            num.placeholder = v === "all" ? "all" : "auto";
+          });
+          return el("div", { className: "control" }, [
+            el("button", { type: "button", textContent: "−", onclick: () => step(-1) }), num,
+            el("button", { type: "button", textContent: "+", onclick: () => step(1) }), auto, all
+          ]);
+        },
+        action(def, options) {
+          return el("div", { className: "control seg" }, options.map((opt) => el("button", {
+            type: "button", textContent: optionLabel(def, opt), onclick: () => send({ action: "run", setting: def.id, value: opt })
+          })));
+        }
+      };
+
+      function settingRow(def, options) {
+        const make = CONTROLS[def.type];
+        if (!make) return null;
+        return el("div", { className: "setting" }, [el("label", { textContent: def.label }), make(def, options || [])]);
+      }
+
+      // Rebuilds the controls only when the schema or options change, so focus survives value updates
+      function build(settings) {
+        const key = JSON.stringify([settings.schema, settings.options]);
+        if (key === builtKey) return;
+        builtKey = key;
+        updaters.length = 0;
+        const raceBox = $("race-settings");
+        const sections = $("sections");
+        const openState = {};
+        sections.querySelectorAll("details").forEach((d) => { openState[d.dataset.group] = d.open; });
+        raceBox.replaceChildren();
+        sections.replaceChildren();
+
+        settings.schema.filter((def) => RACE_GROUPS.includes(def.group)).forEach((def) => {
+          const row = settingRow(def, settings.options[def.id]);
+          if (row) raceBox.appendChild(row);
+        });
+        SECTIONS.forEach(({ group, title }) => {
+          const rows = settings.schema.filter((def) => def.group === group)
+            .map((def) => settingRow(def, settings.options[def.id])).filter(Boolean);
+          if (rows.length === 0) return;
+          const details = el("details", { open: openState[group] !== false }, [el("summary", { textContent: title }), ...rows]);
+          details.dataset.group = group;
+          sections.appendChild(details);
+        });
+      }
+
+      function setEnabled(enabled) {
+        document.querySelectorAll("#race-settings button, #sections button, #sections input, #sections select")
+          .forEach((c) => { c.disabled = !enabled; });
+      }
+
       function render() {
         const s = readStatus();
+        lastStatus = s;
         const age = s && typeof s.at === "number" ? Date.now() - s.at : Infinity;
-        detailEl.textContent = "Dock origin: " + location.origin + (location.protocol === "file:" ? " (file)" : "");
+        $("detail").textContent = "Dock origin: " + location.origin + (location.protocol === "file:" ? " (file)" : "") +
+          (s && s.profile ? " · Profile: " + s.profile : "");
 
-        if (!s || age > STALE_MS) {
-          dot.className = "dot bad";
-          statusEl.textContent = s ? "Overlay not seen for " + Math.round(age / 1000) + "s" : "Overlay not found (no shared storage yet)";
+        if (s && s.settings && Array.isArray(s.settings.schema)) {
+          build(s.settings);
+          updaters.forEach((fn) => fn(s.settings.values || {}, s.settings.options || {}));
+        }
+
+        const linked = !!s && age <= STALE_MS;
+        setEnabled(linked);
+        if (!linked) {
+          $("dot").className = "dot bad";
+          $("status").textContent = s ? "Overlay not seen for " + Math.round(age / 1000) + "s" : "Overlay not found (no shared storage yet)";
           return;
         }
         const labels = { connected: "Connected: " + s.raceId, standby: "Standby", sim: "Test race running", off: "Not connected" };
-        dot.className = "dot " + (s.state === "connected" || s.state === "sim" ? "ok" : s.state === "standby" ? "warn" : "");
-        let text = "Overlay linked · " + (labels[s.state] || s.state);
-        if (pendingId !== null && s.lastCommandId === pendingId && s.lastResult) text += " (" + s.lastResult + ")";
-        statusEl.textContent = text;
+        $("dot").className = "dot " + (s.state === "connected" || s.state === "sim" ? "ok" : s.state === "standby" ? "warn" : "");
+        $("status").textContent = "Overlay linked · " + (labels[s.state] || s.state) + (s.settings ? "" : " (update the overlay for more controls)");
+
+        const mine = pendingId !== null && s.lastCommandId === pendingId;
+        $("error").textContent = mine && s.lastResult && !/^(ok|connected|disconnected)$/.test(s.lastResult) ? s.lastResult : "";
       }
 
-      function send(action, code) {
-        pendingId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-        try {
-          localStorage.setItem(COMMAND_KEY, JSON.stringify({ action, code: code || "", id: pendingId }));
-        } catch (e) {
-          statusEl.textContent = "Could not write storage: " + e.message;
-          dot.className = "dot bad";
-        }
-      }
-
-      document.getElementById("btn-connect").addEventListener("click", () => {
+      $("btn-connect").addEventListener("click", () => {
         const code = codeInp.value.trim();
         if (!/^[a-zA-Z0-9_-]{2,24}$/.test(code)) {
-          statusEl.textContent = "Enter a valid race code";
-          dot.className = "dot warn";
+          $("error").textContent = "Enter a valid race code";
           return;
         }
-        send("connect", code);
+        send({ action: "connect", code });
       });
       codeInp.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") document.getElementById("btn-connect").click();
+        if (e.key === "Enter") $("btn-connect").click();
       });
-      document.getElementById("btn-disconnect").addEventListener("click", () => send("disconnect"));
+      $("btn-disconnect").addEventListener("click", () => send({ action: "disconnect" }));
 
       window.addEventListener("storage", (e) => { if (e.key === STATUS_KEY) render(); });
       setInterval(render, 1000);

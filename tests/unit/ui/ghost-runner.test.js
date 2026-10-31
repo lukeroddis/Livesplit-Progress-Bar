@@ -32,6 +32,40 @@
     });
   });
 
+  describe("Ghost Runner: ghosts on / off", () => {
+    it("off remembers the chosen ghosts and on brings them back, also across reloads", () => {
+      const KEYS = window.LiveSplit.Storage.KEYS;
+      const keys = [KEYS.ACTIVE_GHOSTS, KEYS.GHOST_COMPARISON, KEYS.LAST_GHOSTS];
+      const saved = keys.map((k) => [k, localStorage.getItem(k)]);
+      const runner = () => window.LiveSplit.GhostRunner.createGhostRunner({ getSplitsList: () => ["A", "B"], getLastElapsedSec: () => 0 });
+      try {
+        keys.forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(["wr", "best"]));
+        const r = runner();
+        assert(r.areGhostsEnabled());
+        r.setGhostsEnabled(false);
+        assertEqual(r.getActiveGhostComparisons(), ["off"]);
+        r.setGhostsEnabled(true);
+        assertEqual(r.getActiveGhostComparisons(), ["wr", "best"], "selection restored");
+
+        r.setGhostsEnabled(false);
+        const reloaded = runner();
+        assert(!reloaded.areGhostsEnabled());
+        reloaded.setGhostsEnabled(true);
+        assertEqual(reloaded.getActiveGhostComparisons(), ["wr", "best"], "remembered in storage");
+
+        localStorage.removeItem(KEYS.LAST_GHOSTS);
+        localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(["off"]));
+        const fresh = runner();
+        fresh.setGhostsEnabled(true);
+        assertEqual(fresh.getActiveGhostComparisons(), ["pb"], "PB when nothing was ever chosen");
+      } finally {
+        saved.forEach(([k, v]) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v)));
+        window.LiveSplit.Overlay.updateGhostBadge?.();
+      }
+    });
+  });
+
   describe("Ghost Runner: pin lane flag", () => {
     it("marks the track has-pins only while ghost pins are switched on", () => {
       const KEYS = window.LiveSplit.Storage.KEYS;

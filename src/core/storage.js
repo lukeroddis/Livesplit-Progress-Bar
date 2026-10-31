@@ -30,6 +30,7 @@
     // Ghosts & race
     GHOST_COMPARISON: "livesplit_ghost_comparison",
     ACTIVE_GHOSTS: "livesplit_active_ghosts",
+    LAST_GHOSTS: "livesplit_last_ghosts",
     GHOST_OPACITY: "livesplit_ghost_opacity",
     RACE_PINS_VISIBLE: "livesplit_race_pins_visible",
     THERUN_USERNAME: "therun_username",

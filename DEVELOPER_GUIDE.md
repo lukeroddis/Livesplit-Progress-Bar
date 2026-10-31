@@ -32,7 +32,7 @@
      - [`run-persistence.js`](src/core/run-persistence.js): In-run state save/restore across reloads with split-count/game/category guards.
      - [`comparison-controller.js`](src/core/comparison-controller.js): Active comparison and timing-method curve switching, default curves, timing detection, ghost comparison lookup.
      - [`splits-loader.js`](src/core/splits-loader.js): Applies parsed `.lss` data to state and restores cached splits on startup.
-     - [`settings-registry.js`](src/core/settings-registry.js): Live settings described once by id (type, options, surfaces `dock`/`widget`, `instant`/`draft`) with `get`/`set` over the existing controllers. `app.settings` (also `window.LiveSplit.Overlay.settings`) validates values, steps badges (`cycle`), takes snapshots and notifies subscribers. HUD badges, comparison hotkeys, timer blocks, Standings/Pins buttons and the Layout toolbar visibility checkboxes go through it.
+     - [`settings-registry.js`](src/core/settings-registry.js): Live settings described once by id (type, options, surfaces `dock`/`widget`, `instant`/`draft`) with `get`/`set` over the existing controllers, plus `action` entries (`run`, e.g. `trackScroll`) that store nothing. `app.settings` (also `window.LiveSplit.Overlay.settings`) validates values, steps badges (`cycle`), runs actions, takes snapshots and notifies subscribers; `describeSettings(where)` is the plain-data schema the dock renders from. HUD badges, comparison hotkeys, timer blocks, Standings/Pins buttons and the Layout toolbar visibility checkboxes go through it.
      - [`window-api.js`](src/core/window-api.js): `window.LiveSplit.Overlay`, the overlay API that layout.js and layout-side modules call (`window.LiveSplit.Overlay.refreshTrack?.()`), also copied onto legacy `window.*` names for the console and tests.
      - [race-client.js](src/core/race-client.js): Race client facade: creates isolated clients and their public API, composing the race modules below over one `ctx` (shared `raceState` + functions, same pattern as overlay's `app`).
      - [`race-state.js`](src/core/race-state.js): Per-client race state, host runner defaults (`createHostState`), shared runner resets, `isLiveRoom`. JSDoc typedefs: `RaceState`, `Runner`, `RaceEvent`.
@@ -49,7 +49,7 @@
      - [`track-scroll.js`](src/ui/track-scroll.js): Mouse wheel and arrow-key track scrolling (windowed or native scroll).
      - [`ghost-runner.js`](src/ui/ghost-runner.js): Active ghost selection/opacity, on-track ghost markers, race pin rendering hand-off, off-screen edge pills, leaderboard refresh.
      - [`race-controls.js`](src/ui/race-controls.js): Race settings controls (standings/pins toggles, connect/disconnect with cooldown, test race) and race client event handling.
-     - [`dock-bridge.js`](src/ui/dock-bridge.js): Experimental OBS Custom Browser Dock bridge: hears `connect` / `disconnect` / `set` commands from [`dock.html`](dock.html) via localStorage `storage` events (`DOCK_COMMAND`); `set` only reaches dock settings and is validated by the settings registry. The overlay stays the only writer and publishes a v2 status snapshot (`DOCK_STATUS`: race state, every dock setting's value and options, active profile, last command result; v1 race fields kept at the top level) after commands, settings changes, race events and on a 2s heartbeat.
+     - [`dock-bridge.js`](src/ui/dock-bridge.js): Experimental OBS Custom Browser Dock bridge: hears `connect` / `disconnect` / `set` / `run` commands from [`dock.html`](dock.html) via localStorage `storage` events (`DOCK_COMMAND`); `set` only reaches dock settings and is validated by the settings registry. The overlay stays the only writer and publishes a v2 status snapshot (`DOCK_STATUS`: race state, the dock settings' schema, values and options, active profile, last command result; v1 race fields kept at the top level) after commands, settings changes, race events and on a 2s heartbeat.
      - [`ws-log-panel.js`](src/ui/ws-log-panel.js): Dev-mode race WebSocket telemetry log modal.
      - [`settings-menu.js`](src/ui/settings-menu.js): Draggable quick-settings panel, position persistence and open/close toggle.
      - [`dev-mode.js`](src/ui/dev-mode.js): Developer mode gating (`?dev`/`?debug`, Ctrl+Shift+D, version 5-click).
@@ -210,6 +210,7 @@ Query these **strictly upon split index transition, start, or reset**:
 | `livesplit_timer_anchor` | String (`"auto"`, `"right"`, `"left"`) | Timer expansion direction and anchoring mode. |
 | `livesplit_sync_hotkeys` | Boolean string (`"true"` / `"false"`) | Whether comparison and timing method auto-sync with LiveSplit hotkeys. |
 | `livesplit_active_ghosts` | JSON Array (`string[]`) | Active multi-ghost comparison runner identifiers (`["wr", "pb", ...]`). |
+| `livesplit_last_ghosts` | JSON Array (`string[]`) | Last non-off ghost selection, restored when ghosts are switched back on (`ghostsOn` setting). |
 | `livesplit_lss_xml` | String (XML) | Cached `.lss` content for offline/instant reload. |
 | `livesplit_dev_mode` | Boolean string (`"true"` / `"false"`) | Enables developer tools (Test Race simulation, WS debug logs, diagnostics). |
 

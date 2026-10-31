@@ -22,7 +22,6 @@
     { val: "average", label: "Average Segments (📊)" },
     { val: "worst", label: "Worst Segments (🐢)" }
   ];
-  const BUILT_IN_COMPARISONS = ["personal best", "best segments", "average segments", "worst segments"];
 
   function getActiveGhostList() {
     const getGhosts = window.LiveSplit.Overlay.getActiveGhostComparisons;
@@ -60,8 +59,7 @@
     const getComparisons = window.LiveSplit.Overlay.getComparisonsList;
     if (getComparisons) {
       getComparisons().forEach((c) => {
-        const low = c.toLowerCase();
-        if (BUILT_IN_COMPARISONS.includes(low) || low.includes("world record") || low === "wr") return;
+        if (!window.LiveSplit.SettingsRegistry.isCustomGhostComparison(c)) return;
         const isMatch = activeList.length === 1 && activeList[0] === c;
         if (isMatch) optionMatched = true;
         addOption(selGhost, c, `👤 ${c}`, isMatch);

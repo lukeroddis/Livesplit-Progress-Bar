@@ -263,6 +263,7 @@ Object.assign(app, {
   setGhostComparison: ghostRunner.setGhostComparison,
   toggleGhostComparison: ghostRunner.toggleGhostComparison,
   cycleGhostComparison: ghostRunner.cycleGhostComparison,
+  setGhostsEnabled: ghostRunner.setGhostsEnabled,
   setGhostOpacity: ghostRunner.setGhostOpacity,
   trackDensity,
   cycleVisibleSplits: trackDensity.cycleVisibleSplits,

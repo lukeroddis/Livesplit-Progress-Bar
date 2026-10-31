@@ -51,6 +51,17 @@
     return single === "off" ? ["off"] : [single];
   }
 
+  // The ghosts to bring back when ghosts are switched on again: the current ones, else the last saved
+  function loadLastEnabledGhosts(active) {
+    const current = active.filter(g => g !== "off");
+    if (current.length > 0) return current;
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.LAST_GHOSTS) || "null");
+      if (Array.isArray(saved) && saved.length > 0) return saved;
+    } catch (e) {}
+    return ["pb"];
+  }
+
   function clearMarkerOffsets(m) {
     m.style.removeProperty("--ghost-stack-offset");
     m.style.removeProperty("--ghost-splay-x");
@@ -117,6 +128,7 @@
 
     let activeGhostComparisons = loadActiveGhostComparisons();
     let ghostComparison = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
+    let lastEnabledGhosts = loadLastEnabledGhosts(activeGhostComparisons);
     let ghostOpacity = parseFloat(localStorage.getItem(STORAGE_KEYS.GHOST_OPACITY) || "85") / 100;
     const nodeThresholdCache = new Map();
     const knownGhostMarkers = new Set();
@@ -126,6 +138,10 @@
       const primary = activeGhostComparisons.filter(g => g !== "off")[0] || "off";
       ghostComparison = primary;
       localStorage.setItem(STORAGE_KEYS.GHOST_COMPARISON, primary);
+      if (primary !== "off") {
+        lastEnabledGhosts = activeGhostComparisons.filter(g => g !== "off");
+        localStorage.setItem(STORAGE_KEYS.LAST_GHOSTS, JSON.stringify(lastEnabledGhosts));
+      }
     }
 
     function getNodeTextThreshold(nodeEl, isNext = false) {
@@ -525,6 +541,16 @@
       setGhostComparison(GHOST_PRESETS[nextIdx]);
     }
 
+    // Ghosts on / off without losing the selection (off remembers it, on restores it)
+    function areGhostsEnabled() {
+      return activeGhostComparisons.some(g => g !== "off");
+    }
+
+    function setGhostsEnabled(enabled) {
+      if (!!enabled === areGhostsEnabled()) return;
+      setGhostComparison(enabled ? [...lastEnabledGhosts] : ["off"]);
+    }
+
     function setGhostOpacity(pct) {
       const parsed = parseInt(pct, 10);
       if (!isNaN(parsed) && parsed >= 30 && parsed <= 100) {
@@ -549,6 +575,8 @@
       setGhostComparison,
       toggleGhostComparison,
       cycleGhostComparison,
+      areGhostsEnabled,
+      setGhostsEnabled,
       setGhostOpacity
     };
   }
