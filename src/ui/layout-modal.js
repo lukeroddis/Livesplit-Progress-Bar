@@ -51,8 +51,11 @@
     const popovers = window.LiveSplit.WidgetPopover.createWidgetPopovers({
       onOpen: () => syncUI(),
       onClose: () => saveTrackStyle(),
+      // Only widgets with style keys of their own have a reset (never the whole style)
       onReset: (compId) => {
-        resetTrackStyle(window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS[compId]);
+        const keys = window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS[compId];
+        if (!keys) return;
+        resetTrackStyle(keys);
         syncUI();
       }
     });
@@ -132,12 +135,12 @@
         });
       });
       document.getElementById("btn-save-track-style")?.addEventListener("click", closeTrackModal);
-      // The Customizer's pointer to the settings that moved into the track's popover
-      document.getElementById("btn-open-track-popover")?.addEventListener("click", () => {
+      // The Customizer's pointers to the settings that moved into widget popovers
+      document.querySelectorAll("[data-open-widget-popover]").forEach((btn) => btn.addEventListener("click", () => {
         closeTrackModal();
         setEditMode(true);
-        popovers.open("track");
-      });
+        popovers.open(btn.dataset.openWidgetPopover);
+      }));
       popovers.bind();
       document.getElementById("btn-reset-track-style")?.addEventListener("click", resetTrackStyle);
 

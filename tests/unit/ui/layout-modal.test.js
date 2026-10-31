@@ -154,13 +154,15 @@
       <div id="hud-comp-timers" class="hud-component" data-component-id="timers" style="position: absolute; width: 300px;">
         <button data-action="open-settings" id="lm-cog-timers"></button>
       </div>
+      <div class="hud-component" data-component-id="title"><button data-action="open-settings" id="lm-cog-title"></button></div>
       <div class="hud-component" data-component-id="leaderboard"><button data-action="open-settings" id="lm-cog-lb"></button></div>
       <div id="hud-comp-track" class="hud-component" data-component-id="track"><button data-action="open-settings" id="lm-cog-track"></button></div>
       <div class="widget-popover" id="lm-popover-track" data-widget="track" hidden>
         <button data-popover-reset id="lm-popover-reset"></button><button data-popover-close id="lm-popover-done"></button>
       </div>
-      <button id="btn-open-track-popover"></button>
-      <div class="lm-section" data-widget-settings="timers"></div>
+      <div class="widget-popover" id="lm-popover-timers" data-widget="timers" hidden><button data-popover-reset id="lm-timers-reset"></button></div>
+      <button id="lm-open-track" data-open-widget-popover="track"></button>
+      <div class="lm-section" data-widget-settings="title"></div>
       <div class="lm-section" data-widget-settings="leaderboard"></div>`;
 
     // Mounts the toolbar / modal DOM, binds a controller with recording callbacks and captures
@@ -252,11 +254,11 @@
 
     it("widget cogs open the Customizer, or the settings menu for the leaderboard, at the widget's section", () => withModal(({ el, dom }) => {
       const opened = [];
-      const [timersSection, lbSection] = dom.root.querySelectorAll(".lm-section");
+      const [titleSection, lbSection] = dom.root.querySelectorAll(".lm-section");
       stubOverlay({ toggleSettingsMenu: (v) => opened.push(["menu", v]) }, () => {
-        el("lm-cog-timers").click();
+        el("lm-cog-title").click();
         assertEqual(el("track-modal").style.display, "flex", "Customizer opened");
-        assert(timersSection.classList.contains("widget-settings-flash"), "timers section flashed");
+        assert(titleSection.classList.contains("widget-settings-flash"), "title section flashed");
         assert(!lbSection.classList.contains("widget-settings-flash"));
 
         el("lm-cog-lb").click();
@@ -286,12 +288,20 @@
 
     it("Escape closes the popover first; the Customizer's button opens it in Layout Mode", () => withModal(({ el, key, called }) => {
       const pop = el("lm-popover-track");
-      el("btn-open-track-popover").click();
+      el("lm-open-track").click();
       assert(!pop.hidden, "opened from the Customizer");
       assertEqual(called("setEdit"), [["setEdit", true]], "entered Layout Mode");
       key("Escape");
       assert(pop.hidden, "Escape closed it");
       assertEqual(called("setEdit").length, 1, "without leaving Layout Mode");
+    }));
+
+    it("the timers cog opens its popover; one without style keys of its own never resets the style", () => withModal(({ el, called }) => {
+      el("lm-cog-timers").click();
+      assert(!el("lm-popover-timers").hidden, "timers popover opened");
+      assertEqual(el("track-modal").style.display, "none", "not the Customizer");
+      el("lm-timers-reset").click();
+      assertEqual(called("resetStyle").length, 0);
     }));
 
     it("binds the logo controller and its height slider", () => withModal(({ el, logo, style, called }) => {

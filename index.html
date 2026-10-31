@@ -358,60 +358,13 @@
           </div>
         </div>
 
-        <!-- Track settings moved to the popover beside the track (Layout Mode cog) -->
-        <div class="modal-section-title">Progress Track</div>
+        <!-- Settings that moved to popovers beside their widgets (Layout Mode cogs) -->
+        <div class="modal-section-title">Track &amp; Timers</div>
         <div class="modal-row">
-          <span style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">Track layout, splits, fonts, ghost pins and reset behaviour now open beside the track: click ⚙ on the track in Layout Mode.</span>
-          <button type="button" class="toolbar-btn" id="btn-open-track-popover">⚙ Open Track Settings</button>
-        </div>
-
-        <!-- Comparisons & LiveSplit Sync -->
-        <div class="modal-section-title" data-widget-settings="timers">Comparisons & LiveSplit Sync</div>
-        <div class="modal-row">
-          <label>Active Comparison</label>
-          <select id="select-active-comparison" class="modal-select">
-            <option value="Personal Best">Personal Best (PB)</option>
-            <option value="Best Segments">Best Segments (Sum of Best)</option>
-            <option value="Average Segments">Average Segments</option>
-            <option value="Worst Segments">Worst Segments</option>
-          </select>
-        </div>
-        <div class="modal-row" id="row-comparison-hotkey">
-          <label>Comparison Switch Hotkey</label>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size: 13px; color: #38bdf8; font-weight: 600;">⌨️ C / Shift+C &bull; NumPad 4 / 6</span>
-            <span class="val-badge">Active</span>
-          </div>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Press <strong>C</strong> (or <strong>NumPad 6</strong> / <strong>&#93;</strong>) to cycle to the next comparison, or <strong>Shift+C</strong> (or <strong>NumPad 4</strong> / <strong>&#91;</strong>) for previous.</span>
-        </div>
-        <div class="modal-row">
-          <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <span>Auto-Sync with LiveSplit Hotkeys</span>
-            <input type="checkbox" id="cb-sync-livesplit-hotkeys" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
-          </label>
-          <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Tracks LiveSplit comparison and timing method switches in real time without replicating hotkeys.</span>
-        </div>
-        <div class="modal-row">
-          <label>Visible Timers</label>
-          <div class="seg-btn-group" id="ctrl-timer-display">
-            <button type="button" class="seg-btn" data-val="gametime">Game Time</button>
-            <button type="button" class="seg-btn" data-val="realtime">Real Time</button>
-            <button type="button" class="seg-btn active" data-val="both">Both</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-timer-focus">
-          <label>Primary Timer &amp; Splits Target</label>
-          <div class="seg-btn-group" id="ctrl-timer-focus">
-            <button type="button" class="seg-btn active" data-val="GameTime">Game Time</button>
-            <button type="button" class="seg-btn" data-val="RealTime">Real Time</button>
-          </div>
-        </div>
-        <div class="modal-row" id="row-timer-expansion">
-          <label>Timer Expansion &amp; Alignment</label>
-          <div class="seg-btn-group" id="ctrl-timer-expansion">
-            <button type="button" class="seg-btn active" data-val="auto" title="Intelligently anchors to right/left based on screen placement">Auto</button>
-            <button type="button" class="seg-btn" data-val="right" title="Anchors to the right edge and expands towards the left">Expand Left</button>
-            <button type="button" class="seg-btn" data-val="left" title="Anchors to the left edge and expands towards the right">Expand Right</button>
+          <span style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">Track and timer settings now open beside their widgets: click ⚙ on a widget in Layout Mode.</span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="toolbar-btn" data-open-widget-popover="track">⚙ Track Settings</button>
+            <button type="button" class="toolbar-btn" data-open-widget-popover="timers">⚙ Timer Settings</button>
           </div>
         </div>
 
@@ -583,6 +536,69 @@
     </div>
     <div class="widget-popover-footer">
       <button type="button" class="toolbar-btn" data-popover-reset title="Reset the track's own style (not the logo or backgrounds)">↺ Reset Track</button>
+      <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
+    </div>
+  </div>
+
+  <!-- Timers widget settings popover, opened by the Layout Mode cog on the timers (src/ui/widget-popover.js) -->
+  <div class="widget-popover" id="widget-popover-timers" data-widget="timers" role="dialog" aria-label="Timer settings" hidden>
+    <div class="widget-popover-header">
+      <h3>⚙ Timer Settings</h3>
+      <button type="button" class="track-modal-close" data-popover-close title="Close">✕</button>
+    </div>
+    <div class="widget-popover-body">
+      <!-- Comparisons & LiveSplit Sync -->
+      <div class="modal-section-title" data-widget-settings="timers">Comparisons & LiveSplit Sync</div>
+      <div class="modal-row">
+        <label>Active Comparison</label>
+        <select id="select-active-comparison" class="modal-select">
+          <option value="Personal Best">Personal Best (PB)</option>
+          <option value="Best Segments">Best Segments (Sum of Best)</option>
+          <option value="Average Segments">Average Segments</option>
+          <option value="Worst Segments">Worst Segments</option>
+        </select>
+      </div>
+      <div class="modal-row" id="row-comparison-hotkey">
+        <label>Comparison Switch Hotkey</label>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size: 13px; color: #38bdf8; font-weight: 600;">⌨️ C / Shift+C &bull; NumPad 4 / 6</span>
+          <span class="val-badge">Active</span>
+        </div>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Press <strong>C</strong> (or <strong>NumPad 6</strong> / <strong>&#93;</strong>) to cycle to the next comparison, or <strong>Shift+C</strong> (or <strong>NumPad 4</strong> / <strong>&#91;</strong>) for previous.</span>
+      </div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Auto-Sync with LiveSplit Hotkeys</span>
+          <input type="checkbox" id="cb-sync-livesplit-hotkeys" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Tracks LiveSplit comparison and timing method switches in real time without replicating hotkeys.</span>
+      </div>
+      <div class="modal-row">
+        <label>Visible Timers</label>
+        <div class="seg-btn-group" id="ctrl-timer-display">
+          <button type="button" class="seg-btn" data-val="gametime">Game Time</button>
+          <button type="button" class="seg-btn" data-val="realtime">Real Time</button>
+          <button type="button" class="seg-btn active" data-val="both">Both</button>
+        </div>
+      </div>
+      <div class="modal-row" id="row-timer-focus">
+        <label>Primary Timer &amp; Splits Target</label>
+        <div class="seg-btn-group" id="ctrl-timer-focus">
+          <button type="button" class="seg-btn active" data-val="GameTime">Game Time</button>
+          <button type="button" class="seg-btn" data-val="RealTime">Real Time</button>
+        </div>
+      </div>
+      <div class="modal-row" id="row-timer-expansion">
+        <label>Timer Expansion &amp; Alignment</label>
+        <div class="seg-btn-group" id="ctrl-timer-expansion">
+          <button type="button" class="seg-btn active" data-val="auto" title="Intelligently anchors to right/left based on screen placement">Auto</button>
+          <button type="button" class="seg-btn" data-val="right" title="Anchors to the right edge and expands towards the left">Expand Left</button>
+          <button type="button" class="seg-btn" data-val="left" title="Anchors to the left edge and expands towards the right">Expand Right</button>
+        </div>
+      </div>
+    </div>
+    <div class="widget-popover-footer">
+      <span></span>
       <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
     </div>
   </div>
