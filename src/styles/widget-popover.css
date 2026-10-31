@@ -88,3 +88,102 @@
 .widget-popover-resize:hover {
   background-color: rgba(56, 189, 248, 0.2);
 }
+
+/* Registry setting rows (src/ui/settings-renderer.js, shared with the dock), styled
+   like the dialogs' own rows: label above, segmented buttons / dropdown below */
+.sr-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sr-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.sr-control {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sr-control button {
+  padding: 5px 10px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sr-control button:hover {
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.sr-control button.sr-on {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Segmented: one joined bar like .segmented-control */
+.sr-seg {
+  gap: 0;
+  flex-wrap: nowrap;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sr-seg button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.sr-select {
+  flex: 1;
+  background: rgba(30, 41, 59, 0.9);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sr-num {
+  width: 52px;
+  padding: 5px 4px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.sr-slider {
+  flex: 1;
+  accent-color: #38bdf8;
+}
+
+.sr-slider-val {
+  min-width: 3.2em;
+  text-align: right;
+  color: #94a3b8;
+  font-size: 11px;
+}
