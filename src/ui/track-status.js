@@ -70,6 +70,8 @@
       const V = enabled ? app.getVisibleSplitsCapacity() : N + 1;
       const win = window.LiveSplit.TrackRenderer.calculateTrackWindow(idx, N, V, state.trackManualScrollOffset, enabled);
       window.LiveSplit.TrackRenderer.applyTrackWindow(N, win);
+      // Ghost and race pins in splits hidden before the window are off-screen to the left
+      state.trackWindowStart = win.isWindowed ? win.windowStart : 0;
       return win.isWindowed;
     }
 

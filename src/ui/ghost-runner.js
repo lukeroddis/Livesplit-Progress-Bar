@@ -106,6 +106,7 @@
    * @param {Function} options.getLastElapsedSec
    * @param {Function} options.getGhostInfo - (ghostId) => { id, name, icon, color, times } | null
    * @param {Function} options.getRaceClient
+   * @param {Function} [options.getTrackWindowStart] - First split shown by the sliding track window (0 when not windowed)
    */
   function createGhostRunner(options = {}) {
     const {
@@ -115,7 +116,8 @@
       getLastSplitRecordedSec = () => 0,
       getLastElapsedSec = () => 0,
       getGhostInfo = () => null,
-      getRaceClient = () => null
+      getRaceClient = () => null,
+      getTrackWindowStart = () => 0
     } = options;
 
     let activeGhostComparisons = loadActiveGhostComparisons();
@@ -243,7 +245,12 @@
      * Track-space start/end coordinates (and bounding nodes) for a segment,
      * following omitted splits and schematic discontinuities.
      */
+    // A segment in the splits the sliding window hides before its start: left of the view, so its
+    // pins become left / top edge pills (the "//" break only stands for splits after the window)
+    const BEHIND_WINDOW = Object.freeze({ startCoord: -1e6, endCoord: -1e6, prevNode: null, nextNode: null });
+
     function getSegmentCoords(segIdx, isVertical, nodeStart, splitCount) {
+      if (segIdx < getTrackWindowStart()) return BEHIND_WINDOW;
       let startCoord = 0;
       let endCoord = 0;
       let prevNode = null;

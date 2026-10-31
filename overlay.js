@@ -152,7 +152,8 @@ const ghostRunner = window.LiveSplit.GhostRunner.createGhostRunner({
   getLastSplitRecordedSec: () => state.lastSplitRecordedSec,
   getLastElapsedSec: () => state.lastElapsedSec,
   getGhostInfo: (ghostId) => app.getGhostComparisonInfo(ghostId),
-  getRaceClient
+  getRaceClient,
+  getTrackWindowStart: () => state.trackWindowStart
 });
 
 // ============================================================

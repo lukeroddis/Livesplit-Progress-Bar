@@ -65,6 +65,35 @@
     });
   });
 
+  describe("Ghost Runner: off-screen pills with a sliding track window", () => {
+    it("a ghost in the splits hidden before the window becomes a left edge pill", () => {
+      const KEYS = window.LiveSplit.Storage.KEYS;
+      const saved = localStorage.getItem(KEYS.ACTIVE_GHOSTS);
+      // The test page has the track but not the edge pills
+      const dom = window.TestUtils.mountHtml('<div id="ghost-edge-left" style="display: none;"></div><div id="ghost-edge-right" style="display: none;"></div>');
+      const left = dom.el("ghost-edge-left");
+      const splits = Array.from({ length: 10 }, (_, i) => `S${i}`);
+      const times = splits.map((_, i) => (i + 1) * 10);
+      const runner = (windowStart) => window.LiveSplit.GhostRunner.createGhostRunner({
+        getSplitsList: () => splits,
+        getComparisonTimes: () => times,
+        getCurrentIndex: () => 6,
+        getGhostInfo: () => ({ id: "wr", name: "World Record", icon: "🏆", color: "#facc15", times }),
+        getTrackWindowStart: () => windowStart
+      });
+      try {
+        localStorage.setItem(KEYS.ACTIVE_GHOSTS, JSON.stringify(["wr"]));
+        runner(5).updateGhostRunner(25); // the ghost is in segment 2, the window starts at split 5
+        assertEqual(left.style.display, "flex", "left pill shown");
+        assert(left.textContent.includes("❮"), "pointing left");
+      } finally {
+        if (saved === null) localStorage.removeItem(KEYS.ACTIVE_GHOSTS); else localStorage.setItem(KEYS.ACTIVE_GHOSTS, saved);
+        dom.remove();
+        document.getElementById("ghost-marker-wr")?.style.setProperty("display", "none");
+      }
+    });
+  });
+
   describe("Ghost Runner: pin lane flag", () => {
     it("marks the track has-pins only while ghost pins are switched on", () => {
       const KEYS = window.LiveSplit.Storage.KEYS;
