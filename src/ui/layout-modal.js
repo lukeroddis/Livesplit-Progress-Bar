@@ -1,17 +1,17 @@
 /**
- * src/ui/layout-modal.js - Layout Toolbar & Track Customizer Modal Controller
+ * src/ui/layout-modal.js - Layout Toolbar & Widget Settings Controller
  *
- * Composes the settings panels shared by the edit-mode toolbar and the track
- * customizer modal, and owns the controls that belong to the layout itself:
- * - Modal open / close (backdrop, buttons, Escape) and full settings sync
- * - Widget header cogs: toggle the component's settings popover (widget-popover.js), or
- *   open the Customizer / settings menu at its section while it has no popover yet
+ * Composes the settings panels shared by the edit-mode toolbar and the widget
+ * settings popovers, and owns the controls that belong to the layout itself:
+ * - Full settings sync (popover open, entering Layout Mode)
+ * - Widget header cogs: toggle the component's settings popover (widget-popover.js); the
+ *   leaderboard, which has none yet, opens the settings menu at its race section
  * - Settings panels: track (settings-track-panel.js), backgrounds
  *   (settings-background-panel.js), ghosts (settings-ghost-panel.js), timing
  *   (settings-timing-panel.js), profiles (layout-profiles-panel.js)
  * - Toolbar lock / reset / edit buttons and component visibility checkboxes
  * - Custom logo height slider
- * - Global hotkeys ('E' / 'F2' edit mode, 'Escape' closes modals) and resize clamping
+ * - Global hotkeys ('E' / 'F2' edit mode, 'Escape' closes modals / the popover) and resize clamping
  */
 
 (function () {
@@ -60,35 +60,12 @@
       }
     });
 
-    function openTrackModal() {
-      const modal = document.getElementById("track-modal");
-      if (modal) {
-        modal.style.display = "flex";
-        setTimeout(() => modal.classList.add("is-open"), 10);
-        syncUI();
-      }
-    }
-
-    function closeTrackModal() {
-      const modal = document.getElementById("track-modal");
-      if (modal) {
-        modal.classList.remove("is-open");
-        setTimeout(() => {
-          modal.style.display = "none";
-        }, 200);
-        saveTrackStyle();
-      }
-    }
-
-    // Widget cog: the component's popover (toggled), else its section, scrolled to and flashing,
-    // in the Customizer (title / timers) or the settings menu's race section (leaderboard)
+    // Widget cog: the component's popover (toggled); the leaderboard has none yet, so its cog opens
+    // the settings menu at the race section, scrolled to and flashing
     function openWidgetSettings(compId) {
       if (popovers.toggle(compId)) return;
-      if (compId === "leaderboard") {
-        window.LiveSplit.Overlay.toggleSettingsMenu?.(true);
-      } else {
-        openTrackModal();
-      }
+      if (compId !== "leaderboard") return;
+      window.LiveSplit.Overlay.toggleSettingsMenu?.(true);
       const section = document.querySelector(`[data-widget-settings="${compId}"]`);
       if (!section) return;
       section.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -125,30 +102,19 @@
     }
 
     function bindModalTriggers() {
-      document.getElementById("btn-open-track-modal")?.addEventListener("click", openTrackModal);
-      document.getElementById("track-style-badge")?.addEventListener("click", openTrackModal);
-      document.getElementById("btn-close-track-modal")?.addEventListener("click", closeTrackModal);
       document.querySelectorAll('.hud-component [data-action="open-settings"]').forEach((btn) => {
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
           openWidgetSettings(btn.closest(".hud-component")?.dataset.componentId);
         });
       });
-      document.getElementById("btn-save-track-style")?.addEventListener("click", closeTrackModal);
-      // The Customizer's pointers to the settings that moved into widget popovers
+      // Buttons elsewhere (the settings menu's "Widget Settings") that open a widget's popover
       document.querySelectorAll("[data-open-widget-popover]").forEach((btn) => btn.addEventListener("click", () => {
-        closeTrackModal();
+        window.LiveSplit.Overlay.toggleSettingsMenu?.(false);
         setEditMode(true);
         popovers.open(btn.dataset.openWidgetPopover);
       }));
       popovers.bind();
-      document.getElementById("btn-reset-track-style")?.addEventListener("click", resetTrackStyle);
-
-      document.getElementById("track-modal")?.addEventListener("click", (e) => {
-        if (e.target.id === "track-modal") {
-          closeTrackModal();
-        }
-      });
     }
 
     function bindLogoControls() {
@@ -190,13 +156,9 @@
             if (pe) pe.closeExportModal();
             return;
           }
-          const modal = document.getElementById("track-modal");
           if (popovers.isOpen()) {
             e.preventDefault();
             popovers.close();
-          } else if (modal && modal.classList.contains("is-open")) {
-            e.preventDefault();
-            closeTrackModal();
           } else if (isEditMode()) {
             e.preventDefault();
             setEditMode(false);
@@ -269,8 +231,6 @@
     }
 
     return {
-      openTrackModal,
-      closeTrackModal,
       openWidgetSettings,
       closeWidgetPopover: popovers.close,
       syncUI,

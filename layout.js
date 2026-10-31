@@ -377,36 +377,6 @@
     getLayoutModalController()?.openWidgetSettings(compId);
   }
 
-  function openTrackModal() {
-    const ctrl = getLayoutModalController();
-    if (ctrl) {
-      ctrl.openTrackModal();
-      return;
-    }
-    const modal = document.getElementById("track-modal");
-    if (modal) {
-      modal.style.display = "flex";
-      setTimeout(() => modal.classList.add("is-open"), 10);
-      syncTrackModalUI();
-    }
-  }
-
-  function closeTrackModal() {
-    const ctrl = getLayoutModalController();
-    if (ctrl) {
-      ctrl.closeTrackModal();
-      return;
-    }
-    const modal = document.getElementById("track-modal");
-    if (modal) {
-      modal.classList.remove("is-open");
-      setTimeout(() => {
-        modal.style.display = "none";
-      }, 200);
-      saveTrackStyle();
-    }
-  }
-
   // keys: only reset these style keys (a widget popover's reset); none: everything, logo included
   function resetTrackStyle(keys) {
     const e = getTrackStyleEngine();
@@ -755,9 +725,7 @@
     loadSavedLayout,
     applyComponentLayout,
     setComponentVisible,
-    openTrackModal,
     openWidgetSettings,
-    closeTrackModal,
     resetTrackStyle,
     applyTrackStyle,
     saveTrackStyle,

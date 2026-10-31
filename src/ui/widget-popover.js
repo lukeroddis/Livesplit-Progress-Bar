@@ -23,14 +23,16 @@
    * Pure: where to put a popover of `size` beside the `anchor` rect inside `viewport`.
    * Prefers the side with the most room among those it fits on (right, left, below, above
    * on ties), else the roomiest side, and shrinks the height to what that side allows.
+   * `viewport.top` (optional) keeps the popover below a bar along the top (the Layout toolbar).
    * @returns {{side: string, left: number, top: number, maxHeight: number}}
    */
   function placePopover(anchor, size, viewport, gap = GAP, margin = MARGIN) {
+    const minTop = (viewport.top || 0) + margin;
     const room = {
       right: viewport.width - anchor.right - gap - margin,
       left: anchor.left - gap - margin,
       below: viewport.height - anchor.bottom - gap - margin,
-      above: anchor.top - gap - margin
+      above: anchor.top - gap - minTop
     };
     const fits = (side) => (side === "left" || side === "right") ? room[side] >= size.width : room[side] >= size.height;
     // Spare room once the popover is placed: bigger is better
@@ -40,7 +42,7 @@
     const side = pool.reduce((best, s) => (spare(s) > spare(best) ? s : best), pool[0]);
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    const fullHeight = viewport.height - 2 * margin;
+    const fullHeight = viewport.height - minTop - margin;
     if (side === "left" || side === "right") {
       const maxHeight = fullHeight;
       const height = Math.min(size.height, maxHeight);
@@ -48,7 +50,7 @@
       return {
         side,
         left: clamp(left, margin, viewport.width - size.width - margin),
-        top: clamp(anchor.top, margin, viewport.height - height - margin),
+        top: clamp(anchor.top, minTop, viewport.height - height - margin),
         maxHeight
       };
     }
@@ -58,7 +60,7 @@
     return {
       side,
       left: clamp(anchor.left, margin, viewport.width - size.width - margin),
-      top: clamp(top, margin, viewport.height - height - margin),
+      top: clamp(top, minTop, viewport.height - height - margin),
       maxHeight
     };
   }
@@ -81,10 +83,14 @@
       if (!anchorEl) return;
       const { el } = current;
       el.style.maxHeight = "";
+      // Stay clear of the Layout toolbar along the top while it shows (its resting place: it slides in
+      // with a transform, which offsetTop ignores)
+      const toolbar = document.getElementById("layout-toolbar");
+      const toolbarBottom = toolbar && document.body.classList.contains("edit-mode") ? toolbar.offsetTop + toolbar.offsetHeight : 0;
       const placed = placePopover(
         anchorEl.getBoundingClientRect(),
         { width: el.offsetWidth, height: el.offsetHeight },
-        { width: window.innerWidth, height: window.innerHeight });
+        { width: window.innerWidth, height: window.innerHeight, top: Math.max(0, toolbarBottom) });
       el.style.maxHeight = `${placed.maxHeight}px`;
       el.style.left = `${placed.left}px`;
       el.style.top = `${placed.top}px`;

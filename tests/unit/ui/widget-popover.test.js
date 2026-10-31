@@ -35,6 +35,14 @@
       assertEqual(placed.top, 8, "clamped inside the screen");
     });
 
+    it("keeps clear of a bar along the top (the Layout toolbar)", () => {
+      const placed = WP.placePopover(rect(0, 880, 1920, 200), SIZE, Object.assign({ top: 70 }, VIEW));
+      assertEqual(placed.side, "above");
+      assertEqual(placed.maxHeight, 880 - 12 - 78, "the room between the toolbar and the track");
+      const beside = WP.placePopover(rect(0, 0, 340, 1080), SIZE, Object.assign({ top: 70 }, VIEW));
+      assertEqual(beside.top, 78, "clamped below the toolbar");
+    });
+
     it("stays on screen when it fits nowhere", () => {
       const placed = WP.placePopover(rect(0, 0, 800, 600), { width: 900, height: 700 }, { width: 900, height: 700 });
       assert(placed.left >= 8 && placed.top >= 8, "clamped to the margin");

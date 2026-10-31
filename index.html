@@ -62,7 +62,6 @@
       <input type="range" id="slider-bg-blur" min="0" max="20" value="8" step="1" title="Frosted glass blur">
       <span class="val-badge" id="val-bg-blur">8px</span>
     </div>
-    <button class="toolbar-btn" id="btn-open-track-modal" title="Customize progress bar geometry, font sizes, and layout">🎨 Bar Styles</button>
     <button class="toolbar-btn" id="btn-reset-layout" title="Reset all elements to default positions">↺ Reset</button>
     <button class="toolbar-btn btn-primary" id="btn-lock-layout" title="Lock layout and save (Press Esc or E)">🔒 Lock Layout</button>
   </div>
@@ -257,7 +256,7 @@
       <div class="settings-section">
         <div class="settings-section-header">CUSTOMIZATION &amp; LAYOUT</div>
         <div class="settings-actions-row">
-          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" title="Customize progress bar positions, fonts, and sizes">🎨 Bar Styles Modal</button>
+          <button type="button" class="settings-action-btn action-bar-style" id="track-style-badge" data-open-widget-popover="track" title="Open Layout Mode with the track's settings (every widget has a ⚙ there)">⚙ Widget Settings</button>
           <button type="button" class="settings-action-btn action-edit-layout" id="layout-edit-btn" title="Enter Edit Mode to move/resize components (Hotkey: E)">⚙ Edit Layout Mode</button>
         </div>
       </div>
@@ -299,34 +298,6 @@
       <div class="settings-menu-footer">
         <span class="settings-version-label" id="overlay-version" title="Speedrun Overlay Version">v2.0.3</span>
         <a href="https://github.com/lukeroddis/speedrun-overlay" target="_blank" rel="noopener noreferrer" class="settings-github-link" title="View repository on GitHub">GitHub ↗</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Track Customizer Modal -->
-  <div class="track-modal-backdrop" id="track-modal" style="display: none;">
-    <div class="track-modal-dialog">
-      <div class="track-modal-header">
-        <h3>🎨 HUD & Progress Bar Customizer</h3>
-        <button class="track-modal-close" id="btn-close-track-modal" title="Close">✕</button>
-      </div>
-      <div class="track-modal-body">
-
-        <!-- Settings that moved to popovers beside their widgets (Layout Mode cogs) -->
-        <div class="modal-section-title">Widget Settings</div>
-        <div class="modal-row">
-          <span style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">Title, timer and track settings now open beside their widgets: click ⚙ on a widget in Layout Mode.</span>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button type="button" class="toolbar-btn" data-open-widget-popover="title">⚙ Title Settings</button>
-            <button type="button" class="toolbar-btn" data-open-widget-popover="track">⚙ Track Settings</button>
-            <button type="button" class="toolbar-btn" data-open-widget-popover="timers">⚙ Timer Settings</button>
-          </div>
-        </div>
-
-      </div>
-      <div class="track-modal-footer">
-        <button class="toolbar-btn" id="btn-reset-track-style">↺ Reset Styles</button>
-        <button class="toolbar-btn btn-primary" id="btn-save-track-style">Done</button>
       </div>
     </div>
   </div>

@@ -12,78 +12,6 @@
       assertEqual(typeof window.LiveSplit.LayoutModal.createLayoutModal, "function", "createLayoutModal is a function");
     });
 
-    it("opens track customizer modal and invokes syncUI", () => {
-      let syncCalled = false;
-      let modal = document.getElementById("track-modal");
-      let created = false;
-      if (!modal) {
-        modal = document.createElement("div");
-        modal.id = "track-modal";
-        modal.style.display = "none";
-        document.body.appendChild(modal);
-        created = true;
-      }
-
-      try {
-        const mockStyle = {
-          orientation: "horizontal",
-          nameFontSize: 14,
-          deltaFontSize: 13,
-          barHeight: 6,
-          dotSize: 8,
-          bgOpacity: 60,
-          bgBlur: 10
-        };
-
-        const controller = window.LiveSplit.LayoutModal.createLayoutModal({
-          getCurrentTrackStyle: () => mockStyle,
-          saveTrackStyle: () => {},
-          applyTrackStyle: () => {},
-          syncTimerAnchorUI: () => { syncCalled = true; }
-        });
-
-        controller.openTrackModal();
-        assertEqual(modal.style.display, "flex", "modal display set to flex");
-        assert(syncCalled, "opening the modal syncs the settings UI");
-      } finally {
-        if (created && modal.parentNode) {
-          modal.parentNode.removeChild(modal);
-        }
-      }
-    });
-
-    it("closes track customizer modal and triggers saveTrackStyle", () => {
-      let saved = false;
-      let modal = document.getElementById("track-modal");
-      let created = false;
-      if (!modal) {
-        modal = document.createElement("div");
-        modal.id = "track-modal";
-        modal.classList.add("is-open");
-        modal.style.display = "flex";
-        document.body.appendChild(modal);
-        created = true;
-      } else {
-        modal.classList.add("is-open");
-        modal.style.display = "flex";
-      }
-
-      try {
-        const controller = window.LiveSplit.LayoutModal.createLayoutModal({
-          getCurrentTrackStyle: () => ({}),
-          saveTrackStyle: () => { saved = true; }
-        });
-
-        controller.closeTrackModal();
-        assert(!modal.classList.contains("is-open"), "is-open class removed on close");
-        assert(saved, "saveTrackStyle called on modal close");
-      } finally {
-        if (created && modal.parentNode) {
-          modal.parentNode.removeChild(modal);
-        }
-      }
-    });
-
     it("syncUI updates range sliders, badges, and segmented orientation controls", () => {
       const mockStyle = {
         orientation: "vertical",
@@ -144,12 +72,8 @@
     const MODAL_HTML = `
       <button id="btn-lock-layout"></button><button id="btn-reset-layout"></button><button id="layout-edit-btn"></button>
       <input type="checkbox" id="cb-toggle-title"><input type="checkbox" id="cb-toggle-track">
-      <button id="btn-open-track-modal"></button><button id="track-style-badge"></button>
-      <div id="track-modal" style="display: none;"><div class="dialog">
-        <button id="btn-close-track-modal"></button><button id="btn-save-track-style"></button><button id="btn-reset-track-style"></button>
-        <input type="range" id="slider-logo-height" min="20" max="200"><span id="val-logo-height"></span>
-        <input type="text" id="lm-text-input">
-      </div></div>
+      <input type="range" id="slider-logo-height" min="20" max="200"><span id="val-logo-height"></span>
+      <input type="text" id="lm-text-input">
       <div id="layout-import-modal"></div><div id="layout-export-modal"></div>
       <div id="hud-comp-timers" class="hud-component" data-component-id="timers" style="position: absolute; width: 300px;">
         <button data-action="open-settings" id="lm-cog-timers"></button>
@@ -229,38 +153,13 @@
       assertEqual(sets, [["visible.title", false]]);
     }));
 
-    it("modal triggers open, close (buttons and backdrop) and reset styles", () => withFakeTimers((clock) => withModal(({ dom, el, called, logo }) => {
-      const modal = el("track-modal");
-      el("track-style-badge").click();
-      assertEqual(modal.style.display, "flex");
-      clock.tick(10);
-      assert(modal.classList.contains("is-open"), "fades in");
-      assertEqual(logo.synced, [80], "logo controls synced to the style's logo height");
-
-      dom.root.querySelector("#track-modal .dialog").click();
-      assert(modal.classList.contains("is-open"), "clicks inside the dialog keep it open");
-      modal.click();
-      assert(!modal.classList.contains("is-open"), "backdrop click closes");
-      clock.tick(200);
-      assertEqual(modal.style.display, "none");
-
-      el("btn-open-track-modal").click();
-      el("btn-close-track-modal").click();
-      el("btn-open-track-modal").click();
-      el("btn-save-track-style").click();
-      assertEqual(called("saveStyle").length, 3, "every close saves the style");
-      el("btn-reset-track-style").click();
-      assertEqual(called("resetStyle").length, 1);
-    })));
-
-    it("widget cogs open the Customizer, or the settings menu for the leaderboard, at the widget's section", () => withModal(({ el, dom }) => {
+    it("the leaderboard cog opens the settings menu at its race section; a cog without a popover does nothing else", () => withModal(({ el, dom }) => {
       const opened = [];
       const [titleSection, lbSection] = dom.root.querySelectorAll(".lm-section");
       stubOverlay({ toggleSettingsMenu: (v) => opened.push(["menu", v]) }, () => {
         el("lm-cog-title").click();
-        assertEqual(el("track-modal").style.display, "flex", "Customizer opened");
-        assert(titleSection.classList.contains("widget-settings-flash"), "title section flashed");
-        assert(!lbSection.classList.contains("widget-settings-flash"));
+        assertEqual(opened, [], "no popover in this fixture: nothing opens");
+        assert(!titleSection.classList.contains("widget-settings-flash"));
 
         el("lm-cog-lb").click();
         assertEqual(opened, [["menu", true]], "settings menu opened");
@@ -272,7 +171,6 @@
       const pop = el("lm-popover-track");
       el("lm-cog-track").click();
       assert(!pop.hidden, "popover opened");
-      assertEqual(el("track-modal").style.display, "none", "not the Customizer");
 
       el("lm-popover-reset").click();
       assertEqual(called("resetStyle")[0], ["resetStyle", window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.track]);
@@ -287,10 +185,12 @@
       assert(pop.hidden, "the cog toggles it closed");
     }));
 
-    it("Escape closes the popover first; the Customizer's button opens it in Layout Mode", () => withModal(({ el, key, called }) => {
+    it("Escape closes the popover first; the settings menu's Widget Settings button opens it in Layout Mode", () => withModal(({ el, key, called }) => {
       const pop = el("lm-popover-track");
-      el("lm-open-track").click();
-      assert(!pop.hidden, "opened from the Customizer");
+      const menu = [];
+      stubOverlay({ toggleSettingsMenu: (v) => menu.push(v) }, () => el("lm-open-track").click());
+      assert(!pop.hidden, "opened from the button");
+      assertEqual(menu, [false], "the settings menu gets out of the way");
       assertEqual(called("setEdit"), [["setEdit", true]], "entered Layout Mode");
       key("Escape");
       assert(pop.hidden, "Escape closed it");
@@ -300,7 +200,6 @@
     it("the timers cog opens its popover; resets only reach a widget's own style keys", () => withModal(({ el, called }) => {
       el("lm-cog-timers").click();
       assert(!el("lm-popover-timers").hidden, "timers popover opened");
-      assertEqual(el("track-modal").style.display, "none", "not the Customizer");
       el("lm-timers-reset").click();
       assertEqual(called("resetStyle"), [["resetStyle", window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.timers]], "the timers' plate");
       el("lm-lb-reset").click();
@@ -331,13 +230,13 @@
       assertEqual(called("toggleEdit").length, 3, "ignored in text inputs");
     }));
 
-    it("Escape closes the import modal, then export, then the track modal, then leaves edit mode", () => withFakeTimers(() => withModal(({ el, key, called, setEdit }) => {
+    it("Escape closes the import modal, then export, then the popover, then leaves edit mode", () => withFakeTimers(() => withModal(({ el, key, called, setEdit }) => {
       const importModal = el("layout-import-modal");
       const exportModal = el("layout-export-modal");
-      const trackModal = el("track-modal");
+      const pop = el("lm-popover-track");
       importModal.classList.add("is-open");
       exportModal.classList.add("is-open");
-      trackModal.classList.add("is-open");
+      el("lm-cog-track").click();
       setEdit(true);
 
       key("Escape");
@@ -350,8 +249,8 @@
       exportModal.classList.remove("is-open");
 
       key("Escape");
-      assert(!trackModal.classList.contains("is-open"), "track modal closed");
-      assertEqual(called("setEdit").length, 0, "edit mode untouched while a modal was open");
+      assert(pop.hidden, "popover closed");
+      assertEqual(called("setEdit").length, 0, "edit mode untouched while something was open");
 
       key("Escape");
       assertEqual(called("setEdit")[0], ["setEdit", false], "finally leaves edit mode");
