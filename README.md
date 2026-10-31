@@ -39,10 +39,14 @@ Traditional LiveSplit layouts consume substantial vertical screen space over mod
    * *(Important: Select **WebSocket Server**, not TCP Server, as browser overlays communicate via WebSockets).*
 2. **Open the Overlay**:
    * Download the latest `speedrun-overlay-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases). The release is one fully self-contained HTML file; no server or companion files are required.
-   * **In OBS Studio (Recommended)**: Add a **Browser Source** pointing to the downloaded HTML file, set resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
+   * **In OBS Studio (Recommended)**: Add a **Browser Source**, **untick *Local file*** and put a `file:///` URL to the downloaded HTML file in the **URL** field (e.g. `file:///C:/Overlays/speedrun-overlay-v2.1.0.html`). Set the resolution to `1920×1080` (or match your canvas resolution), and check *"Shutdown source when not visible"*.
+     * *Why a URL instead of Local file?* The overlay works the same either way, but only a `file:///` URL lets the optional OBS Dock (step 4) talk to it. Switching later moves where OBS keeps the overlay's saved layouts, so it is easiest to start this way.
    * **In Desktop Browser**: Open the downloaded HTML file in Chrome, Edge, or Firefox.
 3. **Load Your Splits**:
    * Drag and drop your `.lss` splits file directly onto the window. Splits, targets, and history are cached locally.
+4. **(Optional) Add the OBS Dock**:
+   * Change the comparison, ghosts, visible splits, layout profile, race code and more from an OBS panel, without opening your scene. Entirely optional: everything in it is also available in the overlay itself.
+   * Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases), then in OBS open **Docks → Custom Browser Docks…** and add it with a `file:///` URL (e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.1.0.html`). It shows **Overlay linked** within a couple of seconds. See [OBS Dock](#6-obs-dock) for details.
 
 ---
 
@@ -115,6 +119,17 @@ The application source remains classic, dependency-free scripts. `vite.config.mj
 * Upload a PNG, SVG or WebP **game logo** in place of the title text.
 * **Frosted-glass plates** with adjustable blur and opacity keep text readable over bright games.
 
+### 6. OBS Dock
+
+An optional OBS panel (a Custom Browser Dock) for changing things mid-stream without interacting with your scene: race code, layout profile (quick switching between games), comparison, timers, golds, visible splits, ghosts, scrolling through your splits (buttons, a slider or the mouse wheel) and which components show. While the dock has keyboard focus, **`C`** / **`Shift+C`** (or **`]`** / **`[`**) step the comparison and the arrow keys scroll your splits. Everything in it is also available in the overlay itself.
+
+1. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay.
+2. The overlay's **Browser Source** must use a `file:///` URL with *Local file* **unticked** (as in the [Quick Start](#-quick-start-60-seconds)); the dock and overlay can only talk to each other this way. If your source still has *Local file* ticked, **export your layout first** (Settings → Export (.json)), switch to the URL, then re-import it: the switch changes where OBS stores the overlay's saved data.
+3. **Docks → Custom Browser Docks…**: add a dock with a `file:///` URL to the dock file, e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.1.0.html`.
+4. The dock shows **Overlay linked** within a couple of seconds, then its Race, Profile, Run, Track, Ghost Pins and Visibility sections. *Overlay not found* almost always means the browser source still has *Local file* ticked.
+
+If you have more than one overlay browser source (e.g. in different scenes), the dock controls all of them.
+
 ---
 
 ## 🎛️ OBS Hotkeys & URL Parameters
@@ -140,15 +155,6 @@ For multi-scene or automated OBS setups, configure sources instantly with query 
 | `?ghost=wr\|pb\|best\|off` | Set live ghost runner target | `index.html?ghost=wr` |
 | `?bg=0..95` | Set background plate opacity percentage | `index.html?bg=55` |
 | `?logo=path/to/logo.png` | Set custom logo image path | `index.html?logo=logo.png` |
-
-### OBS Dock (Custom Browser Dock, experimental)
-
-A small OBS panel for changing things mid-stream without interacting with your scene: race code, layout profile (quick switching between games), comparison, timers, golds, visible splits, ghosts, scrolling through your splits (buttons, a slider or the mouse wheel) and which components show. While the dock has keyboard focus, **`C`** / **`Shift+C`** (or **`]`** / **`[`**) step the comparison and the arrow keys scroll your splits. Download `speedrun-overlay-dock-v*.html` from [Releases](https://github.com/lukeroddis/speedrun-overlay/releases) alongside the overlay. Everything in it is also available in the overlay itself.
-
-1. **Export your layout first** (Settings → profiles → export) if you already use the overlay with *Local file* ticked: step 2 changes where OBS stores the overlay's saved data, so you'll re-import it afterwards.
-2. In the overlay's **Browser Source** properties, **untick *Local file*** and put a `file:///` URL in the **URL** field instead, e.g. `file:///C:/Overlays/speedrun-overlay-v2.0.4.html`. The dock and overlay can only talk to each other this way.
-3. **Docks → Custom Browser Docks…**: add a dock with a `file:///` URL to the dock file, e.g. `file:///C:/Overlays/speedrun-overlay-dock-v2.0.4.html`.
-4. The dock shows **Overlay linked** within a couple of seconds, then its Race, Profile, Run, Track, Ghost Pins and Visibility sections. *Overlay not found* almost always means the browser source still has *Local file* ticked.
 
 ---
 

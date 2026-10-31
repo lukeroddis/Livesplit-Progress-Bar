@@ -18,7 +18,7 @@
  * registry. It keeps the v1 race fields (state, raceId, lastCommandId, lastResult,
  * at) at the top level so older dock.html files keep working.
  *
- * Experimental: only works if OBS gives the dock and the browser source the
+ * Only works if OBS gives the dock and the browser source the
  * same storage (same origin and browser profile).
  */
 
