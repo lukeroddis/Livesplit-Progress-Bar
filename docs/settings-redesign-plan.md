@@ -1,6 +1,6 @@
 # Settings redesign plan: OBS dock + per-widget settings
 
-Status (2026-10-31): steps 1–7 shipped on `feature/track-customisation` and tested in OBS (Luke), plus several follow-ups from that testing. What is left is under **Remaining work** at the end. Order revised 2026-10-31: widget cog / close buttons moved earlier.
+Status (2026-10-31): **complete** on `feature/track-customisation`, apart from the README screenshots and an OBS test of the last few commits (see **Remaining work**). Steps 1–7 were tested in OBS (Luke); follow-ups from that testing are listed under step 7 and **Done after the main steps**. Order revised 2026-10-31: widget cog / close buttons moved earlier.
 
 ## Goal
 
@@ -94,26 +94,31 @@ Each step ships on its own, with `npm test` and `npm run build` green.
    - ✅ Title: `#widget-popover-title` holds the logo upload / text title switch and logo height; Reset Title restores the logo height and keeps the logo.
    - ✅ Backgrounds: each popover has its own plate toggle (and its reset restores it); the shared opacity / blur are "Plates" / "Blur" sliders in the Layout toolbar.
    - ✅ Customizer removed. The toolbar's Bar Styles button is gone (the toolbar fits a 1280 canvas again); the settings menu's button is now ⚙ Widget Settings (Layout Mode + Track popover). Popovers keep clear of the toolbar. The leaderboard cog still opens the settings menu's race section (a Leaderboard popover can come with step 7).
-7. **Slim the settings menu** down to the global items. Update README screenshots and the developer guide.
+7. ✅ **Slim the settings menu** down to the global items. Update README screenshots and the developer guide.
    - ✅ Menu: the Pace & Comparisons and Track & Display badge sections are gone (each setting lives in a popover, the toolbar or the dock; Gold Splits joined the Track popover as a registry-bound `data-setting` checkbox) along with their badge code. Left: splits file, race, Widget Settings / Layout Mode, profiles, import / export. Loading a profile now applies its ghosts straight away.
    - ✅ README text and developer guide.
    - ✅ Follow-up after OBS testing: the menu is just "Settings" (no hint line); Widget Settings is now Track Settings; the race section moved into a Live Race Settings popover (the leaderboard's popover: its cog opens it too, the menu button opens it without Layout Mode, centred when the standings are hidden).
    - ✅ Settings popovers can be dragged by their header and resized from a corner grip; they keep that box until reload (double-click the header to put one back).
    - ✅ The menu has a button per settings dialog (Title, Timer, Track, Ghost Pins, Live Race). Ghost pins moved out of the Track dialog into their own Ghost Pins dialog (beside the track, linked from the Track dialog; its reset covers the pin style, which race pins share).
-   - **Still to do (Luke): new README screenshots** of a widget popover and the dock; `assets/HUDCustomiser.png` is no longer referenced.
+   - README screenshots: see Remaining work.
 
 ## Remaining work
 
-Reassessed 2026-10-31 with Luke's decisions:
-
 1. **README screenshots (Luke), last**, once the UI has settled: a widget dialog, the Settings menu and the dock. `assets/HUDCustomiser.png` is no longer referenced and can be deleted then.
-2. **Dialogs built from the registry (in progress).** ✅ Shared renderer: `src/ui/settings-renderer.js`, used by the dock and inlined into `dist/dock.html` by the build. ✅ Timers dialog: comparison, timers shown and primary timer are registry rows (`settings-dialog-rows.js`); the registry's `showIf` hides the primary timer unless both timers show, in the dock too. ✅ Track (visible splits, golds), Ghost Pins (ghosts on/off and picker, keeping each ghost's colour; the Quick Preset dropdown is gone, the picker covers any mix) and Live Race (show standings, race pins) too. Every registry setting in a dialog now comes from the shared renderer; appearance-only settings (fonts, geometry, plates, logo, pin style, timer expansion) stay hand-written as they are not in the registry. Keep the dock and the overlay's dialogs in step by sharing code: the dock already renders from the registry's schema; the dialogs are hand-written HTML (only Gold Splits is registry-bound, via `data-setting`). Proposed approach: move the dock's control renderer (bool / enum / splits / ghosts / range / action) into a shared module the overlay uses for its dialogs' registry settings and the build inlines into `dock.html`, then replace the dialogs' hand-written rows for registry settings with it, one dialog per commit. Appearance-only settings (fonts, geometry, plates, logo) stay hand-written unless they move into the registry too.
-3. ✅ Done since the assessment: dock layout profile switching, a Ghost Pins section in the dock, the overlay's hotkeys in the dock (`C` / `Shift+C`, `]` / `[`, NumPad 4 / 6, arrows), and the unused `apply` (`instant` / `draft`) field removed.
+2. **OBS test (Luke)** of the commits since the last one: dialogs built from the registry, the profile switching fix and pins beyond the split text.
+
+## Done after the main steps
+
+- ✅ **Dialogs built from the registry.** `src/ui/settings-renderer.js` renders a registry setting's control for both the dock (the build inlines it into `dist/dock.html`) and the overlay's dialogs (`src/ui/settings-dialog-rows.js` fills `[data-settings]` spots), so the two stay in step. Converted: Timers (comparison, timers shown, primary timer, hidden by the registry's `showIf` unless both timers show), Track (visible splits, golds), Ghost Pins (ghosts on / off and the picker, keeping each ghost's colour; the Quick Preset dropdown is gone) and Live Race (show standings, race pins). Appearance-only settings (fonts, geometry, plates, logo, pin style, timer expansion) stay hand-written as they are not in the registry.
+- ✅ **Dock:** layout profile switching, a Ghost Pins section, the overlay's hotkeys (`C` / `Shift+C`, `]` / `[`, NumPad 4 / 6, arrows), and one Connect / Disconnect button that follows the overlay's race (showing its race code).
+- ✅ **Fixes found along the way:** edge pills for pins behind a scrolled track window; switching layout profiles no longer overwrites the profile being left (and Default autosaves positions like the others); with "Keep pins clear of split text", flat horizontal text stays next to the bar and the pin heads sit beyond it, their lines behind the text.
+- ✅ The registry's unused `apply` (`instant` / `draft`) field removed.
 
 Decided against (2026-10-31, Luke):
 
 - **Dev-only items in the dock** (test race, WS log): they stay in the overlay.
 - **Draft settings with a revert / Cancel**: changes are easy to undo, and the dialogs can be moved aside to watch them apply.
+- **Pins beyond the text for angled names and vertical tracks**: their text is tall or wide, so they keep the lane beside the bar.
 
 ## Open questions (resolved 2026-10-31)
 
