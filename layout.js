@@ -373,6 +373,10 @@
     if (e) e.syncUI();
   }
 
+  function openWidgetSettings(compId) {
+    getLayoutModalController()?.openWidgetSettings(compId);
+  }
+
   function openTrackModal() {
     const ctrl = getLayoutModalController();
     if (ctrl) {
@@ -477,10 +481,17 @@
       badge.innerText = `${Math.round(state.scale * 100)}%`;
     }
 
-    // Toolbar checkbox sync
+    // Toolbar checkbox and header hide / show button sync
     const cb = document.getElementById(`cb-toggle-${compId}`);
     if (cb) {
       cb.checked = state.visible !== false;
+    }
+    const visBtn = el.querySelector('[data-action="toggle-visibility"]');
+    if (visBtn) {
+      const label = state.visible === false ? "Show widget" : "Hide widget";
+      visBtn.textContent = state.visible === false ? "👁" : "✕";
+      visBtn.title = label;
+      visBtn.setAttribute("aria-label", label);
     }
 
     // Dock logic for track
@@ -741,6 +752,7 @@
     applyComponentLayout,
     setComponentVisible,
     openTrackModal,
+    openWidgetSettings,
     closeTrackModal,
     resetTrackStyle,
     applyTrackStyle,

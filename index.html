@@ -64,7 +64,8 @@
       <span class="hud-drag-handle">::: Game Info</span>
       <div class="hud-comp-controls">
         <span class="hud-scale-badge" id="badge-scale-title">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="title-group">
@@ -82,7 +83,8 @@
       <div class="hud-comp-controls">
         <button type="button" class="hud-btn-icon" id="badge-anchor-timers" title="Click to cycle Timer Expansion: Auto / Expand Left / Expand Right">⇥ Auto</button>
         <span class="hud-scale-badge" id="badge-scale-timers">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="timer-group">
@@ -105,7 +107,8 @@
       <div class="hud-comp-controls">
         <button class="hud-btn-icon" id="btn-dock-track" title="Toggle bottom dock / free float">⚓ Dock</button>
         <span class="hud-scale-badge" id="badge-scale-track">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="track-viewport" id="track-viewport" tabindex="0">
@@ -132,7 +135,8 @@
       <span class="hud-drag-handle">::: THERUN.GG STANDINGS</span>
       <div class="hud-comp-controls">
         <span class="hud-scale-badge" id="badge-scale-leaderboard">100%</span>
-        <button class="hud-btn-icon" data-action="toggle-visibility" title="Toggle visibility">👁</button>
+        <button type="button" class="hud-btn-icon hud-btn-cog" data-action="open-settings" title="Widget settings" aria-label="Widget settings">⚙</button>
+        <button type="button" class="hud-btn-icon hud-btn-visibility" data-action="toggle-visibility" title="Hide widget" aria-label="Hide widget">✕</button>
       </div>
     </div>
     <div class="race-leaderboard" id="race-leaderboard">
@@ -226,7 +230,7 @@
 
       <!-- Section: Live Race Telemetry (therun.gg) -->
       <div class="settings-section" id="section-race-mode">
-        <div class="settings-section-header">LIVE RACE TELEMETRY</div>
+        <div class="settings-section-header" data-widget-settings="leaderboard">LIVE RACE TELEMETRY</div>
         <div class="settings-grid">
           <button type="button" class="settings-tile-btn" id="race-toggle-badge" style="color: rgba(148, 163, 184, 0.9);" title="Click to connect or disconnect Live Race telemetry">Race: Off</button>
           <button type="button" class="settings-tile-btn dev-only" id="race-sim-badge" style="color: #f59e0b;" title="Click to start/stop local race simulation test mode">🧪 Test Race</button>
@@ -300,7 +304,7 @@
       <div class="track-modal-body">
 
         <!-- Game Title & Custom Logo -->
-        <div class="modal-section-title">Game Title &amp; Custom Logo</div>
+        <div class="modal-section-title" data-widget-settings="title">Game Title &amp; Custom Logo</div>
         <div class="modal-row">
           <label>Game Title / Custom Logo</label>
           <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
@@ -354,7 +358,7 @@
         </div>
 
         <!-- Track Orientation -->
-        <div class="modal-section-title">Track Orientation</div>
+        <div class="modal-section-title" data-widget-settings="track">Track Orientation</div>
         <div class="modal-row">
           <label>Orientation</label>
           <div class="segmented-control" id="ctrl-track-orient">
@@ -438,7 +442,7 @@
         </div>
 
         <!-- Comparisons & LiveSplit Sync -->
-        <div class="modal-section-title">Comparisons & LiveSplit Sync</div>
+        <div class="modal-section-title" data-widget-settings="timers">Comparisons & LiveSplit Sync</div>
         <div class="modal-row">
           <label>Active Comparison</label>
           <select id="select-active-comparison" class="modal-select">

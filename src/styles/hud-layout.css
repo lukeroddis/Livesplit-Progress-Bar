@@ -128,6 +128,29 @@ body.edit-mode .hud-component-header {
   background: rgba(56, 189, 248, 0.2);
 }
 
+/* Widget cog / hide buttons: icon-only, so keep them square */
+.hud-btn-cog,
+.hud-btn-visibility {
+  min-width: 22px;
+  text-align: center;
+}
+
+/* Red only while it hides; on a hidden (dimmed) widget it shows it again */
+.hud-component:not(.edit-hidden) .hud-btn-visibility:hover {
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.2);
+}
+
+/* Section a widget cog jumped to (Customizer / settings menu) */
+.widget-settings-flash {
+  animation: widget-settings-flash 1.4s ease-out;
+}
+
+@keyframes widget-settings-flash {
+  0%, 30% { background: rgba(56, 189, 248, 0.35); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.6); }
+  100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
+}
+
 /* Resize corner handle */
 .hud-resize-handle {
   display: none;
@@ -186,6 +209,11 @@ body.edit-mode .hud-resize-handle {
   border-top-left-radius: 0;
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 6px;
+}
+
+/* ...which is the header's right end: keep the cog / hide buttons clear of it */
+#hud-comp-track.docked-bottom .hud-component-header {
+  padding-right: 28px;
 }
 
 /* Docked Top state for Track (mirror of the bottom dock) */

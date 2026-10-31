@@ -4,6 +4,7 @@
  * Composes the settings panels shared by the edit-mode toolbar and the track
  * customizer modal, and owns the controls that belong to the layout itself:
  * - Modal open / close (backdrop, buttons, Escape) and full settings sync
+ * - Widget header cogs: open the settings for one component at its section
  * - Settings panels: track (settings-track-panel.js), backgrounds
  *   (settings-background-panel.js), ghosts (settings-ghost-panel.js), timing
  *   (settings-timing-panel.js), profiles (layout-profiles-panel.js)
@@ -66,6 +67,22 @@
       }
     }
 
+    // Widget cog: the settings for one HUD component, scrolled to and flashing its section
+    // (the Customizer for title / timers / track, the settings menu's race section for the leaderboard)
+    function openWidgetSettings(compId) {
+      if (compId === "leaderboard") {
+        window.LiveSplit.Overlay.toggleSettingsMenu?.(true);
+      } else {
+        openTrackModal();
+      }
+      const section = document.querySelector(`[data-widget-settings="${compId}"]`);
+      if (!section) return;
+      section.scrollIntoView({ block: "start", behavior: "smooth" });
+      section.classList.remove("widget-settings-flash");
+      section.getBoundingClientRect(); // restart the flash animation
+      section.classList.add("widget-settings-flash");
+    }
+
     function syncUI() {
       const currentTrackStyle = getCurrentTrackStyle();
       if (!currentTrackStyle) return;
@@ -97,6 +114,12 @@
       document.getElementById("btn-open-track-modal")?.addEventListener("click", openTrackModal);
       document.getElementById("track-style-badge")?.addEventListener("click", openTrackModal);
       document.getElementById("btn-close-track-modal")?.addEventListener("click", closeTrackModal);
+      document.querySelectorAll('.hud-component [data-action="open-settings"]').forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openWidgetSettings(btn.closest(".hud-component")?.dataset.componentId);
+        });
+      });
       document.getElementById("btn-save-track-style")?.addEventListener("click", closeTrackModal);
       document.getElementById("btn-reset-track-style")?.addEventListener("click", resetTrackStyle);
 
@@ -224,6 +247,7 @@
     return {
       openTrackModal,
       closeTrackModal,
+      openWidgetSettings,
       syncUI,
       bindToolbarAndControls
     };

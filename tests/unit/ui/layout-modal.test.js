@@ -151,7 +151,12 @@
         <input type="text" id="lm-text-input">
       </div></div>
       <div id="layout-import-modal"></div><div id="layout-export-modal"></div>
-      <div id="hud-comp-timers" style="position: absolute; width: 300px;"></div>`;
+      <div id="hud-comp-timers" class="hud-component" data-component-id="timers" style="position: absolute; width: 300px;">
+        <button data-action="open-settings" id="lm-cog-timers"></button>
+      </div>
+      <div class="hud-component" data-component-id="leaderboard"><button data-action="open-settings" id="lm-cog-lb"></button></div>
+      <div class="lm-section" data-widget-settings="timers"></div>
+      <div class="lm-section" data-widget-settings="leaderboard"></div>`;
 
     // Mounts the toolbar / modal DOM, binds a controller with recording callbacks and captures
     // its window listeners (keydown, resize) so specs can fire them directly
@@ -239,6 +244,21 @@
       el("btn-reset-track-style").click();
       assertEqual(called("resetStyle").length, 1);
     })));
+
+    it("widget cogs open the Customizer, or the settings menu for the leaderboard, at the widget's section", () => withModal(({ el, dom }) => {
+      const opened = [];
+      const [timersSection, lbSection] = dom.root.querySelectorAll(".lm-section");
+      stubOverlay({ toggleSettingsMenu: (v) => opened.push(["menu", v]) }, () => {
+        el("lm-cog-timers").click();
+        assertEqual(el("track-modal").style.display, "flex", "Customizer opened");
+        assert(timersSection.classList.contains("widget-settings-flash"), "timers section flashed");
+        assert(!lbSection.classList.contains("widget-settings-flash"));
+
+        el("lm-cog-lb").click();
+        assertEqual(opened, [["menu", true]], "settings menu opened");
+        assert(lbSection.classList.contains("widget-settings-flash"));
+      });
+    }));
 
     it("binds the logo controller and its height slider", () => withModal(({ el, logo, style, called }) => {
       assertEqual(logo.bound, 1);

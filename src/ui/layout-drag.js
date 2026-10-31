@@ -264,19 +264,11 @@
           });
         }
 
-        // Visibility toggle in header
-        const toggleBtn = el.querySelector('[data-action="toggle-visibility"]');
-        if (toggleBtn) {
-          toggleBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const state = getLayoutState()[id];
-            if (state) {
-              state.visible = !state.visible;
-              applyComponentLayout(id);
-              saveLayout();
-            }
-          });
-        }
+        // Hide / show button in the header (through the settings registry, so listeners hear it)
+        el.querySelector('[data-action="toggle-visibility"]')?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.LiveSplit.Overlay.settings?.toggle(`visible.${id}`);
+        });
       });
 
       // Direct drag listener on leaderboard header (.leaderboard-header) anytime
