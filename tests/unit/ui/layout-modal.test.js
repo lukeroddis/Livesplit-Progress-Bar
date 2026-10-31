@@ -161,6 +161,7 @@
         <button data-popover-reset id="lm-popover-reset"></button><button data-popover-close id="lm-popover-done"></button>
       </div>
       <div class="widget-popover" id="lm-popover-timers" data-widget="timers" hidden><button data-popover-reset id="lm-timers-reset"></button></div>
+      <div class="widget-popover" data-widget="lm-no-style" hidden><button data-popover-reset id="lm-lb-reset"></button></div>
       <button id="lm-open-track" data-open-widget-popover="track"></button>
       <div class="lm-section" data-widget-settings="title"></div>
       <div class="lm-section" data-widget-settings="leaderboard"></div>`;
@@ -296,12 +297,14 @@
       assertEqual(called("setEdit").length, 1, "without leaving Layout Mode");
     }));
 
-    it("the timers cog opens its popover; one without style keys of its own never resets the style", () => withModal(({ el, called }) => {
+    it("the timers cog opens its popover; resets only reach a widget's own style keys", () => withModal(({ el, called }) => {
       el("lm-cog-timers").click();
       assert(!el("lm-popover-timers").hidden, "timers popover opened");
       assertEqual(el("track-modal").style.display, "none", "not the Customizer");
       el("lm-timers-reset").click();
-      assertEqual(called("resetStyle").length, 0);
+      assertEqual(called("resetStyle"), [["resetStyle", window.LiveSplit.TrackStyle.WIDGET_STYLE_KEYS.timers]], "the timers' plate");
+      el("lm-lb-reset").click();
+      assertEqual(called("resetStyle").length, 1, "a widget without style keys never resets the whole style");
     }));
 
     it("binds the logo controller and its height slider", () => withModal(({ el, logo, style, called }) => {

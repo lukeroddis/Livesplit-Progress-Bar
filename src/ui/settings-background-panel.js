@@ -1,9 +1,10 @@
 /**
  * src/ui/settings-background-panel.js - HUD Background Settings Panel
  *
- * Glassmorphic background plate controls: opacity and blur sliders, opacity
- * preset pills, per-component background toggles, and the footer BG badge
- * that cycles presets.
+ * Glassmorphic background plate controls: the shared opacity and blur sliders
+ * (Layout Mode toolbar), opacity preset pills where present, each widget's plate
+ * toggle (in its settings popover), and the settings menu BG badge that cycles
+ * presets.
  */
 
 (function () {

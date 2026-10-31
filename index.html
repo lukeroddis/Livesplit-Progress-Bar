@@ -54,6 +54,14 @@
         <option value="horizontal">Angle: Flat</option>
       </select>
     </div>
+    <div class="toolbar-plate-group" title="Background plates behind the title, timers and track (switch each one in its ⚙ settings)">
+      <label for="slider-bg-opacity">Plates:</label>
+      <input type="range" id="slider-bg-opacity" min="0" max="95" value="55" step="5" title="Plate opacity">
+      <span class="val-badge" id="val-bg-opacity">55%</span>
+      <label for="slider-bg-blur">Blur:</label>
+      <input type="range" id="slider-bg-blur" min="0" max="20" value="8" step="1" title="Frosted glass blur">
+      <span class="val-badge" id="val-bg-blur">8px</span>
+    </div>
     <button class="toolbar-btn" id="btn-open-track-modal" title="Customize progress bar geometry, font sizes, and layout">🎨 Bar Styles</button>
     <button class="toolbar-btn" id="btn-reset-layout" title="Reset all elements to default positions">↺ Reset</button>
     <button class="toolbar-btn btn-primary" id="btn-lock-layout" title="Lock layout and save (Press Esc or E)">🔒 Lock Layout</button>
@@ -304,37 +312,6 @@
       </div>
       <div class="track-modal-body">
 
-        <!-- Background Plate & Readability -->
-        <div class="modal-section-title">Background Plate & Readability</div>
-        <div class="modal-row">
-          <label>Background Opacity <span class="val-badge" id="val-bg-opacity">55%</span></label>
-          <div style="display:flex; gap:6px; margin-bottom: 4px;">
-            <button type="button" class="preset-pill-btn" data-preset-bg="0">0% (Off)</button>
-            <button type="button" class="preset-pill-btn" data-preset-bg="35">35% Subtle</button>
-            <button type="button" class="preset-pill-btn active" data-preset-bg="55">55% Glass</button>
-            <button type="button" class="preset-pill-btn" data-preset-bg="80">80% Dark</button>
-          </div>
-          <input type="range" id="slider-bg-opacity" min="0" max="95" value="55" step="5">
-        </div>
-        <div class="modal-row">
-          <label>Frosted Glass Blur <span class="val-badge" id="val-bg-blur">8px</span></label>
-          <input type="range" id="slider-bg-blur" min="0" max="20" value="8" step="1">
-        </div>
-        <div class="modal-row">
-          <label>Apply Background To</label>
-          <div style="display:flex; gap:14px; align-items:center; font-size:12px; color:#cbd5e1; padding: 4px 0;">
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:normal;">
-              <input type="checkbox" id="cb-bg-title" checked> Title
-            </label>
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:normal;">
-              <input type="checkbox" id="cb-bg-timers" checked> Timers
-            </label>
-            <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-weight:normal;">
-              <input type="checkbox" id="cb-bg-track" checked> Track
-            </label>
-          </div>
-        </div>
-
         <!-- Settings that moved to popovers beside their widgets (Layout Mode cogs) -->
         <div class="modal-section-title">Widget Settings</div>
         <div class="modal-row">
@@ -383,9 +360,19 @@
         <label>Logo Max Height <span class="val-badge" id="val-logo-height">60px</span></label>
         <input type="range" id="slider-logo-height" min="25" max="140" value="60" step="5">
       </div>
+
+      <!-- Background Plate (opacity / blur are shared: Layout Mode toolbar) -->
+      <div class="modal-section-title">Background Plate</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Show Background Plate</span>
+          <input type="checkbox" id="cb-bg-title" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Opacity and blur are shared by all plates: set them with the Plates sliders in the Layout Mode toolbar.</span>
+      </div>
     </div>
     <div class="widget-popover-footer">
-      <button type="button" class="toolbar-btn" data-popover-reset title="Reset the logo height (keeps the logo)">↺ Reset Title</button>
+      <button type="button" class="toolbar-btn" data-popover-reset title="Reset the logo height and plate (keeps the logo)">↺ Reset Title</button>
       <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
     </div>
   </div>
@@ -547,6 +534,16 @@
         </label>
         <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">When resetting an aborted run, discard temporary gold segments and preserve canonical .lss baseline.</span>
       </div>
+
+      <!-- Background Plate (opacity / blur are shared: Layout Mode toolbar) -->
+      <div class="modal-section-title">Background Plate</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Show Background Plate</span>
+          <input type="checkbox" id="cb-bg-track" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Opacity and blur are shared by all plates: set them with the Plates sliders in the Layout Mode toolbar.</span>
+      </div>
     </div>
     <div class="widget-popover-footer">
       <button type="button" class="toolbar-btn" data-popover-reset title="Reset the track's own style (not the logo or backgrounds)">↺ Reset Track</button>
@@ -610,9 +607,19 @@
           <button type="button" class="seg-btn" data-val="left" title="Anchors to the left edge and expands towards the right">Expand Right</button>
         </div>
       </div>
+
+      <!-- Background Plate (opacity / blur are shared: Layout Mode toolbar) -->
+      <div class="modal-section-title">Background Plate</div>
+      <div class="modal-row">
+        <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span>Show Background Plate</span>
+          <input type="checkbox" id="cb-bg-timers" checked style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+        </label>
+        <span style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Opacity and blur are shared by all plates: set them with the Plates sliders in the Layout Mode toolbar.</span>
+      </div>
     </div>
     <div class="widget-popover-footer">
-      <span></span>
+      <button type="button" class="toolbar-btn" data-popover-reset title="Turn the timers' background plate back on">↺ Reset Timers</button>
       <button type="button" class="toolbar-btn btn-primary" data-popover-close>Done</button>
     </div>
   </div>

@@ -41,9 +41,10 @@
 
   // Style keys each widget popover's reset restores (the rest: logo, backgrounds)
   const WIDGET_STYLE_KEYS = Object.freeze({
-    title: Object.freeze(["logoHeight"]),
+    title: Object.freeze(["logoHeight", "bgTitle"]),
+    timers: Object.freeze(["bgTimers"]),
     track: Object.freeze(["orientation", "namePos", "deltaPos", "nameFontSize", "deltaFontSize", "barHeight",
-      "dotSize", "ghostPinLength", "ghostPinSize", "pinPos", "pinLane"])
+      "dotSize", "ghostPinLength", "ghostPinSize", "pinPos", "pinLane", "bgTrack"])
   });
 
   // Pin sides map across orientations the way split names do: top <-> left, bottom <-> right

@@ -635,6 +635,8 @@
     const igtBlock = document.getElementById("block-igt");
     if (isEditMode) {
       document.body.classList.add("edit-mode");
+      // The toolbar's plate sliders show the saved style
+      getLayoutModalController()?.syncUI();
       if (rtaBlock) {
         if (!rtaBlock.dataset.origTitle && rtaBlock.title) rtaBlock.dataset.origTitle = rtaBlock.title;
         rtaBlock.removeAttribute("title");
