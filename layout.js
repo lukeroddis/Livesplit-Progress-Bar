@@ -124,8 +124,9 @@
       if (layoutState && layoutState.leaderboard) {
         localStorage.setItem(STORAGE_KEYS.LEADERBOARD_LAYOUT, JSON.stringify(layoutState.leaderboard));
       }
+      // Positions also autosave into the active profile (Default too, once it has been saved)
       const activeProf = getActiveProfileName();
-      if (activeProf && activeProf !== "Default") {
+      if (activeProf) {
         const profData = getProfileData(activeProf);
         if (profData) {
           profData.components = Object.assign({}, profData.components || {}, layoutState);

@@ -103,6 +103,25 @@
       });
     });
 
+    it("switching profiles saves the layout into the profile being loaded, not the one being left", () => {
+      withMockStorage(() => {
+        const savedWhileActive = [];
+        let engine = null;
+        engine = window.LiveSplit.LayoutProfiles.createLayoutProfiles({
+          getDefaultLayout: () => ({ title: {}, timers: {}, track: {}, leaderboard: {} }),
+          saveLayout: () => savedWhileActive.push(engine.getActiveProfileName())
+        });
+        engine.saveProfileToStorage("Mario", { version: 1, components: { timers: { x: 40, y: 500 } } });
+        engine.saveProfileToStorage("Zelda", { version: 1, components: { timers: { x: 900, y: 20 } } });
+        engine.setActiveProfileName("Mario");
+
+        engine.loadProfileByName("Zelda");
+        assertEqual(savedWhileActive, ["Zelda"], "the layout save happened with Zelda active");
+        assertEqual(engine.getActiveProfileName(), "Zelda");
+        assertEqual(engine.getProfileData("Mario").components.timers, { x: 40, y: 500 }, "Mario untouched");
+      });
+    });
+
     it("auto-detects and loads matching layout profile by game name", () => {
       withMockStorage(() => {
         let loadedProfile = null;

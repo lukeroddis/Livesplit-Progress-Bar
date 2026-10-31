@@ -157,6 +157,12 @@
         throw new Error("Invalid layout profile: expected JSON object");
       }
 
+      // 0. Switch the active profile first: applying saves the layout, and saving the layout also
+      // writes its positions into the active profile, which must be the one being loaded (not the
+      // one being left, whose positions it would overwrite)
+      const profName = saveAsName ? saveAsName.trim() : "";
+      if (profName) setActiveProfileName(profName);
+
       // 1. Components (deep merge with defaults to support older versions missing newer components or properties)
       const defLayout = getDefaultLayout();
       const newLayoutState = Object.assign({}, defLayout);
@@ -237,13 +243,7 @@
       syncTrackModalUI();
 
       // 6. Optionally save into named profiles
-      if (saveAsName) {
-        const profName = saveAsName.trim();
-        if (profName) {
-          saveProfileToStorage(profName, data);
-          setActiveProfileName(profName);
-        }
-      }
+      if (profName) saveProfileToStorage(profName, data);
 
       syncProfileUI();
     }
